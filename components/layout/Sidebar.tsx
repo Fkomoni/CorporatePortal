@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Building2,
+  FileText,
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/benefits',        label: 'Benefits',        icon: ShieldCheck },
   { href: '/finance',         label: 'Finance',         icon: CreditCard },
   { href: '/reports',         label: 'Insights',        icon: Lightbulb },
+  { href: '/claims',          label: 'Claims',          icon: FileText },
   { href: '/service-desk',    label: 'Service Desk',    icon: MessageSquare, badge: 4 },
   { href: '/administration',  label: 'Administration',  icon: Settings },
 ];
@@ -30,6 +32,7 @@ export function Sidebar() {
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-[220px] flex flex-col z-40 bg-white border-r border-[#F0F1F5]">
+      {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-[18px] border-b border-[#F0F1F5]">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -43,6 +46,7 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Client chip */}
       <div className="mx-3 mt-3 mb-1 rounded-lg px-3 py-2 bg-[#F7F8FA] border border-[#F0F1F5]">
         <div className="flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5 text-[#9CA3B8] flex-shrink-0" />
@@ -53,6 +57,7 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 px-2 py-3 overflow-y-auto">
         <div className="flex flex-col gap-0.5">
           {navItems.map((item) => {
@@ -86,6 +91,7 @@ export function Sidebar() {
         </div>
       </nav>
 
+      {/* Footer */}
       <div className="px-3 py-3 border-t border-[#F0F1F5]">
         <div className="flex items-center gap-2.5">
           <div

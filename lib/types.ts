@@ -105,3 +105,18 @@ export interface TopProvider {
   visits: number;
   spend: number;
 }
+
+export interface Claim {
+  id: string;
+  claimRef: string;
+  memberName: string;
+  employeeId: string;
+  plan: 'Gold Plus' | 'Silver' | 'Bronze';
+  provider: string;
+  category: 'Outpatient' | 'Inpatient' | 'Dental' | 'Optical' | 'Maternity' | 'Emergency';
+  diagnosis: string;
+  amount: number;
+  status: 'Paid' | 'Processing' | 'Queried' | 'Rejected';
+  submittedDate: string;
+  settledDate?: string;
+}
