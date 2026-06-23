@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, CheckCircle2, Clock, Circle } from 'lucide-react';
+import { Download, CheckCircle2, Clock, Circle, FileText } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockInvoices } from '@/lib/mock-data';
 
@@ -24,8 +24,10 @@ export default function FinancePage() {
   return (
     <div className="flex flex-col min-h-full bg-[#FAFBFC]">
       <TopBar title="Finance" subtitle="Invoices · Receipts · Statement of Account" />
+
       <div className="p-6 flex flex-col gap-5">
 
+        {/* INVOICE HEALTH */}
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed',  color: '#131C4E' },
@@ -40,59 +42,87 @@ export default function FinancePage() {
           ))}
         </div>
 
+        {/* PAYMENT TIMELINE */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
           <p className="text-[14px] font-bold text-[#131C4E] mb-1">Payment Timeline</p>
           <p className="text-[11px] text-[#9CA3B8] mb-5">INV-2026-0042 · June 2026 Premium</p>
-          <div className="flex items-center">
+          <div className="flex items-center gap-0">
             {paymentSteps.map((step, i) => (
               <div key={step.label} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: step.done ? '#ECFDF5' : step.current ? '#FFF1E6' : '#F0F1F5' }}>
-                    {step.done ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : step.current ? <Clock className="w-4 h-4 text-[#F56B22]" /> : <Circle className="w-4 h-4 text-[#9CA3B8]" />}
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ background: step.done ? '#ECFDF5' : step.current ? '#FFF1E6' : '#F0F1F5' }}
+                  >
+                    {step.done
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      : step.current
+                        ? <Clock className="w-4 h-4 text-[#F56B22]" />
+                        : <Circle className="w-4 h-4 text-[#9CA3B8]" />
+                    }
                   </div>
-                  <p className="text-[11px] font-semibold mt-2 text-center" style={{ color: step.done ? '#059669' : step.current ? '#F56B22' : '#9CA3B8' }}>{step.label}</p>
+                  <p className="text-[11px] font-semibold mt-2 text-center"
+                    style={{ color: step.done ? '#059669' : step.current ? '#F56B22' : '#9CA3B8' }}>
+                    {step.label}
+                  </p>
                 </div>
-                {i < paymentSteps.length - 1 && <div className="flex-1 h-px mx-2 mb-5" style={{ background: step.done ? '#10B981' : '#E5E7F1' }} />}
+                {i < paymentSteps.length - 1 && (
+                  <div className="flex-1 h-px mx-2 mb-5" style={{ background: step.done ? '#10B981' : '#E5E7F1' }} />
+                )}
               </div>
             ))}
           </div>
         </div>
 
+        {/* TABS */}
         <div className="flex gap-1 bg-white rounded-xl p-1 border border-[#F0F1F5] shadow-sm w-fit">
           {(['invoices', 'receipts', 'statement'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-[13px] font-semibold capitalize transition-all ${activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'}`}
+              className={`px-5 py-2 rounded-lg text-[13px] font-semibold capitalize transition-all ${
+                activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'
+              }`}
               style={activeTab === tab ? { background: '#131C4E' } : {}}>
               {tab === 'statement' ? 'Statement' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
 
+        {/* INVOICE TABLE */}
         {activeTab === 'invoices' && (
           <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F1F5]">
               <p className="text-[14px] font-bold text-[#131C4E]">Invoice List</p>
               <div className="flex gap-2">
-                <button className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-[#F7F8FA]"><Download className="w-3.5 h-3.5" /> Export PDF</button>
-                <button className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-[#F7F8FA]"><Download className="w-3.5 h-3.5" /> Export Excel</button>
+                <button className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-[#F7F8FA]">
+                  <Download className="w-3.5 h-3.5" /> Export PDF
+                </button>
+                <button className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-[#F7F8FA]">
+                  <Download className="w-3.5 h-3.5" /> Export Excel
+                </button>
               </div>
             </div>
             <div className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]"
               style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 80px' }}>
-              {['Invoice No.', 'Date', 'Due Date', 'Description', 'Amount', 'Status', ''].map((h) => <span key={h}>{h}</span>)}
+              <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
+              <span>Amount</span><span>Status</span><span></span>
             </div>
             {mockInvoices.map((inv) => {
               const s = statusColors[inv.status] ?? { bg: '#F1F5F9', text: '#475569' };
               return (
-                <div key={inv.id} className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC]"
+                <div key={inv.id}
+                  className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
                   style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 80px' }}>
                   <span className="text-[13px] font-bold text-[#131C4E]">{inv.invoiceNo}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[12px] text-[#6B7280] truncate pr-4">{inv.description}</span>
                   <span className="text-[13px] font-bold text-[#131C4E]">₦{inv.amount.toLocaleString()}</span>
-                  <span className="inline-flex px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>{inv.status}</span>
-                  <button className="flex items-center gap-1 text-[11px] font-semibold text-[#F56B22]"><Download className="w-3 h-3" /> PDF</button>
+                  <span className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
+                    {inv.status}
+                  </span>
+                  <button className="flex items-center gap-1 text-[11px] font-semibold text-[#F56B22]">
+                    <Download className="w-3 h-3" /> PDF
+                  </button>
                 </div>
               );
             })}
@@ -100,8 +130,20 @@ export default function FinancePage() {
         )}
 
         {activeTab !== 'invoices' && (
-          <div className="bg-white rounded-2xl p-12 shadow-sm border border-[#F0F1F5] text-center text-[#9CA3B8] text-[13px]">
-            {activeTab === 'receipts' ? 'Receipt repository coming soon.' : 'Statement of account coming soon.'}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] py-20 flex flex-col items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#F7F8FA] border border-[#F0F1F5] flex items-center justify-center">
+              <FileText className="w-6 h-6 text-[#9CA3B8]" />
+            </div>
+            <div className="text-center">
+              <p className="text-[15px] font-bold text-[#131C4E]">
+                {activeTab === 'receipts' ? 'No receipts yet' : 'Statement unavailable'}
+              </p>
+              <p className="text-[13px] text-[#9CA3B8] mt-1">
+                {activeTab === 'receipts'
+                  ? 'Receipts will appear here once payments are confirmed by Leadway.'
+                  : 'Your full statement of account will be available here soon.'}
+              </p>
+            </div>
           </div>
         )}
       </div>

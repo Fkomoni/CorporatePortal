@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Paperclip } from 'lucide-react';
+import { Plus, Paperclip, Search, MessageSquare } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockTickets } from '@/lib/mock-data';
 import { useToast } from '@/components/ui/Toast';
@@ -21,13 +21,12 @@ const slaColors: Record<string, { bg: string; text: string }> = {
 };
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
-  'Member Addition': { bg: '#EFF6FF', text: '#2563EB' },
-  'Member Removal':  { bg: '#FEF2F2', text: '#DC2626' },
-  'Claims Query':    { bg: '#FFF7ED', text: '#C2410C' },
-  'E-Card Request':  { bg: '#F0FDFD', text: '#0E7490' },
-  'Benefit Query':   { bg: '#EEF2FF', text: '#3730A3' },
-  'Provider Issue':  { bg: '#FFF1F2', text: '#BE123C' },
-  'General Enquiry': { bg: '#F1F5F9', text: '#475569' },
+  'Enrolment': { bg: '#EFF6FF', text: '#2563EB' },
+  'Claims':    { bg: '#FFF7ED', text: '#C2410C' },
+  'Benefits':  { bg: '#EEF2FF', text: '#3730A3' },
+  'General':   { bg: '#F1F5F9', text: '#475569' },
+  'Billing':   { bg: '#FFFBEB', text: '#D97706' },
+  'Provider':  { bg: '#FFF1F2', text: '#BE123C' },
 };
 
 const mockSLA = ['Within SLA', 'Within SLA', 'Near SLA', 'Within SLA', 'Breached', 'Within SLA', 'Near SLA', 'Closed'];
@@ -42,7 +41,13 @@ const summaryItems = [
 
 export default function ServiceDeskPage() {
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
   const { toast } = useToast();
+
+  const filtered = mockTickets.filter((t) => {
+    const q = search.toLowerCase();
+    return !q || t.ticketId.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
+  });
 
   function handleSubmit() {
     setShowForm(false);
@@ -64,6 +69,13 @@ export default function ServiceDeskPage() {
             </div>
           ))}
           <div className="flex-1" />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
+            <input
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tickets..."
+              className="h-10 pl-9 pr-3 w-[220px] text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] placeholder:text-[#9CA3B8] outline-none focus:border-[#F56B22] transition-colors" />
+          </div>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 h-10 px-5 text-[13px] font-semibold text-white rounded-xl"
@@ -79,9 +91,9 @@ export default function ServiceDeskPage() {
             <span>Ticket ID</span><span>Subject</span><span>Category</span>
             <span>Status</span><span>SLA</span><span>Submitted</span><span>Updated</span>
           </div>
-          {mockTickets.map((t, i) => {
-            const s   = statusColors[t.status]   ?? statusColors['Closed'];
-            const cat = categoryColors[t.category] ?? categoryColors['General Enquiry'];
+          {filtered.map((t, i) => {
+            const s   = statusColors[t.status]    ?? statusColors['Closed'];
+            const cat = categoryColors[t.category] ?? categoryColors['General'];
             const sla = slaColors[mockSLA[i] ?? 'Within SLA'] ?? slaColors['Within SLA'];
             return (
               <div key={t.id}
@@ -104,6 +116,18 @@ export default function ServiceDeskPage() {
               </div>
             );
           })}
+
+          {filtered.length === 0 && (
+            <div className="py-16 flex flex-col items-center gap-3 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#F7F8FA] flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-[#9CA3B8]" />
+              </div>
+              <div>
+                <p className="text-[14px] font-semibold text-[#131C4E]">No tickets found</p>
+                <p className="text-[12px] text-[#9CA3B8] mt-0.5">Try adjusting your search term</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* CREATE FORM */}
