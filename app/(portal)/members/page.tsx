@@ -9,6 +9,7 @@ import {
 import { TopBar } from '@/components/layout/TopBar';
 import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
+import { useToast } from '@/components/ui/Toast';
 
 const planColors: Record<string, { bg: string; text: string }> = {
   'Gold Plus': { bg: '#FFFBEB', text: '#D97706' },
@@ -47,6 +48,7 @@ const mockClaimHistory = [
 
 function Member360Drawer({ member, index, onClose }: { member: Member; index: number; onClose: () => void }) {
   const [drawerTab, setDrawerTab] = useState<'overview' | 'claims' | 'benefits'>('overview');
+  const { toast } = useToast();
   const plan   = planColors[member.plan]   ?? { bg: '#F1F5F9', text: '#475569' };
   const status = statusColors[member.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
   const grad   = avatarGradients[index % avatarGradients.length];
@@ -258,13 +260,13 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
 
         {/* Footer actions */}
         <div className="flex gap-2 px-5 py-4 border-t border-[#F0F1F5] flex-shrink-0">
-          <button className="flex-1 h-9 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors">
+          <button onClick={() => toast('Member record opened for editing.')} className="flex-1 h-9 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors">
             Edit Member
           </button>
-          <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors">
+          <button onClick={() => toast('E-Card sent to member\'s email.')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors">
             <CreditCard className="w-3.5 h-3.5" /> E-Card
           </button>
-          <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl transition-colors" style={{ background: '#EF4444' }}>
+          <button onClick={() => { toast('Termination request submitted for review.', 'error'); onClose(); }} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl transition-colors" style={{ background: '#EF4444' }}>
             <AlertCircle className="w-3.5 h-3.5" /> Terminate
           </button>
         </div>
@@ -281,6 +283,7 @@ export default function MembersPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [activeMember, setActiveMember] = useState<{ member: Member; index: number } | null>(null);
+  const { toast } = useToast();
 
   const filtered = mockMembers.filter((m) => {
     const q = search.toLowerCase();
@@ -325,13 +328,13 @@ export default function MembersPage() {
               <option>Active</option><option>Pending</option><option>Terminated</option>
             </select>
             <div className="flex-1" />
-            <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
+            <button onClick={() => toast('Upload your Census CSV to bulk-enrol members.', 'info')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
               <Upload className="w-3.5 h-3.5" /> Bulk Upload
             </button>
-            <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
+            <button onClick={() => toast('Member list exported to Excel.')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
               <Download className="w-3.5 h-3.5" /> Export
             </button>
-            <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>
+            <button onClick={() => toast('Add Member form coming soon.', 'info')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>
               <Plus className="w-3.5 h-3.5" /> Add Member
             </button>
           </div>

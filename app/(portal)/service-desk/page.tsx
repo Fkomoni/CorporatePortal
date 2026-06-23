@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { Plus, Paperclip } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockTickets } from '@/lib/mock-data';
+import { useToast } from '@/components/ui/Toast';
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-  'Open':            { bg: '#FEF2F2', text: '#DC2626',  dot: '#EF4444' },
-  'In Progress':     { bg: '#FFFBEB', text: '#D97706',  dot: '#F59E0B' },
-  'Awaiting Client': { bg: '#EFF6FF', text: '#2563EB',  dot: '#3B82F6' },
-  'Awaiting Leadway':{ bg: '#F5F3FF', text: '#7C3AED',  dot: '#8B5CF6' },
-  'Closed':          { bg: '#F1F5F9', text: '#475569',  dot: '#94A3B8' },
+  'Open':           { bg: '#FEF2F2', text: '#DC2626',  dot: '#EF4444' },
+  'In Progress':    { bg: '#FFFBEB', text: '#D97706',  dot: '#F59E0B' },
+  'Awaiting Client':{ bg: '#EFF6FF', text: '#2563EB',  dot: '#3B82F6' },
+  'Awaiting Leadway':{ bg: '#F5F3FF', text: '#7C3AED', dot: '#8B5CF6' },
+  'Closed':         { bg: '#F1F5F9', text: '#475569',  dot: '#94A3B8' },
 };
 
 const slaColors: Record<string, { bg: string; text: string }> = {
@@ -20,15 +21,16 @@ const slaColors: Record<string, { bg: string; text: string }> = {
 };
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
-  'Enrolment':    { bg: '#EFF6FF', text: '#2563EB' },
-  'Claims':       { bg: '#FFF7ED', text: '#C2410C' },
-  'Benefits':     { bg: '#EEF2FF', text: '#3730A3' },
-  'General':      { bg: '#F1F5F9', text: '#475569' },
-  'Billing':      { bg: '#F0FDFD', text: '#0E7490' },
-  'Provider':     { bg: '#FFF1F2', text: '#BE123C' },
+  'Member Addition': { bg: '#EFF6FF', text: '#2563EB' },
+  'Member Removal':  { bg: '#FEF2F2', text: '#DC2626' },
+  'Claims Query':    { bg: '#FFF7ED', text: '#C2410C' },
+  'E-Card Request':  { bg: '#F0FDFD', text: '#0E7490' },
+  'Benefit Query':   { bg: '#EEF2FF', text: '#3730A3' },
+  'Provider Issue':  { bg: '#FFF1F2', text: '#BE123C' },
+  'General Enquiry': { bg: '#F1F5F9', text: '#475569' },
 };
 
-const mockSLA = ['Within SLA', 'Within SLA', 'Near SLA', 'Within SLA', 'Breached', 'Within SLA', 'Near SLA', 'Within SLA'];
+const mockSLA = ['Within SLA', 'Within SLA', 'Near SLA', 'Within SLA', 'Breached', 'Within SLA', 'Near SLA', 'Closed'];
 
 const summaryItems = [
   { label: 'Open',             value: 4,  color: '#EF4444' },
@@ -40,12 +42,20 @@ const summaryItems = [
 
 export default function ServiceDeskPage() {
   const [showForm, setShowForm] = useState(false);
+  const { toast } = useToast();
+
+  function handleSubmit() {
+    setShowForm(false);
+    toast('Request submitted — our team will respond within 24 hours.');
+  }
 
   return (
     <div className="flex flex-col min-h-full bg-[#FAFBFC]">
       <TopBar title="Service Desk" subtitle="Ticket Management · SLA Tracking" />
+
       <div className="p-6 flex flex-col gap-5">
 
+        {/* SUMMARY + ACTION */}
         <div className="flex items-center gap-4">
           {summaryItems.map((s) => (
             <div key={s.label} className="bg-white rounded-2xl px-5 py-3 shadow-sm border border-[#F0F1F5] text-center min-w-[90px]">
@@ -54,30 +64,41 @@ export default function ServiceDeskPage() {
             </div>
           ))}
           <div className="flex-1" />
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 h-10 px-5 text-[13px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 h-10 px-5 text-[13px] font-semibold text-white rounded-xl"
+            style={{ background: '#F56B22' }}>
             <Plus className="w-4 h-4" /> New Request
           </button>
         </div>
 
+        {/* TICKET TABLE */}
         <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
           <div className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
             style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px' }}>
-            {['Ticket ID', 'Subject', 'Category', 'Status', 'SLA', 'Submitted', 'Updated'].map((h) => <span key={h}>{h}</span>)}
+            <span>Ticket ID</span><span>Subject</span><span>Category</span>
+            <span>Status</span><span>SLA</span><span>Submitted</span><span>Updated</span>
           </div>
           {mockTickets.map((t, i) => {
-            const s   = statusColors[t.status] ?? statusColors['Closed'];
-            const cat = categoryColors[t.category] ?? { bg: '#F1F5F9', text: '#475569' };
-            const sla = slaColors[mockSLA[i] ?? 'Within SLA'];
+            const s   = statusColors[t.status]   ?? statusColors['Closed'];
+            const cat = categoryColors[t.category] ?? categoryColors['General Enquiry'];
+            const sla = slaColors[mockSLA[i] ?? 'Within SLA'] ?? slaColors['Within SLA'];
             return (
-              <div key={t.id} className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer"
+              <div key={t.id}
+                className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
                 style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px' }}>
                 <span className="text-[12px] font-bold text-[#F56B22]">{t.ticketId}</span>
                 <span className="text-[13px] font-semibold text-[#131C4E] truncate pr-4">{t.subject}</span>
-                <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{t.category}</span>
-                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />{t.status}
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>
+                  {t.category}
                 </span>
-                <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: sla.bg, color: sla.text }}>{mockSLA[i]}</span>
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+                  {t.status}
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: sla.bg, color: sla.text }}>
+                  {mockSLA[i]}
+                </span>
                 <span className="text-[11px] text-[#9CA3B8]">{new Date(t.submittedDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short' })}</span>
                 <span className="text-[11px] text-[#9CA3B8]">{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day:'2-digit', month:'short' })}</span>
               </div>
@@ -85,6 +106,7 @@ export default function ServiceDeskPage() {
           })}
         </div>
 
+        {/* CREATE FORM */}
         {showForm && (
           <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
@@ -119,7 +141,7 @@ export default function ServiceDeskPage() {
               </div>
               <div className="flex gap-3 px-6 py-4 border-t border-[#F0F1F5]">
                 <button onClick={() => setShowForm(false)} className="flex-1 h-10 text-[13px] font-medium text-[#6B7280] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">Cancel</button>
-                <button className="flex-1 h-10 text-[13px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>Submit Request</button>
+                <button onClick={handleSubmit} className="flex-1 h-10 text-[13px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>Submit Request</button>
               </div>
             </div>
           </div>
