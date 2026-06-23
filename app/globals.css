@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --orange: #F56B22;
+  --orange-600: #E25A12;
+  --orange-700: #C84A05;
+  --orange-50: #FFF1E6;
+  --orange-100: #FEE2CB;
+  --yellow: #FFB54B;
+  --yellow-50: #FFF6E5;
+  --navy: #131C4E;
+  --navy-700: #1F2960;
+  --navy-500: #3A4382;
+  --navy-100: #E5E7F1;
+  --navy-50: #F1F2F8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--navy-50);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--navy-50);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--navy-100);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--navy-500);
+}
