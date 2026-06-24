@@ -78,10 +78,8 @@ export default function AdministrationPage() {
               {roleCards.map((r) => {
                 const c = roleColors[r.role] ?? roleColors['Viewer'];
                 return (
-                  <div key={r.role} style={{ ...card, padding: '22px 24px' }}>
-                    <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: c.bg, color: c.text, border: `1px solid ${c.border}`, marginBottom: 10 }}>
-                      {r.role}
-                    </span>
+                  <div key={r.role} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${c.text}` }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>{r.role}</p>
                     <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.6 }}>{r.desc}</p>
                   </div>
                 );
