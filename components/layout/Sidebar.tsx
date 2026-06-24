@@ -114,15 +114,14 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-4"
-        style={{ paddingTop: 14, paddingBottom: 14, borderBottom: '1px solid #EDEEF2' }}
+        style={{ padding: '16px 20px 16px', borderBottom: '1px solid #EDEEF2' }}
       >
         <Image
           src="/leadway-logo.jpeg"
           alt="Leadway Health"
-          width={160}
-          height={56}
-          style={{ objectFit: 'contain', objectPosition: 'left center', height: 52, width: 'auto' }}
+          width={400}
+          height={120}
+          style={{ objectFit: 'contain', objectPosition: 'left center', width: '100%', height: 'auto', maxHeight: 64, display: 'block' }}
           priority
         />
       </div>

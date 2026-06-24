@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Download, Filter, TrendingUp, Clock, XCircle } from 'lucide-react';
+import { Search, ArrowDownToLine, Filter, TrendingUp, Clock, XCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockClaims, mockMembers } from '@/lib/mock-data';
 
@@ -114,9 +114,14 @@ export default function ClaimsPage() {
             <div className="text-[12px] font-semibold text-[#131C4E] px-3 py-1.5 bg-[#F7F8FA] rounded-lg border border-[#E5E7F1]">
               {fmt(filteredTotal)} total
             </div>
-            <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
-              <Download className="w-3.5 h-3.5" /> Export
-            </button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
+              </button>
+              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
+              </button>
+            </div>
           </div>
         </div>
 
@@ -124,9 +129,10 @@ export default function ClaimsPage() {
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div
             className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-            style={{ gridTemplateColumns: '110px 160px 170px 160px 100px 110px 100px 90px', columnGap: 10 }}>
+            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10 }}>
             <span>Ref</span>
             <span>Member</span>
+            <span>Enrolee ID</span>
             <span>Diagnosis</span>
             <span>Provider</span>
             <span>Category</span>
@@ -144,12 +150,10 @@ export default function ClaimsPage() {
               <div
                 key={c.id}
                 className="grid items-center px-5 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                style={{ gridTemplateColumns: '110px 160px 170px 160px 100px 110px 100px 90px', columnGap: 10 }}>
+                style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10 }}>
                 <span className="text-[12px] font-bold text-[#F56B22] font-mono">{c.claimRef}</span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</p>
-                  <p className="text-[11px] text-[#9CA3B8] font-mono mt-0.5">{enroleeId}</p>
-                </div>
+                <span className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</span>
+                <span className="text-[11px] text-[#9CA3B8] font-mono">{enroleeId}</span>
                 <span className="text-[12px] text-[#6B7280] truncate">{c.diagnosis}</span>
                 <span className="text-[12px] text-[#6B7280] truncate">{c.provider}</span>
                 <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
