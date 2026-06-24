@@ -99,62 +99,21 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
             {[
-              {
-                Icon: UserPlus,
-                iconColor: '#EF4444',
-                iconBg: '#FEF2F2',
-                border: '#EF4444',
-                title: '12 Employees Awaiting Enrolment',
-                action: 'Review →',
-                actionColor: '#EF4444',
-              },
-              {
-                Icon: UserMinus,
-                iconColor: '#F97316',
-                iconBg: '#FFF7ED',
-                border: '#F97316',
-                title: '3 Terminations Pending Approval',
-                action: 'Approve →',
-                actionColor: '#F97316',
-              },
-              {
-                Icon: Receipt,
-                iconColor: '#D97706',
-                iconBg: '#FFFBEB',
-                border: '#10B981',
-                title: 'Invoice Due In 7 Days — ₦10.5M',
-                action: 'View Invoice →',
-                actionColor: '#F97316',
-              },
+              { Icon: UserPlus,  border: '#EF4444', urgency: 'Urgent',        title: '12 Employees Awaiting Enrolment',  action: 'Review →',       actionColor: '#EF4444' },
+              { Icon: UserMinus, border: '#F97316', urgency: 'Action needed', title: '3 Terminations Pending Approval',  action: 'Approve →',      actionColor: '#F97316' },
+              { Icon: Receipt,   border: '#10B981', urgency: 'Due soon',      title: 'Invoice Due In 7 Days — ₦10.5M',   action: 'View Invoice →', actionColor: '#10B981' },
             ].map((item) => {
               const Icon = item.Icon;
               return (
                 <div
                   key={item.title}
-                  style={{
-                    paddingLeft: 18,
-                    paddingRight: 18,
-                    paddingTop: 18,
-                    paddingBottom: 18,
-                    background: '#FAFAFA',
-                    borderRadius: '0 12px 12px 0',
-                    border: `1px solid #EDEEF2`,
-                    borderLeft: `4px solid ${item.border}`,
-                  }}
+                  style={{ padding: 18, background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `4px solid ${item.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
                 >
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 8,
-                      background: item.iconBg,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: 14,
-                    }}
-                  >
-                    <Icon style={{ width: 18, height: 18, color: item.iconColor }} strokeWidth={2} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F8FC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon style={{ width: 17, height: 17, color: '#6B7480' }} strokeWidth={1.75} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: item.actionColor, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{item.urgency}</span>
                   </div>
                   <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', lineHeight: 1.4, marginBottom: 12 }}>{item.title}</p>
                   <button style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
