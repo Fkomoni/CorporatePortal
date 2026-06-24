@@ -59,27 +59,27 @@ export default function ClaimsPage() {
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0);
 
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Claims" subtitle="Claims Register · Spend Analysis" />
 
-      <div className="p-6 flex flex-col gap-5">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* SUMMARY STRIP */}
-        <div className="grid grid-cols-4 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {summaryCards.map((s) => (
-            <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest">{s.label}</p>
+            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500 }}>{s.label}</p>
                 <s.Icon className="w-4 h-4" style={{ color: s.color }} strokeWidth={1.75} />
               </div>
-              <p className="text-[28px] font-black tracking-tight leading-none mb-1" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-[11px] text-[#9CA3B8]">{s.sub}</p>
+              <p style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: s.color }}>{s.value}</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
             </div>
           ))}
         </div>
 
         {/* TOOLBAR */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0F1F5]">
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 16 }}>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
@@ -111,7 +111,7 @@ export default function ClaimsPage() {
         </div>
 
         {/* CLAIMS TABLE */}
-        <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div
             className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
             style={{ gridTemplateColumns: '130px 1fr 160px 110px 120px 100px 110px 110px' }}>

@@ -55,17 +55,17 @@ export default function ServiceDeskPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Service Desk" subtitle="Ticket Management · SLA Tracking" />
 
-      <div className="p-6 flex flex-col gap-5">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* SUMMARY + ACTION */}
-        <div className="flex items-center gap-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {summaryItems.map((s) => (
-            <div key={s.label} className="bg-white rounded-2xl px-5 py-3 shadow-sm border border-[#F0F1F5] text-center min-w-[90px]">
-              <p className="text-[24px] font-black leading-none" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-[10px] font-semibold text-[#9CA3B8] mt-1">{s.label}</p>
+            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '18px 24px', textAlign: 'center', minWidth: 100 }}>
+              <p style={{ fontSize: 28, fontWeight: 900, lineHeight: 1, color: s.color, letterSpacing: '-0.03em' }}>{s.value}</p>
+              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8', marginTop: 6 }}>{s.label}</p>
             </div>
           ))}
           <div className="flex-1" />
@@ -85,7 +85,7 @@ export default function ServiceDeskPage() {
         </div>
 
         {/* TICKET TABLE */}
-        <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
             style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px' }}>
             <span>Ticket ID</span><span>Subject</span><span>Category</span>

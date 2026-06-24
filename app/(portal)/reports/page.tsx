@@ -18,10 +18,10 @@ export default function ReportsPage() {
   const [plan, setPlan] = useState('');
 
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Insights" subtitle="Reports &amp; Analytics" />
-      <div className="p-6 flex flex-col gap-5">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0F1F5]">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 20 }}>
           <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-3">Filter Reports</p>
           <div className="flex items-end gap-3 flex-wrap">
             <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">From</p><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]" /></div>
@@ -35,7 +35,7 @@ export default function ReportsPage() {
           {reports.map((r) => {
             const Icon = r.icon;
             return (
-              <div key={r.id} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5] flex items-center gap-5">
+              <div key={r.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 20 }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#F1F2F8]"><Icon className="w-5 h-5 text-[#3A4382]" strokeWidth={1.75} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-bold text-[#131C4E]">{r.title}</p>
