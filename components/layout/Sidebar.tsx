@@ -113,15 +113,13 @@ export function Sidebar() {
       style={{ background: '#fff', borderRight: '1px solid #EDEEF2' }}
     >
       {/* Logo */}
-      <div
-        style={{ padding: '16px 20px 16px', borderBottom: '1px solid #EDEEF2' }}
-      >
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #EDEEF2' }}>
         <Image
           src="/leadway-logo.jpeg"
           alt="Leadway Health"
           width={400}
           height={120}
-          style={{ objectFit: 'contain', objectPosition: 'left center', width: '100%', height: 'auto', maxHeight: 64, display: 'block' }}
+          style={{ objectFit: 'contain', objectPosition: 'left center', width: '100%', height: 'auto', maxHeight: 72, display: 'block' }}
           priority
         />
       </div>

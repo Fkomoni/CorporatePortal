@@ -64,74 +64,76 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
         onClick={onClose}
       />
 
-      <div className="fixed top-0 right-0 h-screen w-[420px] bg-white z-50 flex flex-col shadow-2xl overflow-hidden">
+      <div style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 440, background: '#fff', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
 
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#F0F1F5] flex-shrink-0">
-          <p className="text-[13px] font-bold text-[#131C4E]">Member 360</p>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#F7F8FA] text-[#9CA3B8] hover:text-[#131C4E] transition-colors">
-            <X className="w-4 h-4" />
+        {/* Header bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Member 360</p>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: '#9CA3B8' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#F7F8FA'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
-        <div className="px-6 py-5 border-b border-[#F0F1F5] flex-shrink-0">
-          <div className="flex items-center gap-4 mb-4">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-[18px] flex-shrink-0"
-              style={{ background: grad }}
-            >
+        {/* Profile section */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, background: grad }}>
               {member.firstName[0]}{member.lastName[0]}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[18px] font-extrabold text-[#131C4E] leading-tight">{member.firstName} {member.lastName}</p>
-              <p className="text-[11px] text-[#9CA3B8] mt-0.5 font-mono">{getEnroleeId(member.employeeId, member.type)}</p>
-              <p className="text-[11px] text-[#B8BFD0] mt-0.5">{member.employeeId} · {member.type}</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="inline-flex px-2 py-0.5 rounded-lg text-[11px] font-bold" style={{ background: plan.bg, color: plan.text }}>{member.plan}</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold" style={{ background: status.bg, color: status.text }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.dot }} />{member.status}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, background: '#F1F2F8', color: '#3A4382', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{member.employeeId}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, background: '#FFF3E8', color: '#F56B22', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{getEnroleeId(member.employeeId, member.type)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: plan.bg, color: plan.text }}>{member.plan}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: status.bg, color: status.text }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: status.dot }} />{member.status}
                 </span>
+                <span style={{ fontSize: 11, color: '#B8BFD0' }}>{member.type}</span>
               </div>
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-[12px] text-[#6B7280]">
-              <Phone className="w-3.5 h-3.5 text-[#9CA3B8] flex-shrink-0" />{member.phone}
-            </div>
-            <div className="flex items-center gap-2 text-[12px] text-[#6B7280]">
-              <Mail className="w-3.5 h-3.5 text-[#9CA3B8] flex-shrink-0" />{member.email}
-            </div>
-            <div className="flex items-center gap-2 text-[12px] text-[#6B7280]">
-              <MapPin className="w-3.5 h-3.5 text-[#9CA3B8] flex-shrink-0" />{member.location}
-            </div>
-            <div className="flex items-center gap-2 text-[12px] text-[#6B7280]">
-              <Calendar className="w-3.5 h-3.5 text-[#9CA3B8] flex-shrink-0" />
-              Enrolled {new Date(member.enrollmentDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'long', year: 'numeric' })}
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px' }}>
+            {[
+              { Icon: Phone,    value: member.phone },
+              { Icon: Mail,     value: member.email },
+              { Icon: MapPin,   value: member.location },
+              { Icon: Calendar, value: `Enrolled ${new Date(member.enrollmentDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}` },
+            ].map(({ Icon, value }) => (
+              <div key={value} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <Icon style={{ width: 12, height: 12, color: '#C4C9D9', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 border-b border-[#F0F1F5] flex-shrink-0">
+        {/* KPI strip */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           {[
-            { label: 'Dependants',   value: member.dependants ?? 0, Icon: Users,       color: '#3A4382' },
-            { label: 'Claims YTD',   value: '4',                    Icon: Activity,    color: '#F56B22' },
-            { label: 'Utilization',  value: '74%',                  Icon: ShieldCheck, color: '#10B981' },
+            { label: 'Dependants',  value: member.dependants ?? 0, Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
+            { label: 'Claims YTD',  value: '4',                    Icon: Activity,    color: '#F56B22', bg: '#FFF3E8' },
+            { label: 'Utilization', value: '74%',                  Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
           ].map((k) => (
-            <div key={k.label} className="flex flex-col items-center py-4 border-r border-[#F0F1F5] last:border-0">
-              <k.Icon className="w-4 h-4 mb-1.5" style={{ color: k.color }} strokeWidth={1.75} />
-              <p className="text-[20px] font-black text-[#131C4E] leading-none">{k.value}</p>
-              <p className="text-[10px] text-[#9CA3B8] font-medium mt-0.5">{k.label}</p>
+            <div key={k.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRight: '1px solid #F0F1F5' }} className="last:border-r-0">
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                <k.Icon style={{ width: 14, height: 14, color: k.color }} strokeWidth={1.75} />
+              </div>
+              <p style={{ fontSize: 20, fontWeight: 900, color: '#131C4E', lineHeight: 1, letterSpacing: '-0.02em' }}>{k.value}</p>
+              <p style={{ fontSize: 10, color: '#9CA3B8', fontWeight: 500, marginTop: 3 }}>{k.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="flex border-b border-[#F0F1F5] flex-shrink-0">
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           {(['overview', 'claims', 'benefits'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setDrawerTab(tab)}
-              className={`flex-1 py-3 text-[12px] font-semibold capitalize transition-colors border-b-2 ${drawerTab === tab ? 'text-[#F56B22] border-[#F56B22]' : 'text-[#9CA3B8] border-transparent hover:text-[#131C4E]'}`}
-            >
+            <button key={tab} onClick={() => setDrawerTab(tab)}
+              style={{ flex: 1, padding: '12px 0', fontSize: 12, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: drawerTab === tab ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${drawerTab === tab ? '#F56B22' : 'transparent'}` }}>
               {tab === 'overview' ? 'Overview' : tab === 'claims' ? 'Claim History' : 'Benefits'}
             </button>
           ))}
@@ -307,61 +309,65 @@ export default function MembersPage() {
           ))}
         </div>
 
-        <div style={{ ...card, padding: '14px 20px' }}>
-          <div className="flex items-center gap-3">
-            <div className="relative" style={{ flex: '1 1 320px', maxWidth: 480 }}>
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B8BFD0]" />
+        <div style={{ ...card, padding: '16px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Search */}
+            <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 440 }}>
+              <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#C4C9D9' }} />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, ID, or phone..."
-                className="w-full h-10 pl-10 pr-4 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] placeholder:text-[#B8BFD0] outline-none focus:border-[#F56B22] transition-colors"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} />
+                style={{ width: '100%', height: 42, paddingLeft: 44, paddingRight: 16, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', boxSizing: 'border-box' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
             </div>
-            <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
-              className="h-10 px-3 pr-8 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] outline-none focus:border-[#F56B22] transition-colors cursor-pointer"
-              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
-              <option value="">All Plans</option>
-              <option>Gold Plus</option><option>Silver</option><option>Bronze</option>
-            </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 px-3 pr-8 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] outline-none focus:border-[#F56B22] transition-colors cursor-pointer"
-              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
-              <option value="">All Status</option>
-              <option>Active</option><option>Pending</option><option>Terminated</option>
-            </select>
+            {/* Filters */}
+            {[
+              { value: planFilter,   setter: setPlanFilter,   options: ['All Plans','Gold Plus','Silver','Bronze'] },
+              { value: statusFilter, setter: setStatusFilter, options: ['All Status','Active','Pending','Terminated'] },
+            ].map(({ value, setter, options }) => (
+              <select key={options[0]} value={value} onChange={(e) => setter(e.target.value)}
+                style={{ height: 42, padding: '0 34px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                {options.map((o) => <option key={o} value={o === options[0] ? '' : o}>{o}</option>)}
+              </select>
+            ))}
             <div style={{ flex: 1 }} />
-            <div className="flex items-center gap-2">
-              <button onClick={() => toast('Upload your Census CSV to bulk-enrol members.', 'info')}
-                className="flex items-center gap-2 h-10 px-4 text-[13px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-                <Upload className="w-4 h-4" /> Bulk Upload
-              </button>
-              <button onClick={() => toast('Member list exported to Excel.')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
-                <ArrowDownToLine style={{ width: 14, height: 14 }} /> Export XLS
-              </button>
-              <button onClick={() => toast('Add Member form coming soon.', 'info')}
-                className="flex items-center gap-2 h-10 px-5 text-[13px] font-semibold text-white rounded-xl transition-colors"
-                style={{ background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.30)' }}>
-                <Plus className="w-4 h-4" /> Add Member
-              </button>
-            </div>
+            {/* Divider */}
+            <div style={{ width: 1, height: 28, background: '#E5E7F1' }} />
+            {/* Actions */}
+            <button onClick={() => toast('Upload your Census CSV to bulk-enrol members.', 'info')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 14, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <Upload style={{ width: 15, height: 15 }} /> Bulk Upload
+            </button>
+            <button onClick={() => toast('Member list exported to Excel.')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, letterSpacing: '0.01em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+              <ArrowDownToLine style={{ width: 15, height: 15 }} /> Export XLS
+            </button>
+            <button onClick={() => toast('Add Member form coming soon.', 'info')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 24, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', whiteSpace: 'nowrap' }}>
+              <Plus style={{ width: 16, height: 16 }} /> Add Member
+            </button>
           </div>
         </div>
 
         {selected.length > 0 && (
-          <div className="bg-[#131C4E] text-white rounded-xl px-5 py-3 flex items-center gap-4">
-            <span className="text-[13px] font-semibold">{selected.length} selected</span>
-            <div className="flex-1" />
-            {[
-              { label: 'Approve Additions',  Icon: Plus },
-              { label: 'Download E-Cards',   Icon: CreditCard },
-              { label: 'Export List',         Icon: Download },
-              { label: 'Request Correction',  Icon: FileText },
-            ].map(({ label, Icon }) => (
-              <button key={label} className="flex items-center gap-1.5 text-[12px] font-medium bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors">
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </button>
-            ))}
-            <button onClick={() => setSelected([])} className="text-[12px] text-white/50 hover:text-white ml-2">✕ Clear</button>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #FFD8C0', boxShadow: '0 4px 16px rgba(245,107,34,0.10)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800 }}>{selected.length}</div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>member{selected.length > 1 ? 's' : ''} selected</span>
+            </div>
+            <div style={{ width: 1, height: 24, background: '#F0F1F5', flexShrink: 0, margin: '0 4px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Approve Additions',  Icon: Plus,       color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+                { label: 'Download E-Cards',   Icon: CreditCard, color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE' },
+                { label: 'Export List',         Icon: ArrowDownToLine, color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0' },
+                { label: 'Request Correction',  Icon: FileText,   color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
+              ].map(({ label, Icon, color, bg, border }) => (
+                <button key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', fontSize: 12, fontWeight: 600, borderRadius: 10, border: `1px solid ${border}`, background: bg, color, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <Icon style={{ width: 13, height: 13 }} /> {label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setSelected([])} style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 8, flexShrink: 0 }}>✕ Clear</button>
           </div>
         )}
 
