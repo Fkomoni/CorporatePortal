@@ -7,7 +7,7 @@ export interface Member {
   phone: string;
   gender: 'Male' | 'Female';
   dateOfBirth: string;
-  plan: 'Gold Plus' | 'Silver' | 'Bronze';
+  plan: 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan';
   type: 'Principal' | 'Dependant';
   status: 'Active' | 'Pending' | 'Terminated';
   location: string;
@@ -62,7 +62,7 @@ export interface BenefitCategory {
 
 export interface BenefitPlan {
   id: string;
-  name: 'Gold Plus' | 'Silver' | 'Bronze';
+  name: 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan';
   monthlyPremium: number;
   annualPremium: number;
   categories: BenefitCategory[];
@@ -111,7 +111,7 @@ export interface Claim {
   claimRef: string;
   memberName: string;
   employeeId: string;
-  plan: 'Gold Plus' | 'Silver' | 'Bronze';
+  plan: 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan';
   provider: string;
   category: 'Outpatient' | 'Inpatient' | 'Dental' | 'Optical' | 'Maternity' | 'Emergency';
   diagnosis: string;
