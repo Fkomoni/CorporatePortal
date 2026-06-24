@@ -21,13 +21,53 @@ export default function ReportsPage() {
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Insights" subtitle="Reports &amp; Analytics" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 20 }}>
-<div className="flex items-end gap-3 flex-wrap">
-            <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">From</p><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]" /></div>
-            <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">To</p><input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]" /></div>
-            <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">Plan</p><select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]"><option value="">All Plans</option><option>Gold Plus</option><option>Silver</option><option>Bronze</option></select></div>
-            <button className="h-9 px-5 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>Apply</button>
-            <button className="h-9 px-4 text-[12px] font-medium text-[#6B7280] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">Reset</button>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'From', type: 'date', value: from, onChange: setFrom },
+              { label: 'To',   type: 'date', value: to,   onChange: setTo },
+            ].map(({ label, type, value, onChange }) => (
+              <div key={label}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</p>
+                <input
+                  type={type}
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  style={{ height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
+                />
+              </div>
+            ))}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Plan</p>
+              <select
+                value={plan}
+                onChange={(e) => setPlan(e.target.value)}
+                style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
+              >
+                <option value="">All Plans</option>
+                <option>Gold Plus</option>
+                <option>Silver</option>
+                <option>Bronze</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <button
+                style={{ height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 24, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', whiteSpace: 'nowrap' }}
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => { setFrom('2026-01-01'); setTo('2026-06-30'); setPlan(''); }}
+                style={{ height: 42, padding: '0 18px', fontSize: 13, fontWeight: 500, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4">

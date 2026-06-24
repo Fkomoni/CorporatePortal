@@ -173,23 +173,8 @@ export function Sidebar() {
 
       {/* User footer */}
       <div style={{ borderTop: '1px solid #EDEEF2', padding: '14px 16px' }}>
-        <div className="flex items-center gap-2.5">
-          <div style={{
-            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-            background: 'linear-gradient(135deg, #F56B22 0%, #FFB54B 100%)',
-            boxShadow: '0 2px 8px rgba(245,107,34,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 800, fontSize: 11,
-          }}>
-            AF
-          </div>
-          <div className="flex-1 min-w-0">
-            <p style={{ fontSize: 12.5, fontWeight: 600, color: '#131C4E', lineHeight: '1.2' }} className="truncate">
-              Amaka Fashola
-            </p>
-            <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 2 }}>HR Administrator</p>
-          </div>
-        </div>
+        <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }}>Amaka Fashola</p>
+        <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 3 }}>HR Administrator</p>
       </div>
     </aside>
   );
