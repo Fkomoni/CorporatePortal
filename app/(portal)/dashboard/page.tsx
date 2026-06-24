@@ -1,13 +1,8 @@
 'use client';
 
+import { TrendingDown } from 'lucide-react';
 import {
-  Users, Activity, AlertCircle, CreditCard,
-  TrendingUp, UserPlus, UserMinus,
-  CheckCircle2, TrendingDown,
-} from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { TopBar } from '@/components/layout/TopBar';
 
@@ -21,315 +16,267 @@ const monthlySpend = [
 ];
 
 const topConditions = [
-  { name: 'Malaria',            visits: 284 },
-  { name: 'Hypertension',       visits: 198 },
-  { name: 'URTI',               visits: 167 },
-  { name: 'Pregnancy Related',  visits: 143 },
-  { name: 'Diabetes',           visits: 89  },
+  { name: 'Malaria',           visits: 284 },
+  { name: 'Hypertension',      visits: 198 },
+  { name: 'URTI',              visits: 167 },
+  { name: 'Pregnancy Related', visits: 143 },
+  { name: 'Diabetes',          visits: 89  },
 ];
 
 const topProviders = [
-  { name: 'Lagos Island General',    sub: 'General Practice · Lagos Island',        visits: 312, spend: '₦4.2M', grad: 'linear-gradient(135deg,#131C4E,#3A4382)' },
-  { name: 'Reddington Hospital',     sub: 'Multi-specialty · Victoria Island',       visits: 204, spend: '₦6.8M', grad: 'linear-gradient(135deg,#F56B22,#FFB54B)' },
-  { name: 'St. Nicholas Hospital',   sub: 'Paediatrics · Obs/Gynae · Lagos',         visits: 189, spend: '₦3.1M', grad: 'linear-gradient(135deg,#10B981,#059669)' },
-  { name: 'National Hospital Abuja', sub: 'Multi-specialty · Abuja',                 visits: 156, spend: '₦2.9M', grad: 'linear-gradient(135deg,#8B5CF6,#6366F1)' },
-  { name: 'Apex Dental Clinic',      sub: 'Dentistry · Ikeja',                       visits: 89,  spend: '₦0.8M', grad: 'linear-gradient(135deg,#3B82F6,#1D4ED8)' },
+  { name: 'Lagos Island General',    sub: 'General Practice · Lagos Island',  visits: 312, spend: '₦4.2M', grad: 'linear-gradient(135deg,#131C4E,#3A4382)' },
+  { name: 'Reddington Hospital',     sub: 'Multi-specialty · Victoria Island', visits: 204, spend: '₦6.8M', grad: 'linear-gradient(135deg,#F56B22,#FFB54B)' },
+  { name: 'St. Nicholas Hospital',   sub: 'Paediatrics · Obs/Gynae · Lagos',  visits: 189, spend: '₦3.1M', grad: 'linear-gradient(135deg,#10B981,#059669)' },
+  { name: 'National Hospital Abuja', sub: 'Multi-specialty · Abuja',           visits: 156, spend: '₦2.9M', grad: 'linear-gradient(135deg,#8B5CF6,#6366F1)' },
+  { name: 'Apex Dental Clinic',      sub: 'Dentistry · Ikeja',                 visits: 89,  spend: '₦0.8M', grad: 'linear-gradient(135deg,#3B82F6,#1D4ED8)' },
 ];
 
 const openRequests = [
-  { id: 'TK-0041', title: 'New staff enrolment – Batch 12',  sub: 'TK-0041 · Jun 20 · Member Addition', dot: '#EF4444', pill: 'Open',        pillCls: 'bg-red-50 text-red-600' },
-  { id: 'TK-0039', title: 'Claims query – Mrs Adeyemi',       sub: 'TK-0039 · Jun 19 · Claims Query',    dot: '#D97706', pill: 'In Progress',  pillCls: 'bg-amber-50 text-amber-700' },
-  { id: 'TK-0038', title: 'E-card reprint – Oluwaseun Bello', sub: 'TK-0038 · Jun 17 · E-Card Request',  dot: '#D97706', pill: 'Awaiting',     pillCls: 'bg-amber-50 text-amber-700' },
-  { id: 'TK-0037', title: 'Maternity benefit query',           sub: 'TK-0037 · Jun 15 · Benefit Query',   dot: '#EF4444', pill: 'Open',         pillCls: 'bg-red-50 text-red-600' },
+  { id: 'TK-0041', title: 'New staff enrolment – Batch 12',  sub: 'TK-0041 · Jun 20 · Member Addition', dot: '#EF4444', pill: 'Open',        pillBg: '#FEF2F2', pillColor: '#DC2626' },
+  { id: 'TK-0039', title: 'Claims query – Mrs Adeyemi',       sub: 'TK-0039 · Jun 19 · Claims Query',   dot: '#D97706', pill: 'In Progress',  pillBg: '#FFFBEB', pillColor: '#D97706' },
+  { id: 'TK-0038', title: 'E-card reprint – Oluwaseun Bello', sub: 'TK-0038 · Jun 17 · E-Card Request', dot: '#C4C9D9', pill: 'Awaiting',     pillBg: '#F5F6FA', pillColor: '#6B7280' },
+  { id: 'TK-0037', title: 'Maternity benefit query',           sub: 'TK-0037 · Jun 15 · Benefit Query',  dot: '#EF4444', pill: 'Open',         pillBg: '#FEF2F2', pillColor: '#DC2626' },
 ];
 
 const insights = [
-  { text: '72% of spend is driven by just 15% of your members',          dot: '#FFB54B' },
-  { text: 'Hypertension claims increased 18% this quarter',               dot: '#EF4444' },
-  { text: 'VI providers account for 41% of total utilization',            dot: '#10B981' },
-  { text: 'Loss ratio projected to reach 84% by year end if trend holds', dot: '#EF4444' },
+  { dot: '#F59E0B', text: '72% of spend is driven by just 15% of your members. Consider targeted wellness interventions for high-utilizers.' },
+  { dot: '#EF4444', text: 'Hypertension claims increased 18% this quarter. Screening programmes could reduce long-term costs significantly.' },
+  { dot: '#10B981', text: 'VI providers account for 41% of total utilization despite covering only 22% of enrolled staff.' },
+  { dot: '#EF4444', text: 'At current trajectory, loss ratio is projected to reach 84% by year-end. Renewal pricing may need review.' },
 ];
-
-function Sparkline({ color, flat }: { color: string; flat?: boolean }) {
-  const pts = flat
-    ? '0,12 10,12 22,12 34,12 46,12 58,12 64,12'
-    : '0,20 10,18 22,16 34,10 46,8 58,6 64,4';
-  return (
-    <svg width="64" height="24" viewBox="0 0 64 24">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"
-        strokeLinecap="round" strokeLinejoin="round"
-        strokeDasharray={flat ? '4 2' : undefined} />
-    </svg>
-  );
-}
 
 const maxConditions = topConditions[0].visits;
 
+const card: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  border: '1px solid #EDEEF2',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+};
+
 export default function DashboardPage() {
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
-      <TopBar
-        title="Overview"
-        subtitle="Dangote Industries Ltd · ACM-2026 · Last updated today 09:14"
-        showQuickActions
-      />
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
+      <TopBar title="Overview" subtitle="Dangote Industries Ltd · ACM-2026 · Last updated today 09:14" showQuickActions />
 
-      <div className="p-6 flex flex-col gap-4">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-        {/* GREETING + HEALTH SCORE */}
-        <div className="flex items-start justify-between">
+        {/* ── ROW 1: GREETING + HEALTH SCORE ── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
-            <h1 className="text-[24px] font-extrabold text-[#131C4E] leading-tight tracking-tight">
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
               Good morning, Amaka ☀️
             </h1>
-            <p className="text-[13px] text-[#9CA3B8] mt-1">
-              Dangote Industries Ltd &nbsp;·&nbsp; 1,842 active lives &nbsp;·&nbsp; Policy year Jan – Dec 2026
+            <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 6 }}>
+              Dangote Industries Ltd  ·  1,842 active lives  ·  Policy year Jan – Dec 2026
             </p>
           </div>
-          <div className="flex items-center gap-6 bg-white rounded-2xl px-5 py-3.5 shadow-sm border border-[#F0F1F5]">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, padding: '14px 22px', flexShrink: 0 }}>
             <div>
-              <p className="text-[10px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-1">Scheme Health Score</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-[28px] font-black text-[#131C4E] leading-none tracking-tight">82</span>
-                <span className="text-[14px] font-semibold text-[#9CA3B8]">/100</span>
+              <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Scheme Health Score</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>82</span>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#C4C9D9' }}>/100</span>
               </div>
-              <p className="text-[11px] font-semibold text-emerald-500 mt-1">● Healthy</p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#10B981', marginTop: 4 }}>● Healthy</p>
             </div>
-            <div className="w-px h-10 bg-[#F0F1F5]" />
+            <div style={{ width: 1, height: 44, background: '#EDEEF2' }} />
             <div>
-              <p className="text-[10px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-2">Score Trend</p>
-              <div className="w-20 h-1.5 bg-[#F0F1F5] rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: '82%', background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
+              <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Score Trend</p>
+              <div style={{ width: 88, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ width: '82%', height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
               </div>
-              <p className="text-[11px] text-[#9CA3B8] mt-1.5">▲ +3 from last quarter</p>
+              <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>▲ +3 from last quarter</p>
             </div>
           </div>
         </div>
 
-        {/* KPI CARDS */}
-        <div className="grid grid-cols-5 gap-3.5">
-          {([
-            { label: 'Active Lives',         value: '1,842',  icon: Users,       iconBg: '#FFF1E6', iconColor: '#F56B22', spark: '#F56B22',  trend: '▲ +24 this month',      trendCls: 'bg-emerald-50 text-emerald-700' },
-            { label: 'Utilization Rate',     value: '26.4%',  icon: Activity,    iconBg: '#EEF2FF', iconColor: '#3A4382', spark: '#3A4382',  trend: '487 members utilized',   trendCls: 'bg-emerald-50 text-emerald-700' },
-            { label: 'Loss Ratio',           value: '77%',    icon: TrendingUp,  iconBg: '#FFFBEB', iconColor: '#D97706', spark: '#D97706',  trend: '● Amber · ▲ +6% QoQ',  trendCls: 'bg-amber-50 text-amber-700',   valColor: '#D97706' },
-            { label: 'Open Issues',          value: '4',      icon: AlertCircle, iconBg: '#FFF1E6', iconColor: '#F56B22', spark: '#F56B22',  trend: 'Requires attention',     trendCls: 'bg-orange-50 text-orange-600' },
-            { label: 'Outstanding Premium',  value: '₦10.5M', icon: CreditCard,  iconBg: '#FEF2F2', iconColor: '#DC2626', spark: '#DC2626',  trend: 'Due in 7 days',          trendCls: 'bg-red-50 text-red-600',       valColor: '#DC2626', flat: true, sm: true },
-          ] as const).map((k) => {
-            const Icon = k.icon;
-            return (
-              <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: k.iconBg }}>
-                    <Icon className="w-4 h-4" style={{ color: k.iconColor }} strokeWidth={1.75} />
-                  </div>
-                  <Sparkline color={k.spark} flat={'flat' in k && k.flat} />
-                </div>
-                <div
-                  className={`font-black tracking-tight leading-none mb-1 ${'sm' in k && k.sm ? 'text-[20px]' : 'text-[28px]'}`}
-                  style={{ color: ('valColor' in k ? k.valColor : undefined) ?? '#131C4E' }}
-                >
-                  {k.value}
-                </div>
-                <div className="text-[11px] text-[#9CA3B8] font-medium mb-2.5">{k.label}</div>
-                <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold ${k.trendCls}`}>{k.trend}</span>
-              </div>
-            );
-          })}
+        {/* ── ROW 2: 4 KPI CARDS ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+          {[
+            { value: '1,842',  label: 'Active Lives',         sub: '▲ 24 added this month',   subColor: '#10B981' },
+            { value: '26.4%',  label: 'Utilization Rate',     sub: '487 members utilized',     subColor: '#6B7280' },
+            { value: '77%',    label: 'Loss Ratio',           sub: '⬤ Amber · +6% QoQ',       subColor: '#D97706', valColor: '#D97706' },
+            { value: '₦10.5M', label: 'Outstanding Premium',  sub: 'Due in 7 days',            subColor: '#EF4444', valColor: '#EF4444', sm: true },
+          ].map((k) => (
+            <div key={k.label} style={{ ...card, padding: '26px 28px' }}>
+              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12, letterSpacing: '0.01em' }}>{k.label}</p>
+              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: k.valColor ?? '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>{k.value}</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: k.subColor }}>{k.sub}</p>
+            </div>
+          ))}
         </div>
 
-        {/* ACTION CENTRE */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-          <div className="mb-4">
-            <h2 className="text-[14px] font-bold text-[#131C4E]">Action Centre</h2>
-            <p className="text-[11px] text-[#9CA3B8] mt-0.5">Items requiring your attention today</p>
-          </div>
-          <div className="grid grid-cols-5 gap-3">
-            {[
-              { cls: 'bg-[#FEF9F9]', border: '#EF4444', iconBg: '#FEE2E2', Icon: UserPlus,     iconColor: '#EF4444', text: '12 Employees Awaiting Enrolment',   cta: 'Review →',      ctaColor: '#EF4444' },
-              { cls: 'bg-[#FFFCF5]', border: '#F59E0B', iconBg: '#FEF3C7', Icon: UserMinus,    iconColor: '#F59E0B', text: '3 Terminations Pending Approval',   cta: 'Approve →',    ctaColor: '#D97706' },
-              { cls: 'bg-[#FFFCF5]', border: '#F59E0B', iconBg: '#FEF3C7', Icon: CreditCard,   iconColor: '#F59E0B', text: 'Invoice Due In 7 Days — ₦10.5M',   cta: 'View Invoice →', ctaColor: '#D97706' },
-              { cls: 'bg-[#F6FDF9]', border: '#10B981', iconBg: '#D1FAE5', Icon: CheckCircle2, iconColor: '#10B981', text: 'No Benefit Escalations',           cta: 'All clear',     ctaColor: '#10B981' },
-              { cls: 'bg-[#FEF9F9]', border: '#EF4444', iconBg: '#FEE2E2', Icon: AlertCircle,  iconColor: '#EF4444', text: '2 High-Cost Claims Require Review', cta: 'Review →',      ctaColor: '#EF4444' },
-            ].map((item, i) => (
-              <div key={i} className={`rounded-xl p-4 ${item.cls}`} style={{ borderLeft: `3px solid ${item.border}` }}>
-                <div className="w-[26px] h-[26px] rounded-lg flex items-center justify-center mb-3" style={{ background: item.iconBg }}>
-                  <item.Icon className="w-3.5 h-3.5" style={{ color: item.iconColor }} strokeWidth={2} />
-                </div>
-                <p className="text-[12px] font-semibold text-[#131C4E] leading-snug mb-2">{item.text}</p>
-                <button className="text-[11px] font-semibold" style={{ color: item.ctaColor }}>{item.cta}</button>
+        {/* ── ROW 3: LOSS RATIO (large, full-width) ── */}
+        <div style={{ ...card, padding: '32px 36px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+            <div>
+              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Current Loss Ratio · Policy Year 2026</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                <span style={{ fontSize: 88, fontWeight: 900, color: '#D97706', letterSpacing: '-0.05em', lineHeight: 1 }}>77</span>
+                <span style={{ fontSize: 42, fontWeight: 900, color: '#D97706' }}>%</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* LOSS RATIO HERO + DARK INSIGHTS PANEL */}
-        <div className="grid gap-3.5" style={{ gridTemplateColumns: '2fr 1fr' }}>
-
-          {/* Loss Ratio */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F0F1F5]">
-            <div className="flex items-start justify-between mb-5">
-              <div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-[72px] font-black text-amber-600 leading-none tracking-tighter">77</span>
-                  <span className="text-[30px] font-black text-amber-500">%</span>
-                </div>
-                <p className="text-[13px] text-[#9CA3B8] mt-1">Current Loss Ratio · Policy Year 2026</p>
-              </div>
-              <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-[12px] font-bold text-amber-700 flex-shrink-0">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />Amber Status
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: '#D97706' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#D97706', display: 'inline-block' }} />
+                Amber Status
               </span>
+              <div style={{ display: 'flex', gap: 32 }}>
+                {[{ label: 'Claims Paid', value: '₦48.2M' }, { label: 'Premium', value: '₦62.5M' }].map((m) => (
+                  <div key={m.label}>
+                    <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 3 }}>{m.label}</p>
+                    <p style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{m.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              {[{ label: 'Claims Paid', value: '₦48.2M' }, { label: 'Premium', value: '₦62.5M' }].map((m) => (
-                <div key={m.label}>
-                  <p className="text-[11px] text-[#9CA3B8] font-medium mb-1">{m.label}</p>
-                  <p className="text-[18px] font-extrabold text-[#131C4E] tracking-tight">{m.value}</p>
-                </div>
+          </div>
+          <div style={{ height: 8, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ width: '77%', height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 24 }}>
+              {[
+                { label: 'Green', range: '<70%', color: '#059669' },
+                { label: '⬤ Amber', range: '70–90%', color: '#D97706' },
+                { label: 'Red', range: '>90%', color: '#DC2626' },
+              ].map((l) => (
+                <span key={l.label} style={{ fontSize: 11, fontWeight: 600, color: l.color }}>
+                  {l.label} <span style={{ fontWeight: 400, color: '#B0B7C9' }}>{l.range}</span>
+                </span>
               ))}
             </div>
-            <div className="flex items-center gap-2 text-[12px] font-semibold text-red-500 mb-4">
-              <TrendingDown className="w-3.5 h-3.5" strokeWidth={2.5} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9CA3B8' }}>
+              <TrendingDown className="w-3.5 h-3.5" strokeWidth={2} />
               +6% from last quarter · Projected to reach 84% by year-end
             </div>
-            <div className="h-2.5 bg-[#F0F1F5] rounded-full overflow-hidden mb-3">
-              <div className="h-full rounded-full" style={{ width: '77%', background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
-            </div>
-            <div className="flex gap-2 mb-4">
-              {[
-                { label: 'Green',    range: '<70%',    cls: 'bg-emerald-50 text-emerald-700 border-transparent' },
-                { label: '● Amber', range: '70–90%', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-                { label: 'Red',      range: '>90%',    cls: 'bg-red-50 text-red-600 border-transparent' },
-              ].map((l) => (
-                <div key={l.label} className={`flex-1 text-center py-2 rounded-lg text-[10px] font-bold border ${l.cls}`}>
-                  <p>{l.label}</p>
-                  <p className="text-[9px] font-normal text-[#9CA3B8] mt-0.5">{l.range}</p>
-                </div>
-              ))}
-            </div>
-            <button className="text-[12px] font-semibold text-[#F56B22]">View Utilization Report →</button>
-          </div>
-
-          {/* Dark Health Insights */}
-          <div className="rounded-2xl p-5 flex flex-col" style={{ background: '#131C4E' }}>
-            <p className="text-[13px] font-bold text-white mb-1">Health Insights</p>
-            <p className="text-[11px] mb-5" style={{ color: 'rgba(255,255,255,0.4)' }}>AI-generated from your claims data</p>
-            <div className="flex flex-col gap-2.5 flex-1">
-              {insights.map((ins, i) => (
-                <div key={i} className="flex items-start gap-2.5 rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style={{ background: ins.dot }} />
-                  <p className="text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>{ins.text}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
-        {/* CHARTS ROW: Spend Trend + Top Conditions */}
-        <div className="grid grid-cols-2 gap-3.5">
+        {/* ── ROW 4: CHARTS ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-            <div className="flex items-start justify-between mb-4">
+          <div style={{ ...card, padding: '26px 28px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#131C4E]">Claims Spend Trend</h2>
-                <p className="text-[11px] text-[#9CA3B8] mt-0.5">Monthly · Jan–Jun 2026</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Claims Spend Trend</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Monthly · Jan–Jun 2026</p>
               </div>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#FFF1E6] text-[#F56B22]">₦48.2M YTD</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F56B22' }}>₦48.2M YTD</span>
             </div>
-            <ResponsiveContainer width="100%" height={130}>
+            <ResponsiveContainer width="100%" height={148}>
               <AreaChart data={monthlySpend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#F56B22" stopOpacity={0.15} />
+                  <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F56B22" stopOpacity={0.14} />
                     <stop offset="100%" stopColor="#F56B22" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3B8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9CA3B8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v}M`} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#B0B7C9' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#B0B7C9' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v}M`} />
                 <Tooltip
-                  contentStyle={{ background: '#fff', border: '1px solid #F0F1F5', borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
                   formatter={(v) => [`₦${v}M`, 'Claims']}
                 />
                 <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2}
-                  fill="url(#grad)" dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }}
+                  fill="url(#spendGrad)" dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }}
                   activeDot={{ r: 5, fill: '#F56B22' }} />
               </AreaChart>
             </ResponsiveContainer>
-            <div className="flex gap-5 mt-2">
-              <span className="text-[11px] text-[#9CA3B8]">Jan <strong className="text-[#131C4E]">₦6.2M</strong></span>
-              <span className="text-[11px] text-[#9CA3B8]">Jun <strong className="text-[#131C4E]">₦9.8M</strong></span>
-              <span className="text-[11px] font-semibold text-red-500">▲ +58% growth YTD</span>
+            <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
+              <span style={{ fontSize: 11, color: '#9CA3B8' }}>Jan <strong style={{ color: '#131C4E' }}>₦6.2M</strong></span>
+              <span style={{ fontSize: 11, color: '#9CA3B8' }}>Jun <strong style={{ color: '#131C4E' }}>₦9.8M</strong></span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#EF4444' }}>▲ +58% growth YTD</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-            <div className="mb-4">
-              <h2 className="text-[14px] font-bold text-[#131C4E]">Top Conditions</h2>
-              <p className="text-[11px] text-[#9CA3B8] mt-0.5">By number of visits · 2026</p>
-            </div>
-            <div className="flex flex-col gap-3.5">
+          <div style={{ ...card, padding: '26px 28px' }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Top Conditions</p>
+            <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 24 }}>By number of visits · 2026</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {topConditions.map((item) => (
-                <div key={item.name} className="flex items-center gap-3">
-                  <span className="text-[12px] text-[#131C4E] font-medium w-[130px] flex-shrink-0 truncate">{item.name}</span>
-                  <div className="flex-1 h-1.5 bg-[#F0F1F5] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${(item.visits / maxConditions) * 100}%`, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }}
-                    />
+                <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 12, color: '#374151', fontWeight: 500, width: 126, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.name}
+                  </span>
+                  <div style={{ flex: 1, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ width: `${(item.visits / maxConditions) * 100}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
                   </div>
-                  <span className="text-[11px] text-[#9CA3B8] font-semibold w-8 text-right flex-shrink-0">{item.visits}</span>
+                  <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, width: 30, textAlign: 'right', flexShrink: 0 }}>{item.visits}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* PROVIDERS + OPEN REQUESTS */}
-        <div className="grid gap-3.5" style={{ gridTemplateColumns: '1.2fr 1fr' }}>
+        {/* ── ROW 5: PROVIDERS + OPEN REQUESTS ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-            <div className="flex items-center justify-between mb-1">
+          <div style={{ ...card, padding: '26px 28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#131C4E]">Top Provider Utilization</h2>
-                <p className="text-[11px] text-[#9CA3B8] mt-0.5">By visits &amp; spend · 2026</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Top Provider Utilization</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>By visits &amp; spend · 2026</p>
               </div>
-              <button className="text-[12px] font-semibold text-[#F56B22]">View all →</button>
+              <button style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View all →</button>
             </div>
-            {topProviders.map((p) => (
-              <div key={p.name} className="flex items-center py-3 border-b border-[#F7F8FA] last:border-0">
-                <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mr-3"
-                  style={{ background: p.grad }}
-                >
+            {topProviders.map((p, i) => (
+              <div key={p.name} style={{ display: 'flex', alignItems: 'center', padding: '11px 0', borderBottom: i < topProviders.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: p.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0, marginRight: 12 }}>
                   {p.name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#131C4E] truncate">{p.name}</p>
-                  <p className="text-[11px] text-[#9CA3B8]">{p.sub}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.sub}</p>
                 </div>
-                <div className="text-right ml-4 flex-shrink-0">
-                  <p className="text-[13px] font-bold text-[#131C4E]">{p.spend}</p>
-                  <p className="text-[11px] text-[#9CA3B8]">{p.visits} visits</p>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{p.spend}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.visits} visits</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-            <div className="flex items-center justify-between mb-1">
+          <div style={{ ...card, padding: '26px 28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#131C4E]">Open Requests</h2>
-                <p className="text-[11px] text-[#9CA3B8] mt-0.5">Awaiting action</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Open Requests</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>4 awaiting action</p>
               </div>
-              <button className="text-[12px] font-semibold text-[#F56B22]">View all →</button>
+              <button style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View all →</button>
             </div>
-            {openRequests.map((r) => (
-              <div key={r.id} className="flex items-start py-3 border-b border-[#F7F8FA] last:border-0">
-                <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 mr-3" style={{ background: r.dot }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#131C4E] leading-snug truncate">{r.title}</p>
-                  <p className="text-[11px] text-[#9CA3B8] mt-0.5">{r.sub}</p>
+            {openRequests.map((r, i) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '11px 0', borderBottom: i < openRequests.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: r.dot, flexShrink: 0, marginRight: 12, marginTop: 5 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>{r.sub}</p>
                 </div>
-                <span className={`ml-2 flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full ${r.pillCls}`}>{r.pill}</span>
+                <span style={{ flexShrink: 0, marginLeft: 10, display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: r.pillBg, color: r.pillColor }}>
+                  {r.pill}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── ROW 6: HEALTH INSIGHTS (full width, light) ── */}
+        <div style={{ ...card, padding: '28px 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Health Insights</p>
+              <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>AI-generated from your claims data · Updated today</p>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#F56B22', background: '#FFF1E6', padding: '4px 10px', borderRadius: 6 }}>
+              4 insights
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
+            {insights.map((ins, i) => (
+              <div key={i} style={{ padding: '18px 20px', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 12 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: ins.dot, marginBottom: 12 }} />
+                <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.65, fontWeight: 400 }}>{ins.text}</p>
               </div>
             ))}
           </div>
