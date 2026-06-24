@@ -95,8 +95,8 @@ export default function ServiceDeskPage() {
         </div>
 
         {/* TICKET TABLE */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 140px 160px 110px 100px 100px', columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 140px 160px 110px 100px 100px', columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             {['Ticket ID', 'Subject', 'Category', 'Status', 'SLA', 'Submitted', 'Updated'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
             ))}

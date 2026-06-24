@@ -125,10 +125,10 @@ export default function ClaimsPage() {
         </div>
 
         {/* CLAIMS TABLE */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div
-            className="grid text-[10.5px] font-bold uppercase px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10, color: '#B0B7C9', letterSpacing: '0.07em' }}>
+            className="grid text-[10.5px] font-bold uppercase px-6 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
+            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10, color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <span>Ref</span>
             <span>Member</span>
             <span>Enrolee ID</span>
@@ -148,7 +148,7 @@ export default function ClaimsPage() {
             return (
               <div
                 key={c.id}
-                className="grid items-center px-5 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
+                className="grid items-center px-6 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
                 style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10 }}>
                 <span className="text-[12px] font-bold text-[#F56B22] font-mono">{c.claimRef}</span>
                 <span className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</span>
@@ -177,12 +177,19 @@ export default function ClaimsPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[#F0F1F5]">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-[#F0F1F5]" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">Showing {filtered.length} of {mockClaims.length} claims</p>
-            <div className="flex gap-1">
-              {['‹', '1', '2', '›'].map((p) => (
-                <button key={p} className={`w-8 h-8 text-[12px] font-medium rounded-lg transition-colors ${p === '1' ? 'text-white' : 'text-[#6B7280] hover:bg-[#F7F8FA]'}`}
-                  style={p === '1' ? { background: '#F56B22' } : {}}>{p}</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {(['‹', '1', '2', '›'] as const).map((p) => (
+                <button key={p} style={{
+                  width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: p === '1' ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer',
+                  fontSize: p === '‹' || p === '›' ? 15 : 12, fontWeight: p === '1' ? 700 : 500,
+                  background: p === '1' ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff',
+                  color: p === '1' ? '#fff' : '#6B7280',
+                  boxShadow: p === '1' ? '0 2px 6px rgba(245,107,34,0.28)' : 'none',
+                  transition: 'all 0.15s',
+                }}>{p}</button>
               ))}
             </div>
           </div>

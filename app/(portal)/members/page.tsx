@@ -423,10 +423,10 @@ export default function MembersPage() {
         )}
 
         {/* Members table */}
-        <div style={{ ...card, overflow: 'hidden' }}>
+        <div style={{ ...card }}>
           {/* Header row */}
-          <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', color: '#B0B7C9', letterSpacing: '0.07em' }}>
+          <div className="grid items-center gap-3 px-6 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
+            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox
               checked={allSelected}
               indeterminate={someSelected}
@@ -451,7 +451,7 @@ export default function MembersPage() {
             return (
               <div
                 key={m.id}
-                className={`grid items-center gap-3 px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
+                className={`grid items-center gap-3 px-6 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
                 style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px' }}
                 onClick={() => setActiveMember({ member: m, index: i })}
               >
@@ -486,12 +486,19 @@ export default function MembersPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[#F0F1F5]">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-[#F0F1F5]" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">Showing {filtered.length} of 1,842 members</p>
-            <div className="flex gap-1">
-              {['‹', '1', '2', '3', '›'].map((p) => (
-                <button key={p} className={`w-8 h-8 text-[12px] font-medium rounded-lg transition-colors ${p === '1' ? 'text-white' : 'text-[#6B7280] hover:bg-[#F7F8FA]'}`}
-                  style={p === '1' ? { background: '#F56B22' } : {}}>{p}</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {(['‹', '1', '2', '3', '›'] as const).map((p) => (
+                <button key={p} style={{
+                  width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: p === '1' ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer',
+                  fontSize: p === '‹' || p === '›' ? 15 : 12, fontWeight: p === '1' ? 700 : 500,
+                  background: p === '1' ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff',
+                  color: p === '1' ? '#fff' : '#6B7280',
+                  boxShadow: p === '1' ? '0 2px 6px rgba(245,107,34,0.28)' : 'none',
+                  transition: 'all 0.15s',
+                }}>{p}</button>
               ))}
             </div>
           </div>
