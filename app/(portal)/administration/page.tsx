@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockUsers } from '@/lib/mock-data';
 
@@ -34,46 +34,96 @@ const downloads = [
   { name: 'Benefit Guide',          type: 'PDF',   updated: '2026 Edition' },
 ];
 
-export default function AdministrationPage() {
-  const [activeTab, setActiveTab] = useState<'users' | 'help'>('users');
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+const schemeProfile = {
+  companyName:   'Dangote Industries Ltd',
+  billingEmail:  'hr-health@dangote.com',
+  hrContact:     'Favour Komoni',
+  address:       '1 Alfred Rewane Road, Ikoyi, Lagos',
+  schemeCode:    'DNG-2024-001',
+  renewalDate:   '31 Dec 2026',
+  activeSince:   'Jan 2024',
+  plans:         ['Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'],
+  rm: { name: 'Samuel Okafor', initials: 'SO', phone: '+234 800 532 9374', email: 's.okafor@leadway.com' },
+};
 
-  const card = {
-    background: '#fff',
-    borderRadius: 16,
-    border: '1px solid #EDEEF2',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-  };
+const planColors: Record<string, { bg: string; text: string }> = {
+  'Plus Plan':   { bg: '#FFF7ED', text: '#C2410C' },
+  'Pro Plan':    { bg: '#F1F5F9', text: '#475569' },
+  'Max Plan':    { bg: '#FFFBEB', text: '#D97706' },
+  'Promax Plan': { bg: '#EFF6FF', text: '#2563EB' },
+  'Magnum Plan': { bg: '#F5F3FF', text: '#6D28D9' },
+};
+
+function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
+  return (
+    <button onClick={onChange} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: on ? '#F56B22' : '#E5E7F1', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+      <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s', display: 'block' }} />
+    </button>
+  );
+}
+
+type Tab = 'users' | 'profile' | 'account' | 'help';
+
+export default function AdministrationPage() {
+  const [activeTab, setActiveTab]   = useState<Tab>('users');
+  const [openFaq, setOpenFaq]       = useState<number | null>(null);
+  const [logoUrl, setLogoUrl]       = useState<string | null>(null);
+  const [logoDrag, setLogoDrag]     = useState(false);
+  const fileRef                     = useRef<HTMLInputElement>(null);
+
+  const [profile, setProfile] = useState({ displayName: 'Favour Komoni', jobTitle: 'HR Administrator', email: 'f.komoni@dangote.com', phone: '+234 803 456 7890' });
+  const [notifications, setNotifications] = useState({ invoiceIssued: true, invoiceDue: true, claimUpdates: false, enrolmentConfirm: true, bulkUpload: true });
+  const [passwords, setPasswords]   = useState({ current: '', next: '', confirm: '' });
+  const [showPw, setShowPw]         = useState({ current: false, next: false, confirm: false });
+  const [pwSaved, setPwSaved]       = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  function handleLogoFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => setLogoUrl(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault(); setLogoDrag(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) handleLogoFile(file);
+  }
+
+  const card = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'users',   label: 'Users & Access' },
+    { key: 'profile', label: 'Company Profile' },
+    { key: 'account', label: 'My Account' },
+    { key: 'help',    label: 'Help & Downloads' },
+  ];
+
+  const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
+  const readonlyStyle: React.CSSProperties = { ...inputStyle, background: '#F7F8FC', color: '#6B7280', cursor: 'default' };
+  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'block' };
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Administration" subtitle="Users & Access · Help & Downloads" />
+      <TopBar title="Administration" subtitle="Users · Company Profile · My Account · Help" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* TAB SWITCHER */}
         <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
-          {(['users', 'help'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '9px 22px',
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                background: activeTab === tab ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : 'transparent',
-                color: activeTab === tab ? '#fff' : '#6B7280',
-                boxShadow: activeTab === tab ? '0 2px 8px rgba(245,107,34,0.28)' : 'none',
-              }}>
-              {tab === 'users' ? 'Users & Access' : 'Help & Downloads'}
+          {tabs.map(({ key, label }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              style={{ padding: '9px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                background: activeTab === key ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : 'transparent',
+                color: activeTab === key ? '#fff' : '#6B7280',
+                boxShadow: activeTab === key ? '0 2px 8px rgba(245,107,34,0.28)' : 'none' }}>
+              {label}
             </button>
           ))}
         </div>
 
+        {/* ── USERS & ACCESS ── */}
         {activeTab === 'users' && (
           <>
-            {/* ROLE CARDS */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
               {roleCards.map((r) => {
                 const c = roleColors[r.role] ?? roleColors['Viewer'];
@@ -86,25 +136,21 @@ export default function AdministrationPage() {
               })}
             </div>
 
-            {/* USERS TABLE */}
             <div style={{ ...card, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
                 <div>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Portal Users</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{mockUsers.length} active users</p>
                 </div>
-                <button style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)' }}>
+                <button style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
                   <Plus style={{ width: 15, height: 15 }} /> Invite User
                 </button>
               </div>
-
-              {/* Table header */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 140px 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['User', 'Role', 'Last Login', 'Status', ''].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
               </div>
-
               {mockUsers.map((u) => {
                 const rc = roleColors[u.role] ?? roleColors['Viewer'];
                 return (
@@ -115,13 +161,10 @@ export default function AdministrationPage() {
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{u.name}</p>
                       <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 2 }}>{u.email}</p>
                     </div>
-                    <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: rc.bg, color: rc.text, width: 'fit-content' }}>
-                      {u.role}
-                    </span>
+                    <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: rc.bg, color: rc.text, width: 'fit-content' }}>{u.role}</span>
                     <span style={{ fontSize: 12, color: '#9CA3B8' }}>Today</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: '#ECFDF5', color: '#059669', width: 'fit-content' }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
-                      Active
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} /> Active
                     </span>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>Edit</button>
@@ -134,11 +177,257 @@ export default function AdministrationPage() {
           </>
         )}
 
+        {/* ── COMPANY PROFILE ── */}
+        {activeTab === 'profile' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {/* LOGO UPLOAD */}
+              <div style={{ ...card, padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: '#FFF1E6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Building2 style={{ width: 16, height: 16, color: '#F56B22' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Company Logo</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 1 }}>Appears in the portal sidebar and header</p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                  <div style={{ width: 88, height: 88, borderRadius: 20, border: '2px dashed #E5E7F1', background: '#FAFBFC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                    {logoUrl
+                      ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      : <span style={{ fontSize: 22, fontWeight: 900, color: '#C4C9D9', letterSpacing: '-0.04em' }}>DI</span>}
+                  </div>
+
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setLogoDrag(true); }}
+                    onDragLeave={() => setLogoDrag(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileRef.current?.click()}
+                    style={{ flex: 1, height: 88, border: `2px dashed ${logoDrag ? '#F56B22' : '#E5E7F1'}`, borderRadius: 16, background: logoDrag ? '#FFF5EF' : '#FAFBFC', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <Upload style={{ width: 20, height: 20, color: logoDrag ? '#F56B22' : '#C4C9D9' }} />
+                    <p style={{ fontSize: 13, fontWeight: 600, color: logoDrag ? '#F56B22' : '#131C4E' }}>Drop logo here or <span style={{ color: '#F56B22' }}>click to browse</span></p>
+                    <p style={{ fontSize: 11, color: '#9CA3B8' }}>PNG, JPG or SVG · Max 300 KB</p>
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); }} />
+                </div>
+
+                {logoUrl && (
+                  <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                    <button style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>
+                      Save Logo
+                    </button>
+                    <button onClick={() => setLogoUrl(null)} style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 10, cursor: 'pointer' }}>
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* COMPANY DETAILS — read-only */}
+              <div style={{ ...card, padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Company Details</p>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 10px' }}>Read-only · Managed by Leadway Health</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  {[
+                    { label: 'Company Name',   value: schemeProfile.companyName },
+                    { label: 'HR Contact',     value: schemeProfile.hrContact },
+                    { label: 'Billing Email',  value: schemeProfile.billingEmail },
+                    { label: 'Office Address', value: schemeProfile.address },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={label === 'Office Address' ? { gridColumn: '1 / -1' } : {}}>
+                      <label style={labelStyle}>{label}</label>
+                      <input readOnly value={value} style={readonlyStyle} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* SCHEME INFO — read-only */}
+              <div style={{ ...card, padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Scheme Info</p>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 10px' }}>Read-only</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {[
+                    { label: 'Scheme Code',  value: schemeProfile.schemeCode },
+                    { label: 'Active Since', value: schemeProfile.activeSince },
+                    { label: 'Renewal Date', value: schemeProfile.renewalDate },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <label style={labelStyle}>{label}</label>
+                      <input readOnly value={value} style={readonlyStyle} />
+                    </div>
+                  ))}
+                  <div>
+                    <label style={labelStyle}>Active Plan Tiers</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                      {schemeProfile.plans.map((p) => {
+                        const pc = planColors[p] ?? { bg: '#F1F5F9', text: '#475569' };
+                        return <span key={p} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, background: pc.bg, color: pc.text }}>{p}</span>;
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* RM CARD */}
+              <div style={{ borderRadius: 16, padding: '22px 24px', color: '#fff', background: 'linear-gradient(135deg,#131C4E,#3A4382)' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Your Account Manager</p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 20 }}>Dedicated support for your scheme</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{schemeProfile.rm.initials}</div>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700 }}>{schemeProfile.rm.name}</p>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Corporate Account Manager</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Phone style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.phone}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Mail style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.email}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 10, color: '#fff', cursor: 'pointer' }}>📞 Call</button>
+                  <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: '#fff', border: 'none', borderRadius: 10, color: '#131C4E', cursor: 'pointer' }}>✉ Email</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MY ACCOUNT ── */}
+        {activeTab === 'account' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {/* PERSONAL DETAILS */}
+              <div style={{ ...card, padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <User style={{ width: 16, height: 16, color: '#3730A3' }} />
+                  </div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Personal Details</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div>
+                    <label style={labelStyle}>Display Name</label>
+                    <input value={profile.displayName} onChange={(e) => setProfile({ ...profile, displayName: e.target.value })} style={inputStyle}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Job Title</label>
+                    <input value={profile.jobTitle} onChange={(e) => setProfile({ ...profile, jobTitle: e.target.value })} style={inputStyle}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Email Address</label>
+                    <input readOnly value={profile.email} style={readonlyStyle} />
+                    <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 5 }}>Contact your Admin to update your email.</p>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Phone Number</label>
+                    <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} style={inputStyle}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                  </div>
+                </div>
+                <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={() => { setProfileSaved(true); setTimeout(() => setProfileSaved(false), 2500); }}
+                    style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
+                    Save Changes
+                  </button>
+                  {profileSaved && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ Saved successfully</span>}
+                </div>
+              </div>
+
+              {/* CHANGE PASSWORD */}
+              <div style={{ ...card, padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 15 }}>🔒</span>
+                  </div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Change Password</p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400 }}>
+                  {([
+                    { key: 'current' as const, label: 'Current Password' },
+                    { key: 'next'    as const, label: 'New Password' },
+                    { key: 'confirm' as const, label: 'Confirm New Password' },
+                  ]).map(({ key, label }) => (
+                    <div key={key}>
+                      <label style={labelStyle}>{label}</label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showPw[key] ? 'text' : 'password'}
+                          value={passwords[key]}
+                          onChange={(e) => setPasswords({ ...passwords, [key]: e.target.value })}
+                          style={{ ...inputStyle, paddingRight: 44 }}
+                          onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                        <button type="button" onClick={() => setShowPw({ ...showPw, [key]: !showPw[key] })}
+                          style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#9CA3B8' }}>
+                          {showPw[key] ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={() => { setPwSaved(true); setPasswords({ current: '', next: '', confirm: '' }); setTimeout(() => setPwSaved(false), 2500); }}
+                    style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
+                    Update Password
+                  </button>
+                  {pwSaved && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ Password updated</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* NOTIFICATION PREFERENCES */}
+            <div style={{ ...card, padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bell style={{ width: 16, height: 16, color: '#D97706' }} />
+                </div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Email Notifications</p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {([
+                  { key: 'invoiceIssued'    as const, label: 'New invoice issued',     sub: 'When Leadway raises a new invoice' },
+                  { key: 'invoiceDue'       as const, label: 'Invoice payment due',     sub: '7 days before due date' },
+                  { key: 'claimUpdates'     as const, label: 'Claim status updates',    sub: 'When a claim is paid, queried or rejected' },
+                  { key: 'enrolmentConfirm' as const, label: 'Enrolment confirmations', sub: 'When a new member is activated' },
+                  { key: 'bulkUpload'       as const, label: 'Bulk upload completed',   sub: 'When a census upload finishes processing' },
+                ]).map(({ key, label, sub }, i, arr) => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 0', borderBottom: i < arr.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{label}</p>
+                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 3 }}>{sub}</p>
+                    </div>
+                    <Toggle on={notifications[key]} onChange={() => setNotifications({ ...notifications, [key]: !notifications[key] })} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── HELP & DOWNLOADS ── */}
         {activeTab === 'help' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-              {/* DOWNLOADS */}
               <div style={{ ...card, overflow: 'hidden' }}>
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Download Centre</p>
@@ -152,20 +441,16 @@ export default function AdministrationPage() {
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{d.name}</p>
                       <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>{d.type} · Updated {d.updated}</p>
                     </div>
-                    <button style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px',
-                      fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
                       ...(d.type === 'Excel'
                         ? { background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }
-                        : { background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }),
-                    }}>
+                        : { background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }) }}>
                       <ArrowDownToLine style={{ width: 11, height: 11 }} /> {d.type === 'Excel' ? 'XLS' : 'PDF'}
                     </button>
                   </div>
                 ))}
               </div>
 
-              {/* FAQS */}
               <div style={{ ...card, overflow: 'hidden' }}>
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Frequently Asked Questions</p>
@@ -188,21 +473,20 @@ export default function AdministrationPage() {
               </div>
             </div>
 
-            {/* SIDEBAR */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ borderRadius: 16, padding: '22px 24px', color: '#fff', background: 'linear-gradient(135deg,#131C4E,#3A4382)' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Your Account Manager</p>
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 20 }}>Dedicated support for your scheme</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>SO</div>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{schemeProfile.rm.initials}</div>
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 700 }}>Samuel Okafor</p>
+                    <p style={{ fontSize: 14, fontWeight: 700 }}>{schemeProfile.rm.name}</p>
                     <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Corporate Account Manager</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Phone style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />+234 800 532 9374</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Mail style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />s.okafor@leadway.com</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Phone style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.phone}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Mail style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.email}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 10, color: '#fff', cursor: 'pointer' }}>📞 Call</button>
