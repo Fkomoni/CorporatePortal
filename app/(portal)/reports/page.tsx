@@ -49,9 +49,11 @@ export default function ReportsPage() {
                 onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
               >
                 <option value="">All Plans</option>
-                <option>Gold Plus</option>
-                <option>Silver</option>
-                <option>Bronze</option>
+                <option>Plus Plan</option>
+                <option>Pro Plan</option>
+                <option>Max Plan</option>
+                <option>Promax Plan</option>
+                <option>Magnum Plan</option>
               </select>
             </div>
             <div style={{ flex: 1 }} />

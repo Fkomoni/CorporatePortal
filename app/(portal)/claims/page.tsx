@@ -32,9 +32,11 @@ const categoryStyles: Record<string, { bg: string; text: string }> = {
 };
 
 const planStyles: Record<string, { bg: string; text: string }> = {
-  'Gold Plus': { bg: '#FFFBEB', text: '#D97706' },
-  'Silver':    { bg: '#F1F5F9', text: '#475569' },
-  'Bronze':    { bg: '#FFF7ED', text: '#C2410C' },
+  'Plus Plan':   { bg: '#FFF7ED', text: '#C2410C' },
+  'Pro Plan':    { bg: '#F1F5F9', text: '#475569' },
+  'Max Plan':    { bg: '#FFFBEB', text: '#D97706' },
+  'Promax Plan': { bg: '#EFF6FF', text: '#2563EB' },
+  'Magnum Plan': { bg: '#F5F3FF', text: '#6D28D9' },
 };
 
 const fmt = (n: number) => `₦${n.toLocaleString('en-NG')}`;
@@ -99,7 +101,7 @@ export default function ClaimsPage() {
             {[
               { value: catFilter,    setter: setCat,    opts: ['All Categories', ...Object.keys(categoryStyles)] },
               { value: statusFilter, setter: setStatus, opts: ['All Statuses',   ...Object.keys(statusStyles)] },
-              { value: planFilter,   setter: setPlan,   opts: ['All Plans', 'Gold Plus', 'Silver', 'Bronze'] },
+              { value: planFilter,   setter: setPlan,   opts: ['All Plans', 'Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'] },
             ].map(({ value, setter, opts }) => (
               <select key={opts[0]} value={value} onChange={(e) => setter(e.target.value)}
                 style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>

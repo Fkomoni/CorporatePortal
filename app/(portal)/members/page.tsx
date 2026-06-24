@@ -18,9 +18,11 @@ function getEnroleeId(employeeId: string, type: string): string {
 }
 
 const planColors: Record<string, { bg: string; text: string }> = {
-  'Gold Plus': { bg: '#FFFBEB', text: '#D97706' },
-  'Silver':    { bg: '#F1F5F9', text: '#475569' },
-  'Bronze':    { bg: '#FFF7ED', text: '#C2410C' },
+  'Plus Plan':   { bg: '#FFF7ED', text: '#C2410C' },
+  'Pro Plan':    { bg: '#F1F5F9', text: '#475569' },
+  'Max Plan':    { bg: '#FFFBEB', text: '#D97706' },
+  'Promax Plan': { bg: '#EFF6FF', text: '#2563EB' },
+  'Magnum Plan': { bg: '#F5F3FF', text: '#6D28D9' },
 };
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
@@ -370,7 +372,7 @@ export default function MembersPage() {
                 onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
             </div>
             {[
-              { value: planFilter,   setter: setPlanFilter,   options: ['All Plans','Gold Plus','Silver','Bronze'] },
+              { value: planFilter,   setter: setPlanFilter,   options: ['All Plans','Plus Plan','Pro Plan','Max Plan','Promax Plan','Magnum Plan'] },
               { value: statusFilter, setter: setStatusFilter, options: ['All Status','Active','Pending','Terminated'] },
             ].map(({ value, setter, options }) => (
               <select key={options[0]} value={value} onChange={(e) => setter(e.target.value)}
