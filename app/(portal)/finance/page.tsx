@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, CheckCircle2, Clock, Circle, FileText } from 'lucide-react';
+import { Download, CheckCircle2, Clock, Circle, FileText, ArrowDownToLine } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockInvoices } from '@/lib/mock-data';
 
@@ -110,16 +110,16 @@ export default function FinancePage() {
               </div>
             </div>
             <div className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 80px' }}>
+              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px' }}>
               <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
-              <span>Amount</span><span>Status</span><span></span>
+              <span>Amount</span><span>Status</span><span>Download</span>
             </div>
             {mockInvoices.map((inv) => {
               const s = statusColors[inv.status] ?? { bg: '#F1F5F9', text: '#475569' };
               return (
                 <div key={inv.id}
                   className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 80px' }}>
+                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px' }}>
                   <span className="text-[13px] font-bold text-[#131C4E]">{inv.invoiceNo}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
@@ -128,9 +128,47 @@ export default function FinancePage() {
                   <span className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
                     {inv.status}
                   </span>
-                  <button className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-semibold text-[#F56B22] rounded-lg border border-[#FFD8C0] bg-[#FFF5EF] hover:bg-[#FFF1E6] transition-colors">
-                    <Download className="w-3 h-3" /> PDF
-                  </button>
+                  {/* Download chips */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        height: 30, padding: '0 11px',
+                        fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+                        background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)',
+                        color: '#15803D',
+                        border: '1px solid #BBF7D0',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 1px 3px rgba(21,128,61,0.10)',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#DCFCE7,#BBF7D0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(21,128,61,0.18)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#F0FDF4,#DCFCE7)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(21,128,61,0.10)'; }}
+                    >
+                      <ArrowDownToLine style={{ width: 11, height: 11 }} /> XLS
+                    </button>
+                    <button
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        height: 30, padding: '0 11px',
+                        fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+                        background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)',
+                        color: '#C2410C',
+                        border: '1px solid #FDBA74',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 1px 3px rgba(194,65,12,0.10)',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#FFE8D6,#FED7AA)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(194,65,12,0.18)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#FFF5EF,#FFE8D6)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(194,65,12,0.10)'; }}
+                    >
+                      <ArrowDownToLine style={{ width: 11, height: 11 }} /> PDF
+                    </button>
+                  </div>
                 </div>
               );
             })}
