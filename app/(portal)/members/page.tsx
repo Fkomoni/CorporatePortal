@@ -423,10 +423,10 @@ export default function MembersPage() {
         )}
 
         {/* Members table */}
-        <div style={{ ...card, overflow: 'hidden' }}>
+        <div style={{ ...card }}>
           {/* Header row */}
           <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', color: '#B0B7C9', letterSpacing: '0.07em' }}>
+            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox
               checked={allSelected}
               indeterminate={someSelected}
@@ -486,7 +486,7 @@ export default function MembersPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[#F0F1F5]">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-[#F0F1F5]" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">Showing {filtered.length} of 1,842 members</p>
             <div className="flex gap-1">
               {['‹', '1', '2', '3', '›'].map((p) => (

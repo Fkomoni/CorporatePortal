@@ -100,8 +100,8 @@ export default function FinancePage() {
 
         {/* INVOICE TABLE */}
         {activeTab === 'invoices' && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F1F5]">
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F1F5]" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               <p className="text-[14px] font-bold text-[#131C4E]">Invoice List</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
