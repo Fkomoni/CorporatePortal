@@ -99,7 +99,7 @@ export default function FinancePage() {
         {activeTab === 'invoices' && (
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F1F5]">
-              <p className="text-[15px] font-bold text-[#131C4E]">Invoice List</p>
+              <p className="text-[14px] font-bold text-[#131C4E]">Invoice List</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
                   <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
@@ -181,7 +181,7 @@ export default function FinancePage() {
               <FileText className="w-6 h-6 text-[#9CA3B8]" />
             </div>
             <div className="text-center">
-              <p className="text-[15px] font-bold text-[#131C4E]">
+              <p className="text-[14px] font-bold text-[#131C4E]">
                 {activeTab === 'receipts' ? 'No receipts yet' : 'Statement unavailable'}
               </p>
               <p className="text-[13px] text-[#9CA3B8] mt-1">
