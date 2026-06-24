@@ -30,10 +30,10 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
 };
 
 const summaryCards = [
-  { label: 'Active Members',       value: '1,842', sub: 'Total covered lives',  color: '#131C4E' },
-  { label: 'New This Month',       value: '24',    sub: 'Enrolments in June',   color: '#10B981' },
-  { label: 'Pending Additions',    value: '12',    sub: 'Awaiting activation',  color: '#D97706' },
-  { label: 'Pending Terminations', value: '3',     sub: 'Pending approval',     color: '#EF4444' },
+  { label: 'Active Members',       value: '1,842', sub: 'Total covered lives',  color: '#131C4E', bg: '#EEF2FF', Icon: Users        },
+  { label: 'New This Month',       value: '24',    sub: 'Enrolments in June',   color: '#10B981', bg: '#ECFDF5', Icon: Activity     },
+  { label: 'Pending Additions',    value: '12',    sub: 'Awaiting activation',  color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck  },
+  { label: 'Pending Terminations', value: '3',     sub: 'Pending approval',     color: '#EF4444', bg: '#FEF2F2', Icon: AlertCircle  },
 ];
 
 const avatarGradients = [
@@ -352,9 +352,12 @@ export default function MembersPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {summaryCards.map((c) => (
             <div key={c.label} style={{ ...card, padding: '26px 28px' }}>
-              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12 }}>{c.label}</p>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: c.color }}>{c.value}</p>
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <c.Icon style={{ width: 16, height: 16, color: c.color }} strokeWidth={1.75} />
+              </div>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: c.color }}>{c.value}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
+              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
             </div>
           ))}
         </div>
@@ -423,7 +426,7 @@ export default function MembersPage() {
         <div style={{ ...card, overflow: 'hidden' }}>
           {/* Header row */}
           <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px' }}>
+            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', color: '#B0B7C9', letterSpacing: '0.07em' }}>
             <Checkbox
               checked={allSelected}
               indeterminate={someSelected}
@@ -436,7 +439,7 @@ export default function MembersPage() {
               <span style={{ fontSize: 9, fontWeight: 600, color: '#C4C9D9', background: '#F0F1F5', padding: '1px 5px', borderRadius: 4, letterSpacing: '0.04em' }}>SELECT ALL</span>
             </div>
             {['Emp ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Location'].map((h) => (
-              <span key={h} className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest">{h}</span>
+              <span key={h} className="text-[10.5px] font-bold uppercase">{h}</span>
             ))}
           </div>
 

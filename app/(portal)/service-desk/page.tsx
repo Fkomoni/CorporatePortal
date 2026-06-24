@@ -68,8 +68,8 @@ export default function ServiceDeskPage() {
               <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, display: 'block' }} />
               </div>
-              <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: s.color, letterSpacing: '-0.03em', marginBottom: 12 }}>{s.value}</p>
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{s.label}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: s.color, letterSpacing: '-0.03em', marginBottom: 10 }}>{s.value}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{s.label}</p>
             </div>
           ))}
         </div>

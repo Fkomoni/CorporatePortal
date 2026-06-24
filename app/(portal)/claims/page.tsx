@@ -46,10 +46,10 @@ const totalQueried   = mockClaims.filter((c) => c.status === 'Queried').length;
 const totalRejected  = mockClaims.filter((c) => c.status === 'Rejected').length;
 
 const summaryCards = [
-  { label: 'Total Paid YTD',      value: fmt(totalPaid),    sub: `${mockClaims.filter((c) => c.status === 'Paid').length} claims settled`,       color: '#10B981', Icon: TrendingUp   },
-  { label: 'Processing',          value: fmt(totalPending), sub: `${mockClaims.filter((c) => c.status === 'Processing').length} claims pending`,  color: '#F59E0B', Icon: Clock        },
-  { label: 'Claims Queried',      value: String(totalQueried),  sub: 'Awaiting additional info',                                                  color: '#3B82F6', Icon: Filter       },
-  { label: 'Claims Rejected',     value: String(totalRejected), sub: 'Declined for payment',                                                      color: '#EF4444', Icon: XCircle      },
+  { label: 'Total Paid YTD',  value: fmt(totalPaid),        sub: `${mockClaims.filter((c) => c.status === 'Paid').length} claims settled`,      color: '#10B981', bg: '#ECFDF5', Icon: TrendingUp },
+  { label: 'Processing',      value: fmt(totalPending),     sub: `${mockClaims.filter((c) => c.status === 'Processing').length} claims pending`, color: '#F59E0B', bg: '#FFFBEB', Icon: Clock      },
+  { label: 'Claims Queried',  value: String(totalQueried),  sub: 'Awaiting additional info',                                                     color: '#3B82F6', bg: '#EFF6FF', Icon: Filter     },
+  { label: 'Claims Rejected', value: String(totalRejected), sub: 'Declined for payment',                                                         color: '#EF4444', bg: '#FEF2F2', Icon: XCircle    },
 ];
 
 export default function ClaimsPage() {
@@ -78,12 +78,12 @@ export default function ClaimsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {summaryCards.map((s) => (
             <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500 }}>{s.label}</p>
-                <s.Icon className="w-4 h-4" style={{ color: s.color }} strokeWidth={1.75} />
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <s.Icon style={{ width: 16, height: 16, color: s.color }} strokeWidth={1.75} />
               </div>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: s.color }}>{s.value}</p>
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: s.color }}>{s.value}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{s.label}</p>
+              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
             </div>
           ))}
         </div>
@@ -127,7 +127,7 @@ export default function ClaimsPage() {
         {/* CLAIMS TABLE */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div
-            className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
+            className="grid text-[10.5px] font-bold uppercase px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]" style={{ color: '#B0B7C9', letterSpacing: '0.07em' }}
             style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10 }}>
             <span>Ref</span>
             <span>Member</span>

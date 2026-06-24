@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, CheckCircle2, Clock, Circle, FileText, ArrowDownToLine } from 'lucide-react';
+import { Download, CheckCircle2, Clock, Circle, FileText, ArrowDownToLine, CreditCard, Activity, AlertCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockInvoices } from '@/lib/mock-data';
 
@@ -30,14 +30,17 @@ export default function FinancePage() {
         {/* INVOICE HEALTH */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
           {[
-            { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed',  color: '#131C4E' },
-            { label: 'Avg Cost Per Life',     value: '₦5,702', sub: 'Per member / month',  color: '#131C4E' },
-            { label: 'Outstanding Balance',   value: '₦10.5M', sub: 'Due in 7 days',        color: '#EF4444' },
+            { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed',  color: '#131C4E', bg: '#EEF2FF',  Icon: CreditCard  },
+            { label: 'Avg Cost Per Life',     value: '₦5,702', sub: 'Per member / month',  color: '#6B7280', bg: '#F1F5F9',  Icon: Activity    },
+            { label: 'Outstanding Balance',   value: '₦10.5M', sub: 'Due in 7 days',       color: '#EF4444', bg: '#FEF2F2',  Icon: AlertCircle },
           ].map((c) => (
             <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
-              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12 }}>{c.label}</p>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: c.color }}>{c.value}</p>
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <c.Icon style={{ width: 16, height: 16, color: c.color }} strokeWidth={1.75} />
+              </div>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: c.color }}>{c.value}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
+              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
             </div>
           ))}
         </div>
@@ -109,7 +112,7 @@ export default function FinancePage() {
                 </button>
               </div>
             </div>
-            <div className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]"
+            <div className="grid text-[10.5px] font-bold uppercase px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]" style={{ color: '#B0B7C9', letterSpacing: '0.07em' }}
               style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px' }}>
               <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
               <span>Amount</span><span>Status</span><span>Download</span>
