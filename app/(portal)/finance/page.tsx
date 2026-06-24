@@ -112,8 +112,8 @@ export default function FinancePage() {
                 </button>
               </div>
             </div>
-            <div className="grid text-[10.5px] font-bold uppercase px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]" style={{ color: '#B0B7C9', letterSpacing: '0.07em' }}
-              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px' }}>
+            <div className="grid text-[10.5px] font-bold uppercase px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]"
+              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px', color: '#B0B7C9', letterSpacing: '0.07em' }}>
               <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
               <span>Amount</span><span>Status</span><span>Download</span>
             </div>
