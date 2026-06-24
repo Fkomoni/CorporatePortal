@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingDown } from 'lucide-react';
+import { TrendingDown, UserPlus, UserMinus, Receipt } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -88,6 +88,81 @@ export default function DashboardPage() {
               </div>
               <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>▲ +3 from last quarter</p>
             </div>
+          </div>
+        </div>
+
+        {/* ── ACTION CENTRE ── */}
+        <div style={{ ...card, padding: '28px 32px' }}>
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Action Centre</p>
+            <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>Items requiring your attention today</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+            {[
+              {
+                Icon: UserPlus,
+                iconColor: '#EF4444',
+                iconBg: '#FEF2F2',
+                border: '#EF4444',
+                title: '12 Employees Awaiting Enrolment',
+                action: 'Review →',
+                actionColor: '#EF4444',
+              },
+              {
+                Icon: UserMinus,
+                iconColor: '#F97316',
+                iconBg: '#FFF7ED',
+                border: '#F97316',
+                title: '3 Terminations Pending Approval',
+                action: 'Approve →',
+                actionColor: '#F97316',
+              },
+              {
+                Icon: Receipt,
+                iconColor: '#D97706',
+                iconBg: '#FFFBEB',
+                border: '#10B981',
+                title: 'Invoice Due In 7 Days — ₦10.5M',
+                action: 'View Invoice →',
+                actionColor: '#F97316',
+              },
+            ].map((item) => {
+              const Icon = item.Icon;
+              return (
+                <div
+                  key={item.title}
+                  style={{
+                    paddingLeft: 18,
+                    paddingRight: 18,
+                    paddingTop: 18,
+                    paddingBottom: 18,
+                    background: '#FAFAFA',
+                    borderRadius: '0 12px 12px 0',
+                    border: `1px solid #EDEEF2`,
+                    borderLeft: `4px solid ${item.border}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: item.iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <Icon style={{ width: 18, height: 18, color: item.iconColor }} strokeWidth={2} />
+                  </div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', lineHeight: 1.4, marginBottom: 12 }}>{item.title}</p>
+                  <button style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    {item.action}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
 
