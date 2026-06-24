@@ -278,22 +278,29 @@ export default function MembersPage() {
   const toggleSelect = (id: string) => setSelected((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
   const toggleAll = () => setSelected(selected.length === filtered.length ? [] : filtered.map((m) => m.id));
 
+  const card: React.CSSProperties = {
+    background: '#fff',
+    borderRadius: 16,
+    border: '1px solid #EDEEF2',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+  };
+
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="People" subtitle="Member Management · 1,842 active lives" />
 
-      <div className="p-6 flex flex-col gap-5">
-        <div className="grid grid-cols-4 gap-4">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {summaryCards.map((c) => (
-            <div key={c.label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-              <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-3">{c.label}</p>
-              <p className="text-[36px] font-black tracking-tight leading-none mb-1" style={{ color: c.color }}>{c.value}</p>
-              <p className="text-[11px] text-[#9CA3B8]">{c.sub}</p>
+            <div key={c.label} style={{ ...card, padding: '26px 28px' }}>
+              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12 }}>{c.label}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: c.color }}>{c.value}</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0F1F5]">
+        <div style={{ ...card, padding: 16 }}>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
@@ -339,7 +346,7 @@ export default function MembersPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+        <div style={{ ...card, overflow: 'hidden' }}>
           <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
             style={{ gridTemplateColumns: '40px 1fr 120px 80px 100px 140px 100px 80px' }}>
             <input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-[#F56B22] w-4 h-4 rounded" />

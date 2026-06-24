@@ -22,28 +22,28 @@ export default function FinancePage() {
   const [activeTab, setActiveTab] = useState<'invoices' | 'receipts' | 'statement'>('invoices');
 
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Finance" subtitle="Invoices · Receipts · Statement of Account" />
 
-      <div className="p-6 flex flex-col gap-5">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* INVOICE HEALTH */}
-        <div className="grid grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
           {[
             { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed',  color: '#131C4E' },
             { label: 'Avg Cost Per Life',     value: '₦5,702', sub: 'Per member / month',  color: '#131C4E' },
             { label: 'Outstanding Balance',   value: '₦10.5M', sub: 'Due in 7 days',        color: '#EF4444' },
           ].map((c) => (
-            <div key={c.label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
-              <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-3">{c.label}</p>
-              <p className="text-[30px] font-black tracking-tight leading-none mb-1" style={{ color: c.color }}>{c.value}</p>
-              <p className="text-[11px] text-[#9CA3B8]">{c.sub}</p>
+            <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
+              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12 }}>{c.label}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: c.color }}>{c.value}</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
             </div>
           ))}
         </div>
 
         {/* PAYMENT TIMELINE */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
           <p className="text-[14px] font-bold text-[#131C4E] mb-1">Payment Timeline</p>
           <p className="text-[11px] text-[#9CA3B8] mb-5">INV-2026-0042 · June 2026 Premium</p>
           <div className="flex items-center gap-0">
@@ -75,7 +75,7 @@ export default function FinancePage() {
         </div>
 
         {/* TABS */}
-        <div className="flex gap-1 bg-white rounded-xl p-1 border border-[#F0F1F5] shadow-sm w-fit">
+        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 12, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: 'fit-content' }}>
           {(['invoices', 'receipts', 'statement'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold capitalize transition-all ${
@@ -89,7 +89,7 @@ export default function FinancePage() {
 
         {/* INVOICE TABLE */}
         {activeTab === 'invoices' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F1F5]">
               <p className="text-[14px] font-bold text-[#131C4E]">Invoice List</p>
               <div className="flex gap-2">
@@ -130,7 +130,7 @@ export default function FinancePage() {
         )}
 
         {activeTab !== 'invoices' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] py-20 flex flex-col items-center gap-4">
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', paddingTop: 80, paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <div className="w-14 h-14 rounded-2xl bg-[#F7F8FA] border border-[#F0F1F5] flex items-center justify-center">
               <FileText className="w-6 h-6 text-[#9CA3B8]" />
             </div>

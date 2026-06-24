@@ -58,10 +58,10 @@ export default function BenefitsPage() {
   });
 
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Benefits" subtitle="Plans · Provider Network" />
-      <div className="p-6 flex flex-col gap-5">
-        <div className="flex gap-1 bg-white rounded-xl p-1 border border-[#F0F1F5] shadow-sm w-fit">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 12, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: 'fit-content' }}>
           {(['plans', 'providers'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all ${activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'}`}
@@ -82,7 +82,7 @@ export default function BenefitsPage() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               {benefits[activePlan].map((b) => (
-                <div key={b.category} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
+                <div key={b.category} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px' }}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-[20px]">{categoryIcons[b.category] ?? '📋'}</span>
@@ -109,7 +109,7 @@ export default function BenefitsPage() {
         )}
         {activeTab === 'providers' && (
           <>
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0F1F5]">
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 16 }}>
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
@@ -124,7 +124,7 @@ export default function BenefitsPage() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               {filteredProviders.map((p) => (
-                <div key={p.name} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
+                <div key={p.name} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px' }}>
                   <div className="flex items-start justify-between mb-3">
                     <p className="text-[14px] font-bold text-[#131C4E] leading-snug flex-1 pr-2">{p.name}</p>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={p.status === 'Active' ? { background: '#ECFDF5', color: '#059669' } : { background: '#FEF2F2', color: '#DC2626' }}>{p.status}</span>

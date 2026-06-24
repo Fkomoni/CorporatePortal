@@ -32,10 +32,10 @@ export default function AdministrationPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="flex flex-col min-h-full bg-[#FAFBFC]">
+    <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Administration" subtitle="Users &amp; Access · Help &amp; Downloads" />
-      <div className="p-6 flex flex-col gap-5">
-        <div className="flex gap-1 bg-white rounded-xl p-1 border border-[#F0F1F5] shadow-sm w-fit">
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 12, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: 'fit-content' }}>
           {(['users', 'help'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all ${activeTab === tab ? 'text-white' : 'text-[#6B7280] hover:text-[#131C4E]'}`}
@@ -55,14 +55,14 @@ export default function AdministrationPage() {
               ].map((r) => {
                 const c = roleColors[r.role] ?? { bg: '#F1F5F9', text: '#475569' };
                 return (
-                  <div key={r.role} className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0F1F5]">
+                  <div key={r.role} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '20px 22px' }}>
                     <div className="flex items-center gap-2 mb-2"><span className="text-[18px]">{r.icon}</span><span className="inline-flex px-2 py-0.5 rounded-lg text-[11px] font-bold" style={{ background: c.bg, color: c.text }}>{r.role}</span></div>
                     <p className="text-[12px] text-[#9CA3B8]">{r.desc}</p>
                   </div>
                 );
               })}
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F1F5]">
                 <p className="text-[14px] font-bold text-[#131C4E]">Portal Users <span className="text-[#9CA3B8] font-normal text-[12px]">— {mockUsers.length} active</span></p>
                 <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}><Plus className="w-3.5 h-3.5" /> Invite User</button>
@@ -90,7 +90,7 @@ export default function AdministrationPage() {
         {activeTab === 'help' && (
           <div className="grid grid-cols-3 gap-5">
             <div className="col-span-2 flex flex-col gap-5">
-              <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
                 <div className="px-5 py-4 border-b border-[#F0F1F5]"><p className="text-[14px] font-bold text-[#131C4E]">Download Centre</p></div>
                 {downloads.map((d) => (
                   <div key={d.name} className="flex items-center gap-4 px-5 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors">
@@ -100,7 +100,7 @@ export default function AdministrationPage() {
                   </div>
                 ))}
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
                 <div className="px-5 py-4 border-b border-[#F0F1F5]"><p className="text-[14px] font-bold text-[#131C4E]">Frequently Asked Questions</p></div>
                 {faqs.map((q, i) => (
                   <div key={i} className="border-b border-[#F7F8FA] last:border-0">
@@ -130,7 +130,7 @@ export default function AdministrationPage() {
                   <button className="flex-1 h-9 text-[12px] font-semibold bg-white text-[#131C4E] rounded-xl hover:bg-white/90 transition-colors">✉ Email</button>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px' }}>
                 <p className="text-[13px] font-bold text-[#131C4E] mb-3">Contact Leadway Health</p>
                 <div className="space-y-3">
                   <div className="flex gap-3"><div className="w-8 h-8 rounded-lg bg-[#F1F2F8] flex items-center justify-center flex-shrink-0"><Phone className="w-3.5 h-3.5 text-[#3A4382]" /></div><div><p className="text-[12px] font-semibold text-[#131C4E]">Customer Care</p><p className="text-[11px] text-[#9CA3B8]">0800-LEADWAY</p></div></div>
