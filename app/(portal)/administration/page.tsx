@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Download, Phone, Mail } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockUsers } from '@/lib/mock-data';
 
@@ -147,15 +147,21 @@ export default function AdministrationPage() {
                 </div>
                 {downloads.map((d) => (
                   <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 24px', borderBottom: '1px solid #F7F8FA', transition: 'background 0.12s' }} className="last:border-0 hover:bg-[#FAFBFC]">
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Download style={{ width: 16, height: 16, color: '#3A4382' }} />
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: d.type === 'Excel' ? '#F0FDF4' : '#FFF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <ArrowDownToLine style={{ width: 16, height: 16, color: d.type === 'Excel' ? '#15803D' : '#C2410C' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{d.name}</p>
                       <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>{d.type} · Updated {d.updated}</p>
                     </div>
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', fontSize: 12, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 6px rgba(245,107,34,0.25)' }}>
-                      <Download style={{ width: 12, height: 12 }} /> Download
+                    <button style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px',
+                      fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+                      ...(d.type === 'Excel'
+                        ? { background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }
+                        : { background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }),
+                    }}>
+                      <ArrowDownToLine style={{ width: 11, height: 11 }} /> {d.type === 'Excel' ? 'XLS' : 'PDF'}
                     </button>
                   </div>
                 ))}

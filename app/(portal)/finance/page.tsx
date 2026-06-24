@@ -100,12 +100,12 @@ export default function FinancePage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F1F5]">
               <p className="text-[15px] font-bold text-[#131C4E]">Invoice List</p>
-              <div className="flex gap-2">
-                <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                  <Download className="w-3.5 h-3.5" /> Export PDF
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 34, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                  <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
                 </button>
-                <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                  <Download className="w-3.5 h-3.5" /> Export Excel
+                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 34, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                  <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
                 </button>
               </div>
             </div>

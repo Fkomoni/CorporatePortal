@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  Search, Upload, Download, Plus, FileText,
+  Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
   ShieldCheck, Users, Activity, AlertCircle,
 } from 'lucide-react';
@@ -335,9 +335,8 @@ export default function MembersPage() {
                 <Upload className="w-4 h-4" /> Bulk Upload
               </button>
               <button onClick={() => toast('Member list exported to Excel.')}
-                className="flex items-center gap-2 h-10 px-4 text-[13px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-                <Download className="w-4 h-4" /> Export
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                <ArrowDownToLine style={{ width: 14, height: 14 }} /> Export XLS
               </button>
               <button onClick={() => toast('Add Member form coming soon.', 'info')}
                 className="flex items-center gap-2 h-10 px-5 text-[13px] font-semibold text-white rounded-xl transition-colors"

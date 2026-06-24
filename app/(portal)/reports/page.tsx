@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Users, Activity, Search, Building2, CreditCard } from 'lucide-react';
+import { ArrowDownToLine, Users, Activity, Search, Building2, CreditCard } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
 const reports = [
@@ -41,9 +41,13 @@ export default function ReportsPage() {
                   <p className="text-[12px] text-[#9CA3B8] mt-0.5">{r.desc}</p>
                 </div>
                 <p className="text-[11px] text-[#9CA3B8] flex-shrink-0 hidden md:block">Last generated: {r.lastGen}</p>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}><Download className="w-3.5 h-3.5" /> Excel</button>
-                  <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]"><Download className="w-3.5 h-3.5" /> PDF</button>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                    <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
+                  </button>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                    <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
+                  </button>
                 </div>
               </div>
             );
