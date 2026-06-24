@@ -93,7 +93,7 @@ export default function AdministrationPage() {
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Portal Users</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{mockUsers.length} active users</p>
                 </div>
-                <button style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 18px', fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>
+                <button style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)' }}>
                   <Plus style={{ width: 15, height: 15 }} /> Invite User
                 </button>
               </div>

@@ -152,22 +152,22 @@ export default function ServiceDeskPage() {
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Category</label>
-                  <select style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#F7F8FA', color: '#131C4E', outline: 'none' }}>
+                  <select style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none' }}>
                     <option value="">Select category...</option>
                     {Object.keys(categoryColors).map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Subject</label>
-                  <input style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#F7F8FA', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} placeholder="Brief description..." />
+                  <input style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} placeholder="Brief description..." />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Details</label>
-                  <textarea style={{ width: '100%', height: 96, padding: '10px 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#F7F8FA', color: '#131C4E', outline: 'none', resize: 'none', boxSizing: 'border-box' }} placeholder="Describe your request..." />
+                  <textarea style={{ width: '100%', height: 96, padding: '10px 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'none', boxSizing: 'border-box' }} placeholder="Describe your request..." />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Attachments</label>
-                  <div style={{ border: '2px dashed #E5E7F1', borderRadius: 12, padding: '20px 16px', textAlign: 'center', background: '#FAFBFC', cursor: 'pointer' }}>
+                  <div style={{ border: '2px dashed #E5E7F1', borderRadius: 14, padding: '20px 16px', textAlign: 'center', background: '#FAFBFC', cursor: 'pointer' }}>
                     <Paperclip style={{ width: 20, height: 20, color: '#9CA3B8', margin: '0 auto 8px' }} />
                     <p style={{ fontSize: 12, color: '#9CA3B8' }}>Drop files here or <span style={{ color: '#F56B22', fontWeight: 600 }}>browse</span></p>
                     <p style={{ fontSize: 10, color: '#C4C9D9', marginTop: 4 }}>Excel · PDF · PNG · JPG</p>
@@ -175,8 +175,8 @@ export default function ServiceDeskPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: '1px solid #F0F1F5' }}>
-                <button onClick={() => setShowForm(false)} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 500, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleSubmit} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>Submit Request</button>
+                <button onClick={() => setShowForm(false)} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7480', border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleSubmit} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)' }}>Submit Request</button>
               </div>
             </div>
           </div>

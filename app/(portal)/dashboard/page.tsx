@@ -129,7 +129,7 @@ export default function DashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {[
             { value: '1,842',  label: 'Active Lives',        sub: '▲ 24 added this month', subColor: '#10B981', rail: '#10B981' },
-            { value: '26.4%',  label: 'Utilization Rate',   sub: '487 members utilized',   subColor: '#6B7280', rail: '#3B82F6' },
+            { value: '26.4%',  label: 'Utilization Rate',   sub: '487 members utilized',   subColor: '#9CA3B8', rail: '#3B82F6' },
             { value: '77%',    label: 'Loss Ratio',         sub: '⬤ Amber · +6% QoQ',     subColor: '#D97706', rail: '#D97706' },
             { value: '₦10.5M', label: 'Outstanding Premium',sub: 'Due in 7 days',          subColor: '#EF4444', rail: '#EF4444', sm: true },
           ].map((k) => (
@@ -231,7 +231,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {topConditions.map((item) => (
                 <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 12, color: '#374151', fontWeight: 500, width: 126, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 12, color: '#6B7480', fontWeight: 500, width: 126, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.name}
                   </span>
                   <div style={{ flex: 1, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
