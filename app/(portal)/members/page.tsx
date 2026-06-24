@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import {
-  Search, Upload, Download, Plus, MoreHorizontal, FileText,
-  CreditCard, Edit2, X, Phone, Mail, MapPin, Calendar,
+  Search, Upload, Download, Plus, FileText,
+  CreditCard, X, Phone, Mail, MapPin, Calendar,
   ShieldCheck, Users, Activity, AlertCircle,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
@@ -300,31 +300,44 @@ export default function MembersPage() {
           ))}
         </div>
 
-        <div style={{ ...card, padding: 16 }}>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
+        <div style={{ ...card, padding: '14px 20px' }}>
+          <div className="flex items-center gap-3">
+            <div className="relative" style={{ flex: '1 1 320px', maxWidth: 480 }}>
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B8BFD0]" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, ID, or phone..."
-                className="w-full h-9 pl-9 pr-3 text-[13px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] placeholder:text-[#9CA3B8] outline-none focus:border-[#F56B22] focus:bg-white transition-colors" />
+                className="w-full h-10 pl-10 pr-4 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] placeholder:text-[#B8BFD0] outline-none focus:border-[#F56B22] transition-colors"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} />
             </div>
-            <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none">
+            <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
+              className="h-10 px-3 pr-8 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] outline-none focus:border-[#F56B22] transition-colors cursor-pointer"
+              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
               <option value="">All Plans</option>
               <option>Gold Plus</option><option>Silver</option><option>Bronze</option>
             </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 px-3 pr-8 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] outline-none focus:border-[#F56B22] transition-colors cursor-pointer"
+              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
               <option value="">All Status</option>
               <option>Active</option><option>Pending</option><option>Terminated</option>
             </select>
-            <div className="flex-1" />
-            <button onClick={() => toast('Upload your Census CSV to bulk-enrol members.', 'info')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
-              <Upload className="w-3.5 h-3.5" /> Bulk Upload
-            </button>
-            <button onClick={() => toast('Member list exported to Excel.')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">
-              <Download className="w-3.5 h-3.5" /> Export
-            </button>
-            <button onClick={() => toast('Add Member form coming soon.', 'info')} className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>
-              <Plus className="w-3.5 h-3.5" /> Add Member
-            </button>
+            <div style={{ flex: 1 }} />
+            <div className="flex items-center gap-2">
+              <button onClick={() => toast('Upload your Census CSV to bulk-enrol members.', 'info')}
+                className="flex items-center gap-2 h-10 px-4 text-[13px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+                <Upload className="w-4 h-4" /> Bulk Upload
+              </button>
+              <button onClick={() => toast('Member list exported to Excel.')}
+                className="flex items-center gap-2 h-10 px-4 text-[13px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+                <Download className="w-4 h-4" /> Export
+              </button>
+              <button onClick={() => toast('Add Member form coming soon.', 'info')}
+                className="flex items-center gap-2 h-10 px-5 text-[13px] font-semibold text-white rounded-xl transition-colors"
+                style={{ background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.30)' }}>
+                <Plus className="w-4 h-4" /> Add Member
+              </button>
+            </div>
           </div>
         </div>
 
@@ -347,10 +360,10 @@ export default function MembersPage() {
         )}
 
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '40px 1fr 120px 80px 100px 140px 100px 80px' }}>
+          <div className="grid items-center gap-4 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
+            style={{ gridTemplateColumns: '36px 1fr 130px 90px 120px 150px 120px' }}>
             <input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-[#F56B22] w-4 h-4 rounded" />
-            {['Member', 'Plan', 'Type', 'Status', 'Phone', 'Location', ''].map((h) => (
+            {['Member', 'Plan', 'Type', 'Status', 'Phone', 'Location'].map((h) => (
               <span key={h} className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest">{h}</span>
             ))}
           </div>
@@ -362,8 +375,8 @@ export default function MembersPage() {
             return (
               <div
                 key={m.id}
-                className={`grid items-center gap-3 px-5 py-3 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '40px 1fr 120px 80px 100px 140px 100px 80px' }}
+                className={`grid items-center gap-4 px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
+                style={{ gridTemplateColumns: '36px 1fr 130px 90px 120px 150px 120px' }}
                 onClick={() => setActiveMember({ member: m, index: i })}
               >
                 <input
@@ -372,31 +385,17 @@ export default function MembersPage() {
                   onClick={(e) => e.stopPropagation()}
                   className="accent-[#F56B22] w-4 h-4 rounded"
                 />
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[11px] flex-shrink-0"
-                    style={{ background: avatarGradients[i % avatarGradients.length] }}>
-                    {m.firstName[0]}{m.lastName[0]}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
-                    <p className="text-[11px] text-[#9CA3B8]">{m.employeeId}</p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
+                  <p className="text-[11px] text-[#B8BFD0] mt-0.5">{m.employeeId}</p>
                 </div>
-                <span className="inline-flex px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
+                <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[12px] text-[#6B7280]">{m.type}</span>
-                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.dot }} />{m.status}
                 </span>
                 <span className="text-[12px] text-[#6B7280]">{m.phone}</span>
                 <span className="text-[12px] text-[#6B7280]">{m.location}</span>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button className="p-1.5 rounded-lg hover:bg-[#F7F8FA] text-[#9CA3B8] hover:text-[#131C4E] transition-colors">
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button className="p-1.5 rounded-lg hover:bg-[#F7F8FA] text-[#9CA3B8] hover:text-[#131C4E] transition-colors">
-                    <MoreHorizontal className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
             );
           })}

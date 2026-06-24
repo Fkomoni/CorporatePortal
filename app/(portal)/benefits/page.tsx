@@ -66,25 +66,59 @@ export default function BenefitsPage() {
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Benefits" subtitle="Plans · Provider Network" />
-      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 12, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: 'fit-content' }}>
-          {(['plans', 'providers'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all ${activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'}`}
-              style={activeTab === tab ? { background: '#F56B22' } : {}}>
-              {tab === 'plans' ? 'Benefit Plans' : 'Provider Search'}
-            </button>
-          ))}
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {/* Main tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            {(['plans', 'providers'] as const).map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '9px 22px',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  background: activeTab === tab ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : 'transparent',
+                  color: activeTab === tab ? '#fff' : '#6B7280',
+                  boxShadow: activeTab === tab ? '0 2px 8px rgba(245,107,34,0.28)' : 'none',
+                }}>
+                {tab === 'plans' ? 'Benefit Plans' : 'Provider Search'}
+              </button>
+            ))}
+          </div>
         </div>
         {activeTab === 'plans' && (
           <>
-            <div className="flex gap-2">
-              {(['Gold Plus', 'Silver', 'Bronze'] as Plan[]).map((plan) => (
-                <button key={plan} onClick={() => setActivePlan(plan)}
-                  className={`px-4 py-2 rounded-xl text-[12px] font-semibold transition-all border ${activePlan === plan ? 'border-[#F56B22] text-[#F56B22] bg-[#FFF1E6]' : 'border-[#E5E7F1] text-[#6B7280] bg-white hover:border-[#9CA3B8]'}`}>
-                  {plan}
-                </button>
-              ))}
+            {/* Plan selector */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              {(['Gold Plus', 'Silver', 'Bronze'] as Plan[]).map((plan) => {
+                const isActive = activePlan === plan;
+                const colors: Record<Plan, { accent: string; bg: string; activeBg: string }> = {
+                  'Gold Plus': { accent: '#D97706', bg: '#FFFBEB', activeBg: '#FEF3C7' },
+                  'Silver':    { accent: '#475569', bg: '#F1F5F9', activeBg: '#E2E8F0' },
+                  'Bronze':    { accent: '#C2410C', bg: '#FFF7ED', activeBg: '#FFEDD5' },
+                };
+                const c = colors[plan];
+                return (
+                  <button key={plan} onClick={() => setActivePlan(plan)}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: 12,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      border: `1.5px solid ${isActive ? c.accent : '#E5E7F1'}`,
+                      background: isActive ? c.activeBg : '#fff',
+                      color: isActive ? c.accent : '#6B7280',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      boxShadow: isActive ? `0 2px 8px rgba(0,0,0,0.08)` : 'none',
+                    }}>
+                    {plan}
+                  </button>
+                );
+              })}
             </div>
             <div className="grid grid-cols-3 gap-4">
               {benefits[activePlan].map((b) => (
@@ -139,14 +173,17 @@ export default function BenefitsPage() {
         )}
         {activeTab === 'providers' && (
           <>
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 16 }}>
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '14px 20px' }}>
+              <div className="flex items-center gap-3">
+                <div className="relative" style={{ flex: '1 1 320px', maxWidth: 520 }}>
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B8BFD0]" />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search provider name or location..."
-                    className="w-full h-9 pl-9 pr-3 text-[13px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] placeholder:text-[#9CA3B8] outline-none focus:border-[#F56B22] focus:bg-white transition-colors" />
+                    className="w-full h-10 pl-10 pr-4 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] placeholder:text-[#B8BFD0] outline-none focus:border-[#F56B22] transition-colors"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} />
                 </div>
-                <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none">
+                <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+                  className="h-10 px-3 pr-8 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] outline-none focus:border-[#F56B22] transition-colors cursor-pointer"
+                  style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
                   <option value="">All Types</option>
                   <option>Hospital</option><option>Dental</option><option>Optical</option><option>Diagnostic</option><option>Pharmacy</option>
                 </select>

@@ -75,13 +75,21 @@ export default function FinancePage() {
         </div>
 
         {/* TABS */}
-        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 12, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
           {(['invoices', 'receipts', 'statement'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-[13px] font-semibold capitalize transition-all ${
-                activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'
-              }`}
-              style={activeTab === tab ? { background: '#F56B22' } : {}}>
+              style={{
+                padding: '9px 22px',
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                background: activeTab === tab ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : 'transparent',
+                color: activeTab === tab ? '#fff' : '#6B7280',
+                boxShadow: activeTab === tab ? '0 2px 8px rgba(245,107,34,0.28)' : 'none',
+              }}>
               {tab === 'statement' ? 'Statement' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
@@ -90,13 +98,13 @@ export default function FinancePage() {
         {/* INVOICE TABLE */}
         {activeTab === 'invoices' && (
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F1F5]">
-              <p className="text-[14px] font-bold text-[#131C4E]">Invoice List</p>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F1F5]">
+              <p className="text-[15px] font-bold text-[#131C4E]">Invoice List</p>
               <div className="flex gap-2">
-                <button className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-[#F7F8FA]">
+                <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                   <Download className="w-3.5 h-3.5" /> Export PDF
                 </button>
-                <button className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-[#F7F8FA]">
+                <button className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                   <Download className="w-3.5 h-3.5" /> Export Excel
                 </button>
               </div>
@@ -120,7 +128,7 @@ export default function FinancePage() {
                   <span className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
                     {inv.status}
                   </span>
-                  <button className="flex items-center gap-1 text-[11px] font-semibold text-[#F56B22]">
+                  <button className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-semibold text-[#F56B22] rounded-lg border border-[#FFD8C0] bg-[#FFF5EF] hover:bg-[#FFF1E6] transition-colors">
                     <Download className="w-3 h-3" /> PDF
                   </button>
                 </div>
