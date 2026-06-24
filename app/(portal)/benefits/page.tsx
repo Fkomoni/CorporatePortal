@@ -183,17 +183,17 @@ export default function BenefitsPage() {
         )}
         {activeTab === 'providers' && (
           <>
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '14px 20px' }}>
-              <div className="flex items-center gap-3">
-                <div className="relative" style={{ flex: '1 1 320px', maxWidth: 520 }}>
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B8BFD0]" />
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ position: 'relative', flex: '1 1 320px', maxWidth: 520 }}>
+                  <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search provider name or location..."
-                    className="w-full h-10 pl-10 pr-4 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] placeholder:text-[#B8BFD0] outline-none focus:border-[#F56B22] transition-colors"
-                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} />
+                    style={{ width: '100%', height: 42, paddingLeft: 42, paddingRight: 16, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                 </div>
                 <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-                  className="h-10 px-3 pr-8 text-[13px] border border-[#E5E7F1] rounded-xl bg-white text-[#131C4E] outline-none focus:border-[#F56B22] transition-colors cursor-pointer"
-                  style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
+                  style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
                   <option value="">All Types</option>
                   <option>Hospital</option><option>Dental</option><option>Optical</option><option>Diagnostic</option><option>Pharmacy</option>
                 </select>

@@ -75,21 +75,21 @@ export default function ServiceDeskPage() {
         </div>
 
         {/* SEARCH + ACTION BAR */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 480 }}>
-            <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#B8BFD0' }} />
+            <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by ticket ID, subject, or category..."
-              style={{ width: '100%', height: 40, paddingLeft: 42, paddingRight: 16, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }}
+              style={{ width: '100%', height: 42, paddingLeft: 42, paddingRight: 16, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
             />
           </div>
           <div style={{ flex: 1 }} />
           <button
             onClick={() => setShowForm(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#fff', borderRadius: 12, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.30)' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 24, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', whiteSpace: 'nowrap' }}>
             <Plus style={{ width: 16, height: 16 }} /> New Request
           </button>
         </div>

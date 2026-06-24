@@ -89,37 +89,36 @@ export default function ClaimsPage() {
         </div>
 
         {/* TOOLBAR */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 16 }}>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
-              <input
-                value={search} onChange={(e) => setSearch(e.target.value)}
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1 1 260px', minWidth: 220 }}>
+              <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
+              <input value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by member, ref, provider, diagnosis..."
-                className="w-full h-9 pl-9 pr-3 text-[13px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] placeholder:text-[#9CA3B8] outline-none focus:border-[#F56B22] focus:bg-white transition-colors" />
+                style={{ width: '100%', height: 42, paddingLeft: 42, paddingRight: 14, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
             </div>
-            <select value={catFilter} onChange={(e) => setCat(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none">
-              <option value="">All Categories</option>
-              {Object.keys(categoryStyles).map((c) => <option key={c}>{c}</option>)}
-            </select>
-            <select value={statusFilter} onChange={(e) => setStatus(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none">
-              <option value="">All Statuses</option>
-              {Object.keys(statusStyles).map((s) => <option key={s}>{s}</option>)}
-            </select>
-            <select value={planFilter} onChange={(e) => setPlan(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none">
-              <option value="">All Plans</option>
-              <option>Gold Plus</option><option>Silver</option><option>Bronze</option>
-            </select>
-            <div className="flex-1" />
-            <div className="text-[12px] font-semibold text-[#131C4E] px-3 py-1.5 bg-[#F7F8FA] rounded-lg border border-[#E5E7F1]">
+            {[
+              { value: catFilter,    setter: setCat,    opts: ['All Categories', ...Object.keys(categoryStyles)] },
+              { value: statusFilter, setter: setStatus, opts: ['All Statuses',   ...Object.keys(statusStyles)] },
+              { value: planFilter,   setter: setPlan,   opts: ['All Plans', 'Gold Plus', 'Silver', 'Bronze'] },
+            ].map(({ value, setter, opts }) => (
+              <select key={opts[0]} value={value} onChange={(e) => setter(e.target.value)}
+                style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
+                {opts.map((o, i) => <option key={o} value={i === 0 ? '' : o}>{o}</option>)}
+              </select>
+            ))}
+            <div style={{ flex: 1 }} />
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', padding: '0 14px', height: 42, display: 'inline-flex', alignItems: 'center', background: '#FAFBFC', borderRadius: 14, border: '1px solid #E5E7F1' }}>
               {fmt(filteredTotal)} total
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
-                <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
               </button>
-              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
-                <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
+              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                <ArrowDownToLine style={{ width: 13, height: 13 }} /> PDF
               </button>
             </div>
           </div>

@@ -42,10 +42,10 @@ export default function ReportsPage() {
                 </div>
                 <p className="text-[11px] text-[#9CA3B8] flex-shrink-0 hidden md:block">Last generated: {r.lastGen}</p>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
                     <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
                   </button>
-                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
                     <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
                   </button>
                 </div>
