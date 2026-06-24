@@ -169,14 +169,14 @@ export default function DashboardPage() {
         {/* ── ROW 2: 4 KPI CARDS ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {[
-            { value: '1,842',  label: 'Active Lives',         sub: '▲ 24 added this month',   subColor: '#10B981' },
-            { value: '26.4%',  label: 'Utilization Rate',     sub: '487 members utilized',     subColor: '#6B7280' },
-            { value: '77%',    label: 'Loss Ratio',           sub: '⬤ Amber · +6% QoQ',       subColor: '#D97706', valColor: '#D97706' },
-            { value: '₦10.5M', label: 'Outstanding Premium',  sub: 'Due in 7 days',            subColor: '#EF4444', valColor: '#EF4444', sm: true },
+            { value: '1,842',  label: 'Active Lives',        sub: '▲ 24 added this month', subColor: '#10B981', rail: '#10B981' },
+            { value: '26.4%',  label: 'Utilization Rate',   sub: '487 members utilized',   subColor: '#6B7280', rail: '#3B82F6' },
+            { value: '77%',    label: 'Loss Ratio',         sub: '⬤ Amber · +6% QoQ',     subColor: '#D97706', rail: '#D97706' },
+            { value: '₦10.5M', label: 'Outstanding Premium',sub: 'Due in 7 days',          subColor: '#EF4444', rail: '#EF4444', sm: true },
           ].map((k) => (
-            <div key={k.label} style={{ ...card, padding: '26px 28px' }}>
+            <div key={k.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${k.rail}` }}>
               <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12, letterSpacing: '0.01em' }}>{k.label}</p>
-              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: k.valColor ?? '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>{k.value}</p>
+              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>{k.value}</p>
               <p style={{ fontSize: 12, fontWeight: 500, color: k.subColor }}>{k.sub}</p>
             </div>
           ))}

@@ -64,11 +64,8 @@ export default function ServiceDeskPage() {
         {/* SUMMARY CARDS */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
           {summaryItems.map((s) => (
-            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, display: 'block' }} />
-              </div>
-              <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: s.color, letterSpacing: '-0.03em', marginBottom: 10 }}>{s.value}</p>
+            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
+              <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: '#131C4E', letterSpacing: '-0.03em', marginBottom: 10 }}>{s.value}</p>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{s.label}</p>
             </div>
           ))}

@@ -30,15 +30,12 @@ export default function FinancePage() {
         {/* INVOICE HEALTH */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
           {[
-            { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed',  color: '#131C4E', bg: '#EEF2FF',  Icon: CreditCard  },
-            { label: 'Avg Cost Per Life',     value: '₦5,702', sub: 'Per member / month',  color: '#6B7280', bg: '#F1F5F9',  Icon: Activity    },
-            { label: 'Outstanding Balance',   value: '₦10.5M', sub: 'Due in 7 days',       color: '#EF4444', bg: '#FEF2F2',  Icon: AlertCircle },
+            { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed', color: '#131C4E' },
+            { label: 'Avg Cost Per Life',     value: '₦5,702', sub: 'Per member / month', color: '#6B7280' },
+            { label: 'Outstanding Balance',   value: '₦10.5M', sub: 'Due in 7 days',      color: '#EF4444' },
           ].map((c) => (
-            <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <c.Icon style={{ width: 16, height: 16, color: c.color }} strokeWidth={1.75} />
-              </div>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: c.color }}>{c.value}</p>
+            <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${c.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>{c.value}</p>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
               <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
             </div>
