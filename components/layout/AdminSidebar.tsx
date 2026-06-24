@@ -2,11 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Palette, LogOut } from 'lucide-react';
+import { LayoutGrid, LogOut } from 'lucide-react';
 
 const navItems = [
   { label: 'Corporates', href: '/admin/corporates', Icon: LayoutGrid },
-  { label: 'Templates',  href: '/admin/templates',  Icon: Palette },
 ];
 
 export function AdminSidebar() {
