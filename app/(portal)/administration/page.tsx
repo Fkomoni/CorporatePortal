@@ -39,7 +39,7 @@ export default function AdministrationPage() {
           {(['users', 'help'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all ${activeTab === tab ? 'text-white' : 'text-[#6B7280] hover:text-[#131C4E]'}`}
-              style={activeTab === tab ? { background: '#131C4E' } : {}}>
+              style={activeTab === tab ? { background: '#F56B22' } : {}}>
               {tab === 'users' ? 'Users & Access' : 'Help & Downloads'}
             </button>
           ))}
@@ -56,7 +56,7 @@ export default function AdministrationPage() {
                 const c = roleColors[r.role] ?? { bg: '#F1F5F9', text: '#475569' };
                 return (
                   <div key={r.role} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '20px 22px' }}>
-                    <div className="flex items-center gap-2 mb-2"><span className="text-[18px]">{r.icon}</span><span className="inline-flex px-2 py-0.5 rounded-lg text-[11px] font-bold" style={{ background: c.bg, color: c.text }}>{r.role}</span></div>
+                    <div className="flex items-center gap-2 mb-2"><span className="inline-flex px-2 py-0.5 rounded-lg text-[11px] font-bold" style={{ background: c.bg, color: c.text }}>{r.role}</span></div>
                     <p className="text-[12px] text-[#9CA3B8]">{r.desc}</p>
                   </div>
                 );
