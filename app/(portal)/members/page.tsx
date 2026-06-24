@@ -37,8 +37,6 @@ const avatarGradients = [
   'linear-gradient(135deg,#14B8A6,#0D9488)', 'linear-gradient(135deg,#F59E0B,#D97706)',
 ];
 
-// ── Member 360 Drawer ─────────────────────────────────────────────────────────
-
 const mockClaimHistory = [
   { date: 'Jun 12, 2026', provider: 'Reddington Hospital',   category: 'Outpatient',  amount: '₦28,500',  status: 'Paid' },
   { date: 'May 04, 2026', provider: 'Apex Dental Clinic',    category: 'Dental',      amount: '₦45,000',  status: 'Paid' },
@@ -55,16 +53,13 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/20 z-40 transition-opacity"
         onClick={onClose}
       />
 
-      {/* Drawer panel */}
       <div className="fixed top-0 right-0 h-screen w-[420px] bg-white z-50 flex flex-col shadow-2xl overflow-hidden">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#F0F1F5] flex-shrink-0">
           <p className="text-[13px] font-bold text-[#131C4E]">Member 360</p>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#F7F8FA] text-[#9CA3B8] hover:text-[#131C4E] transition-colors">
@@ -72,7 +67,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
           </button>
         </div>
 
-        {/* Profile hero */}
         <div className="px-6 py-5 border-b border-[#F0F1F5] flex-shrink-0">
           <div className="flex items-center gap-4 mb-4">
             <div
@@ -93,7 +87,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
             </div>
           </div>
 
-          {/* Contact row */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-[12px] text-[#6B7280]">
               <Phone className="w-3.5 h-3.5 text-[#9CA3B8] flex-shrink-0" />{member.phone}
@@ -111,7 +104,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
           </div>
         </div>
 
-        {/* KPI strip */}
         <div className="grid grid-cols-3 border-b border-[#F0F1F5] flex-shrink-0">
           {[
             { label: 'Dependants',   value: member.dependants ?? 0, Icon: Users,       color: '#3A4382' },
@@ -126,7 +118,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
           ))}
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-[#F0F1F5] flex-shrink-0">
           {(['overview', 'claims', 'benefits'] as const).map((tab) => (
             <button
@@ -139,10 +130,8 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
           ))}
         </div>
 
-        {/* Tab content — scrollable */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* OVERVIEW */}
           {drawerTab === 'overview' && (
             <div className="p-5 flex flex-col gap-4">
               <div className="bg-[#FAFBFC] rounded-2xl p-4 border border-[#F0F1F5]">
@@ -181,7 +170,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
                 </div>
               </div>
 
-              {/* E-Card */}
               <div className="rounded-2xl p-4 text-white" style={{ background: 'linear-gradient(135deg,#131C4E,#3A4382)' }}>
                 <div className="flex items-start justify-between mb-6">
                   <div>
@@ -200,7 +188,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
             </div>
           )}
 
-          {/* CLAIM HISTORY */}
           {drawerTab === 'claims' && (
             <div className="p-5">
               <p className="text-[11px] font-bold text-[#9CA3B8] uppercase tracking-widest mb-4">Recent Claims</p>
@@ -225,7 +212,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
             </div>
           )}
 
-          {/* BENEFITS */}
           {drawerTab === 'benefits' && (
             <div className="p-5 flex flex-col gap-3">
               <p className="text-[11px] font-bold text-[#9CA3B8] uppercase tracking-widest mb-1">Active Benefit Limits · {member.plan}</p>
@@ -258,7 +244,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
           )}
         </div>
 
-        {/* Footer actions */}
         <div className="flex gap-2 px-5 py-4 border-t border-[#F0F1F5] flex-shrink-0">
           <button onClick={() => toast('Member record opened for editing.')} className="flex-1 h-9 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA] transition-colors">
             Edit Member
@@ -274,8 +259,6 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
     </>
   );
 }
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function MembersPage() {
   const [search, setSearch] = useState('');
@@ -300,7 +283,6 @@ export default function MembersPage() {
       <TopBar title="People" subtitle="Member Management · 1,842 active lives" />
 
       <div className="p-6 flex flex-col gap-5">
-        {/* SUMMARY CARDS */}
         <div className="grid grid-cols-4 gap-4">
           {summaryCards.map((c) => (
             <div key={c.label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
@@ -311,7 +293,6 @@ export default function MembersPage() {
           ))}
         </div>
 
-        {/* TOOLBAR */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0F1F5]">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
@@ -340,7 +321,6 @@ export default function MembersPage() {
           </div>
         </div>
 
-        {/* BULK ACTIONS */}
         {selected.length > 0 && (
           <div className="bg-[#131C4E] text-white rounded-xl px-5 py-3 flex items-center gap-4">
             <span className="text-[13px] font-semibold">{selected.length} selected</span>
@@ -359,7 +339,6 @@ export default function MembersPage() {
           </div>
         )}
 
-        {/* MEMBER TABLE */}
         <div className="bg-white rounded-2xl shadow-sm border border-[#F0F1F5] overflow-hidden">
           <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
             style={{ gridTemplateColumns: '40px 1fr 120px 80px 100px 140px 100px 80px' }}>
@@ -439,7 +418,6 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {/* MEMBER 360 DRAWER */}
       {activeMember && (
         <Member360Drawer
           member={activeMember.member}

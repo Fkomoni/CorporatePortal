@@ -12,13 +12,19 @@ import {
 import { TopBar } from '@/components/layout/TopBar';
 
 const monthlySpend = [
-  { month: 'Jan', amount: 6.2 }, { month: 'Feb', amount: 7.8 }, { month: 'Mar', amount: 6.9 },
-  { month: 'Apr', amount: 8.4 }, { month: 'May', amount: 9.1 }, { month: 'Jun', amount: 9.8 },
+  { month: 'Jan', amount: 6.2 },
+  { month: 'Feb', amount: 7.8 },
+  { month: 'Mar', amount: 6.9 },
+  { month: 'Apr', amount: 8.4 },
+  { month: 'May', amount: 9.1 },
+  { month: 'Jun', amount: 9.8 },
 ];
 
 const topCostDrivers = [
-  { name: 'Hypertension', amount: 8.2 }, { name: 'Diabetes', amount: 7.4 },
-  { name: 'Maternity',    amount: 6.8 }, { name: 'Dialysis',  amount: 5.9 },
+  { name: 'Hypertension', amount: 8.2 },
+  { name: 'Diabetes',     amount: 7.4 },
+  { name: 'Maternity',    amount: 6.8 },
+  { name: 'Dialysis',     amount: 5.9 },
   { name: 'Cancer Care',  amount: 4.2 },
 ];
 
@@ -51,8 +57,11 @@ const statusColors: Record<string, string> = {
 function Sparkline({ color }: { color: string }) {
   return (
     <svg width="60" height="22" viewBox="0 0 60 22">
-      <polyline points="0,18 10,14 22,16 34,10 46,8 56,6 60,4"
-        fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline
+        points="0,18 10,14 22,16 34,10 46,8 56,6 60,4"
+        fill="none" stroke={color} strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -62,7 +71,11 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full bg-[#FAFBFC]">
-      <TopBar title="Overview" subtitle="Dangote Industries Ltd · ACM-2026 · Last updated today 09:14" showQuickActions />
+      <TopBar
+        title="Overview"
+        subtitle="Dangote Industries Ltd · ACM-2026 · Last updated today 09:14"
+        showQuickActions
+      />
 
       <div className="p-6 flex flex-col gap-5">
 
@@ -72,7 +85,9 @@ export default function DashboardPage() {
             <h1 className="text-[26px] font-extrabold text-[#131C4E] leading-tight tracking-tight">
               Good morning, Amaka ☀️
             </h1>
-            <p className="text-[13px] text-[#9CA3B8] mt-1">Monday, 23 June 2026  ·  1,842 active lives</p>
+            <p className="text-[13px] text-[#9CA3B8] mt-1">
+              Monday, 23 June 2026 &nbsp;·&nbsp; 1,842 active lives
+            </p>
           </div>
           <div className="flex items-center gap-5 bg-white rounded-2xl px-5 py-3.5 shadow-sm border border-[#F0F1F5]">
             <div>
@@ -97,11 +112,11 @@ export default function DashboardPage() {
         {/* KPI CARDS */}
         <div className="grid grid-cols-5 gap-4">
           {([
-            { label: 'Active Lives',     value: '1,842',  sub: '+24 this month',         subColor: '#10B981', icon: Users,       iconBg: '#EEF2FF', iconColor: '#3A4382', spark: '#3A4382' },
-            { label: 'Utilization Rate', value: '26.4%',  sub: '487 members utilized',   subColor: '#3B82F6', icon: Activity,    iconBg: '#EFF6FF', iconColor: '#3B82F6', spark: '#3B82F6' },
-            { label: 'Loss Ratio',       value: '77%',    sub: '▲ +6% vs last quarter', subColor: '#D97706', icon: TrendingUp,  iconBg: '#FFFBEB', iconColor: '#D97706', spark: '#D97706', valColor: '#D97706' },
-            { label: 'Open Issues',      value: '4',      sub: 'Requires attention',      subColor: '#F56B22', icon: AlertCircle, iconBg: '#FFF1E6', iconColor: '#F56B22', spark: '#F56B22' },
-            { label: 'Outstanding',      value: '₦10.5M', sub: 'Due in 7 days',          subColor: '#EF4444', icon: CreditCard,  iconBg: '#FEF2F2', iconColor: '#EF4444', spark: '#EF4444', valColor: '#EF4444', sm: true },
+            { label: 'Active Lives',      value: '1,842',  sub: '+24 this month',          subColor: '#10B981', icon: Users,       iconBg: '#EEF2FF', iconColor: '#3A4382', spark: '#3A4382' },
+            { label: 'Utilization Rate',  value: '26.4%',  sub: '487 members utilized',    subColor: '#3B82F6', icon: Activity,    iconBg: '#EFF6FF', iconColor: '#3B82F6', spark: '#3B82F6' },
+            { label: 'Loss Ratio',        value: '77%',    sub: '▲ +6% vs last quarter',  subColor: '#D97706', icon: TrendingUp,  iconBg: '#FFFBEB', iconColor: '#D97706', spark: '#D97706', valColor: '#D97706' },
+            { label: 'Open Issues',       value: '4',      sub: 'Requires attention',       subColor: '#F56B22', icon: AlertCircle, iconBg: '#FFF1E6', iconColor: '#F56B22', spark: '#F56B22' },
+            { label: 'Outstanding',       value: '₦10.5M', sub: 'Due in 7 days',           subColor: '#EF4444', icon: CreditCard,  iconBg: '#FEF2F2', iconColor: '#EF4444', spark: '#EF4444', valColor: '#EF4444', sm: true },
           ] as const).map((k) => {
             const Icon = k.icon;
             return (
@@ -112,8 +127,10 @@ export default function DashboardPage() {
                   </div>
                   <Sparkline color={k.spark} />
                 </div>
-                <div className={`font-black tracking-tight leading-none mb-1 ${'sm' in k && k.sm ? 'text-[22px]' : 'text-[30px]'}`}
-                  style={{ color: ('valColor' in k ? k.valColor : undefined) ?? '#131C4E' }}>
+                <div
+                  className={`font-black tracking-tight leading-none mb-1 ${'sm' in k && k.sm ? 'text-[22px]' : 'text-[30px]'}`}
+                  style={{ color: ('valColor' in k ? k.valColor : undefined) ?? '#131C4E' }}
+                >
                   {k.value}
                 </div>
                 <div className="text-[11px] text-[#9CA3B8] font-medium mb-2">{k.label}</div>
@@ -137,7 +154,11 @@ export default function DashboardPage() {
               { color: '#10B981', bg: '#F6FDF9', iconBg: '#D1FAE5', Icon: CheckCircle2, text: 'No Benefit Escalations',           cta: 'All clear' },
               { color: '#EF4444', bg: '#FEF9F9', iconBg: '#FEE2E2', Icon: AlertCircle,  text: '2 High-Cost Claims Require Review', cta: 'Review' },
             ].map((item, i) => (
-              <div key={i} className="rounded-xl p-4" style={{ background: item.bg, borderLeft: `3px solid ${item.color}` }}>
+              <div
+                key={i}
+                className="rounded-xl p-4"
+                style={{ background: item.bg, borderLeft: `3px solid ${item.color}` }}
+              >
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-3" style={{ background: item.iconBg }}>
                   <item.Icon className="w-3.5 h-3.5" style={{ color: item.color }} strokeWidth={2} />
                 </div>
@@ -148,8 +169,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* LOSS RATIO + MEMBERSHIP + UTILIZATION */}
+        {/* LOSS RATIO + MEMBERSHIP MOVEMENT + UTILIZATION SNAPSHOT */}
         <div className="grid grid-cols-3 gap-4">
+
+          {/* Loss Ratio Hero */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F0F1F5]">
             <div className="flex items-start justify-between mb-2">
               <div>
@@ -165,18 +188,26 @@ export default function DashboardPage() {
               <span className="text-[32px] font-black text-amber-500">%</span>
             </div>
             <div className="flex gap-6 mb-4">
-              <div><p className="text-[10px] text-[#9CA3B8] font-medium">Claims Paid</p><p className="text-[16px] font-bold text-[#131C4E]">₦48.2M</p></div>
-              <div><p className="text-[10px] text-[#9CA3B8] font-medium">Premium</p><p className="text-[16px] font-bold text-[#131C4E]">₦62.5M</p></div>
+              <div>
+                <p className="text-[10px] text-[#9CA3B8] font-medium">Claims Paid</p>
+                <p className="text-[16px] font-bold text-[#131C4E]">₦48.2M</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#9CA3B8] font-medium">Premium</p>
+                <p className="text-[16px] font-bold text-[#131C4E]">₦62.5M</p>
+              </div>
             </div>
-            <p className="text-[11px] font-semibold text-red-500 mb-3">▲ +6% from last quarter · Projected 84% by year-end</p>
+            <p className="text-[11px] font-semibold text-red-500 mb-3">
+              ▲ +6% from last quarter · Projected 84% by year-end
+            </p>
             <div className="h-2 bg-[#F0F1F5] rounded-full overflow-hidden mb-3">
               <div className="h-full rounded-full" style={{ width: '77%', background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
             </div>
             <div className="grid grid-cols-3 gap-1.5 mb-3">
               {[
-                { name: 'Green',   range: '< 70%',  cls: 'text-emerald-600 bg-emerald-50' },
-                { name: 'Amber ✓', range: '70–90%', cls: 'text-amber-700 bg-amber-50 border border-amber-200' },
-                { name: 'Red',     range: '> 90%',  cls: 'text-red-500 bg-red-50' },
+                { name: 'Green',   range: '< 70%',  active: false, cls: 'text-emerald-600 bg-emerald-50' },
+                { name: 'Amber ✓', range: '70–90%', active: true,  cls: 'text-amber-700 bg-amber-50 border border-amber-200' },
+                { name: 'Red',     range: '> 90%',  active: false, cls: 'text-red-500 bg-red-50' },
               ].map((l) => (
                 <div key={l.name} className={`text-center py-2 rounded-lg text-[10px] font-bold ${l.cls}`}>
                   <p>{l.name}</p>
@@ -187,15 +218,16 @@ export default function DashboardPage() {
             <button className="text-[12px] font-semibold text-[#F56B22]">View Utilization Report →</button>
           </div>
 
+          {/* Membership Movement */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
             <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-1">Membership Movement</p>
             <p className="text-[11px] text-[#9CA3B8] mb-5">This month · June 2026</p>
             <div className="space-y-4">
               {[
-                { label: 'New Additions',     value: '+24', color: '#10B981', bg: '#F0FDF4', Icon: UserPlus },
-                { label: 'Terminations',      value: '−3',  color: '#EF4444', bg: '#FEF2F2', Icon: UserMinus },
-                { label: 'Net Growth',        value: '+21', color: '#10B981', bg: '#F0FDF4', Icon: TrendingUp },
-                { label: 'Pending Additions', value: '12',  color: '#D97706', bg: '#FFFBEB', Icon: Clock },
+                { label: 'New Additions',    value: '+24', color: '#10B981', bg: '#F0FDF4', Icon: UserPlus },
+                { label: 'Terminations',     value: '−3',  color: '#EF4444', bg: '#FEF2F2', Icon: UserMinus },
+                { label: 'Net Growth',       value: '+21', color: '#10B981', bg: '#F0FDF4', Icon: TrendingUp },
+                { label: 'Pending Additions',value: '12',  color: '#D97706', bg: '#FFFBEB', Icon: Clock },
               ].map((row) => (
                 <div key={row.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -210,6 +242,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Utilization Snapshot */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
             <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-1">Utilization Snapshot</p>
             <p className="text-[11px] text-[#9CA3B8] mb-3">Are employees using the scheme?</p>
@@ -241,6 +274,7 @@ export default function DashboardPage() {
 
         {/* CLAIMS TREND + COST DRIVERS */}
         <div className="grid grid-cols-3 gap-4">
+
           <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -249,10 +283,10 @@ export default function DashboardPage() {
               </div>
               <div className="flex gap-5 text-right">
                 {[
-                  { label: 'Total Paid YTD',  val: '₦48.2M' },
-                  { label: 'Unique Visits',   val: '1,204' },
-                  { label: 'Members Utilized',val: '487' },
-                  { label: 'Avg Cost / Visit',val: '₦40,033' },
+                  { label: 'Total Paid YTD',    val: '₦48.2M' },
+                  { label: 'Unique Visits',      val: '1,204' },
+                  { label: 'Members Utilized',   val: '487' },
+                  { label: 'Avg Cost / Visit',   val: '₦40,033' },
                 ].map((s) => (
                   <div key={s.label}>
                     <p className="text-[10px] text-[#9CA3B8] font-medium">{s.label}</p>
@@ -271,9 +305,13 @@ export default function DashboardPage() {
                 </defs>
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3B8' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9CA3B8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v}M`} />
-                <Tooltip contentStyle={{ background: '#fff', border: '1px solid #F0F1F5', borderRadius: 8, fontSize: 12 }} formatter={(v) => [`₦${v}M`, 'Claims']} />
-                <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2} fill="url(#grad)"
-                  dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }} activeDot={{ r: 5, fill: '#F56B22' }} />
+                <Tooltip
+                  contentStyle={{ background: '#fff', border: '1px solid #F0F1F5', borderRadius: 8, fontSize: 12 }}
+                  formatter={(v) => [`₦${v}M`, 'Claims']}
+                />
+                <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2}
+                  fill="url(#grad)" dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }}
+                  activeDot={{ r: 5, fill: '#F56B22' }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -292,7 +330,15 @@ export default function DashboardPage() {
                     <span className="text-[12px] font-bold text-[#131C4E]">₦{item.amount}M</span>
                   </div>
                   <div className="h-1.5 bg-[#F0F1F5] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(item.amount / maxCost) * 100}%`, background: i === 0 ? 'linear-gradient(90deg,#EF4444,#F87171)' : 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${(item.amount / maxCost) * 100}%`,
+                        background: i === 0
+                          ? 'linear-gradient(90deg,#EF4444,#F87171)'
+                          : 'linear-gradient(90deg,#F56B22,#FFB54B)',
+                      }}
+                    />
                   </div>
                 </div>
               ))}
@@ -302,15 +348,21 @@ export default function DashboardPage() {
 
         {/* PROVIDERS + REQUESTS */}
         <div className="grid grid-cols-5 gap-4">
+
           <div className="col-span-3 bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
             <div className="flex items-center justify-between mb-4">
-              <div><h2 className="text-[14px] font-bold text-[#131C4E]">Top Provider Utilization</h2><p className="text-[11px] text-[#9CA3B8] mt-0.5">By spend &amp; visits · 2026</p></div>
+              <div>
+                <h2 className="text-[14px] font-bold text-[#131C4E]">Top Provider Utilization</h2>
+                <p className="text-[11px] text-[#9CA3B8] mt-0.5">By spend &amp; visits · 2026</p>
+              </div>
               <button className="text-[12px] font-semibold text-[#F56B22]">View all →</button>
             </div>
             {topProviders.map((p, i) => (
               <div key={p.name} className="flex items-center py-2.5 border-b border-[#F7F8FA] last:border-0">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mr-3"
-                  style={{ background: i === 0 ? 'linear-gradient(135deg,#F56B22,#FFB54B)' : 'linear-gradient(135deg,#131C4E,#3A4382)' }}>
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mr-3"
+                  style={{ background: i === 0 ? 'linear-gradient(135deg,#F56B22,#FFB54B)' : 'linear-gradient(135deg,#131C4E,#3A4382)' }}
+                >
                   {p.name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -327,36 +379,45 @@ export default function DashboardPage() {
 
           <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
             <div className="flex items-center justify-between mb-4">
-              <div><h2 className="text-[14px] font-bold text-[#131C4E]">Open Requests</h2><p className="text-[11px] text-[#9CA3B8] mt-0.5">Awaiting action</p></div>
+              <div>
+                <h2 className="text-[14px] font-bold text-[#131C4E]">Open Requests</h2>
+                <p className="text-[11px] text-[#9CA3B8] mt-0.5">Awaiting action</p>
+              </div>
               <button className="text-[12px] font-semibold text-[#F56B22]">View all →</button>
             </div>
             {openRequests.map((r) => (
               <div key={r.id} className="flex items-start py-2.5 border-b border-[#F7F8FA] last:border-0">
-                <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 mr-3"
-                  style={{ background: r.status === 'Open' ? '#EF4444' : r.status === 'In Progress' ? '#D97706' : '#3B82F6' }} />
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 mr-3"
+                  style={{ background: r.status === 'Open' ? '#EF4444' : r.status === 'In Progress' ? '#D97706' : '#3B82F6' }}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-semibold text-[#131C4E] leading-snug">{r.title}</p>
                   <p className="text-[10px] text-[#9CA3B8] mt-0.5">{r.id} · {r.date} · {r.category}</p>
                 </div>
-                <span className={`ml-2 flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-md ${statusColors[r.status] ?? 'bg-gray-50 text-gray-500'}`}>{r.status}</span>
+                <span className={`ml-2 flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-md ${statusColors[r.status] ?? 'bg-gray-50 text-gray-500'}`}>
+                  {r.status}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* HEALTH INSIGHTS */}
+        {/* INSIGHTS */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F0F1F5]">
           <div className="flex items-center gap-2 mb-4">
             <Zap className="w-4 h-4 text-[#F56B22]" strokeWidth={2} />
             <h2 className="text-[14px] font-bold text-[#131C4E]">Health Insights</h2>
-            <span className="text-[10px] font-semibold text-[#9CA3B8] bg-[#F7F8FA] border border-[#F0F1F5] px-2 py-0.5 rounded-full">AI-generated from claims data</span>
+            <span className="text-[10px] font-semibold text-[#9CA3B8] bg-[#F7F8FA] border border-[#F0F1F5] px-2 py-0.5 rounded-full">
+              AI-generated from claims data
+            </span>
           </div>
           <div className="grid grid-cols-4 gap-3">
             {[
-              { text: '72% of spend is driven by just 15% of your members',          dot: '#F56B22' },
-              { text: 'Hypertension claims increased 18% this quarter',               dot: '#EF4444' },
-              { text: 'Victoria Island providers account for 41% of utilization',     dot: '#3B82F6' },
-              { text: 'Loss ratio projected to reach 84% by year end if trend holds', dot: '#D97706' },
+              { text: '72% of spend is driven by just 15% of your members',           dot: '#F56B22' },
+              { text: 'Hypertension claims increased 18% this quarter',                dot: '#EF4444' },
+              { text: 'Victoria Island providers account for 41% of utilization',      dot: '#3B82F6' },
+              { text: 'Loss ratio projected to reach 84% by year end if trend holds',  dot: '#D97706' },
             ].map((ins, i) => (
               <div key={i} className="bg-[#FAFBFC] border border-[#F0F1F5] rounded-xl p-4">
                 <div className="w-1.5 h-1.5 rounded-full mb-3" style={{ background: ins.dot }} />
