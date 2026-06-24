@@ -11,7 +11,6 @@ import {
   Lightbulb,
   MessageSquare,
   Settings,
-  LogOut,
   FileText,
   ChevronDown,
 } from 'lucide-react';
@@ -193,14 +192,6 @@ export function Sidebar() {
             </p>
             <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 2 }}>HR Administrator</p>
           </div>
-          <button
-            style={{ padding: 7, borderRadius: 8, color: '#C8CDD9', background: 'transparent', transition: 'all 0.15s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.color = '#7C8499'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8CDD9'; }}
-            title="Sign out"
-          >
-            <LogOut style={{ width: 14, height: 14 }} />
-          </button>
         </div>
       </div>
     </aside>
