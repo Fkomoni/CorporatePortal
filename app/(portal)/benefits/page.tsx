@@ -4,10 +4,22 @@ import React, { useState } from 'react';
 import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
-type Plan = 'Gold Plus' | 'Silver' | 'Bronze';
+type Plan = 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan';
 
 const benefits: Record<Plan, { category: string; limit: string; includes: string[]; excludes: string[]; waitingPeriod?: string }[]> = {
-  'Gold Plus': [
+  'Plus Plan': [
+    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation'], excludes: ['Specialist referrals', 'Cosmetic procedures'] },
+    { category: 'Inpatient',  limit: '₦1,500,000 / yr',  includes: ['Basic surgery'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '6 months' },
+    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits'], excludes: ['Elective admission'] },
+  ],
+  'Pro Plan': [
+    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Basic diagnostics'], excludes: ['Cosmetic procedures'] },
+    { category: 'Inpatient',  limit: '₦3,000,000 / yr',  includes: ['Surgery', 'Physiotherapy'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
+    { category: 'Maternity',  limit: '₦250,000',          includes: ['ANC', 'Delivery'], excludes: ['IVF / ART', 'C-Section elective'], waitingPeriod: '9 months' },
+    { category: 'Dental',     limit: '₦80,000 / yr',      includes: ['Routine check', 'Extraction'], excludes: ['Restoration', 'Orthodontics'], waitingPeriod: '6 months' },
+    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance'], excludes: [] },
+  ],
+  'Max Plan': [
     { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Diagnostics', 'Drugs (formulary)'], excludes: ['Cosmetic procedures'] },
     { category: 'Inpatient',  limit: '₦5,000,000 / yr',  includes: ['Surgery', 'ICU', 'Physiotherapy'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
     { category: 'Maternity',  limit: '₦400,000',          includes: ['ANC', 'Delivery', 'Postnatal'], excludes: ['IVF / ART'], waitingPeriod: '6 months' },
@@ -16,17 +28,23 @@ const benefits: Record<Plan, { category: string; limit: string; includes: string
     { category: 'Specialist', limit: '₦2,000,000 / yr',   includes: ['Cardiology', 'Orthopaedics', 'Oncology'], excludes: ['Experimental treatment'] },
     { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance', 'Emergency surgery'], excludes: [] },
   ],
-  'Silver': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Basic diagnostics'], excludes: ['Cosmetic procedures'] },
-    { category: 'Inpatient',  limit: '₦3,000,000 / yr',  includes: ['Surgery', 'Physiotherapy'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
-    { category: 'Maternity',  limit: '₦250,000',          includes: ['ANC', 'Delivery'], excludes: ['IVF / ART', 'C-Section elective'], waitingPeriod: '9 months' },
-    { category: 'Dental',     limit: '₦80,000 / yr',      includes: ['Routine check', 'Extraction'], excludes: ['Restoration', 'Orthodontics'], waitingPeriod: '6 months' },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance'], excludes: [] },
+  'Promax Plan': [
+    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Diagnostics', 'Drugs (formulary)', 'Specialist referral'], excludes: ['Cosmetic procedures'] },
+    { category: 'Inpatient',  limit: '₦10,000,000 / yr', includes: ['Surgery', 'ICU', 'Physiotherapy', 'Private ward'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
+    { category: 'Maternity',  limit: '₦600,000',          includes: ['ANC', 'Delivery', 'Postnatal', 'C-Section'], excludes: ['IVF / ART'], waitingPeriod: '3 months' },
+    { category: 'Dental',     limit: '₦250,000 / yr',     includes: ['Routine check', 'Restoration', 'Extraction', 'Orthodontics'], excludes: ['Implants'], waitingPeriod: '3 months' },
+    { category: 'Optical',    limit: '₦120,000 / yr',     includes: ['Eye test', 'Frames', 'Lenses', 'Contact lenses'], excludes: [], waitingPeriod: '3 months' },
+    { category: 'Specialist', limit: '₦5,000,000 / yr',   includes: ['Cardiology', 'Orthopaedics', 'Oncology', 'Neurology'], excludes: ['Experimental treatment'] },
+    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance', 'Emergency surgery', 'Air evacuation'], excludes: [] },
   ],
-  'Bronze': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation'], excludes: ['Specialist referrals', 'Cosmetic procedures'] },
-    { category: 'Inpatient',  limit: '₦1,500,000 / yr',  includes: ['Basic surgery'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '6 months' },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits'], excludes: ['Elective admission'] },
+  'Magnum Plan': [
+    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Diagnostics', 'Drugs (full formulary)', 'Specialist referral', 'Telemedicine'], excludes: [] },
+    { category: 'Inpatient',  limit: 'Unlimited',         includes: ['Surgery', 'ICU', 'Physiotherapy', 'Private suite', 'VIP ward'], excludes: [], waitingPeriod: 'None' },
+    { category: 'Maternity',  limit: 'Unlimited',          includes: ['ANC', 'Delivery', 'Postnatal', 'C-Section', 'IVF (2 cycles)'], excludes: [] },
+    { category: 'Dental',     limit: 'Unlimited',          includes: ['Full dental coverage', 'Implants', 'Orthodontics'], excludes: [] },
+    { category: 'Optical',    limit: 'Unlimited',          includes: ['Eye test', 'Frames', 'Lenses', 'LASIK referral'], excludes: [] },
+    { category: 'Specialist', limit: 'Unlimited',          includes: ['All specialties', 'International referral', 'Second opinion'], excludes: [] },
+    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance', 'Emergency surgery', 'International evacuation'], excludes: [] },
   ],
 };
 
@@ -53,7 +71,7 @@ const providers = [
 
 export default function BenefitsPage() {
   const [activeTab, setActiveTab] = useState<'plans' | 'providers'>('plans');
-  const [activePlan, setActivePlan] = useState<Plan>('Gold Plus');
+  const [activePlan, setActivePlan] = useState<Plan>('Max Plan');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
@@ -93,12 +111,14 @@ export default function BenefitsPage() {
           <>
             {/* Plan selector */}
             <div style={{ display: 'flex', gap: 10 }}>
-              {(['Gold Plus', 'Silver', 'Bronze'] as Plan[]).map((plan) => {
+              {(['Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'] as Plan[]).map((plan) => {
                 const isActive = activePlan === plan;
                 const colors: Record<Plan, { accent: string; bg: string; activeBg: string }> = {
-                  'Gold Plus': { accent: '#D97706', bg: '#FFFBEB', activeBg: '#FEF3C7' },
-                  'Silver':    { accent: '#475569', bg: '#F1F5F9', activeBg: '#E2E8F0' },
-                  'Bronze':    { accent: '#C2410C', bg: '#FFF7ED', activeBg: '#FFEDD5' },
+                  'Plus Plan':   { accent: '#C2410C', bg: '#FFF7ED', activeBg: '#FFEDD5' },
+                  'Pro Plan':    { accent: '#475569', bg: '#F1F5F9', activeBg: '#E2E8F0' },
+                  'Max Plan':    { accent: '#D97706', bg: '#FFFBEB', activeBg: '#FEF3C7' },
+                  'Promax Plan': { accent: '#2563EB', bg: '#EFF6FF', activeBg: '#DBEAFE' },
+                  'Magnum Plan': { accent: '#6D28D9', bg: '#F5F3FF', activeBg: '#EDE9FE' },
                 };
                 const c = colors[plan];
                 return (

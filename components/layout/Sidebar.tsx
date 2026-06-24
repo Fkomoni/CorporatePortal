@@ -13,6 +13,7 @@ import {
   Settings,
   FileText,
   ChevronDown,
+  LogOut,
 } from 'lucide-react';
 
 const mainNav = [
@@ -173,8 +174,20 @@ export function Sidebar() {
 
       {/* User footer */}
       <div style={{ borderTop: '1px solid #EDEEF2', padding: '14px 16px' }}>
-        <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }}>Amaka Fashola</p>
-        <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 3 }}>HR Administrator</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }}>Favour Komoni</p>
+            <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 3 }}>HR Administrator</p>
+          </div>
+          <button
+            title="Log out"
+            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.borderColor = '#EDEEF2'; }}
+          >
+            <LogOut style={{ width: 14, height: 14, color: '#EF4444' }} strokeWidth={2} />
+          </button>
+        </div>
       </div>
     </aside>
   );
