@@ -127,8 +127,8 @@ export default function ClaimsPage() {
         {/* CLAIMS TABLE */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div
-            className="grid text-[10.5px] font-bold uppercase px-6 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10, color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
+            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <span>Ref</span>
             <span>Member</span>
             <span>Enrolee ID</span>
@@ -148,8 +148,8 @@ export default function ClaimsPage() {
             return (
               <div
                 key={c.id}
-                className="grid items-center px-6 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10 }}>
+                className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
+                style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 12, padding: '16px 24px' }}>
                 <span className="text-[12px] font-bold text-[#F56B22] font-mono">{c.claimRef}</span>
                 <span className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</span>
                 <span className="text-[11px] text-[#9CA3B8] font-mono">{enroleeId}</span>

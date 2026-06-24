@@ -101,8 +101,8 @@ export default function FinancePage() {
         {/* INVOICE TABLE */}
         {activeTab === 'invoices' && (
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div className="grid text-[10.5px] font-bold uppercase px-6 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            <div className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
+              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
               <span>Amount</span><span>Status</span><span>Download</span>
             </div>
@@ -110,8 +110,8 @@ export default function FinancePage() {
               const s = statusColors[inv.status] ?? { bg: '#F1F5F9', text: '#475569' };
               return (
                 <div key={inv.id}
-                  className="grid items-center px-6 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px' }}>
+                  className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
+                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', columnGap: 12, padding: '16px 24px' }}>
                   <span className="text-[13px] font-bold text-[#131C4E]">{inv.invoiceNo}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>

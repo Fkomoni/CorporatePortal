@@ -363,7 +363,7 @@ export default function MembersPage() {
         </div>
 
         {/* Toolbar */}
-        <div style={{ ...card, padding: '16px 24px' }}>
+        <div style={{ ...card, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 440 }}>
               <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#C4C9D9' }} />
@@ -425,8 +425,8 @@ export default function MembersPage() {
         {/* Members table */}
         <div style={{ ...card }}>
           {/* Header row */}
-          <div className="grid items-center gap-3 px-6 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+          <div className="grid items-center border-b border-[#F0F1F5] bg-[#FAFBFC]"
+            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox
               checked={allSelected}
               indeterminate={someSelected}
@@ -451,8 +451,8 @@ export default function MembersPage() {
             return (
               <div
                 key={m.id}
-                className={`grid items-center gap-3 px-6 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px' }}
+                className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
+                style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '16px 24px' }}
                 onClick={() => setActiveMember({ member: m, index: i })}
               >
                 <Checkbox
@@ -486,7 +486,7 @@ export default function MembersPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-6 py-4 border-t border-[#F0F1F5]" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">Showing {filtered.length} of 1,842 members</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {(['‹', '1', '2', '3', '›'] as const).map((p) => (
