@@ -121,8 +121,8 @@ export default function BenefitsPage() {
               })}
             </div>
 
-            {/* Benefit cards — polished single list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Benefit cards — two-column grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
               {benefits[activePlan].map((b) => {
                 const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
                 const Icon = meta.Icon;
