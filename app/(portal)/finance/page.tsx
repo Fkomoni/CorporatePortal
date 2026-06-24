@@ -101,19 +101,8 @@ export default function FinancePage() {
         {/* INVOICE TABLE */}
         {activeTab === 'invoices' && (
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F1F5]" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-              <p className="text-[14px] font-bold text-[#131C4E]">Invoice List</p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
-                  <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
-                </button>
-                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
-                  <ArrowDownToLine style={{ width: 13, height: 13 }} /> PDF
-                </button>
-              </div>
-            </div>
-            <div className="grid text-[10.5px] font-bold uppercase px-5 py-2.5 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px', color: '#B0B7C9', letterSpacing: '0.07em' }}>
+            <div className="grid text-[10.5px] font-bold uppercase px-6 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
+              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
               <span>Amount</span><span>Status</span><span>Download</span>
             </div>
@@ -121,8 +110,8 @@ export default function FinancePage() {
               const s = statusColors[inv.status] ?? { bg: '#F1F5F9', text: '#475569' };
               return (
                 <div key={inv.id}
-                  className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 150px' }}>
+                  className="grid items-center px-6 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
+                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px' }}>
                   <span className="text-[13px] font-bold text-[#131C4E]">{inv.invoiceNo}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[12px] text-[#6B7280]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
@@ -131,45 +120,12 @@ export default function FinancePage() {
                   <span className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
                     {inv.status}
                   </span>
-                  {/* Download chips */}
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        height: 30, padding: '0 11px',
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
-                        background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)',
-                        color: '#15803D',
-                        border: '1px solid #BBF7D0',
-                        borderRadius: 14,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 1px 3px rgba(21,128,61,0.10)',
-                        transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#DCFCE7,#BBF7D0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(21,128,61,0.18)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#F0FDF4,#DCFCE7)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(21,128,61,0.10)'; }}
-                    >
-                      <ArrowDownToLine style={{ width: 11, height: 11 }} /> XLS
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 8, background: '#FAFBFC', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <ArrowDownToLine style={{ width: 10, height: 10 }} /> XLS
                     </button>
-                    <button
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        height: 30, padding: '0 11px',
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
-                        background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)',
-                        color: '#C2410C',
-                        border: '1px solid #FDBA74',
-                        borderRadius: 14,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 1px 3px rgba(194,65,12,0.10)',
-                        transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#FFE8D6,#FED7AA)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(194,65,12,0.18)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg,#FFF5EF,#FFE8D6)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(194,65,12,0.10)'; }}
-                    >
-                      <ArrowDownToLine style={{ width: 11, height: 11 }} /> PDF
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 8, background: '#FAFBFC', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <ArrowDownToLine style={{ width: 10, height: 10 }} /> PDF
                     </button>
                   </div>
                 </div>
