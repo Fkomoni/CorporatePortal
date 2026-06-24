@@ -120,54 +120,64 @@ export default function BenefitsPage() {
                 );
               })}
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              {benefits[activePlan].map((b) => (
-                <div key={b.category} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px' }}>
-                  {(() => {
-                    const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
-                    const Icon = meta.Icon;
-                    return (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <Icon style={{ width: 18, height: 18, color: meta.color }} strokeWidth={1.75} />
-                            </div>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>{b.category}</span>
-                          </div>
-                          {b.waitingPeriod && (
-                            <span style={{ fontSize: 10, fontWeight: 600, background: '#FFFBEB', color: '#D97706', padding: '3px 8px', borderRadius: 99, border: '1px solid #FDE68A' }}>
-                              {b.waitingPeriod} wait
-                            </span>
-                          )}
+
+            {/* Benefit cards — polished single list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {benefits[activePlan].map((b) => {
+                const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
+                const Icon = meta.Icon;
+                const totalItems = b.includes.length + b.excludes.length;
+                return (
+                  <div key={b.category} style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                    {/* Card header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 28px', borderBottom: '1px solid #F0F1F5' }}>
+                      <div style={{ width: 52, height: 52, borderRadius: 14, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Icon style={{ width: 24, height: 24, color: meta.color }} strokeWidth={1.75} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{b.category}</p>
+                        <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{totalItems} benefits covered · Limit: <span style={{ fontWeight: 600, color: '#131C4E' }}>{b.limit}</span></p>
+                      </div>
+                      {b.waitingPeriod && (
+                        <span style={{ fontSize: 11, fontWeight: 600, background: '#FFFBEB', color: '#D97706', padding: '4px 12px', borderRadius: 99, border: '1px solid #FDE68A', flexShrink: 0 }}>
+                          {b.waitingPeriod} waiting period
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Includes section */}
+                    <div style={{ padding: '0 28px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderLeft: '3px solid #F56B22', paddingLeft: 12, marginLeft: -12 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>What&apos;s Covered</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, background: '#ECFDF5', color: '#059669', padding: '3px 10px', borderRadius: 99 }}>{b.includes.length} COVERED</span>
+                      </div>
+                      {b.includes.map((inc, i) => (
+                        <div key={inc} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #F7F8FA' }}>
+                          <CheckCircle style={{ width: 16, height: 16, color: '#10B981', flexShrink: 0 }} strokeWidth={2.5} />
+                          <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{inc}</span>
                         </div>
-                        <p style={{ fontSize: 18, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', marginBottom: 4 }}>{b.limit}</p>
-                        <p style={{ fontSize: 11, color: '#B0B7C9', fontWeight: 500, marginBottom: 14 }}>Annual limit</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-                          <p style={{ fontSize: 11, fontWeight: 600, color: '#059669', marginBottom: 2 }}>Includes</p>
-                          {b.includes.map((inc) => (
-                            <div key={inc} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <CheckCircle style={{ width: 13, height: 13, color: '#10B981', flexShrink: 0 }} />
-                              <span style={{ fontSize: 12, color: '#374151' }}>{inc}</span>
+                      ))}
+
+                      {/* Excludes section */}
+                      {b.excludes.length > 0 && (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderTop: '1px solid #F0F1F5', marginTop: 4, borderLeft: '3px solid #EF4444', paddingLeft: 12, marginLeft: -12 }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Not Covered</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, background: '#FEF2F2', color: '#DC2626', padding: '3px 10px', borderRadius: 99 }}>{b.excludes.length} EXCLUDED</span>
+                          </div>
+                          {b.excludes.map((exc, i) => (
+                            <div key={exc} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #F7F8FA' }}>
+                              <XCircle style={{ width: 16, height: 16, color: '#EF4444', flexShrink: 0 }} strokeWidth={2.5} />
+                              <span style={{ fontSize: 13, color: '#9CA3B8', fontWeight: 500 }}>{exc}</span>
                             </div>
                           ))}
-                        </div>
-                        {b.excludes.length > 0 && (
-                          <div style={{ paddingTop: 12, borderTop: '1px solid #F0F1F5' }}>
-                            <p style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', marginBottom: 6 }}>Excludes</p>
-                            {b.excludes.map((exc) => (
-                              <div key={exc} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                <XCircle style={{ width: 13, height: 13, color: '#EF4444', flexShrink: 0 }} />
-                                <span style={{ fontSize: 12, color: '#9CA3B8' }}>{exc}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              ))}
+                        </>
+                      )}
+                      <div style={{ height: 8 }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
@@ -189,20 +199,35 @@ export default function BenefitsPage() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filteredProviders.map((p) => (
-                <div key={p.name} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px' }}>
-                  <div className="flex items-start justify-between mb-3">
-                    <p className="text-[14px] font-bold text-[#131C4E] leading-snug flex-1 pr-2">{p.name}</p>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={p.status === 'Active' ? { background: '#ECFDF5', color: '#059669' } : { background: '#FEF2F2', color: '#DC2626' }}>{p.status}</span>
+                <div key={p.name} style={{ background: '#fff', borderRadius: 14, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <MapPin style={{ width: 20, height: 20, color: '#F56B22' }} />
                   </div>
-                  <div className="flex items-center gap-1.5 text-[12px] text-[#6B7280] mb-1.5"><MapPin className="w-3 h-3 text-[#9CA3B8] flex-shrink-0" />{p.address}</div>
-                  <div className="flex items-center gap-1.5 text-[12px] text-[#6B7280] mb-3"><Phone className="w-3 h-3 text-[#9CA3B8] flex-shrink-0" />{p.phone}</div>
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {p.specialties.map((s) => (<span key={s} className="text-[10px] font-semibold bg-[#EEF2FF] text-[#3A4382] px-2 py-0.5 rounded-full">{s}</span>))}
-                    <span className="text-[10px] font-semibold bg-[#F1F2F8] text-[#6B7280] px-2 py-0.5 rounded-full">{p.type}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>{p.name}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, flexShrink: 0, background: p.status === 'Active' ? '#ECFDF5' : '#FEF2F2', color: p.status === 'Active' ? '#059669' : '#DC2626' }}>{p.status}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9CA3B8' }}>
+                        <MapPin style={{ width: 12, height: 12, flexShrink: 0 }} />{p.address}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#F56B22', fontWeight: 500 }}>
+                        <Phone style={{ width: 12, height: 12, flexShrink: 0 }} />{p.phone}
+                      </span>
+                    </div>
                   </div>
-                  <button className="text-[12px] font-semibold text-[#F56B22]">Get Directions →</button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flexShrink: 0, maxWidth: 280, justifyContent: 'flex-end' }}>
+                    {p.specialties.map((s) => (
+                      <span key={s} style={{ fontSize: 10, fontWeight: 600, background: '#EEF2FF', color: '#3730A3', padding: '3px 8px', borderRadius: 6 }}>{s}</span>
+                    ))}
+                    <span style={{ fontSize: 10, fontWeight: 600, background: '#F1F2F8', color: '#6B7280', padding: '3px 8px', borderRadius: 6 }}>{p.type}</span>
+                  </div>
+                  <button style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', fontSize: 12, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 10, background: '#FFF5EF', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <MapPin style={{ width: 13, height: 13 }} /> Directions
+                  </button>
                 </div>
               ))}
             </div>
