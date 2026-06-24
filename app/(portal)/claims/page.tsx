@@ -127,8 +127,8 @@ export default function ClaimsPage() {
         {/* CLAIMS TABLE */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div
-            className="grid text-[10.5px] font-bold uppercase px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]" style={{ color: '#B0B7C9', letterSpacing: '0.07em' }}
-            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10 }}>
+            className="grid text-[10.5px] font-bold uppercase px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
+            style={{ gridTemplateColumns: '106px 140px 118px 150px 140px 88px 100px 88px 80px', columnGap: 10, color: '#B0B7C9', letterSpacing: '0.07em' }}>
             <span>Ref</span>
             <span>Member</span>
             <span>Enrolee ID</span>
