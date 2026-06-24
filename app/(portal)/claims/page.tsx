@@ -82,7 +82,7 @@ export default function ClaimsPage() {
                 <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500 }}>{s.label}</p>
                 <s.Icon className="w-4 h-4" style={{ color: s.color }} strokeWidth={1.75} />
               </div>
-              <p style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: s.color }}>{s.value}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12, color: s.color }}>{s.value}</p>
               <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
             </div>
           ))}

@@ -64,11 +64,11 @@ export default function ServiceDeskPage() {
         {/* SUMMARY CARDS */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
           {summaryItems.map((s) => (
-            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '24px 28px' }}>
+            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, display: 'block' }} />
               </div>
-              <p style={{ fontSize: 34, fontWeight: 900, lineHeight: 1, color: s.color, letterSpacing: '-0.03em', marginBottom: 8 }}>{s.value}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: s.color, letterSpacing: '-0.03em', marginBottom: 12 }}>{s.value}</p>
               <p style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8' }}>{s.label}</p>
             </div>
           ))}
@@ -147,7 +147,7 @@ export default function ServiceDeskPage() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.15)', width: '100%', maxWidth: 520 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F0F1F5' }}>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>New Request</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>New Request</p>
                 <button onClick={() => setShowForm(false)} style={{ padding: 8, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3B8' }}>
                   <X style={{ width: 16, height: 16 }} />
                 </button>
