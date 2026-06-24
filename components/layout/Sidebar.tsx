@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   Users,
@@ -11,7 +12,6 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Building2,
   FileText,
   ChevronDown,
 } from 'lucide-react';
@@ -115,25 +115,17 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-5"
-        style={{ paddingTop: 20, paddingBottom: 20, borderBottom: '1px solid #EDEEF2' }}
+        className="flex items-center gap-3 px-4"
+        style={{ paddingTop: 16, paddingBottom: 16, borderBottom: '1px solid #EDEEF2' }}
       >
-        <div
-          style={{
-            width: 34, height: 34,
-            borderRadius: 10,
-            background: 'linear-gradient(135deg, #F56B22 0%, #FFB54B 100%)',
-            boxShadow: '0 3px 10px rgba(245,107,34,0.30)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <ShieldCheck style={{ width: 16, height: 16, color: '#fff' }} strokeWidth={2.5} />
-        </div>
-        <div>
-          <p style={{ fontSize: 13.5, fontWeight: 700, color: '#131C4E', lineHeight: '1.2' }}>Leadway Health</p>
-          <p style={{ fontSize: 10, color: '#B8BFD0', fontWeight: 500, marginTop: 2 }}>Corporate Portal</p>
-        </div>
+        <Image
+          src="/leadway-logo.jpeg"
+          alt="Leadway Health"
+          width={120}
+          height={40}
+          style={{ objectFit: 'contain', objectPosition: 'left center', height: 36, width: 'auto' }}
+          priority
+        />
       </div>
 
       {/* Client chip */}
