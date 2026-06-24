@@ -153,8 +153,8 @@ export default function ClaimsPage() {
                 <span className="text-[12px] font-bold text-[#F56B22] font-mono">{c.claimRef}</span>
                 <span className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</span>
                 <span className="text-[11px] text-[#9CA3B8] font-mono">{enroleeId}</span>
-                <span className="text-[12px] text-[#6B7280] truncate">{c.diagnosis}</span>
-                <span className="text-[12px] text-[#6B7280] truncate">{c.provider}</span>
+                <span className="text-[11px] text-[#9CA3B8] truncate">{c.diagnosis}</span>
+                <span className="text-[11px] text-[#9CA3B8] truncate">{c.provider}</span>
                 <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
                 <span className="text-[13px] font-bold text-[#131C4E] text-right">{fmt(c.amount)}</span>
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: st.bg, color: st.text }}>

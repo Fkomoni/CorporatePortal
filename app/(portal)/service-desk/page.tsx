@@ -112,7 +112,7 @@ export default function ServiceDeskPage() {
                 style={{ display: 'grid', gridTemplateColumns: '110px 1fr 140px 160px 110px 100px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                 className="hover:bg-[#FAFBFC] last:border-0">
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{t.ticketId}</span>
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 16 }}>{t.subject}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 16 }}>{t.subject}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: cat.bg, color: cat.text, width: 'fit-content' }}>
                   {t.category}
                 </span>
@@ -123,8 +123,8 @@ export default function ServiceDeskPage() {
                 <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sla.bg, color: sla.text, width: 'fit-content' }}>
                   {slaKey}
                 </span>
-                <span style={{ fontSize: 12, color: '#9CA3B8' }}>{new Date(t.submittedDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
-                <span style={{ fontSize: 12, color: '#9CA3B8' }}>{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
+                <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.submittedDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
+                <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
               </div>
             );
           })}

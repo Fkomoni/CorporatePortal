@@ -113,9 +113,9 @@ export default function FinancePage() {
                   className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
                   style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', columnGap: 12, padding: '16px 24px' }}>
                   <span className="text-[13px] font-bold text-[#131C4E]">{inv.invoiceNo}</span>
-                  <span className="text-[12px] text-[#6B7280]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
-                  <span className="text-[12px] text-[#6B7280]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
-                  <span className="text-[12px] text-[#6B7280] truncate pr-4">{inv.description}</span>
+                  <span className="text-[11px] text-[#9CA3B8]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                  <span className="text-[11px] text-[#9CA3B8]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                  <span className="text-[11px] text-[#9CA3B8] truncate pr-4">{inv.description}</span>
                   <span className="text-[13px] font-bold text-[#131C4E]">₦{inv.amount.toLocaleString()}</span>
                   <span className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
                     {inv.status}

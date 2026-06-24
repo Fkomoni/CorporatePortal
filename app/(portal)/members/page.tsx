@@ -461,15 +461,15 @@ export default function MembersPage() {
                   onClick={(e) => e.stopPropagation()}
                 />
                 <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
-                <span className="text-[12px] text-[#6B7280] font-mono">{m.employeeId}</span>
-                <span className="text-[12px] text-[#131C4E] font-mono font-semibold">{enroleeId}</span>
+                <span className="text-[11px] text-[#9CA3B8] font-mono">{m.employeeId}</span>
+                <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{enroleeId}</span>
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
-                <span className="text-[12px] text-[#6B7280]">{m.type}</span>
+                <span className="text-[11px] text-[#9CA3B8]">{m.type}</span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.dot }} />{m.status}
                 </span>
-                <span className="text-[12px] text-[#6B7280]">{m.phone}</span>
-                <span className="text-[12px] text-[#6B7280]">{m.location}</span>
+                <span className="text-[11px] text-[#9CA3B8]">{m.phone}</span>
+                <span className="text-[11px] text-[#9CA3B8]">{m.location}</span>
               </div>
             );
           })}
