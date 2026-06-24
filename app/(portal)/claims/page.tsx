@@ -114,7 +114,7 @@ export default function ClaimsPage() {
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div
             className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-            style={{ gridTemplateColumns: '130px 1fr 160px 110px 120px 100px 110px 110px' }}>
+            style={{ gridTemplateColumns: '130px 1fr 160px 110px 110px 110px 100px 100px', columnGap: 8 }}>
             <span>Ref</span>
             <span>Member · Diagnosis</span>
             <span>Provider</span>
@@ -132,8 +132,8 @@ export default function ClaimsPage() {
             return (
               <div
                 key={c.id}
-                className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                style={{ gridTemplateColumns: '130px 1fr 160px 110px 120px 100px 110px 110px' }}>
+                className="grid items-center px-5 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
+                style={{ gridTemplateColumns: '130px 1fr 160px 110px 110px 110px 100px 100px', columnGap: 8 }}>
                 <span className="text-[12px] font-bold text-[#F56B22]">{c.claimRef}</span>
                 <div className="min-w-0 pr-4">
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</p>

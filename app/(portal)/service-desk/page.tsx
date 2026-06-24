@@ -87,7 +87,7 @@ export default function ServiceDeskPage() {
         {/* TICKET TABLE */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-            style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px' }}>
+            style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px', columnGap: 8 }}>
             <span>Ticket ID</span><span>Subject</span><span>Category</span>
             <span>Status</span><span>SLA</span><span>Submitted</span><span>Updated</span>
           </div>
@@ -97,8 +97,8 @@ export default function ServiceDeskPage() {
             const sla = slaColors[mockSLA[i] ?? 'Within SLA'] ?? slaColors['Within SLA'];
             return (
               <div key={t.id}
-                className="grid items-center px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px' }}>
+                className="grid items-center px-5 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
+                style={{ gridTemplateColumns: '100px 1fr 150px 130px 100px 100px 100px', columnGap: 8 }}>
                 <span className="text-[12px] font-bold text-[#F56B22]">{t.ticketId}</span>
                 <span className="text-[13px] font-semibold text-[#131C4E] truncate pr-4">{t.subject}</span>
                 <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>

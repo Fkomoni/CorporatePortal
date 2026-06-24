@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, MapPin, Phone, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
 type Plan = 'Gold Plus' | 'Silver' | 'Bronze';
@@ -30,8 +30,14 @@ const benefits: Record<Plan, { category: string; limit: string; includes: string
   ],
 };
 
-const categoryIcons: Record<string, string> = {
-  Outpatient: '🏥', Inpatient: '🛍️', Maternity: '👶', Dental: '🦷', Optical: '👁️', Specialist: '🔬', Emergency: '🚨',
+const categoryMeta: Record<string, { Icon: React.ElementType; color: string; bg: string }> = {
+  Outpatient: { Icon: Activity,      color: '#10B981', bg: '#ECFDF5' },
+  Inpatient:  { Icon: Building2,     color: '#3B82F6', bg: '#EFF6FF' },
+  Maternity:  { Icon: Heart,         color: '#EC4899', bg: '#FDF2F8' },
+  Dental:     { Icon: Smile,         color: '#F59E0B', bg: '#FFFBEB' },
+  Optical:    { Icon: Eye,           color: '#8B5CF6', bg: '#F5F3FF' },
+  Specialist: { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
+  Emergency:  { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
 };
 
 const providers = [
@@ -65,7 +71,7 @@ export default function BenefitsPage() {
           {(['plans', 'providers'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all ${activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'}`}
-              style={activeTab === tab ? { background: '#131C4E' } : {}}>
+              style={activeTab === tab ? { background: '#F56B22' } : {}}>
               {tab === 'plans' ? 'Benefit Plans' : 'Provider Search'}
             </button>
           ))}
@@ -83,25 +89,49 @@ export default function BenefitsPage() {
             <div className="grid grid-cols-3 gap-4">
               {benefits[activePlan].map((b) => (
                 <div key={b.category} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px' }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[20px]">{categoryIcons[b.category] ?? '📋'}</span>
-                      <span className="text-[14px] font-bold text-[#131C4E]">{b.category}</span>
-                    </div>
-                    {b.waitingPeriod && <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">{b.waitingPeriod} wait</span>}
-                  </div>
-                  <div className="text-[20px] font-extrabold text-[#131C4E] mb-1 tracking-tight">{b.limit}</div>
-                  <p className="text-[10px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-2">Limit</p>
-                  <div className="space-y-1 mb-3">
-                    <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest mb-1">Includes</p>
-                    {b.includes.map((inc) => (<div key={inc} className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0" /><span className="text-[12px] text-[#3A4382]">{inc}</span></div>))}
-                  </div>
-                  {b.excludes.length > 0 && (
-                    <div className="space-y-1 pt-3 border-t border-[#F7F8FA]">
-                      <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest mb-1">Excludes</p>
-                      {b.excludes.map((exc) => (<div key={exc} className="flex items-center gap-1.5"><XCircle className="w-3 h-3 text-red-400 flex-shrink-0" /><span className="text-[12px] text-[#9CA3B8]">{exc}</span></div>))}
-                    </div>
-                  )}
+                  {(() => {
+                    const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
+                    const Icon = meta.Icon;
+                    return (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <Icon style={{ width: 18, height: 18, color: meta.color }} strokeWidth={1.75} />
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>{b.category}</span>
+                          </div>
+                          {b.waitingPeriod && (
+                            <span style={{ fontSize: 10, fontWeight: 600, background: '#FFFBEB', color: '#D97706', padding: '3px 8px', borderRadius: 99, border: '1px solid #FDE68A' }}>
+                              {b.waitingPeriod} wait
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 18, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', marginBottom: 4 }}>{b.limit}</p>
+                        <p style={{ fontSize: 11, color: '#B0B7C9', fontWeight: 500, marginBottom: 14 }}>Annual limit</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: '#059669', marginBottom: 2 }}>Includes</p>
+                          {b.includes.map((inc) => (
+                            <div key={inc} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <CheckCircle style={{ width: 13, height: 13, color: '#10B981', flexShrink: 0 }} />
+                              <span style={{ fontSize: 12, color: '#374151' }}>{inc}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {b.excludes.length > 0 && (
+                          <div style={{ paddingTop: 12, borderTop: '1px solid #F0F1F5' }}>
+                            <p style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', marginBottom: 6 }}>Excludes</p>
+                            {b.excludes.map((exc) => (
+                              <div key={exc} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <XCircle style={{ width: 13, height: 13, color: '#EF4444', flexShrink: 0 }} />
+                                <span style={{ fontSize: 12, color: '#9CA3B8' }}>{exc}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

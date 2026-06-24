@@ -22,12 +22,11 @@ export default function ReportsPage() {
       <TopBar title="Insights" subtitle="Reports &amp; Analytics" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 20 }}>
-          <p className="text-[11px] font-semibold text-[#9CA3B8] uppercase tracking-widest mb-3">Filter Reports</p>
-          <div className="flex items-end gap-3 flex-wrap">
+<div className="flex items-end gap-3 flex-wrap">
             <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">From</p><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]" /></div>
             <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">To</p><input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]" /></div>
             <div><p className="text-[11px] text-[#9CA3B8] font-medium mb-1">Plan</p><select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-9 px-3 text-[12px] border border-[#E5E7F1] rounded-xl bg-[#F7F8FA] text-[#131C4E] outline-none focus:border-[#F56B22]"><option value="">All Plans</option><option>Gold Plus</option><option>Silver</option><option>Bronze</option></select></div>
-            <button className="h-9 px-5 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#131C4E' }}>Apply</button>
+            <button className="h-9 px-5 text-[12px] font-semibold text-white rounded-xl" style={{ background: '#F56B22' }}>Apply</button>
             <button className="h-9 px-4 text-[12px] font-medium text-[#6B7280] border border-[#E5E7F1] rounded-xl hover:bg-[#F7F8FA]">Reset</button>
           </div>
         </div>
@@ -35,8 +34,8 @@ export default function ReportsPage() {
           {reports.map((r) => {
             const Icon = r.icon;
             return (
-              <div key={r.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#F1F2F8]"><Icon className="w-5 h-5 text-[#3A4382]" strokeWidth={1.75} /></div>
+              <div key={r.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 20, transition: 'box-shadow 0.15s' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FFF3E8]"><Icon className="w-5 h-5 text-[#F56B22]" strokeWidth={1.75} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-bold text-[#131C4E]">{r.title}</p>
                   <p className="text-[12px] text-[#9CA3B8] mt-0.5">{r.desc}</p>

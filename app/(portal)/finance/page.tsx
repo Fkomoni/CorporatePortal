@@ -81,7 +81,7 @@ export default function FinancePage() {
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold capitalize transition-all ${
                 activeTab === tab ? 'text-white shadow-sm' : 'text-[#6B7280] hover:text-[#131C4E]'
               }`}
-              style={activeTab === tab ? { background: '#131C4E' } : {}}>
+              style={activeTab === tab ? { background: '#F56B22' } : {}}>
               {tab === 'statement' ? 'Statement' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
