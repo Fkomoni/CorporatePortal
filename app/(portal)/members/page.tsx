@@ -150,7 +150,7 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
                 <div style={{ width: 24, height: 24, borderRadius: 6, background: '#F7F8FA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon style={{ width: 11, height: 11, color: '#9CA3B8' }} />
                 </div>
-                <span style={{ fontSize: 12, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+                <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
               </div>
             ))}
           </div>
@@ -218,7 +218,7 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
                   { label: 'Benefit Remaining', value: '₦4,592,500', color: '#10B981' },
                 ].map((r) => (
                   <div key={r.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: '#6B7280' }}>{r.label}</span>
+                    <span style={{ fontSize: 13, color: '#9CA3B8' }}>{r.label}</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>{r.value}</span>
                   </div>
                 ))}
