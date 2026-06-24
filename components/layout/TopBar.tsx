@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Bell, Plus, Upload, Download } from 'lucide-react';
+import { Search, Plus, Upload, Download } from 'lucide-react';
 
 interface TopBarProps {
   title: string;
@@ -33,11 +33,6 @@ export function TopBar({ title, subtitle, showQuickActions = false }: TopBarProp
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3B8]" />
           <input type="text" placeholder="Search..." className="h-8 pl-8 pr-3 text-[12px] rounded-lg border border-[#E5E7F1] bg-[#F7F8FA] text-[#131C4E] placeholder:text-[#9CA3B8] outline-none focus:border-[#F56B22] focus:bg-white transition-colors w-44" />
         </div>
-        <button className="relative p-2 rounded-lg hover:bg-[#F7F8FA] transition-colors text-[#9CA3B8] hover:text-[#131C4E]">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#F56B22]" />
-        </button>
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[11px] cursor-pointer" style={{ background: 'linear-gradient(135deg, #F56B22 0%, #FFB54B 100%)' }}>AF</div>
       </div>
     </header>
   );

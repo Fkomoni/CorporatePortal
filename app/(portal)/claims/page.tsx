@@ -3,7 +3,17 @@
 import { useState } from 'react';
 import { Search, Download, Filter, TrendingUp, Clock, XCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
-import { mockClaims } from '@/lib/mock-data';
+import { mockClaims, mockMembers } from '@/lib/mock-data';
+
+function getEnroleeId(employeeId: string, type: string): string {
+  const num = parseInt(employeeId.replace('EMP', ''), 10);
+  const base = `2100${String(num).padStart(4, '0')}`;
+  return `${base}/${type === 'Dependant' ? '1' : '0'}`;
+}
+
+const memberTypeMap: Record<string, string> = Object.fromEntries(
+  mockMembers.map((m) => [m.employeeId, m.type])
+);
 
 const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
   'Paid':       { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
@@ -114,12 +124,12 @@ export default function ClaimsPage() {
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div
             className="grid text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest px-5 py-3 bg-[#FAFBFC] border-b border-[#F0F1F5]"
-            style={{ gridTemplateColumns: '130px 1fr 160px 110px 110px 110px 100px 100px', columnGap: 8 }}>
+            style={{ gridTemplateColumns: '110px 160px 170px 160px 100px 110px 100px 90px', columnGap: 10 }}>
             <span>Ref</span>
-            <span>Member · Diagnosis</span>
+            <span>Member</span>
+            <span>Diagnosis</span>
             <span>Provider</span>
             <span>Category</span>
-            <span>Plan</span>
             <span className="text-right">Amount</span>
             <span>Status</span>
             <span>Date</span>
@@ -128,22 +138,23 @@ export default function ClaimsPage() {
           {filtered.map((c) => {
             const st  = statusStyles[c.status]        ?? statusStyles['Processing'];
             const cat = categoryStyles[c.category]    ?? categoryStyles['Outpatient'];
-            const pl  = planStyles[c.plan]            ?? planStyles['Bronze'];
+            const memberType = memberTypeMap[c.employeeId] ?? 'Principal';
+            const enroleeId  = getEnroleeId(c.employeeId, memberType);
             return (
               <div
                 key={c.id}
                 className="grid items-center px-5 py-4 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                style={{ gridTemplateColumns: '130px 1fr 160px 110px 110px 110px 100px 100px', columnGap: 8 }}>
-                <span className="text-[12px] font-bold text-[#F56B22]">{c.claimRef}</span>
-                <div className="min-w-0 pr-4">
+                style={{ gridTemplateColumns: '110px 160px 170px 160px 100px 110px 100px 90px', columnGap: 10 }}>
+                <span className="text-[12px] font-bold text-[#F56B22] font-mono">{c.claimRef}</span>
+                <div className="min-w-0">
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{c.memberName}</p>
-                  <p className="text-[11px] text-[#9CA3B8] truncate">{c.diagnosis}</p>
+                  <p className="text-[11px] text-[#9CA3B8] font-mono mt-0.5">{enroleeId}</p>
                 </div>
-                <span className="text-[12px] text-[#6B7280] truncate pr-2">{c.provider}</span>
-                <span className="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
-                <span className="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-semibold w-fit" style={{ background: pl.bg, color: pl.text }}>{c.plan}</span>
+                <span className="text-[12px] text-[#6B7280] truncate">{c.diagnosis}</span>
+                <span className="text-[12px] text-[#6B7280] truncate">{c.provider}</span>
+                <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
                 <span className="text-[13px] font-bold text-[#131C4E] text-right">{fmt(c.amount)}</span>
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-semibold w-fit" style={{ background: st.bg, color: st.text }}>
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: st.bg, color: st.text }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} />{c.status}
                 </span>
                 <span className="text-[11px] text-[#9CA3B8]">{fmtDate(c.submittedDate)}</span>

@@ -11,6 +11,12 @@ import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
 
+function getEnroleeId(employeeId: string, type: string): string {
+  const num = parseInt(employeeId.replace('EMP', ''), 10);
+  const base = `2100${String(num).padStart(4, '0')}`;
+  return `${base}/${type === 'Dependant' ? '1' : '0'}`;
+}
+
 const planColors: Record<string, { bg: string; text: string }> = {
   'Gold Plus': { bg: '#FFFBEB', text: '#D97706' },
   'Silver':    { bg: '#F1F5F9', text: '#475569' },
@@ -77,7 +83,8 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[18px] font-extrabold text-[#131C4E] leading-tight">{member.firstName} {member.lastName}</p>
-              <p className="text-[12px] text-[#9CA3B8] mt-0.5">{member.employeeId} · {member.type}</p>
+              <p className="text-[11px] text-[#9CA3B8] mt-0.5 font-mono">{getEnroleeId(member.employeeId, member.type)}</p>
+              <p className="text-[11px] text-[#B8BFD0] mt-0.5">{member.employeeId} · {member.type}</p>
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="inline-flex px-2 py-0.5 rounded-lg text-[11px] font-bold" style={{ background: plan.bg, color: plan.text }}>{member.plan}</span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold" style={{ background: status.bg, color: status.text }}>
@@ -360,10 +367,10 @@ export default function MembersPage() {
         )}
 
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div className="grid items-center gap-4 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 130px 90px 120px 150px 120px' }}>
+          <div className="grid items-center gap-3 px-5 py-3 border-b border-[#F0F1F5] bg-[#FAFBFC]"
+            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px' }}>
             <input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-[#F56B22] w-4 h-4 rounded" />
-            {['Member', 'Plan', 'Type', 'Status', 'Phone', 'Location'].map((h) => (
+            {['Member', 'Emp ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Location'].map((h) => (
               <span key={h} className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest">{h}</span>
             ))}
           </div>
@@ -372,11 +379,12 @@ export default function MembersPage() {
             const plan   = planColors[m.plan]    ?? { bg: '#F1F5F9', text: '#475569' };
             const status = statusColors[m.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
             const isSel  = selected.includes(m.id);
+            const enroleeId = getEnroleeId(m.employeeId, m.type);
             return (
               <div
                 key={m.id}
-                className={`grid items-center gap-4 px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '36px 1fr 130px 90px 120px 150px 120px' }}
+                className={`grid items-center gap-3 px-5 py-3.5 border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
+                style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px' }}
                 onClick={() => setActiveMember({ member: m, index: i })}
               >
                 <input
@@ -385,10 +393,9 @@ export default function MembersPage() {
                   onClick={(e) => e.stopPropagation()}
                   className="accent-[#F56B22] w-4 h-4 rounded"
                 />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
-                  <p className="text-[11px] text-[#B8BFD0] mt-0.5">{m.employeeId}</p>
-                </div>
+                <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
+                <span className="text-[12px] text-[#6B7280] font-mono">{m.employeeId}</span>
+                <span className="text-[12px] text-[#131C4E] font-mono font-semibold">{enroleeId}</span>
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[12px] text-[#6B7280]">{m.type}</span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
