@@ -90,8 +90,8 @@ export default function CorporatesPage() {
         {/* TABLE */}
         <div style={{ ...card, overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 150px 220px 100px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
-            {['Name', 'Template', 'Date Provisioned', 'Admin', 'Status'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 220px 100px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+            {['Name', 'Date Provisioned', 'Admin', 'Status'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 4 }}>
                 {h} {h !== 'Status' && <span style={{ color: '#D0D4E0', fontSize: 10 }}>↕</span>}
               </span>
@@ -103,13 +103,12 @@ export default function CorporatesPage() {
             const initials = c.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
             return (
               <Link key={c.id} href={`/admin/corporates/${c.id}`} style={{ textDecoration: 'none' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 150px 220px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 220px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                   className="last:border-0 hover:bg-[#FAFBFC]">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{initials}</div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{c.name}</span>
                   </div>
-                  <span style={{ fontSize: 12, color: '#9CA3B8' }}>{c.template}</span>
                   <span style={{ fontSize: 12, color: '#9CA3B8' }}>{fmtDate(c.dateProvisioned)}</span>
                   <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.adminEmail}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: st.bg, color: st.text, width: 'fit-content' }}>
