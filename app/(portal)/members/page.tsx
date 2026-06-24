@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  Search, Upload, ArrowDownToLine, Plus, FileText,
+  Search, Upload, ArrowDownToLine, Download, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
   ShieldCheck, Users, Activity, AlertCircle,
 } from 'lucide-react';
