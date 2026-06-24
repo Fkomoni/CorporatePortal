@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect, createContext, useContext } from 'react';
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
+import { createContext, useContext, useState, useCallback } from 'react';
+import { CheckCircle2, XCircle, Info, X } from 'lucide-react';
 
 type ToastVariant = 'success' | 'error' | 'info';
 
@@ -21,35 +21,22 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-const icons = {
-  success: CheckCircle,
-  error:   AlertCircle,
-  info:    Info,
-};
-
-const styles = {
-  success: { border: '#10B981', icon: '#10B981', bg: '#ECFDF5' },
-  error:   { border: '#EF4444', icon: '#EF4444', bg: '#FEF2F2' },
-  info:    { border: '#3B82F6', icon: '#3B82F6', bg: '#EFF6FF' },
+const variantStyles: Record<ToastVariant, { bg: string; border: string; icon: string; IconComponent: React.ComponentType<{ className?: string }> }> = {
+  success: { bg: '#ECFDF5', border: '#A7F3D0', icon: '#059669', IconComponent: CheckCircle2 },
+  error:   { bg: '#FEF2F2', border: '#FECACA', icon: '#DC2626', IconComponent: XCircle },
+  info:    { bg: '#EFF6FF', border: '#BFDBFE', icon: '#2563EB', IconComponent: Info },
 };
 
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
-  const Icon = icons[toast.variant];
-  const s = styles[toast.variant];
-
-  useEffect(() => {
-    const t = setTimeout(() => onRemove(toast.id), 3500);
-    return () => clearTimeout(t);
-  }, [toast.id, onRemove]);
-
+  const { bg, border, icon, IconComponent } = variantStyles[toast.variant];
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-[13px] font-medium text-[#131C4E] min-w-[260px] max-w-[360px] animate-slide-in"
-      style={{ background: s.bg, borderColor: s.border }}
+      className="animate-slide-in flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg min-w-[280px] max-w-[380px] border"
+      style={{ background: bg, borderColor: border }}
     >
-      <Icon className="w-4 h-4 flex-shrink-0" style={{ color: s.icon }} />
-      <span className="flex-1">{toast.message}</span>
-      <button onClick={() => onRemove(toast.id)} className="text-[#9CA3B8] hover:text-[#131C4E] transition-colors">
+      <IconComponent className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: icon }} />
+      <p className="flex-1 text-[13px] font-medium text-[#131C4E] leading-snug">{toast.message}</p>
+      <button onClick={() => onRemove(toast.id)} className="flex-shrink-0 text-[#9CA3B8] hover:text-[#131C4E] transition-colors">
         <X className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -66,15 +53,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toast = useCallback((message: string, variant: ToastVariant = 'success') => {
     const id = `${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, message, variant }]);
-  }, []);
+    setTimeout(() => remove(id), 3500);
+  }, [remove]);
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-5 right-5 flex flex-col gap-2 z-[100]">
-        {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onRemove={remove} />
-        ))}
+      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2">
+        {toasts.map((t) => <ToastItem key={t.id} toast={t} onRemove={remove} />)}
       </div>
     </ToastContext.Provider>
   );
