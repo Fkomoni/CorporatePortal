@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { LayoutGrid, Settings2, LogOut } from 'lucide-react';
 
 const navItems = [
@@ -10,7 +11,11 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const pathname = usePathname();
+  const pathname  = usePathname();
+  const { data: session } = useSession();
+  const staffName = (session?.user as { name?: string })?.name ?? 'Staff';
+  const staffRole = (session?.user as { role?: string })?.role ?? 'Leadway Admin';
+  const initials  = staffName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'S';
 
   return (
     <aside style={{ width: 220, background: '#fff', borderRight: '1px solid #F0F1F5', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 40 }}>
@@ -50,13 +55,14 @@ export function AdminSidebar() {
       {/* FOOTER */}
       <div style={{ padding: '14px 16px', borderTop: '1px solid #F0F1F5' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>G</div>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>{initials}</div>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', lineHeight: 1.3 }}>Gideon</p>
-            <p style={{ fontSize: 10, color: '#9CA3B8' }}>Leadway Admin</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', lineHeight: 1.3 }}>{staffName.split(' ')[0]}</p>
+            <p style={{ fontSize: 10, color: '#9CA3B8' }}>{staffRole}</p>
           </div>
         </div>
-        <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}
+        <button onClick={() => signOut({ callbackUrl: '/admin/login' })}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}
           onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; e.currentTarget.style.color = '#EF4444'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.borderColor = '#EDEEF2'; e.currentTarget.style.color = '#6B7280'; }}>
           <LogOut style={{ width: 13, height: 13 }} /> Sign Out

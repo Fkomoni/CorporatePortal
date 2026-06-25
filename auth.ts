@@ -47,9 +47,14 @@ async function prognosisStaffLogin(login: string, password: string) {
   const user = Array.isArray(data?.result) ? data.result[0] : null;
   if (!user) throw new Error('Invalid credentials');
 
+  // Extract Bearer token for subsequent Prognosis API calls
+  const prognosisToken: string | null =
+    data?.token ?? data?.Token ?? data?.access_token ?? data?.AccessToken ??
+    user?.Token ?? user?.AccessToken ?? user?.token ?? null;
+
   delete user.PasswordHash;
   delete user.SecurityStamp;
-  return user;
+  return { user, prognosisToken };
 }
 
 // ── NextAuth config ───────────────────────────────────────────────────────────
@@ -107,7 +112,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.login || !credentials?.password) return null;
 
         try {
-          const staffUser = await prognosisStaffLogin(
+          const { user: staffUser, prognosisToken } = await prognosisStaffLogin(
             credentials.login as string,
             credentials.password as string
           );
@@ -118,6 +123,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: staffUser.FullName ?? staffUser.Name ?? staffUser.name ?? staffUser.UserName ?? credentials.login,
             role: staffUser.RoleName ?? staffUser.Role ?? 'staff',
             loginType: 'staff',
+            prognosisToken: prognosisToken ?? '',
           };
         } catch (err) {
           console.error('[staff-login] Prognosis auth failed:', err);
@@ -129,20 +135,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role        = (user as { role?: string }).role;
-        token.companyId   = (user as { companyId?: string }).companyId ?? '';
-        token.companyName = (user as { companyName?: string }).companyName ?? '';
-        token.loginType   = (user as { loginType?: string }).loginType ?? 'hr';
+        token.role           = (user as { role?: string }).role;
+        token.companyId      = (user as { companyId?: string }).companyId ?? '';
+        token.companyName    = (user as { companyName?: string }).companyName ?? '';
+        token.loginType      = (user as { loginType?: string }).loginType ?? 'hr';
+        token.prognosisToken = (user as { prognosisToken?: string }).prognosisToken ?? '';
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id               = token.sub ?? '';
-        (session.user as { role?: string }).role           = token.role as string;
-        (session.user as { loginType?: string }).loginType = token.loginType as string;
-        (session.user as { companyId?: string }).companyId = token.companyId as string;
-        (session.user as { companyName?: string }).companyName = token.companyName as string;
+        (session.user as { id?: string }).id                         = token.sub ?? '';
+        (session.user as { role?: string }).role                     = token.role as string;
+        (session.user as { loginType?: string }).loginType           = token.loginType as string;
+        (session.user as { companyId?: string }).companyId           = token.companyId as string;
+        (session.user as { companyName?: string }).companyName       = token.companyName as string;
+        (session.user as { prognosisToken?: string }).prognosisToken = token.prognosisToken as string;
       }
       return session;
     },
