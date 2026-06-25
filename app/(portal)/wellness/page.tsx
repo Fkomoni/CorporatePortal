@@ -312,13 +312,13 @@ export default function WellnessPage() {
 
                   {/* Member search */}
                   <div ref={searchRef} style={{ position: 'relative' }}>
-                    <label style={labelStyle}>Search Member by Name or ID</label>
+                    <label style={labelStyle}>Search Member by Name or Enrolee ID</label>
                     <div style={{ position: 'relative' }}>
                       <Search style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#9CA3B8', pointerEvents: 'none' }} />
                       <input
                         value={linkQuery}
                         onChange={(e) => handleLinkSearch(e.target.value)}
-                        placeholder="Type name or employee ID…"
+                        placeholder="Type name or enrolee ID…"
                         style={{ ...inputStyle, paddingLeft: 38, paddingRight: selectedMember ? 36 : 14 }}
                         onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; if (linkQuery && !selectedMember) handleLinkSearch(linkQuery); }}
                         onBlur={(e) => { e.currentTarget.style.borderColor = selectedMember ? '#A7F3D0' : '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
