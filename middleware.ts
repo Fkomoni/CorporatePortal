@@ -7,8 +7,11 @@ export default auth((req) => {
   const isLoggedIn = !!session;
   const loginType = (session?.user as { loginType?: string })?.loginType;
 
+  // Never intercept API routes — they handle their own auth
+  if (pathname.startsWith('/api/')) return NextResponse.next();
+
   const isAdminRoute  = pathname.startsWith('/admin');
-  const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login') && !pathname.startsWith('/api/auth');
+  const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login');
   const isStaffLogin  = pathname === '/admin/login';
   const isHrLogin     = pathname === '/login';
 
