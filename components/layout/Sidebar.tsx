@@ -15,6 +15,7 @@ import {
   ChevronDown,
   LogOut,
   Heart,
+  UserCheck,
 } from 'lucide-react';
 
 const mainNav = [
@@ -22,8 +23,9 @@ const mainNav = [
   { href: '/members',      label: 'People',               icon: Users },
   { href: '/benefits',     label: 'Benefits',             icon: ShieldCheck },
   { href: '/finance',      label: 'Finance',              icon: CreditCard },
-  { href: '/wellness',     label: 'Wellness',             icon: Heart },
-  { href: '/reports',      label: 'Insights & Reports',   icon: Lightbulb },
+  { href: '/wellness',        label: 'Wellness',             icon: Heart },
+  { href: '/pre-employment', label: 'Pre-employment',       icon: UserCheck },
+  { href: '/reports',        label: 'Insights & Reports',   icon: Lightbulb },
   { href: '/claims',       label: 'Claims',               icon: FileText },
   { href: '/service-desk', label: 'Service Desk',         icon: MessageSquare, badge: 4 },
 ];
