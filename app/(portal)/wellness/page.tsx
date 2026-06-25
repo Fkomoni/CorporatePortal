@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
 import {
-  Heart, Calendar, Video, MapPin, Users, Send, CheckCircle,
-  Activity, Mail, Link2, Clock, TrendingUp, Stethoscope,
+  Heart, Video, MapPin, Users, Send, CheckCircle,
+  Activity, Mail, Link2, Clock, TrendingUp, Stethoscope, Search, X,
 } from 'lucide-react';
+import { mockMembers } from '@/lib/mock-data';
+import type { Member } from '@/lib/types';
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 
@@ -81,14 +83,45 @@ export default function WellnessPage() {
   const [scrNotes, setScrNotes]       = useState('');
   const [scrSent, setScrSent]         = useState(false);
 
-  // Send screening link form
-  const [linkName, setLinkName]       = useState('');
-  const [linkEmail, setLinkEmail]     = useState('');
-  const [linkSpouse, setLinkSpouse]   = useState(false);
+  // Send screening link form — member search
+  const [linkQuery, setLinkQuery]         = useState('');
+  const [linkResults, setLinkResults]     = useState<Member[]>([]);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [linkSpouse, setLinkSpouse]         = useState(false);
   const [linkSpouseEmail, setLinkSpouseEmail] = useState('');
-  const [linkMessage, setLinkMessage] = useState('');
-  const [linkSent, setLinkSent]       = useState(false);
-  const [sentLinks, setSentLinks]     = useState(INITIAL_SENT_LINKS);
+  const [linkMessage, setLinkMessage]       = useState('');
+  const [linkSent, setLinkSent]             = useState(false);
+  const [sentLinks, setSentLinks]           = useState(INITIAL_SENT_LINKS);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setLinkResults([]);
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, []);
+
+  function handleLinkSearch(q: string) {
+    setLinkQuery(q);
+    setSelectedMember(null);
+    if (!q.trim()) { setLinkResults([]); return; }
+    const lower = q.toLowerCase();
+    const principals = mockMembers.filter((m) => m.type === 'Principal' && m.status === 'Active');
+    setLinkResults(
+      principals.filter((m) =>
+        `${m.firstName} ${m.lastName}`.toLowerCase().includes(lower) ||
+        m.employeeId.toLowerCase().includes(lower)
+      ).slice(0, 6)
+    );
+  }
+
+  function selectMember(m: Member) {
+    setSelectedMember(m);
+    setLinkQuery(`${m.firstName} ${m.lastName}`);
+    setLinkResults([]);
+  }
 
   const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
   const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
@@ -276,41 +309,95 @@ export default function WellnessPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-                  <div>
-                    <label style={labelStyle}>Member Name</label>
-                    <input value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="e.g. Adaeze Okonkwo" style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Member Email</label>
-                    <input type="email" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="member@dangote.com" style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#FAFBFC', borderRadius: 12, border: '1px solid #E5E7F1' }}>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>Include Spouse</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>Send a separate link to the member&apos;s spouse</p>
+
+                  {/* Member search */}
+                  <div ref={searchRef} style={{ position: 'relative' }}>
+                    <label style={labelStyle}>Search Member by Name or ID</label>
+                    <div style={{ position: 'relative' }}>
+                      <Search style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#9CA3B8', pointerEvents: 'none' }} />
+                      <input
+                        value={linkQuery}
+                        onChange={(e) => handleLinkSearch(e.target.value)}
+                        placeholder="Type name or employee ID…"
+                        style={{ ...inputStyle, paddingLeft: 38, paddingRight: selectedMember ? 36 : 14 }}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; if (linkQuery && !selectedMember) handleLinkSearch(linkQuery); }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = selectedMember ? '#A7F3D0' : '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
+                      />
+                      {selectedMember && (
+                        <button onClick={() => { setSelectedMember(null); setLinkQuery(''); setLinkSpouse(false); setLinkSpouseEmail(''); }}
+                          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, lineHeight: 0 }}>
+                          <X style={{ width: 14, height: 14 }} />
+                        </button>
+                      )}
                     </div>
-                    <Toggle on={linkSpouse} onChange={() => setLinkSpouse(!linkSpouse)} />
+
+                    {/* Dropdown results */}
+                    {linkResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid #E5E7F1', borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', overflow: 'hidden', marginTop: 4 }}>
+                        {linkResults.map((m) => (
+                          <button key={m.id} onMouseDown={() => selectMember(m)}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = '#FFF5EF'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
+                              {m.firstName[0]}{m.lastName[0]}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{m.firstName} {m.lastName}</p>
+                              <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{m.employeeId} · {m.plan} · {m.location}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {linkSpouse && (
-                    <div>
-                      <label style={labelStyle}>Spouse Email</label>
-                      <input type="email" value={linkSpouseEmail} onChange={(e) => setLinkSpouseEmail(e.target.value)} placeholder="spouse@email.com" style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
+
+                  {/* Confirmed member card */}
+                  {selectedMember && (
+                    <div style={{ padding: '14px 16px', background: '#F0FDF4', border: '1px solid #A7F3D0', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                        {selectedMember.firstName[0]}{selectedMember.lastName[0]}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#065F46' }}>{selectedMember.firstName} {selectedMember.lastName}</p>
+                        <p style={{ fontSize: 11, color: '#059669', marginTop: 2 }}>{selectedMember.employeeId} · {selectedMember.email}</p>
+                        <p style={{ fontSize: 11, color: '#059669', marginTop: 1 }}>{selectedMember.plan} · {selectedMember.location}</p>
+                      </div>
+                      <CheckCircle style={{ width: 18, height: 18, color: '#059669', flexShrink: 0 }} />
                     </div>
                   )}
-                  <div>
-                    <label style={labelStyle}>Personal Message (optional)</label>
-                    <textarea value={linkMessage} onChange={(e) => setLinkMessage(e.target.value)} rows={2} placeholder="Add a short note to accompany the link..." style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none', fontFamily: 'inherit' }} onFocus={focusIn} onBlur={focusOut} />
-                  </div>
+
+                  {selectedMember && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#FAFBFC', borderRadius: 12, border: '1px solid #E5E7F1' }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>Include Spouse</p>
+                          <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>Send a separate booking link to the member&apos;s spouse</p>
+                        </div>
+                        <Toggle on={linkSpouse} onChange={() => setLinkSpouse(!linkSpouse)} />
+                      </div>
+                      {linkSpouse && (
+                        <div>
+                          <label style={labelStyle}>Spouse Email</label>
+                          <input type="email" value={linkSpouseEmail} onChange={(e) => setLinkSpouseEmail(e.target.value)} placeholder="spouse@email.com" style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
+                        </div>
+                      )}
+                      <div>
+                        <label style={labelStyle}>Personal Message (optional)</label>
+                        <textarea value={linkMessage} onChange={(e) => setLinkMessage(e.target.value)} rows={2} placeholder="Add a short note to accompany the link…" style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none', fontFamily: 'inherit' }} onFocus={focusIn} onBlur={focusOut} />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button
+                  disabled={!selectedMember}
                   onClick={() => {
-                    if (linkName && linkEmail) {
-                      setSentLinks([{ id: Date.now(), name: linkName, email: linkEmail, spouse: linkSpouse, sentDate: 'Jun 25, 2026', status: 'Pending' }, ...sentLinks]);
-                      setLinkName(''); setLinkEmail(''); setLinkSpouse(false); setLinkSpouseEmail(''); setLinkMessage('');
-                      setLinkSent(true); setTimeout(() => setLinkSent(false), 4000);
-                    }
+                    if (!selectedMember) return;
+                    setSentLinks([{ id: Date.now(), name: `${selectedMember.firstName} ${selectedMember.lastName}`, email: selectedMember.email, spouse: linkSpouse, sentDate: 'Jun 25, 2026', status: 'Pending' }, ...sentLinks]);
+                    setSelectedMember(null); setLinkQuery(''); setLinkSpouse(false); setLinkSpouseEmail(''); setLinkMessage('');
+                    setLinkSent(true); setTimeout(() => setLinkSent(false), 4000);
                   }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#059669,#10B981)', boxShadow: '0 2px 10px rgba(5,150,105,0.28)' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: selectedMember ? 'pointer' : 'not-allowed', opacity: selectedMember ? 1 : 0.45, background: 'linear-gradient(135deg,#059669,#10B981)', boxShadow: selectedMember ? '0 2px 10px rgba(5,150,105,0.28)' : 'none', transition: 'all 0.2s' }}>
                   <Mail style={{ width: 14, height: 14 }} /> Send Booking Link
                 </button>
                 {linkSent && <SuccessBanner message="Booking link sent! The member will receive an email with instructions to schedule their screening." />}
