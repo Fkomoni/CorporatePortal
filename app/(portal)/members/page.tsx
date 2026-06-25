@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
-  ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus,
+  ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus, Camera,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockMembers } from '@/lib/mock-data';
@@ -87,6 +87,63 @@ function Checkbox({
         : checked
           ? <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/></svg>
           : null}
+    </div>
+  );
+}
+
+/* ── Passport photo uploader ─────────────────────────────────────────── */
+function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: boolean }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [hover, setHover]     = useState(false);
+  const inputRef              = useRef<HTMLInputElement>(null);
+
+  function handleFile(file: File) {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview((e.target?.result as string) ?? null);
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', gap: compact ? 14 : 8 }}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          width: size, height: size, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+          border: `2px ${preview ? 'solid #E5E7F1' : 'dashed #D1D5DB'}`,
+          background: preview ? 'transparent' : '#F7F8FC',
+          overflow: 'hidden', position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'border-color 0.15s',
+        }}
+      >
+        {preview
+          ? <img src={preview} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <Camera style={{ width: size * 0.28, height: size * 0.28, color: '#C4C9D9' }} />
+        }
+        {hover && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.38)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+            <Camera style={{ width: 17, height: 17, color: '#fff' }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '0.05em' }}>{preview ? 'CHANGE' : 'UPLOAD'}</span>
+          </div>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <div style={{ textAlign: compact ? 'left' : 'center' }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8' }}>Passport Photo</p>
+        <p style={{ fontSize: 10, color: '#C4C9D9', marginTop: 1 }}>Optional</p>
+        {preview && (
+          <button onClick={(e) => { e.stopPropagation(); setPreview(null); }}
+            style={{ fontSize: 10, fontWeight: 600, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 3, display: 'block' }}>
+            Remove
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -243,6 +300,10 @@ function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' |
 
               {/* Direct form — for form mode */}
               {actionType === 'form' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 4 }}>
+                  <PhotoUpload />
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   {[
                     { label: 'First Name',     placeholder: 'e.g. Amaka' },
@@ -273,6 +334,7 @@ function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' |
                       </select>
                     </div>
                   )}
+                </div>
                 </div>
               )}
             </>
@@ -359,6 +421,8 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
+  const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
+  const avatarInputRef                      = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
   const status = statusColors[member.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
@@ -386,8 +450,27 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
         {/* Profile */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 17, background: grad }}>
-              {member.firstName[0]}{member.lastName[0]}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 17, background: grad }}>
+                {avatarPreview
+                  ? <img src={avatarPreview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <>{member.firstName[0]}{member.lastName[0]}</>
+                }
+              </div>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                title="Change photo"
+                style={{ position: 'absolute', bottom: -4, right: -4, width: 20, height: 20, borderRadius: '50%', background: '#F56B22', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.18)' }}>
+                <Camera style={{ width: 9, height: 9, color: '#fff' }} />
+              </button>
+              <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setAvatarPreview((ev.target?.result as string) ?? null);
+                  reader.readAsDataURL(f);
+                }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
@@ -666,6 +749,9 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
 
               {depAction === 'form' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 2px' }}>
+                    <PhotoUpload size={72} />
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     {[
                       { label: 'First Name',    placeholder: 'e.g. Chidi' },
