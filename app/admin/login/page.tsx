@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Eye, EyeOff, ShieldCheck, Building2, BarChart3, Users } from 'lucide-react';
 
 export default function StaffLoginPage() {
@@ -56,9 +55,12 @@ export default function StaffLoginPage() {
         className="hidden lg:flex"
       >
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Image src="/leadway-logo.jpeg" alt="Leadway Health" width={160} height={48}
-            style={{ objectFit: 'contain', objectPosition: 'left center', height: 48, width: 'auto' }} priority />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, color: '#fff', flexShrink: 0 }}>LH</div>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>Leadway Health</p>
+            <p style={{ fontSize: 11, color: '#7B82AA', marginTop: 1 }}>Corporate Portal</p>
+          </div>
         </div>
 
         {/* Hero copy */}
@@ -105,8 +107,11 @@ export default function StaffLoginPage() {
 
           {/* Mobile logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }} className="lg:hidden">
-            <Image src="/leadway-logo.jpeg" alt="Leadway Health" width={120} height={36}
-              style={{ objectFit: 'contain', height: 36, width: 'auto' }} />
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 13, color: '#fff' }}>LH</div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>Leadway Health</p>
+              <p style={{ fontSize: 11, color: '#9CA3B8' }}>Corporate Portal</p>
+            </div>
           </div>
 
           {/* Secure sign-in badge */}
