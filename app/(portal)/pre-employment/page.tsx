@@ -350,31 +350,21 @@ export default function PreEmploymentPage() {
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {categories.map((cat) => {
                 const catTests = visibleTests.filter((t) => t.category === cat);
                 const cc = CATEGORY_COLORS[cat] ?? { bg: '#F7F8FC', text: '#6B7280' };
-                const allCatSelected = catTests.every((t) => selectedTests.has(t.id));
                 return (
                   <div key={cat}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: cc.bg, color: cc.text }}>{cat}</span>
-                      <button onClick={() => allCatSelected ? catTests.forEach((t) => setSelectedTests((p) => { const n = new Set(p); n.delete(t.id); return n; })) : selectAllInCategory(cat)}
-                        style={{ fontSize: 11, fontWeight: 600, color: allCatSelected ? '#9CA3B8' : cc.text, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        {allCatSelected ? 'Deselect all' : 'Select all'}
-                      </button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                      {catTests.map((t) => {
+                    <p style={{ fontSize: 11, fontWeight: 700, color: cc.text, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{cat}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #E5E7F1', borderRadius: 10, overflow: 'hidden' }}>
+                      {catTests.map((t, i) => {
                         const on = selectedTests.has(t.id);
                         return (
-                          <button key={t.id} onClick={() => toggleTest(t.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 12, border: `1.5px solid ${on ? cc.text : '#E5E7F1'}`, background: on ? cc.bg : '#FAFBFC', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s' }}>
-                            <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${on ? cc.text : '#D1D5DB'}`, background: on ? cc.text : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
-                              {on && <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: on ? 600 : 500, color: on ? '#131C4E' : '#6B7280', lineHeight: 1.4 }}>{t.label}</span>
-                          </button>
+                          <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', background: on ? '#FAFBFF' : '#fff', borderBottom: i < catTests.length - 1 ? '1px solid #F0F1F6' : 'none', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={on} onChange={() => toggleTest(t.id)} style={{ width: 15, height: 15, accentColor: '#F56B22', cursor: 'pointer', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: '#374151', fontWeight: on ? 600 : 400 }}>{t.label}</span>
+                          </label>
                         );
                       })}
                     </div>
