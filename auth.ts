@@ -31,12 +31,15 @@ async function prognosisStaffLogin(login: string, password: string) {
     }),
   });
 
+  console.log(`[prognosis] POST ${base}/api/Account/ExternalPortalLogin → HTTP ${res.status}`);
+
   if (res.status === 401 || res.status === 403 || (res.status >= 400 && res.status < 500))
     throw new Error('Invalid credentials');
   if (res.status >= 500)
     throw new Error(`Prognosis unavailable (${res.status})`);
 
   const data = await res.json();
+  console.log('[prognosis] response status field:', data?.status, '| result length:', Array.isArray(data?.result) ? data.result.length : 'n/a');
 
   if ([false, 'error', 'fail', 'failed'].includes(data?.status))
     throw new Error(data.ErrorMessage || data.message || 'Invalid credentials');
@@ -116,7 +119,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: staffUser.RoleName ?? staffUser.Role ?? 'staff',
             loginType: 'staff',
           };
-        } catch {
+        } catch (err) {
+          console.error('[staff-login] Prognosis auth failed:', err);
           return null;
         }
       },
