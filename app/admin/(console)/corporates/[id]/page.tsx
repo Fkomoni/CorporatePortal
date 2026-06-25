@@ -230,6 +230,12 @@ export default function CorporateDetailPage() {
         setSignupError(json.error ?? 'Failed to send signup email. Please try again.');
       } else {
         setShowSignupModal(false);
+        // If Prognosis returned an OTP, build the direct deep-link for reference
+        if (json.otp) {
+          const base = window.location.origin;
+          const link = `${base}/verify-registration?code=${encodeURIComponent(json.otp)}&email=${encodeURIComponent(signupEmail)}`;
+          console.log('[send-signup] deep-link:', link);
+        }
         setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
         setTimeout(() => setShowEmailToast(null), 4000);
       }

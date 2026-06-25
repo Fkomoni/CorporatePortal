@@ -101,7 +101,16 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, data });
+    // Extract OTP/token if Prognosis returns one — surface it so callers can
+    // build a deep-link to /verify-registration?code=OTP&email=EMAIL
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = data as any;
+    const otp =
+      d?.otp ?? d?.OTP ?? d?.verificationCode ?? d?.VerificationCode ??
+      d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
+      d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
+
+    return NextResponse.json({ success: true, otp, data });
   } catch (err) {
     console.error('[send-signup] Error:', err);
     return NextResponse.json(
