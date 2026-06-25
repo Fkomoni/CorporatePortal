@@ -25,8 +25,8 @@ function VerifyForm() {
 
   useEffect(() => { if (urlEmail) setEmail(urlEmail); }, [urlEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Step 1: set password ──────────────────────────────────────────────────
-  async function handleSetPassword(e: React.FormEvent) {
+  // ── Step 1: collect password (no API call — OTP already sent by Prognosis) ──
+  function handleSetPassword(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!email.trim())           { setError('Email address is required.'); return; }
@@ -34,29 +34,10 @@ function VerifyForm() {
     if (password.length < 8)     { setError('Password must be at least 8 characters.'); return; }
     if (!/[0-9]/.test(password)) { setError('Password must include a number.'); return; }
     if (!/[^A-Za-z0-9]/.test(password)) { setError('Password must include a special character.'); return; }
-
-    setLoading(true);
-    try {
-      const res = await fetch('/api/hr/verify-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationcode: urlToken, password }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? 'Could not set password. Please check your link and try again.');
-      } else {
-        // Password accepted — OTP should now be on its way
-        setStage('otp');
-      }
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setStage('otp');
   }
 
-  // ── Step 2: verify OTP ────────────────────────────────────────────────────
+  // ── Step 2: submit OTP + password together to ClientAppVerifyRegistration ──
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -64,10 +45,10 @@ function VerifyForm() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/hr/verify-otp', {
+      const res = await fetch('/api/hr/verify-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), otp: otp.trim() }),
+        body: JSON.stringify({ verificationcode: otp.trim(), password }),
       });
       const json = await res.json();
       if (!res.ok) {
