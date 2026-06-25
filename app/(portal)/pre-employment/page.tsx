@@ -399,7 +399,7 @@ export default function PreEmploymentPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
             <div>
               <label style={labelStyle}>Preferred Screening Date</label>
-              <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} style={inputStyle} onFocus={fi} onBlur={fo} />
+              <input type="date" value={form.date} min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} onChange={(e) => set('date', e.target.value)} style={inputStyle} onFocus={fi} onBlur={fo} />
             </div>
             <div>
               <label style={labelStyle}>Additional Notes (optional)</label>
