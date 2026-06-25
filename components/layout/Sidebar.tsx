@@ -21,7 +21,7 @@ const mainNav = [
   { href: '/members',      label: 'People',       icon: Users },
   { href: '/benefits',     label: 'Benefits',     icon: ShieldCheck },
   { href: '/finance',      label: 'Finance',      icon: CreditCard },
-  { href: '/reports',      label: 'Insights',     icon: Lightbulb },
+  { href: '/reports',      label: 'Insights & Reports', icon: Lightbulb },
   { href: '/claims',       label: 'Claims',       icon: FileText },
   { href: '/service-desk', label: 'Service Desk', icon: MessageSquare, badge: 4 },
 ];
