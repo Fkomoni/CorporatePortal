@@ -104,25 +104,41 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
+// ── Companies list ───────────────────────────────────────────────────────────
+
+const COMPANIES = [
+  { id: 'corp-001', name: 'Dangote Industries Ltd',              status: 'Active'  },
+  { id: 'corp-002', name: 'SME - Herconomy',                     status: 'Pending' },
+  { id: 'corp-003', name: 'Edves Nigeria Limited',               status: 'Pending' },
+  { id: 'corp-004', name: 'Jackson, Etti And Edu (JEE Africa)',  status: 'Pending' },
+  { id: 'corp-005', name: 'Flour Mills of Nigeria Plc',          status: 'Active'  },
+  { id: 'corp-006', name: 'Baker Hughes Nigeria Ltd',            status: 'Active'  },
+  { id: 'corp-007', name: 'NLNG – Nigeria LNG Limited',          status: 'Active'  },
+  { id: 'corp-008', name: 'Zenith Bank Plc',                     status: 'Active'  },
+  { id: 'corp-009', name: 'Primus Pharmacare Ltd',               status: 'Pending' },
+  { id: 'corp-010', name: 'Okomu Oil Palm Company Plc',          status: 'Active'  },
+];
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PortalSettingsPage() {
   const [activeModule, setActiveModule] = useState<ModuleKey>('dashboard');
   const [allVis, setAllVis] = useState<Record<ModuleKey, Record<string, boolean>>>({} as never);
   const [saved, setSaved] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(COMPANIES[0].id);
 
   useEffect(() => {
     const loaded = {} as Record<ModuleKey, Record<string, boolean>>;
-    MODULES.forEach((m) => { loaded[m.key] = getVis(m.key) as Record<string, boolean>; });
+    MODULES.forEach((m) => { loaded[m.key] = getVis(m.key, selectedCompanyId) as Record<string, boolean>; });
     setAllVis(loaded);
-  }, []);
+  }, [selectedCompanyId]);
 
   function flash() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
 
   function toggle(moduleKey: ModuleKey, sectionKey: string) {
     setAllVis((prev) => {
       const next = { ...prev, [moduleKey]: { ...prev[moduleKey], [sectionKey]: !prev[moduleKey][sectionKey] } };
-      saveVis(moduleKey, next[moduleKey] as never);
+      saveVis(moduleKey, next[moduleKey] as never, selectedCompanyId);
       return next;
     });
     flash();
@@ -134,7 +150,7 @@ export default function PortalSettingsPage() {
       const updated = {} as Record<string, boolean>;
       Object.keys(prev[moduleKey] ?? {}).forEach((k) => { updated[k] = value; });
       next[moduleKey] = updated;
-      saveVis(moduleKey, updated as never);
+      saveVis(moduleKey, updated as never, selectedCompanyId);
       return next;
     });
     flash();
@@ -147,7 +163,7 @@ export default function PortalSettingsPage() {
         const updated = {} as Record<string, boolean>;
         Object.keys(prev[m.key] ?? {}).forEach((k) => { updated[k] = value; });
         next[m.key] = updated;
-        saveVis(m.key, updated as never);
+        saveVis(m.key, updated as never, selectedCompanyId);
       });
       return next;
     });
@@ -169,7 +185,7 @@ export default function PortalSettingsPage() {
       <header style={{ background: '#fff', borderBottom: '1px solid #F0F1F5', height: 68, display: 'flex', alignItems: 'center', padding: '0 36px', gap: 16, flexShrink: 0 }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.2 }}>Portal Settings</h1>
-          <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2, fontWeight: 500 }}>HR visibility controls · All modules</p>
+          <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2, fontWeight: 500 }}>HR visibility controls · Per company</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {saved && (
@@ -187,6 +203,30 @@ export default function PortalSettingsPage() {
           </button>
         </div>
       </header>
+
+      {/* Company selector bar */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #F0F1F5', padding: '0 36px', display: 'flex', alignItems: 'center', gap: 16, height: 54 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', flexShrink: 0 }}>Configuring for</p>
+        <select
+          value={selectedCompanyId}
+          onChange={(e) => setSelectedCompanyId(e.target.value)}
+          style={{ height: 36, padding: '0 36px 0 14px', fontSize: 13, fontWeight: 600, color: '#131C4E', border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#fff', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }}
+        >
+          {COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {(() => {
+          const co = COMPANIES.find((c) => c.id === selectedCompanyId);
+          return co ? (
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: co.status === 'Active' ? '#ECFDF5' : '#FFFBEB', color: co.status === 'Active' ? '#059669' : '#D97706', border: `1px solid ${co.status === 'Active' ? '#A7F3D0' : '#FDE68A'}` }}>
+              {co.status}
+            </span>
+          ) : null;
+        })()}
+        <div style={{ flex: 1 }} />
+        <p style={{ fontSize: 11, color: '#C4C9D9' }}>Changes apply only to this company&apos;s HR portal</p>
+      </div>
 
       <div style={{ padding: '32px 36px', display: 'flex', gap: 24, alignItems: 'flex-start' }}>
 
@@ -231,7 +271,7 @@ export default function PortalSettingsPage() {
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E' }}>{mod.label}</p>
               <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
-                Control which sections HR can see on the <strong>{mod.label}</strong> page
+                <strong>{COMPANIES.find((c) => c.id === selectedCompanyId)?.name ?? '—'}</strong> · {mod.label} page visibility
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>

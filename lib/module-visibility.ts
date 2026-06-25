@@ -111,12 +111,22 @@ export type ModuleKey = keyof typeof DEFAULTS;
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
-function storageKey(module: ModuleKey) { return `lh_vis_${module}`; }
+const DEFAULT_COMPANY_ID = 'corp-001';
 
-export function getVis<K extends ModuleKey>(module: K): typeof DEFAULTS[K] {
+function getActiveCompanyId(): string {
+  if (typeof window === 'undefined') return DEFAULT_COMPANY_ID;
+  return localStorage.getItem('lh_active_company') ?? DEFAULT_COMPANY_ID;
+}
+
+function storageKey(module: ModuleKey, companyId: string) {
+  return `lh_vis_${companyId}_${module}`;
+}
+
+export function getVis<K extends ModuleKey>(module: K, companyId?: string): typeof DEFAULTS[K] {
+  const cid = companyId ?? getActiveCompanyId();
   if (typeof window === 'undefined') return DEFAULTS[module];
   try {
-    const raw = localStorage.getItem(storageKey(module));
+    const raw = localStorage.getItem(storageKey(module, cid));
     if (!raw) return DEFAULTS[module];
     return { ...DEFAULTS[module], ...JSON.parse(raw) };
   } catch {
@@ -124,8 +134,9 @@ export function getVis<K extends ModuleKey>(module: K): typeof DEFAULTS[K] {
   }
 }
 
-export function saveVis<K extends ModuleKey>(module: K, v: typeof DEFAULTS[K]): void {
-  localStorage.setItem(storageKey(module), JSON.stringify(v));
+export function saveVis<K extends ModuleKey>(module: K, v: typeof DEFAULTS[K], companyId?: string): void {
+  const cid = companyId ?? getActiveCompanyId();
+  localStorage.setItem(storageKey(module, cid), JSON.stringify(v));
 }
 
 // ── Back-compat re-exports for claims page ────────────────────────────────────
