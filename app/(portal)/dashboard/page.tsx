@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingDown, UserPlus, UserMinus, Receipt } from 'lucide-react';
+import { TrendingDown, UserPlus, Receipt } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -97,11 +97,10 @@ export default function DashboardPage() {
             <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Action Centre</p>
             <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>Items requiring your attention today</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
             {[
-              { Icon: UserPlus,  border: '#EF4444', urgency: 'Urgent',        title: '12 Employees Awaiting Enrolment',  action: 'Review →',       actionColor: '#EF4444' },
-              { Icon: UserMinus, border: '#F97316', urgency: 'Action needed', title: '3 Terminations Pending Approval',  action: 'Approve →',      actionColor: '#F97316' },
-              { Icon: Receipt,   border: '#10B981', urgency: 'Due soon',      title: 'Invoice Due In 7 Days — ₦10.5M',   action: 'View Invoice →', actionColor: '#10B981' },
+              { Icon: UserPlus,  border: '#EF4444', urgency: 'Urgent',   title: '12 Employees Awaiting Enrolment', action: 'Review →',       actionColor: '#EF4444' },
+              { Icon: Receipt,   border: '#10B981', urgency: 'Due soon', title: 'Invoice Due In 7 Days — ₦10.5M',  action: 'View Invoice →', actionColor: '#10B981' },
             ].map((item) => {
               const Icon = item.Icon;
               return (
