@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2 } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, Smartphone, X, Check } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockUsers } from '@/lib/mock-data';
 
@@ -17,6 +17,23 @@ const roleCards = [
   { role: 'HR Manager', desc: 'Members · Benefits · Reports · Requests' },
   { role: 'Finance',    desc: 'Finance module & Finance Reports only' },
   { role: 'Viewer',     desc: 'View only · No edits or submissions' },
+];
+
+const ROLE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  purple: { bg: '#F5F3FF', text: '#6D28D9', border: '#DDD6FE' },
+  teal:   { bg: '#F0FDFA', text: '#0F766E', border: '#99F6E4' },
+  rose:   { bg: '#FFF1F2', text: '#BE123C', border: '#FECDD3' },
+  slate:  { bg: '#F1F5F9', text: '#334155', border: '#CBD5E1' },
+};
+
+const MODULE_LIST: { label: string; key: string }[] = [
+  { label: 'Dashboard',    key: 'dashboard' },
+  { label: 'Members',      key: 'members' },
+  { label: 'Benefits',     key: 'benefits' },
+  { label: 'Finance',      key: 'finance' },
+  { label: 'Claims',       key: 'claims' },
+  { label: 'Reports',      key: 'reports' },
+  { label: 'Service Desk', key: 'serviceDesk' },
 ];
 
 const faqs = [
@@ -78,6 +95,19 @@ export default function AdministrationPage() {
   const [pwSaved, setPwSaved]       = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // 2FA state
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  const [twoFaSetup, setTwoFaSetup]     = useState<'choose' | 'scan'>('choose');
+  const [twoFaMethod, setTwoFaMethod]   = useState<'app' | 'sms'>('app');
+  const [twoFaCode, setTwoFaCode]       = useState('');
+  const [twoFaActive, setTwoFaActive]   = useState(false);
+
+  // Custom roles state
+  const [customRoles, setCustomRoles] = useState<Array<{ id: string; role: string; desc: string; colorKey: string }>>([]);
+  const [showRoleForm, setShowRoleForm] = useState(false);
+  const blankRoleForm = { name: '', desc: '', colorKey: 'purple', modules: { dashboard: true, members: true, benefits: false, finance: false, claims: false, reports: false, serviceDesk: false } };
+  const [roleForm, setRoleForm] = useState(blankRoleForm);
+
   function handleLogoFile(file: File) {
     const reader = new FileReader();
     reader.onload = (e) => setLogoUrl(e.target?.result as string);
@@ -124,16 +154,110 @@ export default function AdministrationPage() {
         {/* ── USERS & ACCESS ── */}
         {activeTab === 'users' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-              {roleCards.map((r) => {
-                const c = roleColors[r.role] ?? roleColors['Viewer'];
-                return (
-                  <div key={r.role} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${c.text}` }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>{r.role}</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.6 }}>{r.desc}</p>
+            {/* ── ACCESS ROLES ── */}
+            <div style={{ ...card, padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Access Roles</p>
+                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Define what each user can see and do in the portal</p>
+                </div>
+                <button onClick={() => { setShowRoleForm(!showRoleForm); setRoleForm(blankRoleForm); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, height: 38, padding: '0 18px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 20, cursor: 'pointer', background: showRoleForm ? '#6B7280' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: showRoleForm ? 'none' : '0 2px 8px rgba(245,107,34,0.28)' }}>
+                  {showRoleForm ? <X style={{ width: 13, height: 13 }} /> : <Plus style={{ width: 13, height: 13 }} />}
+                  {showRoleForm ? 'Cancel' : 'Define Role'}
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+                {roleCards.map((r) => {
+                  const c = roleColors[r.role] ?? roleColors['Viewer'];
+                  return (
+                    <div key={r.role} style={{ padding: '18px 18px 14px 16px', borderRadius: 12, border: `1px solid ${c.border}`, borderLeft: `3px solid ${c.text}`, background: c.bg }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 5 }}>{r.role}</p>
+                      <p style={{ fontSize: 11, color: '#9CA3B8', lineHeight: 1.6, marginBottom: 10 }}>{r.desc}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: c.text }}>Built-in</span>
+                    </div>
+                  );
+                })}
+                {customRoles.map((r) => {
+                  const c = ROLE_COLORS[r.colorKey] ?? ROLE_COLORS['slate'];
+                  return (
+                    <div key={r.id} style={{ padding: '18px 18px 14px 16px', borderRadius: 12, border: `1.5px solid ${c.border}`, borderLeft: `3px solid ${c.text}`, background: '#fff', position: 'relative' }}>
+                      <button onClick={() => setCustomRoles(customRoles.filter((cr) => cr.id !== r.id))}
+                        style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#D1D5DB', padding: 0, lineHeight: 0 }}>
+                        <X style={{ width: 13, height: 13 }} />
+                      </button>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 5 }}>{r.role}</p>
+                      <p style={{ fontSize: 11, color: '#9CA3B8', lineHeight: 1.6, marginBottom: 10 }}>{r.desc || '—'}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: c.bg, color: c.text }}>Custom</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Define Role Form */}
+              {showRoleForm && (
+                <div style={{ marginTop: 20, padding: '20px', background: '#FAFBFC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>New Role</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <label style={labelStyle}>Role Name</label>
+                      <input value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} placeholder="e.g. Branch HR" style={inputStyle}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Description (optional)</label>
+                      <input value={roleForm.desc} onChange={(e) => setRoleForm({ ...roleForm, desc: e.target.value })} placeholder="e.g. View Members & Claims only" style={inputStyle}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                    </div>
                   </div>
-                );
-              })}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={labelStyle}>Role Colour</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {Object.entries(ROLE_COLORS).map(([key, c]) => (
+                        <button key={key} onClick={() => setRoleForm({ ...roleForm, colorKey: key })}
+                          style={{ width: 30, height: 30, borderRadius: 8, background: c.bg, border: `2px solid ${roleForm.colorKey === key ? c.text : c.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.15s' }}>
+                          {roleForm.colorKey === key && <Check style={{ width: 13, height: 13, color: c.text }} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={labelStyle}>Module Access</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {MODULE_LIST.map(({ label: mod, key }) => {
+                        const on = roleForm.modules[key as keyof typeof roleForm.modules];
+                        return (
+                          <button key={key} onClick={() => setRoleForm({ ...roleForm, modules: { ...roleForm.modules, [key]: !on } })}
+                            style={{ height: 30, padding: '0 14px', fontSize: 12, fontWeight: 600, borderRadius: 99, border: `1.5px solid ${on ? '#F56B22' : '#E5E7F1'}`, background: on ? '#FFF5EF' : '#fff', color: on ? '#F56B22' : '#9CA3B8', cursor: 'pointer', transition: 'all 0.15s' }}>
+                            {on ? '✓ ' : ''}{mod}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => {
+                        if (!roleForm.name.trim()) return;
+                        const enabledMods = MODULE_LIST.filter(({ key }) => roleForm.modules[key as keyof typeof roleForm.modules]).map(({ label }) => label);
+                        const desc = roleForm.desc.trim() || (enabledMods.length ? enabledMods.join(' · ') : 'No module access');
+                        setCustomRoles([...customRoles, { id: String(Date.now()), role: roleForm.name.trim(), desc, colorKey: roleForm.colorKey }]);
+                        setRoleForm(blankRoleForm);
+                        setShowRoleForm(false);
+                      }}
+                      style={{ height: 38, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 20, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>
+                      Save Role
+                    </button>
+                    <button onClick={() => { setShowRoleForm(false); setRoleForm(blankRoleForm); }}
+                      style={{ height: 38, padding: '0 18px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 20, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ ...card, overflow: 'hidden' }}>
@@ -392,6 +516,125 @@ export default function AdministrationPage() {
                   </button>
                   {pwSaved && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ Password updated</span>}
                 </div>
+              </div>
+
+              {/* TWO-FACTOR AUTHENTICATION */}
+              <div style={{ ...card, padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: (twoFaEnabled && !twoFaActive) ? 20 : 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Shield style={{ width: 16, height: 16, color: '#2563EB' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Two-Factor Authentication</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 1 }}>Require a second verification step at every login</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                    {twoFaActive && (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 99, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>
+                        {twoFaMethod === 'app' ? 'Authenticator App' : 'SMS'} · Active
+                      </span>
+                    )}
+                    <Toggle on={twoFaEnabled} onChange={() => {
+                      if (!twoFaEnabled) { setTwoFaEnabled(true); setTwoFaSetup('choose'); setTwoFaActive(false); setTwoFaCode(''); }
+                      else { setTwoFaEnabled(false); setTwoFaActive(false); setTwoFaCode(''); }
+                    }} />
+                  </div>
+                </div>
+
+                {/* Setup wizard */}
+                {twoFaEnabled && !twoFaActive && (
+                  <div style={{ borderRadius: 14, border: '1px solid #E5E7F1', overflow: 'hidden' }}>
+
+                    {/* Step 1 — choose method */}
+                    {twoFaSetup === 'choose' && (
+                      <div style={{ padding: '20px' }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Step 1 of 2 · Choose verification method</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {([
+                            { key: 'app' as const, Icon: Smartphone, label: 'Authenticator App', desc: 'Google Authenticator, Authy or Microsoft Authenticator' },
+                            { key: 'sms' as const, Icon: Phone,       label: 'SMS Text Message',  desc: 'Receive a one-time code on your registered phone' },
+                          ]).map(({ key, Icon, label, desc }) => (
+                            <button key={key} onClick={() => { setTwoFaMethod(key); setTwoFaSetup('scan'); }}
+                              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${twoFaMethod === key ? '#F56B22' : '#E5E7F1'}`, background: twoFaMethod === key ? '#FFF5EF' : '#fff', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Icon style={{ width: 16, height: 16, color: '#2563EB' }} />
+                              </div>
+                              <div>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{label}</p>
+                                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>{desc}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 2 — scan / verify */}
+                    {twoFaSetup === 'scan' && (
+                      <div style={{ padding: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                          <button onClick={() => setTwoFaSetup('choose')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>← Back</button>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2 · {twoFaMethod === 'app' ? 'Scan QR Code' : 'Verify Phone'}</p>
+                        </div>
+
+                        {twoFaMethod === 'app' ? (
+                          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+                            {/* Mock QR placeholder */}
+                            <div style={{ width: 108, height: 108, borderRadius: 12, border: '1px solid #E5E7F1', flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, padding: 10, background: '#fff' }}>
+                              {[1,1,1,1,1,1,1, 1,0,0,0,0,0,1, 1,0,1,1,1,0,1, 1,0,1,0,1,0,1, 1,0,1,1,1,0,1, 1,0,0,0,0,0,1, 1,1,1,1,1,1,1].map((v, i) => (
+                                <div key={i} style={{ borderRadius: 1, background: v ? '#131C4E' : '#fff' }} />
+                              ))}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>Open your authenticator app, scan the QR code, then enter the 6-digit code it generates below.</p>
+                              <label style={labelStyle}>6-digit code</label>
+                              <div style={{ display: 'flex', gap: 10 }}>
+                                <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
+                                  style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
+                                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                                <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
+                                  style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+                                  Verify
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>
+                              A verification code will be sent to <strong>{profile.phone}</strong>. Enter it below to confirm.
+                            </p>
+                            <label style={labelStyle}>6-digit code</label>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                              <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
+                                style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
+                                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                              <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
+                                style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+                                Verify
+                              </button>
+                            </div>
+                            <button style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                              Send Code
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Active state */}
+                {twoFaActive && (
+                  <div style={{ marginTop: 20, padding: '14px 16px', background: '#F0FDF4', borderRadius: 12, border: '1px solid #BBF7D0', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Check style={{ width: 16, height: 16, color: '#15803D', flexShrink: 0 }} />
+                    <p style={{ fontSize: 12, color: '#166534', flex: 1 }}>Two-factor authentication is active. You&apos;ll be asked to verify each time you log in.</p>
+                    <button onClick={() => { setTwoFaEnabled(false); setTwoFaActive(false); }}
+                      style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0, whiteSpace: 'nowrap' }}>Remove 2FA</button>
+                  </div>
+                )}
               </div>
             </div>
 
