@@ -77,12 +77,12 @@ export default function ReportsPage() {
             const Icon = r.icon;
             return (
               <div key={r.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 20, transition: 'box-shadow 0.15s' }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FFF3E8]"><Icon className="w-5 h-5 text-[#F56B22]" strokeWidth={1.75} /></div>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon style={{ width: 22, height: 22, color: '#F56B22' }} strokeWidth={1.75} /></div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-[#131C4E]">{r.title}</p>
-                  <p className="text-[12px] text-[#9CA3B8] mt-0.5">{r.desc}</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{r.title}</p>
+                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>{r.desc}</p>
                 </div>
-                <p className="text-[11px] text-[#9CA3B8] flex-shrink-0 hidden md:block">Last generated: {r.lastGen}</p>
+                <p style={{ fontSize: 11, color: '#C4C9D9', flexShrink: 0 }} className="hidden md:block">Last generated: <span style={{ color: '#9CA3B8', fontWeight: 600 }}>{r.lastGen}</span></p>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                   <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
                     <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS

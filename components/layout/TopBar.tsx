@@ -10,10 +10,10 @@ interface TopBarProps {
 
 export function TopBar({ title, subtitle, showQuickActions = false }: TopBarProps) {
   return (
-    <header className="bg-white border-b border-[#F0F1F5] h-[58px] flex items-center px-9 gap-4 flex-shrink-0">
+    <header className="bg-white border-b border-[#F0F1F5] h-[68px] flex items-center px-9 gap-4 flex-shrink-0">
       <div className="flex-1 min-w-0">
-        <h1 className="text-[15px] font-bold text-[#131C4E] truncate leading-tight">{title}</h1>
-        {subtitle && <p className="text-[11px] text-[#9CA3B8] leading-none mt-0.5">{subtitle}</p>}
+        <h1 className="text-[20px] font-[800] text-[#131C4E] truncate leading-tight tracking-[-0.02em]">{title}</h1>
+        {subtitle && <p className="text-[12px] text-[#9CA3B8] leading-none mt-1 font-[500]">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2">
         {showQuickActions && (
