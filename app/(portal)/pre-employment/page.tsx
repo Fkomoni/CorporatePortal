@@ -87,50 +87,40 @@ type Gender = 'Male' | 'Female' | '';
 
 const ALL_TESTS: { id: string; label: string; gender: 'all' | 'male' | 'female'; category: string }[] = [
   // Haematology
-  { id: 'fbc',       label: 'Full Blood Count (FBC)',               gender: 'all',    category: 'Haematology'  },
-  { id: 'blood-grp', label: 'Blood Group & Genotype',               gender: 'all',    category: 'Haematology'  },
-  { id: 'esr',       label: 'Erythrocyte Sedimentation Rate (ESR)', gender: 'all',    category: 'Haematology'  },
+  { id: 'fbc',        label: 'Full Blood Count (FBC)',                                          gender: 'all',    category: 'Haematology' },
+  { id: 'blood-grp',  label: 'Blood Group',                                                     gender: 'all',    category: 'Haematology' },
+  { id: 'genotype',   label: 'Genotype',                                                        gender: 'all',    category: 'Haematology' },
   // Biochemistry
-  { id: 'urinalysis',label: 'Urinalysis',                           gender: 'all',    category: 'Biochemistry' },
-  { id: 'fbs',       label: 'Fasting Blood Sugar (FBS)',            gender: 'all',    category: 'Biochemistry' },
-  { id: 'lipid',     label: 'Lipid Profile',                        gender: 'all',    category: 'Biochemistry' },
-  { id: 'lft',       label: 'Liver Function Test (LFT)',            gender: 'all',    category: 'Biochemistry' },
-  { id: 'kft',       label: 'Kidney Function Test (KFT)',           gender: 'all',    category: 'Biochemistry' },
-  { id: 'uric',      label: 'Uric Acid',                            gender: 'all',    category: 'Biochemistry' },
+  { id: 'fbg',        label: 'Fasting Blood Glucose',                                           gender: 'all',    category: 'Biochemistry' },
+  // Microbiology
+  { id: 'urinalysis', label: 'Urinalysis',                                                      gender: 'all',    category: 'Microbiology' },
+  { id: 'stool',      label: 'Stool Analysis',                                                  gender: 'all',    category: 'Microbiology' },
+  { id: 'sputum',     label: 'Sputum AFB',                                                      gender: 'all',    category: 'Microbiology' },
   // Serology
-  { id: 'hiv',       label: 'HIV 1 & 2 Screening',                  gender: 'all',    category: 'Serology'     },
-  { id: 'hep-b',     label: 'Hepatitis B Surface Antigen (HBsAg)',  gender: 'all',    category: 'Serology'     },
-  { id: 'hep-c',     label: 'Hepatitis C Antibody',                 gender: 'all',    category: 'Serology'     },
-  { id: 'vdrl',      label: 'VDRL (Syphilis)',                       gender: 'all',    category: 'Serology'     },
-  { id: 'pregnancy', label: 'Pregnancy Test (Serum HCG)',           gender: 'female', category: 'Serology'     },
+  { id: 'hbsag',      label: 'HBsAg (Hepatitis B Surface Antigen)',                             gender: 'all',    category: 'Serology'    },
+  { id: 'hiv',        label: 'HIV Screening',                                                   gender: 'all',    category: 'Serology'    },
+  { id: 'tb-serum',   label: 'TB Serum',                                                        gender: 'all',    category: 'Serology'    },
   // Radiology
-  { id: 'xray',      label: 'Chest X-Ray',                          gender: 'all',    category: 'Radiology'    },
+  { id: 'xray',       label: 'Chest X-Ray',                                                     gender: 'all',    category: 'Radiology'   },
   // Cardiology
-  { id: 'ecg',       label: 'Electrocardiogram (ECG)',              gender: 'all',    category: 'Cardiology'   },
+  { id: 'ecg',        label: 'ECG (Electrocardiogram)',                                         gender: 'all',    category: 'Cardiology'  },
   // Clinical
-  { id: 'bmi',       label: 'Blood Pressure & BMI',                 gender: 'all',    category: 'Clinical'     },
-  { id: 'vision',    label: 'Vision & Eye Test',                    gender: 'all',    category: 'Clinical'     },
-  { id: 'hearing',   label: 'Hearing Test (Audiometry)',            gender: 'all',    category: 'Clinical'     },
-  { id: 'musculo',   label: 'Musculoskeletal Examination',          gender: 'all',    category: 'Clinical'     },
-  // Toxicology
-  { id: 'drug',      label: 'Drug & Substance Abuse Screening',     gender: 'all',    category: 'Toxicology'   },
-  // Female-specific
-  { id: 'pap',       label: 'Pap Smear (Cervical Cytology)',        gender: 'female', category: 'Gynaecology'  },
-  { id: 'breast',    label: 'Breast Examination',                   gender: 'female', category: 'Gynaecology'  },
-  // Male-specific
-  { id: 'psa',       label: 'PSA (Prostate Specific Antigen)',      gender: 'male',   category: 'Urology'      },
+  { id: 'physical',   label: 'Complete Physical Examination (BMI, Blood Pressure, Pulse Rate)', gender: 'all',    category: 'Clinical'    },
+  { id: 'mantoux',    label: 'Mantoux Test',                                                    gender: 'all',    category: 'Clinical'    },
+  { id: 'vision',     label: 'Visual Acuity',                                                   gender: 'all',    category: 'Clinical'    },
+  // Gynaecology (female only)
+  { id: 'pregnancy',  label: 'Pregnancy Test',                                                  gender: 'female', category: 'Gynaecology' },
 ];
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   Haematology:  { bg: '#FEF2F2', text: '#DC2626' },
   Biochemistry: { bg: '#FFFBEB', text: '#D97706' },
+  Microbiology: { bg: '#F0FDF4', text: '#16A34A' },
   Serology:     { bg: '#F5F3FF', text: '#7C3AED' },
   Radiology:    { bg: '#EFF6FF', text: '#2563EB' },
   Cardiology:   { bg: '#FFF1F2', text: '#BE123C' },
   Clinical:     { bg: '#ECFDF5', text: '#059669' },
-  Toxicology:   { bg: '#F1F5F9', text: '#475569' },
   Gynaecology:  { bg: '#FDF4FF', text: '#9333EA' },
-  Urology:      { bg: '#F0FDFA', text: '#0F766E' },
 };
 
 // ── Page ─────────────────────────────────────────────────────────────────────
