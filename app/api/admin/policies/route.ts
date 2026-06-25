@@ -31,7 +31,6 @@ async function getServiceToken(): Promise<string> {
     throw new Error(`ApiUsers/Login returned non-JSON (${res.status}): ${text.slice(0, 200)}`);
   }
 
-  // Unwrap optional envelope
   const payload = (data?.data ?? data?.Data ?? data?.result ?? data?.Result ?? data) as Record<string, unknown>;
 
   if (payload?.status === false || payload?.status === 'error' || payload?.status === 'fail') {
@@ -46,38 +45,35 @@ async function getServiceToken(): Promise<string> {
   if (!token) throw new Error('No token in ApiUsers/Login response');
 
   cachedToken = token;
-  tokenExpiry  = Date.now() + 6 * 60 * 60 * 1000; // 6 hours
+  tokenExpiry  = Date.now() + 6 * 60 * 60 * 1000;
   console.log('[api/policies] service token obtained, cached for 6h');
   return token;
 }
 
-// ── Normalise one policy row ──────────────────────────────────────────────────
+// ── Normalise one raw Prognosis row ───────────────────────────────────────────
+// Actual field names from GetAllPolicies:
+//   GROUP_ID, GROUP_CODE, PolicyNumber, GROUP_NAME, Accepton, Termdate,
+//   Company_Email1, Contact_name, NoOfLives, accountmanager, scheme_type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizePolicy(p: Record<string, any>) {
-  const name    = String(p.GroupName ?? p.CompanyName ?? p.Name ?? p.name ?? 'Unknown');
-  const groupId = String(p.GroupID ?? p.PolicyID ?? p.Id ?? p.id ?? '');
+  const name    = String(p.GROUP_NAME ?? p.GroupName ?? p.CompanyName ?? p.Name ?? p.name ?? 'Unknown');
+  const groupId = String(p.GROUP_ID   ?? p.GroupID   ?? p.PolicyID   ?? p.Id   ?? p.id   ?? '');
 
-  const rawDate        = p.CommencementDate ?? p.StartDate ?? p.DateCreated ?? p.CreatedDate ?? p.InceptionDate ?? '';
-  const dateProvisioned = rawDate ? String(rawDate).split('T')[0] : '';
+  const dateProvisioned = p.Accepton
+    ? String(p.Accepton).split('T')[0]
+    : p.CommencementDate ?? p.StartDate ?? '';
 
-  const adminEmail = String(p.Email ?? p.AdminEmail ?? p.ContactEmail ?? p.HREmail ?? p.EmailAddress ?? '');
+  const adminEmail = String(p.Company_Email1 ?? p.AdminEmail ?? p.ContactEmail ?? p.Email ?? '');
 
-  let status = 'Active';
-  if (p.Active === false || p.IsActive === false) {
-    status = 'Inactive';
-  } else if (typeof p.Status === 'string') {
-    const s = p.Status.toLowerCase();
-    if (s === 'inactive' || s === 'terminated' || s === 'expired') status = 'Inactive';
-    else if (s === 'pending' || s === 'awaiting') status = 'Pending';
-    else status = p.Status;
-  }
+  const activeMembers = Number(p.NoOfLives ?? p.ActiveLives ?? p.TotalActiveLives ?? p.ActiveMembers ?? 0);
 
-  const activeMembers = Number(
-    p.ActiveLives ?? p.TotalActiveLives ?? p.ActiveMembers ??
-    p.MemberCount  ?? p.TotalEnrolled   ?? p.NoOfLives    ?? 0
-  );
+  const schemeCode = String(p.PolicyNumber ?? p.GROUP_CODE ?? p.SchemeCode ?? groupId);
 
-  const schemeCode = String(p.PolicyNumber ?? p.SchemeCode ?? p.PolicyCode ?? groupId);
+  // Derive status from Termdate: active if coverage end is today or in the future
+  const termDate = p.Termdate ? new Date(p.Termdate) : null;
+  const today    = new Date();
+  today.setHours(0, 0, 0, 0);
+  const status = termDate && termDate >= today ? 'Active' : 'Inactive';
 
   return {
     id: groupId || name,
@@ -88,12 +84,13 @@ function normalizePolicy(p: Record<string, any>) {
     adminEmail,
     status,
     activeMembers,
+    termDate: termDate ? termDate.toISOString().split('T')[0] : '',
     template: 'Default template',
     colors: ['#F56B22', '#131C4E', '#3B82F6'],
   };
 }
 
-// ── Fetch policies with optional one-time token refresh on 401/403 ────────────
+// ── Fetch policies with one-time token refresh on 401/403 ─────────────────────
 async function fetchPolicies(token: string, retry = false): Promise<Response> {
   const res = await fetch(`${BASE}/api/CorporateProfile/GetAllPolicies`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -140,33 +137,36 @@ export async function GET() {
     // Unwrap envelope
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw: Record<string, any>[] =
-      Array.isArray(data)              ? data              :
+      Array.isArray(data)                  ? data                  :
       Array.isArray((data as any)?.data)   ? (data as any).data   :
       Array.isArray((data as any)?.Data)   ? (data as any).Data   :
       Array.isArray((data as any)?.result) ? (data as any).result :
       Array.isArray((data as any)?.Result) ? (data as any).Result :
       [];
 
-    if (raw.length > 0) {
-      console.log('[api/policies] first record keys:', Object.keys(raw[0]).join(', '));
-      console.log('[api/policies] first record sample:', JSON.stringify(raw[0]).slice(0, 500));
+    // For each GROUP_ID keep only the row with the latest Accepton date
+    // (each group has one row per annual renewal)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const latestByGroup = new Map<string, Record<string, any>>();
+    for (const row of raw) {
+      const key = String(row.GROUP_ID ?? row.GroupID ?? row.id ?? '');
+      if (!key) continue;
+      const existing = latestByGroup.get(key);
+      if (!existing) {
+        latestByGroup.set(key, row);
+      } else {
+        const existingDate = new Date(existing.Accepton ?? 0).getTime();
+        const rowDate      = new Date(row.Accepton      ?? 0).getTime();
+        if (rowDate > existingDate) latestByGroup.set(key, row);
+      }
     }
 
-    const all = raw.map(normalizePolicy);
+    const unique = Array.from(latestByGroup.values()).map(normalizePolicy);
 
-    // Deduplicate by groupId (keep first occurrence)
-    const seen = new Set<string>();
-    const unique = all.filter((p) => {
-      const key = p.groupId || p.id;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    // Only serve Active policies
+    // Only serve currently-active policies
     const policies = unique.filter((p) => p.status === 'Active');
 
-    console.log(`[api/policies] total=${all.length} unique=${unique.length} active=${policies.length}`);
+    console.log(`[api/policies] raw=${raw.length} unique_groups=${unique.length} active=${policies.length}`);
 
     return NextResponse.json({ policies, total: policies.length });
   } catch (err) {
