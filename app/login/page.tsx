@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { ShieldCheck, BarChart3, Users, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
@@ -8,13 +10,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setError('');
+
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    });
+
     setIsLoading(false);
-    window.location.href = '/dashboard';
+
+    if (result?.error) {
+      setError('Invalid email or password. Please try again.');
+    } else {
+      router.push('/dashboard');
+      router.refresh();
+    }
   };
 
   return (
@@ -107,6 +124,11 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            {error && (
+              <div className="text-sm rounded-lg px-4 py-3" style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
+                {error}
+              </div>
+            )}
             <button type="submit" disabled={isLoading}
               className="w-full h-11 rounded-lg text-white font-semibold text-sm transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
               style={{ background: 'linear-gradient(135deg, #F56B22 0%, #FFB54B 100%)' }}>
