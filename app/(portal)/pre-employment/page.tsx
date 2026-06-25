@@ -105,7 +105,6 @@ const ALL_TESTS: { id: string; label: string; gender: 'all' | 'male' | 'female';
   // Cardiology
   { id: 'ecg',        label: 'ECG (Electrocardiogram)',                                         gender: 'all',    category: 'Cardiology'  },
   // Clinical
-  { id: 'physical',   label: 'Complete Physical Examination (BMI, Blood Pressure, Pulse Rate)', gender: 'all',    category: 'Clinical'    },
   { id: 'mantoux',    label: 'Mantoux Test',                                                    gender: 'all',    category: 'Clinical'    },
   { id: 'vision',     label: 'Visual Acuity',                                                   gender: 'all',    category: 'Clinical'    },
   // Gynaecology (female only)
@@ -216,7 +215,7 @@ export default function PreEmploymentPage() {
                 { label: 'Facility',   value: `${selectedFacility?.name} — ${selectedFacility?.address}` },
                 { label: 'State',      value: form.state },
                 { label: 'Preferred Date', value: form.date },
-                { label: 'Tests',      value: `${selectedTests.size} test${selectedTests.size !== 1 ? 's' : ''} selected` },
+                { label: 'Tests',      value: `${selectedTests.size + 1} test${selectedTests.size + 1 !== 1 ? 's' : ''} selected` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13 }}>
                   <span style={{ color: '#9CA3B8', fontWeight: 600 }}>{label}</span>
@@ -338,7 +337,7 @@ export default function PreEmploymentPage() {
                 <div>
                   <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E' }}>Select Tests</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 1 }}>
-                    Showing tests for <strong>{form.gender}</strong> candidates · {selectedTests.size} selected
+                    Showing tests for <strong>{form.gender}</strong> candidates · {selectedTests.size + 1} selected
                   </p>
                 </div>
               </div>
@@ -348,6 +347,13 @@ export default function PreEmploymentPage() {
                   <X style={{ width: 12, height: 12 }} /> Clear all
                 </button>
               )}
+            </div>
+
+            {/* Mandatory test — always included */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', marginBottom: 20, background: '#FFF5EF', border: '1.5px solid #F56B22', borderRadius: 10 }}>
+              <input type="checkbox" checked readOnly style={{ width: 15, height: 15, accentColor: '#F56B22', flexShrink: 0, cursor: 'default' }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', flex: 1 }}>Complete Physical Examination (BMI, Blood Pressure, Pulse Rate)</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F56B22', color: '#fff', flexShrink: 0 }}>Compulsory</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -403,7 +409,7 @@ export default function PreEmploymentPage() {
           <div style={{ flex: 1 }}>
             {canSubmit ? (
               <p style={{ fontSize: 13, color: '#374151' }}>
-                Ready to request a quote for <strong>{form.name}</strong> at <strong>{selectedFacility?.name}</strong> on <strong>{form.date}</strong> · <strong>{selectedTests.size} test{selectedTests.size !== 1 ? 's' : ''}</strong>
+                Ready to request a quote for <strong>{form.name}</strong> at <strong>{selectedFacility?.name}</strong> on <strong>{form.date}</strong> · <strong>{selectedTests.size + 1} test{selectedTests.size + 1 !== 1 ? 's' : ''}</strong>
               </p>
             ) : (
               <p style={{ fontSize: 13, color: '#9CA3B8' }}>
