@@ -63,7 +63,8 @@ function normalizePolicy(p: Record<string, any>) {
     ? String(p.Accepton).split('T')[0]
     : p.CommencementDate ?? p.StartDate ?? '';
 
-  const adminEmail = String(p.Company_Email1 ?? p.AdminEmail ?? p.ContactEmail ?? p.Email ?? '');
+  const adminEmail   = String(p.Company_Email1 ?? p.AdminEmail ?? p.ContactEmail ?? p.Email ?? '');
+  const contactName  = String(p.Contact_name  ?? p.ContactName ?? p.contact_name ?? '');
 
   const activeMembers = Number(p.NoOfLives ?? p.ActiveLives ?? p.TotalActiveLives ?? p.ActiveMembers ?? 0);
 
@@ -82,6 +83,7 @@ function normalizePolicy(p: Record<string, any>) {
     schemeCode,
     dateProvisioned,
     adminEmail,
+    contactName,
     status,
     activeMembers,
     termDate: termDate ? termDate.toISOString().split('T')[0] : '',
