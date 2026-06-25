@@ -147,6 +147,11 @@ export async function GET() {
       Array.isArray((data as any)?.Result) ? (data as any).Result :
       [];
 
+    if (raw.length > 0) {
+      console.log('[api/policies] first record keys:', Object.keys(raw[0]).join(', '));
+      console.log('[api/policies] first record sample:', JSON.stringify(raw[0]).slice(0, 500));
+    }
+
     const policies = raw.map(normalizePolicy);
     console.log(`[api/policies] normalized ${policies.length} policies`);
 
