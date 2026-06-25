@@ -299,21 +299,22 @@ export default function PreEmploymentPage() {
               </div>
             </div>
             {facilities.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                {facilities.map((f) => {
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #E5E7F1', borderRadius: 12, overflow: 'hidden' }}>
+                {facilities.map((f, i) => {
                   const isSelected = selectedFacility?.name === f.name;
                   return (
                     <button key={f.name} onClick={() => setSelectedFacility(isSelected ? null : f)}
-                      style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '16px 18px', borderRadius: 14, border: `1.5px solid ${isSelected ? '#F56B22' : '#E5E7F1'}`, background: isSelected ? '#FFF5EF' : '#FAFBFC', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', position: 'relative' }}>
-                      {isSelected && <CheckCircle style={{ position: 'absolute', top: 12, right: 12, width: 16, height: 16, color: '#F56B22' }} />}
-                      <div style={{ width: 34, height: 34, borderRadius: 10, background: isSelected ? '#FFF1E6' : '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Building2 style={{ width: 15, height: 15, color: isSelected ? '#F56B22' : '#6B7280' }} />
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: isSelected ? '#FFF5EF' : '#fff', cursor: 'pointer', textAlign: 'left', borderBottom: i < facilities.length - 1 ? '1px solid #F0F1F6' : 'none', borderLeft: 'none', borderRight: 'none', borderTop: 'none', transition: 'background 0.12s' }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${isSelected ? '#F56B22' : '#D1D5DB'}`, background: isSelected ? '#F56B22' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
+                        {isSelected && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
                       </div>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{f.name}</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <MapPin style={{ width: 10, height: 10 }} />{f.address}
-                      </p>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#EFF6FF', color: '#2563EB', width: 'fit-content' }}>{f.type}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{f.name}</p>
+                        <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <MapPin style={{ width: 10, height: 10, flexShrink: 0 }} />{f.address}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#EFF6FF', color: '#2563EB', flexShrink: 0 }}>{f.type}</span>
                     </button>
                   );
                 })}
