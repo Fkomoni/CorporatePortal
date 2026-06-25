@@ -14,16 +14,18 @@ import {
   FileText,
   ChevronDown,
   LogOut,
+  Heart,
 } from 'lucide-react';
 
 const mainNav = [
-  { href: '/dashboard',    label: 'Overview',    icon: LayoutDashboard },
-  { href: '/members',      label: 'People',       icon: Users },
-  { href: '/benefits',     label: 'Benefits',     icon: ShieldCheck },
-  { href: '/finance',      label: 'Finance',      icon: CreditCard },
-  { href: '/reports',      label: 'Insights & Reports', icon: Lightbulb },
-  { href: '/claims',       label: 'Claims',       icon: FileText },
-  { href: '/service-desk', label: 'Service Desk', icon: MessageSquare, badge: 4 },
+  { href: '/dashboard',    label: 'Overview',            icon: LayoutDashboard },
+  { href: '/members',      label: 'People',               icon: Users },
+  { href: '/benefits',     label: 'Benefits',             icon: ShieldCheck },
+  { href: '/finance',      label: 'Finance',              icon: CreditCard },
+  { href: '/wellness',     label: 'Wellness',             icon: Heart },
+  { href: '/reports',      label: 'Insights & Reports',   icon: Lightbulb },
+  { href: '/claims',       label: 'Claims',               icon: FileText },
+  { href: '/service-desk', label: 'Service Desk',         icon: MessageSquare, badge: 4 },
 ];
 
 const bottomNav = [
