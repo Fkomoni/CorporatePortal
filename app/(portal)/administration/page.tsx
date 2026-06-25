@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, Smartphone, X, Check } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockUsers } from '@/lib/mock-data';
 
@@ -98,7 +98,7 @@ export default function AdministrationPage() {
   // 2FA state
   const [twoFaEnabled, setTwoFaEnabled] = useState(false);
   const [twoFaSetup, setTwoFaSetup]     = useState<'choose' | 'scan'>('choose');
-  const [twoFaMethod, setTwoFaMethod]   = useState<'app' | 'sms'>('app');
+  const [twoFaMethod, setTwoFaMethod]   = useState<'email' | 'sms'>('email');
   const [twoFaCode, setTwoFaCode]       = useState('');
   const [twoFaActive, setTwoFaActive]   = useState(false);
 
@@ -531,7 +531,7 @@ export default function AdministrationPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                     {twoFaActive && (
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 99, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>
-                        {twoFaMethod === 'app' ? 'Authenticator App' : 'SMS'} · Active
+                        {twoFaMethod === 'email' ? 'Email' : 'SMS'} · Active
                       </span>
                     )}
                     <Toggle on={twoFaEnabled} onChange={() => {
@@ -551,8 +551,8 @@ export default function AdministrationPage() {
                         <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Step 1 of 2 · Choose verification method</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {([
-                            { key: 'app' as const, Icon: Smartphone, label: 'Authenticator App', desc: 'Google Authenticator, Authy or Microsoft Authenticator' },
-                            { key: 'sms' as const, Icon: Phone,       label: 'SMS Text Message',  desc: 'Receive a one-time code on your registered phone' },
+                            { key: 'email' as const, Icon: Mail,  label: 'Email',            desc: `Send a one-time code to ${profile.email}` },
+                            { key: 'sms'   as const, Icon: Phone, label: 'SMS Text Message', desc: 'Receive a one-time code on your registered phone' },
                           ]).map(({ key, Icon, label, desc }) => (
                             <button key={key} onClick={() => { setTwoFaMethod(key); setTwoFaSetup('scan'); }}
                               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${twoFaMethod === key ? '#F56B22' : '#E5E7F1'}`, background: twoFaMethod === key ? '#FFF5EF' : '#fff', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
@@ -574,31 +574,28 @@ export default function AdministrationPage() {
                       <div style={{ padding: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                           <button onClick={() => setTwoFaSetup('choose')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>← Back</button>
-                          <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2 · {twoFaMethod === 'app' ? 'Scan QR Code' : 'Verify Phone'}</p>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2 · {twoFaMethod === 'email' ? 'Verify Email' : 'Verify Phone'}</p>
                         </div>
 
-                        {twoFaMethod === 'app' ? (
-                          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-                            {/* Mock QR placeholder */}
-                            <div style={{ width: 108, height: 108, borderRadius: 12, border: '1px solid #E5E7F1', flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, padding: 10, background: '#fff' }}>
-                              {[1,1,1,1,1,1,1, 1,0,0,0,0,0,1, 1,0,1,1,1,0,1, 1,0,1,0,1,0,1, 1,0,1,1,1,0,1, 1,0,0,0,0,0,1, 1,1,1,1,1,1,1].map((v, i) => (
-                                <div key={i} style={{ borderRadius: 1, background: v ? '#131C4E' : '#fff' }} />
-                              ))}
+                        {twoFaMethod === 'email' ? (
+                          <div>
+                            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>
+                              A verification code has been sent to <strong>{profile.email}</strong>. Enter it below to confirm.
+                            </p>
+                            <label style={labelStyle}>6-digit code</label>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                              <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
+                                style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
+                                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                              <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
+                                style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+                                Verify
+                              </button>
                             </div>
-                            <div style={{ flex: 1 }}>
-                              <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>Open your authenticator app, scan the QR code, then enter the 6-digit code it generates below.</p>
-                              <label style={labelStyle}>6-digit code</label>
-                              <div style={{ display: 'flex', gap: 10 }}>
-                                <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
-                                  style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
-                                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
-                                <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
-                                  style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
-                                  Verify
-                                </button>
-                              </div>
-                            </div>
+                            <button style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                              Resend Code
+                            </button>
                           </div>
                         ) : (
                           <div>
