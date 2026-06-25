@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BenefitsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
@@ -88,6 +89,8 @@ const providers: { name: string; city: string; state: string; phone: string; spe
 
 export default function BenefitsPage() {
   const [activeTab, setActiveTab] = useState<'plans' | 'providers'>('plans');
+  const [vis, setBenVis] = useState<BenefitsVis>(DEFAULTS.benefits);
+  useEffect(() => { setBenVis(getVis('benefits')); }, []);
   const [activePlan, setActivePlan] = useState<Plan>('Max Plan');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -117,7 +120,7 @@ export default function BenefitsPage() {
         {/* Main tabs */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            {(['plans', 'providers'] as const).map((tab) => (
+            {(['plans', 'providers'] as const).filter((t) => t === 'plans' ? vis.showBenefitPlans : vis.showProviderSearch).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 style={{
                   padding: '9px 22px',

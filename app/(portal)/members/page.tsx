@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { PeopleVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
@@ -417,7 +418,7 @@ function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' |
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose }: { member: Member; index: number; onClose: () => void }) {
+function Member360Drawer({ member, index, onClose, vis }: { member: Member; index: number; onClose: () => void; vis: PeopleVis }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -476,7 +477,7 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
               <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, background: '#F1F2F8', color: '#3A4382', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{member.employeeId}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF3E8', color: '#F56B22', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{enroleeId}</span>
+                {vis.showEnroleeIds && <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF3E8', color: '#F56B22', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{enroleeId}</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                 <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: plan.bg, color: plan.text }}>{member.plan}</span>
@@ -672,11 +673,13 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <CreditCard style={{ width: 14, height: 14 }} /> E-Card
             </button>
+            {vis.showTerminateAction && (
             <button
               onClick={() => { toast('Member terminated successfully.', 'error'); onClose(); }}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
               <AlertCircle style={{ width: 14, height: 14 }} /> Terminate
             </button>
+            )}
           </div>
         </div>
 
@@ -855,6 +858,9 @@ const mockBeneficiaries: Member[] = mockMembers.flatMap((m, mi) => {
 
 /* ── Members Page ────────────────────────────────────────────────────── */
 export default function MembersPage() {
+  const [vis, setVis] = useState<PeopleVis>(DEFAULTS.people);
+  useEffect(() => { setVis(getVis('people')); }, []);
+
   const [search, setSearch]               = useState('');
   const [planFilter, setPlanFilter]       = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
@@ -892,6 +898,7 @@ export default function MembersPage() {
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* Summary cards — 3 columns (Pending Terminations removed) */}
+        {vis.showSummaryCards && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
           {summaryCards.map((c) => (
             <div key={c.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${c.color}` }}>
@@ -901,6 +908,7 @@ export default function MembersPage() {
             </div>
           ))}
         </div>
+        )}
 
         {/* Toolbar */}
         <div style={{ ...card, padding: '16px 20px' }}>
@@ -924,6 +932,7 @@ export default function MembersPage() {
             <div style={{ flex: 1 }} />
 
             {/* View toggle: Members / All Beneficiaries */}
+            {vis.showBeneficiaryView && (
             <div style={{ display: 'flex', background: '#F7F8FC', borderRadius: 12, padding: 3, border: '1px solid #E5E7F1', gap: 2 }}>
               {([false, true] as const).map((val) => (
                 <button key={String(val)} onClick={() => setViewBeneficiaries(val)}
@@ -937,6 +946,7 @@ export default function MembersPage() {
                 </button>
               ))}
             </div>
+            )}
 
             <div style={{ width: 1, height: 28, background: '#E5E7F1' }} />
             <button onClick={() => setShowAddModal('bulk')}
@@ -947,10 +957,12 @@ export default function MembersPage() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <ArrowDownToLine style={{ width: 15, height: 15 }} /> Export XLS
             </button>
+            {vis.showAddMember && (
             <button onClick={() => setShowAddModal('individual')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 24, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', whiteSpace: 'nowrap' }}>
               <Plus style={{ width: 16, height: 16 }} /> Add Member
             </button>
+            )}
           </div>
         </div>
 
@@ -996,7 +1008,7 @@ export default function MembersPage() {
         {/* Members / Beneficiaries table */}
         <div style={{ ...card }}>
           <div className="grid items-center border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            style={{ gridTemplateColumns: `36px 1fr 88px${vis.showEnroleeIds ? ' 132px' : ''} 118px 76px 108px 120px 96px`, columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} title="Select all" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }} onClick={toggleAll} title="Click to select all">
               <span className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest select-none">
@@ -1004,7 +1016,7 @@ export default function MembersPage() {
               </span>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#C4C9D9', background: '#F0F1F5', padding: '1px 5px', borderRadius: 4, letterSpacing: '0.04em' }}>SELECT ALL</span>
             </div>
-            {['Emp ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Beneficiaries'].map((h) => (
+            {['Emp ID', ...(vis.showEnroleeIds ? ['Enrolee ID'] : []), 'Plan', 'Type', 'Status', 'Phone', 'Beneficiaries'].map((h) => (
               <span key={h} className="text-[10.5px] font-bold uppercase">{h}</span>
             ))}
           </div>
@@ -1019,7 +1031,7 @@ export default function MembersPage() {
               <div
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '36px 1fr 88px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
+                style={{ gridTemplateColumns: `36px 1fr 88px${vis.showEnroleeIds ? ' 132px' : ''} 118px 76px 108px 120px 96px`, columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
                 onClick={() => setActiveMember({ member: m, index: i })}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />
@@ -1030,7 +1042,7 @@ export default function MembersPage() {
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
                 </div>
                 <span className="text-[11px] text-[#9CA3B8] font-mono">{m.employeeId}</span>
-                <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{enroleeId}</span>
+                {vis.showEnroleeIds && <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{enroleeId}</span>}
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[11px]" style={{ color: isDependant ? '#6366F1' : '#9CA3B8', fontWeight: isDependant ? 600 : 400 }}>{m.type}</span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
@@ -1089,6 +1101,7 @@ export default function MembersPage() {
           member={activeMember.member}
           index={activeMember.index}
           onClose={() => setActiveMember(null)}
+          vis={vis}
         />
       )}
 

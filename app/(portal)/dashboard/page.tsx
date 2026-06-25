@@ -1,6 +1,8 @@
 'use client';
 
 import { TrendingDown, UserPlus, Receipt } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { DashboardVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -55,6 +57,8 @@ const card: React.CSSProperties = {
 };
 
 export default function DashboardPage() {
+  const [vis, setVis] = useState<DashboardVis>(DEFAULTS.dashboard);
+  useEffect(() => { setVis(getVis('dashboard')); }, []);
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Overview" subtitle="Dangote Industries Ltd · ACM-2026 · Last updated today 09:14" showQuickActions />
@@ -92,6 +96,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── ACTION CENTRE ── */}
+        {vis.showActionCentre && (
         <div style={{ ...card, padding: '28px 32px' }}>
           <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Action Centre</p>
@@ -123,8 +128,10 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
+        )}
 
         {/* ── ROW 2: 4 KPI CARDS ── */}
+        {vis.showKpiCards && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {[
             { value: '1,842',  label: 'Active Lives',        sub: '▲ 24 added this month', subColor: '#10B981', rail: '#10B981' },
@@ -134,13 +141,15 @@ export default function DashboardPage() {
           ].map((k) => (
             <div key={k.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${k.rail}` }}>
               <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12, letterSpacing: '0.01em' }}>{k.label}</p>
-              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>{k.value}</p>
+              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>{k.label === 'Outstanding Premium' ? (vis.showAmounts ? k.value : '—') : k.value}</p>
               <p style={{ fontSize: 12, fontWeight: 500, color: k.subColor }}>{k.sub}</p>
             </div>
           ))}
         </div>
+        )}
 
         {/* ── ROW 3: LOSS RATIO (large, full-width) ── */}
+        {vis.showLossRatio && (
         <div style={{ ...card, padding: '32px 36px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
             <div>
@@ -159,7 +168,7 @@ export default function DashboardPage() {
                 {[{ label: 'Claims Paid', value: '₦48.2M' }, { label: 'Premium', value: '₦62.5M' }].map((m) => (
                   <div key={m.label}>
                     <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 3 }}>{m.label}</p>
-                    <p style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{m.value}</p>
+                    <p style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{vis.showAmounts ? m.value : '—'}</p>
                   </div>
                 ))}
               </div>
@@ -186,17 +195,19 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* ── ROW 4: CHARTS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
+        {(vis.showSpendChart || vis.showTopConditions) && (
+        <div style={{ display: 'grid', gridTemplateColumns: vis.showSpendChart && vis.showTopConditions ? '3fr 2fr' : '1fr', gap: 16 }}>
 
-          <div style={{ ...card, padding: '26px 28px' }}>
+          {vis.showSpendChart && <div style={{ ...card, padding: '26px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Claims Spend Trend</p>
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Monthly · Jan–Jun 2026</p>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#F56B22' }}>₦48.2M YTD</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F56B22' }}>{vis.showAmounts ? '₦48.2M' : '—'} YTD</span>
             </div>
             <ResponsiveContainer width="100%" height={148}>
               <AreaChart data={monthlySpend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
@@ -222,9 +233,9 @@ export default function DashboardPage() {
               <span style={{ fontSize: 11, color: '#9CA3B8' }}>Jun <strong style={{ color: '#131C4E' }}>₦9.8M</strong></span>
               <span style={{ fontSize: 11, fontWeight: 600, color: '#EF4444' }}>▲ +58% growth YTD</span>
             </div>
-          </div>
+          </div>}
 
-          <div style={{ ...card, padding: '26px 28px' }}>
+          {vis.showTopConditions && <div style={{ ...card, padding: '26px 28px' }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Top Conditions</p>
             <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 24 }}>By number of visits · 2026</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -240,13 +251,14 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
+        )}
 
         {/* ── ROW 5: PROVIDERS + OPEN REQUESTS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: vis.showTopProviders ? '1.2fr 1fr' : '1fr', gap: 16 }}>
 
-          <div style={{ ...card, padding: '26px 28px' }}>
+          {vis.showTopProviders && <div style={{ ...card, padding: '26px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Top Provider Utilization</p>
@@ -269,7 +281,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-          </div>
+          </div>}
 
           <div style={{ ...card, padding: '26px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
@@ -295,6 +307,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── ROW 6: HEALTH INSIGHTS (full width, light) ── */}
+        {vis.showHealthInsights && (
         <div style={{ ...card, padding: '28px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
@@ -314,6 +327,7 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+        )}
 
       </div>
     </div>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Paperclip, Search, MessageSquare, X } from 'lucide-react';
+import { ServiceDeskVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockTickets } from '@/lib/mock-data';
 import { useToast } from '@/components/ui/Toast';
@@ -43,6 +44,8 @@ const summaryItems = [
 export default function ServiceDeskPage() {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
+  const [vis, setVis] = useState<ServiceDeskVis>(DEFAULTS.serviceDesk);
+  useEffect(() => { setVis(getVis('serviceDesk')); }, []);
   const { toast } = useToast();
 
   const filtered = mockTickets.filter((t) => {
@@ -62,14 +65,14 @@ export default function ServiceDeskPage() {
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* SUMMARY CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
+        {vis.showSummaryCards && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
           {summaryItems.map((s) => (
             <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
               <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: '#131C4E', letterSpacing: '-0.03em', marginBottom: 10 }}>{s.value}</p>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{s.label}</p>
             </div>
           ))}
-        </div>
+        </div>}
 
         {/* SEARCH + ACTION BAR */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -84,17 +87,17 @@ export default function ServiceDeskPage() {
             />
           </div>
           <div style={{ flex: 1 }} />
-          <button
+          {vis.showNewRequest && <button
             onClick={() => setShowForm(true)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 24, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', whiteSpace: 'nowrap' }}>
             <Plus style={{ width: 16, height: 16 }} /> New Request
-          </button>
+          </button>}
         </div>
 
         {/* TICKET TABLE */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 140px 160px 110px 100px 100px', columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-            {['Ticket ID', 'Subject', 'Category', 'Status', 'SLA', 'Submitted', 'Updated'].map((h) => (
+        {vis.showTicketTable && <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `110px 1fr 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            {['Ticket ID', 'Subject', 'Category', 'Status', ...(vis.showSlaColumn ? ['SLA'] : []), 'Submitted', 'Updated'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
             ))}
           </div>
@@ -106,7 +109,7 @@ export default function ServiceDeskPage() {
             const sla = slaColors[slaKey] ?? slaColors['Within SLA'];
             return (
               <div key={t.id}
-                style={{ display: 'grid', gridTemplateColumns: '110px 1fr 140px 160px 110px 100px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
+                style={{ display: 'grid', gridTemplateColumns: `110px 1fr 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                 className="hover:bg-[#FAFBFC] last:border-0">
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{t.ticketId}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 16 }}>{t.subject}</span>
@@ -117,9 +120,9 @@ export default function ServiceDeskPage() {
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
                   {t.status}
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sla.bg, color: sla.text, width: 'fit-content' }}>
+                {vis.showSlaColumn && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sla.bg, color: sla.text, width: 'fit-content' }}>
                   {slaKey}
-                </span>
+                </span>}
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.submittedDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
               </div>
@@ -137,7 +140,7 @@ export default function ServiceDeskPage() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* NEW REQUEST MODAL */}
         {showForm && (

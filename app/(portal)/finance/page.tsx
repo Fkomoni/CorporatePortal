@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, CheckCircle2, Clock, Circle, FileText, ArrowDownToLine, CreditCard, Activity, AlertCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockInvoices } from '@/lib/mock-data';
+import { FinanceVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   Paid:    { bg: '#ECFDF5', text: '#059669' },
@@ -20,6 +21,8 @@ const paymentSteps = [
 
 export default function FinancePage() {
   const [activeTab, setActiveTab] = useState<'invoices' | 'receipts' | 'statement'>('invoices');
+  const [vis, setVis] = useState<FinanceVis>(DEFAULTS.finance);
+  useEffect(() => { setVis(getVis('finance')); }, []);
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -28,22 +31,24 @@ export default function FinancePage() {
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* INVOICE HEALTH */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
-          {[
-            { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed', color: '#131C4E' },
-            { label: 'Avg Cost Per Life',     value: '₦5,702', sub: 'Per member / month', color: '#6B7280' },
-            { label: 'Outstanding Balance',   value: '₦10.5M', sub: 'Due in 7 days',      color: '#EF4444' },
-          ].map((c) => (
-            <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${c.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>{c.value}</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
-              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
-            </div>
-          ))}
-        </div>
+        {vis.showSummaryCards && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+            {[
+              { label: 'Current Month Premium', value: '₦10.5M', sub: '1,842 lives billed', color: '#131C4E' },
+              { label: 'Avg Cost Per Life',     value: vis.showAmounts ? '₦5,702' : '—',    sub: 'Per member / month', color: '#6B7280' },
+              { label: 'Outstanding Balance',   value: vis.showAmounts ? '₦10.5M' : '—',    sub: 'Due in 7 days',      color: '#EF4444' },
+            ].map((c) => (
+              <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${c.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
+                <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>{vis.showAmounts ? c.value : '—'}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
+                <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* PAYMENT TIMELINE */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
+        {vis.showPaymentTimeline && <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '26px 28px' }}>
           <p className="text-[14px] font-bold text-[#131C4E] mb-1">Payment Timeline</p>
           <p className="text-[11px] text-[#9CA3B8] mb-5">INV-2026-0042 · June 2026 Premium</p>
           <div className="flex items-center gap-0">
@@ -72,11 +77,11 @@ export default function FinancePage() {
               </div>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* TABS */}
         <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
-          {(['invoices', 'receipts', 'statement'] as const).map((tab) => (
+          {(['invoices', ...(vis.showReceiptsTab ? ['receipts'] : []), ...(vis.showStatementTab ? ['statement'] : [])] as ('invoices'|'receipts'|'statement')[]).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               style={{
                 padding: '9px 22px',
@@ -96,35 +101,37 @@ export default function FinancePage() {
         </div>
 
         {/* INVOICE TABLE */}
-        {activeTab === 'invoices' && (
+        {activeTab === 'invoices' && vis.showInvoiceTable && (
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <div className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+              style={{ gridTemplateColumns: `1fr 110px 110px 2fr 130px 120px${vis.showDownloads ? ' 120px' : ''}`, columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               <span>Invoice No.</span><span>Date</span><span>Due Date</span><span>Description</span>
-              <span>Amount</span><span>Status</span><span>Download</span>
+              <span>Amount</span><span>Status</span>{vis.showDownloads && <span>Download</span>}
             </div>
             {mockInvoices.map((inv) => {
               const s = statusColors[inv.status] ?? { bg: '#F1F5F9', text: '#475569' };
               return (
                 <div key={inv.id}
                   className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 110px 110px 2fr 130px 120px 120px', columnGap: 12, padding: '16px 24px' }}>
+                  style={{ gridTemplateColumns: `1fr 110px 110px 2fr 130px 120px${vis.showDownloads ? ' 120px' : ''}`, columnGap: 12, padding: '16px 24px' }}>
                   <span className="text-[13px] font-bold text-[#131C4E]">{inv.invoiceNo}</span>
                   <span className="text-[11px] text-[#9CA3B8]">{new Date(inv.date).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[11px] text-[#9CA3B8]">{new Date(inv.dueDate).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</span>
                   <span className="text-[11px] text-[#9CA3B8] truncate pr-4">{inv.description}</span>
-                  <span className="text-[13px] font-bold text-[#131C4E]">₦{inv.amount.toLocaleString()}</span>
+                  <span className="text-[13px] font-bold text-[#131C4E]">{vis.showAmounts ? `₦${inv.amount.toLocaleString()}` : '—'}</span>
                   <span className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: s.bg, color: s.text }}>
                     {inv.status}
                   </span>
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 8, background: '#FAFBFC', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <ArrowDownToLine style={{ width: 10, height: 10 }} /> XLS
-                    </button>
-                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 8, background: '#FAFBFC', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <ArrowDownToLine style={{ width: 10, height: 10 }} /> PDF
-                    </button>
-                  </div>
+                  {vis.showDownloads && (
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 8, background: '#FAFBFC', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <ArrowDownToLine style={{ width: 10, height: 10 }} /> XLS
+                      </button>
+                      <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 8, background: '#FAFBFC', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <ArrowDownToLine style={{ width: 10, height: 10 }} /> PDF
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
