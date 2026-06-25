@@ -60,43 +60,51 @@ export type ServiceDeskVis = {
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
-export const DEFAULTS = {
+export const DEFAULTS: {
+  dashboard:   DashboardVis;
+  claims:      ClaimsVis;
+  finance:     FinanceVis;
+  benefits:    BenefitsVis;
+  people:      PeopleVis;
+  reports:     ReportsVis;
+  serviceDesk: ServiceDeskVis;
+} = {
   dashboard: {
     showKpiCards: true, showAmounts: true, showActionCentre: true,
     showLossRatio: true, showSpendChart: true, showTopProviders: true,
     showTopConditions: true, showHealthInsights: true,
-  } satisfies DashboardVis,
+  },
 
   claims: {
     showSummaryCards: true, showAmounts: true, showExports: true,
     showFilters: true, showTable: true,
-  } satisfies ClaimsVis,
+  },
 
   finance: {
     showSummaryCards: true, showAmounts: true, showPaymentTimeline: true,
     showInvoiceTable: true, showDownloads: true, showReceiptsTab: true,
     showStatementTab: true,
-  } satisfies FinanceVis,
+  },
 
   benefits: {
     showBenefitPlans: true, showProviderSearch: true,
-  } satisfies BenefitsVis,
+  },
 
   people: {
     showSummaryCards: true, showAddMember: true, showBeneficiaryView: true,
     showEnroleeIds: true, showTerminateAction: true,
-  } satisfies PeopleVis,
+  },
 
   reports: {
     showMembershipReport: true, showUtilizationReport: true,
     showClaimsAnalysis: true, showProviderUtilization: true,
     showFinancialReport: true, showExports: true,
-  } satisfies ReportsVis,
+  },
 
   serviceDesk: {
     showSummaryCards: true, showTicketTable: true,
     showNewRequest: true, showSlaColumn: true,
-  } satisfies ServiceDeskVis,
+  },
 };
 
 export type ModuleKey = keyof typeof DEFAULTS;
