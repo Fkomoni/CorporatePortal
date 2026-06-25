@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
-  ShieldCheck, Users, Activity, AlertCircle, Send, Link2,
+  ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockMembers } from '@/lib/mock-data';
@@ -356,12 +356,15 @@ function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' |
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
 function Member360Drawer({ member, index, onClose }: { member: Member; index: number; onClose: () => void }) {
-  const [drawerTab, setDrawerTab] = useState<'overview' | 'claims' | 'benefits'>('overview');
+  const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
+  const [showAddDependent, setShowAddDep]   = useState(false);
+  const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
   const status = statusColors[member.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
   const grad   = avatarGradients[index % avatarGradients.length];
   const enroleeId = getEnroleeId(member.employeeId, member.type);
+  const depCount  = member.dependants ?? 0;
 
   return (
     <>
@@ -559,13 +562,22 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
 
         {/* Bottom actions */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid #F0F1F5', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Send Enrolee ID row */}
-          <button
-            onClick={() => toast(`Enrolee ID ${enroleeId} sent to ${member.email}.`, 'info')}
-            style={{ width: '100%', height: 42, fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Send style={{ width: 14, height: 14 }} /> Send Enrolee ID via Email
-          </button>
-          {/* Secondary actions row */}
+          {/* Row 1 — Send Enrolee ID + Add Dependent (principals only) */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => toast(`Enrolee ID ${enroleeId} sent to ${member.email}.`, 'info')}
+              style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Send style={{ width: 14, height: 14 }} /> Send Enrolee ID
+            </button>
+            {member.type === 'Principal' && (
+              <button
+                onClick={() => setShowAddDep(true)}
+                style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 2px 8px rgba(16,185,129,0.25)' }}>
+                <UserPlus style={{ width: 14, height: 14 }} /> Add Dependent
+              </button>
+            )}
+          </div>
+          {/* Row 2 — Edit / E-Card / Terminate */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               onClick={() => toast('Member record opened for editing.')}
@@ -584,6 +596,151 @@ function Member360Drawer({ member, index, onClose }: { member: Member; index: nu
             </button>
           </div>
         </div>
+
+        {/* ── Add Dependent bottom sheet ── */}
+        {showAddDependent && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: '#fff', borderTop: '2px solid #F0F1F5',
+            borderRadius: '20px 20px 0 0',
+            boxShadow: '0 -12px 40px rgba(0,0,0,0.12)',
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '78%', zIndex: 10,
+          }}>
+            {/* drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 6px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 99, background: '#E5E7F1' }} />
+            </div>
+
+            {/* sheet header */}
+            <div style={{ padding: '4px 24px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E' }}>Add Dependent</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+                  <span style={{ fontSize: 12, color: '#9CA3B8' }}>{member.firstName} {member.lastName}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                    background: depCount > 0 ? '#FFF3E8' : '#F0F1F5',
+                    color: depCount > 0 ? '#F56B22' : '#9CA3B8',
+                  }}>
+                    {depCount} existing dependant{depCount !== 1 ? 's' : ''}
+                  </span>
+                  {depCount >= 4 && (
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#DC2626' }}>
+                      Check plan limit
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setShowAddDep(false)}
+                style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#F7F8FA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X style={{ width: 15, height: 15, color: '#9CA3B8' }} />
+              </button>
+            </div>
+
+            <div style={{ height: 1, background: '#F0F1F5', flexShrink: 0 }} />
+
+            {/* action toggle */}
+            <div style={{ padding: '14px 24px 10px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', background: '#F7F8FC', borderRadius: 12, padding: 3, gap: 3 }}>
+                {([
+                  { key: 'form', label: 'HR Fills Form' },
+                  { key: 'link', label: 'Send Link to Member' },
+                ] as const).map((opt) => (
+                  <button key={opt.key} onClick={() => setDepAction(opt.key)}
+                    style={{
+                      flex: 1, height: 36, fontSize: 13, fontWeight: 600, borderRadius: 9,
+                      border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                      background: depAction === opt.key ? '#fff' : 'transparent',
+                      color: depAction === opt.key ? '#131C4E' : '#9CA3B8',
+                      boxShadow: depAction === opt.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* scrollable form */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 24px 8px' }}>
+
+              {depAction === 'form' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {[
+                      { label: 'First Name',    placeholder: 'e.g. Chidi' },
+                      { label: 'Last Name',     placeholder: member.lastName },
+                      { label: 'Date of Birth', placeholder: 'DD MMM YYYY' },
+                      { label: 'Phone',         placeholder: 'Optional' },
+                    ].map((f) => (
+                      <div key={f.label}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
+                        <input placeholder={f.placeholder}
+                          style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                          onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {[
+                      { label: 'Gender',       options: ['Female', 'Male'] },
+                      { label: 'Relationship', options: ['Spouse', 'Child', 'Parent', 'Sibling'] },
+                    ].map((f) => (
+                      <div key={f.label}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
+                        <select style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                          {f.options.map((o) => <option key={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {depAction === 'link' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ padding: '14px 16px', background: '#F7F8FC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Link will be sent to</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>{member.email}</p>
+                  </div>
+                  <div style={{ padding: '14px 16px', background: '#ECFDF5', borderRadius: 14, border: '1px solid #BBF7D0' }}>
+                    <p style={{ fontSize: 12, color: '#059669', lineHeight: 1.6 }}>
+                      {member.firstName} will receive a secure link to register their additional dependent — they fill in the details and upload any required documents themselves.
+                    </p>
+                  </div>
+                  {depCount >= 4 && (
+                    <div style={{ padding: '12px 16px', background: '#FFFBEB', borderRadius: 14, border: '1px solid #FDE68A' }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#D97706' }}>
+                        ⚠ This member already has {depCount} dependants. Confirm plan limits before proceeding.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* sheet footer */}
+            <div style={{ padding: '12px 24px 20px', borderTop: '1px solid #F0F1F5', display: 'flex', gap: 10, flexShrink: 0 }}>
+              <button onClick={() => setShowAddDep(false)}
+                style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (depAction === 'form') {
+                    toast(`Dependent added to ${member.firstName} ${member.lastName}'s policy.`, 'info');
+                  } else {
+                    toast(`Add-dependent link sent to ${member.email}.`, 'info');
+                  }
+                  setShowAddDep(false);
+                }}
+                style={{ flex: 2, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.28)' }}>
+                {depAction === 'form' ? 'Add Dependent' : 'Send Link'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -761,7 +918,7 @@ export default function MembersPage() {
               </span>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#C4C9D9', background: '#F0F1F5', padding: '1px 5px', borderRadius: 4, letterSpacing: '0.04em' }}>SELECT ALL</span>
             </div>
-            {['Emp ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Location'].map((h) => (
+            {['Emp ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Beneficiaries'].map((h) => (
               <span key={h} className="text-[10.5px] font-bold uppercase">{h}</span>
             ))}
           </div>
@@ -794,7 +951,16 @@ export default function MembersPage() {
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.dot }} />{m.status}
                 </span>
                 <span className="text-[11px] text-[#9CA3B8]">{m.phone}</span>
-                <span className="text-[11px] text-[#9CA3B8]">{m.location}</span>
+                {m.type === 'Principal' ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#131C4E' }}>{(m.dependants ?? 0) + 1}</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: (m.dependants ?? 0) > 0 ? '#F56B22' : '#C4C9D9', background: (m.dependants ?? 0) > 0 ? '#FFF3E8' : '#F7F8FA', padding: '1px 6px', borderRadius: 6 }}>
+                      {(m.dependants ?? 0) > 0 ? `+${m.dependants} dep` : 'self only'}
+                    </span>
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: '#C4C9D9' }}>—</span>
+                )}
               </div>
             );
           })}
