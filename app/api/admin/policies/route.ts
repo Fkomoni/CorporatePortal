@@ -152,8 +152,21 @@ export async function GET() {
       console.log('[api/policies] first record sample:', JSON.stringify(raw[0]).slice(0, 500));
     }
 
-    const policies = raw.map(normalizePolicy);
-    console.log(`[api/policies] normalized ${policies.length} policies`);
+    const all = raw.map(normalizePolicy);
+
+    // Deduplicate by groupId (keep first occurrence)
+    const seen = new Set<string>();
+    const unique = all.filter((p) => {
+      const key = p.groupId || p.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Only serve Active policies
+    const policies = unique.filter((p) => p.status === 'Active');
+
+    console.log(`[api/policies] total=${all.length} unique=${unique.length} active=${policies.length}`);
 
     return NextResponse.json({ policies, total: policies.length });
   } catch (err) {
