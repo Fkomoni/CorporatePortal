@@ -185,16 +185,16 @@ export default function CorporatesPage() {
           )}
 
           {/* Rows */}
-          {!loading && !error && paged.map((c) => {
+          {!loading && !error && paged.map((c, idx) => {
             const st = statusStyle[c.status] ?? statusStyle['Inactive'];
-            const ini = c.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+            const sn = (safePage - 1) * PER_PAGE + idx + 1;
             return (
               <Link key={c.id} href={`/admin/corporates/${encodeURIComponent(c.groupId || c.id)}`} style={{ textDecoration: 'none' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 180px 100px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFC')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = '')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{ini}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0F1F8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#9CA3B8', flexShrink: 0 }}>{sn}</div>
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{c.name}</p>
                       <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0, marginTop: 1 }}>{c.schemeCode}</p>
