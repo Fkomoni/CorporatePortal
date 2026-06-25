@@ -96,7 +96,7 @@ export default function CorporateDetailPage() {
 
     async function load() {
       // 1. Try sessionStorage cache first
-      const cached = sessionStorage.getItem('admin_policies');
+      const cached = sessionStorage.getItem('admin_policies_v3');
       if (cached) {
         try {
           const list: Policy[] = JSON.parse(cached);
@@ -118,7 +118,7 @@ export default function CorporateDetailPage() {
         const json = await res.json();
         if (res.ok) {
           const list: Policy[] = json.policies ?? [];
-          sessionStorage.setItem('admin_policies', JSON.stringify(list));
+          sessionStorage.setItem('admin_policies_v3', JSON.stringify(list));
           const found = list.find((p) => p.groupId === rawId || p.id === rawId);
           if (found) {
             setCorp(found);
