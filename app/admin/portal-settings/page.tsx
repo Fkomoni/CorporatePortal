@@ -106,6 +106,8 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
 
 // ── Companies list ───────────────────────────────────────────────────────────
 
+const ALL_COMPANIES_ID = '__all__';
+
 const COMPANIES = [
   { id: 'corp-001', name: 'Dangote Industries Ltd',              status: 'Active'  },
   { id: 'corp-002', name: 'SME - Herconomy',                     status: 'Pending' },
@@ -127,18 +129,30 @@ export default function PortalSettingsPage() {
   const [saved, setSaved] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState(COMPANIES[0].id);
 
+  const isGlobal = selectedCompanyId === ALL_COMPANIES_ID;
+
   useEffect(() => {
+    // When "All Companies" selected, load from the first company as reference display
+    const refId = isGlobal ? COMPANIES[0].id : selectedCompanyId;
     const loaded = {} as Record<ModuleKey, Record<string, boolean>>;
-    MODULES.forEach((m) => { loaded[m.key] = getVis(m.key, selectedCompanyId) as Record<string, boolean>; });
+    MODULES.forEach((m) => { loaded[m.key] = getVis(m.key, refId) as Record<string, boolean>; });
     setAllVis(loaded);
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function flash() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+
+  function persist(moduleKey: ModuleKey, updated: Record<string, boolean>) {
+    if (isGlobal) {
+      COMPANIES.forEach((c) => saveVis(moduleKey, updated as never, c.id));
+    } else {
+      saveVis(moduleKey, updated as never, selectedCompanyId);
+    }
+  }
 
   function toggle(moduleKey: ModuleKey, sectionKey: string) {
     setAllVis((prev) => {
       const next = { ...prev, [moduleKey]: { ...prev[moduleKey], [sectionKey]: !prev[moduleKey][sectionKey] } };
-      saveVis(moduleKey, next[moduleKey] as never, selectedCompanyId);
+      persist(moduleKey, next[moduleKey]);
       return next;
     });
     flash();
@@ -150,7 +164,7 @@ export default function PortalSettingsPage() {
       const updated = {} as Record<string, boolean>;
       Object.keys(prev[moduleKey] ?? {}).forEach((k) => { updated[k] = value; });
       next[moduleKey] = updated;
-      saveVis(moduleKey, updated as never, selectedCompanyId);
+      persist(moduleKey, updated);
       return next;
     });
     flash();
@@ -163,7 +177,7 @@ export default function PortalSettingsPage() {
         const updated = {} as Record<string, boolean>;
         Object.keys(prev[m.key] ?? {}).forEach((k) => { updated[k] = value; });
         next[m.key] = updated;
-        saveVis(m.key, updated as never, selectedCompanyId);
+        persist(m.key, updated);
       });
       return next;
     });
@@ -205,18 +219,24 @@ export default function PortalSettingsPage() {
       </header>
 
       {/* Company selector bar */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #F0F1F5', padding: '0 36px', display: 'flex', alignItems: 'center', gap: 16, height: 54 }}>
+      <div style={{ background: isGlobal ? '#FFF5EF' : '#fff', borderBottom: '1px solid #F0F1F5', padding: '0 36px', display: 'flex', alignItems: 'center', gap: 16, height: 54, transition: 'background 0.2s' }}>
         <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', flexShrink: 0 }}>Configuring for</p>
         <select
           value={selectedCompanyId}
           onChange={(e) => setSelectedCompanyId(e.target.value)}
-          style={{ height: 36, padding: '0 36px 0 14px', fontSize: 13, fontWeight: 600, color: '#131C4E', border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#fff', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
+          style={{ height: 36, padding: '0 36px 0 14px', fontSize: 13, fontWeight: 600, color: isGlobal ? '#F56B22' : '#131C4E', border: `1.5px solid ${isGlobal ? '#FDBA74' : '#E5E7F1'}`, borderRadius: 12, background: '#fff', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
           onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = isGlobal ? '#FDBA74' : '#E5E7F1'; }}
         >
+          <option value={ALL_COMPANIES_ID}>All Companies</option>
+          <option disabled>─────────────</option>
           {COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        {(() => {
+        {isGlobal ? (
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#FFF3E8', color: '#F56B22', border: '1px solid #FDBA74' }}>
+            Global
+          </span>
+        ) : (() => {
           const co = COMPANIES.find((c) => c.id === selectedCompanyId);
           return co ? (
             <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: co.status === 'Active' ? '#ECFDF5' : '#FFFBEB', color: co.status === 'Active' ? '#059669' : '#D97706', border: `1px solid ${co.status === 'Active' ? '#A7F3D0' : '#FDE68A'}` }}>
@@ -225,7 +245,9 @@ export default function PortalSettingsPage() {
           ) : null;
         })()}
         <div style={{ flex: 1 }} />
-        <p style={{ fontSize: 11, color: '#C4C9D9' }}>Changes apply only to this company&apos;s HR portal</p>
+        <p style={{ fontSize: 11, color: isGlobal ? '#F56B22' : '#C4C9D9', fontWeight: isGlobal ? 600 : 400 }}>
+          {isGlobal ? 'Changes will apply to ALL companies' : "Changes apply only to this company’s HR portal"}
+        </p>
       </div>
 
       <div style={{ padding: '32px 36px', display: 'flex', gap: 24, alignItems: 'flex-start' }}>
@@ -270,8 +292,11 @@ export default function PortalSettingsPage() {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E' }}>{mod.label}</p>
-              <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
-                <strong>{COMPANIES.find((c) => c.id === selectedCompanyId)?.name ?? '—'}</strong> · {mod.label} page visibility
+              <p style={{ fontSize: 12, color: isGlobal ? '#F56B22' : '#9CA3B8', marginTop: 2, fontWeight: isGlobal ? 600 : 400 }}>
+                {isGlobal
+                  ? <>All {COMPANIES.length} companies · {mod.label} page visibility</>
+                  : <><strong>{COMPANIES.find((c) => c.id === selectedCompanyId)?.name ?? '—'}</strong> · {mod.label} page visibility</>
+                }
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
