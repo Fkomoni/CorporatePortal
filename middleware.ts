@@ -11,7 +11,8 @@ export default auth((req) => {
   if (pathname.startsWith('/api/')) return NextResponse.next();
 
   const isAdminRoute  = pathname.startsWith('/admin');
-  const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login');
+  // /verify-registration is a public page — let unauthenticated users through
+  const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login') && pathname !== '/verify-registration';
   const isStaffLogin  = pathname === '/admin/login';
   const isHrLogin     = pathname === '/login';
 

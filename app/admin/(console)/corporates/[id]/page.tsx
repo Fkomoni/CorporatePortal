@@ -56,7 +56,8 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
 }
 
 export default function CorporateDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? '';
   const router  = useRouter();
   const { data: session } = useSession();
 
@@ -72,11 +73,18 @@ export default function CorporateDetailPage() {
   const [menuOpen, setMenuOpen]   = useState<string | null>(null);
   const [expandedRole, setExpanded] = useState<string | null>(null);
 
-  const [showRoleModal, setShowRoleModal]     = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [showEmailToast, setShowEmailToast]   = useState(false);
-  const [showEditModal, setShowEditModal]     = useState(false);
-  const [showDeleteRole, setShowDeleteRole]   = useState<string | null>(null);
+  const [showRoleModal, setShowRoleModal]       = useState(false);
+  const [showAssignModal, setShowAssignModal]   = useState(false);
+  const [showEmailToast, setShowEmailToast]     = useState<{ ok: boolean; msg: string } | null>(null);
+  const [showEditModal, setShowEditModal]       = useState(false);
+  const [showDeleteRole, setShowDeleteRole]     = useState<string | null>(null);
+  const [showSignupModal, setShowSignupModal]   = useState(false);
+  const [signupMobile, setSignupMobile]         = useState('');
+  const [signupEmail, setSignupEmail]           = useState('');
+  const [signupFirst, setSignupFirst]           = useState('');
+  const [signupSurname, setSignupSurname]       = useState('');
+  const [signupLoading, setSignupLoading]       = useState(false);
+  const [signupError, setSignupError]           = useState('');
 
   const [roleName, setRoleName]   = useState('');
   const [rolePerms, setRolePerms] = useState<PermMap>(defaultPerms());
@@ -186,9 +194,50 @@ export default function CorporateDetailPage() {
   const corpInitials = corp.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
   const st = statusStyle[corp.status] ?? statusStyle['Inactive'];
 
-  function sendSignupEmail() {
-    setShowEmailToast(true);
-    setTimeout(() => setShowEmailToast(false), 3500);
+  function openSignupModal() {
+    if (!corp) return;
+    const parts = corp.contactName.trim().split(/\s+/);
+    setSignupFirst(parts[0] ?? '');
+    setSignupSurname(parts.slice(1).join(' '));
+    setSignupEmail(corp.adminEmail);
+    setSignupMobile('');
+    setSignupError('');
+    setShowSignupModal(true);
+  }
+
+  async function sendSignupEmail() {
+    if (!corp) return;
+    setSignupError('');
+    if (!signupMobile.trim()) {
+      setSignupError('Mobile number is required.');
+      return;
+    }
+    setSignupLoading(true);
+    try {
+      const res = await fetch('/api/admin/corporates/send-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          PolicyNumber: corp.schemeCode,
+          email: signupEmail,
+          mobile: signupMobile,
+          firstname: signupFirst,
+          surname: signupSurname,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSignupError(json.error ?? 'Failed to send signup email. Please try again.');
+      } else {
+        setShowSignupModal(false);
+        setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
+        setTimeout(() => setShowEmailToast(null), 4000);
+      }
+    } catch {
+      setSignupError('Network error. Please try again.');
+    } finally {
+      setSignupLoading(false);
+    }
   }
 
   function createRole() {
@@ -240,7 +289,7 @@ export default function CorporateDetailPage() {
 
           {view === 'detail' && (
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={sendSignupEmail}
+              <button onClick={openSignupModal}
                 style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 600, border: '1px solid #E5E7F1', borderRadius: 14, background: '#fff', color: '#131C4E', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Send style={{ width: 14, height: 14 }} /> Send Signup Email
               </button>
@@ -415,9 +464,83 @@ export default function CorporateDetailPage() {
 
       {/* TOAST — SIGNUP EMAIL */}
       {showEmailToast && (
-        <div style={{ position: 'fixed', bottom: 32, right: 32, background: '#131C4E', color: '#fff', borderRadius: 14, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 100, fontSize: 13, fontWeight: 600 }}>
-          <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✓</span>
-          Signup email sent to {corp.adminEmail}
+        <div style={{ position: 'fixed', bottom: 32, right: 32, background: showEmailToast.ok ? '#131C4E' : '#EF4444', color: '#fff', borderRadius: 14, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 100, fontSize: 13, fontWeight: 600 }}>
+          <span style={{ width: 20, height: 20, borderRadius: '50%', background: showEmailToast.ok ? '#10B981' : '#fff', color: showEmailToast.ok ? '#fff' : '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>{showEmailToast.ok ? '✓' : '✕'}</span>
+          {showEmailToast.msg}
+        </div>
+      )}
+
+      {/* MODAL — SEND SIGNUP EMAIL */}
+      {showSignupModal && corp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+          onClick={(e) => { if (e.target === e.currentTarget && !signupLoading) setShowSignupModal(false); }}>
+          <div style={{ background: '#fff', borderRadius: 20, width: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.20)' }}>
+            <div style={{ padding: '24px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>Send Signup Email</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Invite the HR admin to set up their account</p>
+              </div>
+              <button onClick={() => !signupLoading && setShowSignupModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X style={{ width: 14, height: 14, color: '#6B7280' }} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Read-only scheme code */}
+              <div style={{ background: '#F7F8FC', borderRadius: 12, padding: '12px 16px', border: '1px solid #EDEEF2' }}>
+                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Policy / Scheme Code</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{corp.schemeCode}</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>First Name</label>
+                  <input value={signupFirst} onChange={(e) => setSignupFirst(e.target.value)} placeholder="First name" style={inputStyle}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Surname</label>
+                  <input value={signupSurname} onChange={(e) => setSignupSurname(e.target.value)} placeholder="Surname" style={inputStyle}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Email Address</label>
+                <input type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} placeholder="HR admin email" style={inputStyle}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Mobile Number <span style={{ color: '#EF4444' }}>*</span></label>
+                <input type="tel" value={signupMobile} onChange={(e) => setSignupMobile(e.target.value)} placeholder="e.g. 08012345678"
+                  style={{ ...inputStyle, borderColor: signupError && !signupMobile ? '#EF4444' : '#E5E7F1' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = signupError && !signupMobile ? '#EF4444' : '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+              </div>
+
+              {signupError && (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#EF4444', fontWeight: 500 }}>
+                  {signupError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '16px 28px', borderTop: '1px solid #F0F1F5', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => !signupLoading && setShowSignupModal(false)}
+                style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 600, border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', color: '#6B7280', cursor: signupLoading ? 'not-allowed' : 'pointer', opacity: signupLoading ? 0.5 : 1 }}>
+                Cancel
+              </button>
+              <button onClick={sendSignupEmail} disabled={signupLoading}
+                style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 24, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', cursor: signupLoading ? 'not-allowed' : 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', opacity: signupLoading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <Send style={{ width: 13, height: 13 }} />
+                {signupLoading ? 'Sending…' : 'Send Email'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
