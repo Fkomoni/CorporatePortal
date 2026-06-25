@@ -52,6 +52,7 @@ async function prognosisStaffLogin(login: string, password: string) {
 // ── NextAuth config ───────────────────────────────────────────────────────────
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
@@ -65,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        _loginType: { label: '', type: 'hidden' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -126,6 +128,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role      = (user as { role?: string }).role;
         token.companyId = (user as { companyId?: string }).companyId ?? '';
         token.companyName = (user as { companyName?: string }).companyName ?? '';
+        token.loginType = (user as { loginType?: string }).loginType ?? 'hr';
       }
       // account is only present on initial sign-in — use provider to set loginType reliably
       if (account) {
