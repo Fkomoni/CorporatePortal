@@ -39,6 +39,9 @@ export default function CorporatesPage() {
   const [page, setPage]         = useState(1);
   const [syncing, setSyncing]   = useState(false);
 
+  // Bump this when the API response shape changes to bust the cache automatically
+  const CACHE_KEY = 'admin_policies_v3';
+
   const loadPolicies = useCallback(async () => {
     setError('');
     try {
@@ -47,14 +50,14 @@ export default function CorporatesPage() {
       if (!res.ok) throw new Error(json.error ?? 'Failed to load');
       const list: Policy[] = json.policies ?? [];
       setPolicies(list);
-      sessionStorage.setItem('admin_policies', JSON.stringify(list));
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(list));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load policies');
     }
   }, []);
 
   useEffect(() => {
-    const cached = sessionStorage.getItem('admin_policies');
+    const cached = sessionStorage.getItem(CACHE_KEY);
     if (cached) {
       try { setPolicies(JSON.parse(cached)); setLoading(false); return; } catch { /* fallthrough */ }
     }
