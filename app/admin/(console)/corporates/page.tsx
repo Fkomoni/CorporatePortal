@@ -1,43 +1,97 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, RefreshCw, ArrowDownToLine } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, RefreshCw, ArrowDownToLine, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
-const mockCorporates = [
-  { id: 'corp-001', name: 'Dangote Industries Ltd',            template: 'Default template', dateProvisioned: '2024-01-15', adminEmail: 'f.komoni@dangote.com',         status: 'Active'  },
-  { id: 'corp-002', name: 'SME - Herconomy',                   template: 'Default template', dateProvisioned: '2026-06-24', adminEmail: 'osaze.tom@cubecover.ai',       status: 'Pending' },
-  { id: 'corp-003', name: 'Edves Nigeria Limited',             template: 'Default template', dateProvisioned: '2026-06-24', adminEmail: 'hr@edves.net',                  status: 'Pending' },
-  { id: 'corp-004', name: 'Jackson, Etti And Edu (JEE Africa)',template: 'Default template', dateProvisioned: '2026-06-24', adminEmail: 'noemail@gmail.com',             status: 'Pending' },
-  { id: 'corp-005', name: 'Flour Mills of Nigeria Plc',        template: 'Default template', dateProvisioned: '2025-03-10', adminEmail: 'hr.admin@fmnplc.com',          status: 'Active'  },
-  { id: 'corp-006', name: 'Baker Hughes Nigeria Ltd',          template: 'Custom template',  dateProvisioned: '2023-08-22', adminEmail: 'c.eze@bakerhughes.com',        status: 'Active'  },
-  { id: 'corp-007', name: 'NLNG – Nigeria LNG Limited',        template: 'Default template', dateProvisioned: '2024-06-01', adminEmail: 'hr@nlng.com.ng',               status: 'Active'  },
-  { id: 'corp-008', name: 'Zenith Bank Plc',                   template: 'Premium template', dateProvisioned: '2024-09-15', adminEmail: 'corp.health@zenithbank.com',   status: 'Active'  },
-  { id: 'corp-009', name: 'Primus Pharmacare Ltd',             template: 'Default template', dateProvisioned: '2025-11-02', adminEmail: 'hr@primusng.com',              status: 'Pending' },
-  { id: 'corp-010', name: 'Okomu Oil Palm Company Plc',        template: 'Default template', dateProvisioned: '2025-07-18', adminEmail: 'admin@okomuoil.com',           status: 'Active'  },
-];
+interface Policy {
+  id: string; groupId: string; name: string; schemeCode: string;
+  dateProvisioned: string; adminEmail: string; status: string;
+  activeMembers: number; template: string; colors: string[];
+}
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+const PER_PAGE = 50;
+
+const fmtDate = (d: string) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 
 const statusStyle: Record<string, { bg: string; text: string; dot: string }> = {
-  Active:  { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
-  Pending: { bg: '#FFFBEB', text: '#D97706', dot: '#F59E0B' },
+  Active:   { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
+  Pending:  { bg: '#FFFBEB', text: '#D97706', dot: '#F59E0B' },
+  Inactive: { bg: '#F9FAFB', text: '#6B7280', dot: '#9CA3AF' },
 };
 
 export default function CorporatesPage() {
+  const { data: session } = useSession();
+  const staffName = (session?.user as { name?: string })?.name ?? 'Staff';
+  const initials  = staffName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'S';
+
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
   const [search, setSearch]     = useState('');
+  const [page, setPage]         = useState(1);
   const [syncing, setSyncing]   = useState(false);
 
-  const filtered = mockCorporates.filter((c) =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.adminEmail.toLowerCase().includes(search.toLowerCase())
-  );
+  const loadPolicies = useCallback(async () => {
+    setError('');
+    try {
+      const res  = await fetch('/api/admin/policies');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to load');
+      const list: Policy[] = json.policies ?? [];
+      setPolicies(list);
+      sessionStorage.setItem('admin_policies', JSON.stringify(list));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load policies');
+    }
+  }, []);
 
-  function handleSync() {
+  useEffect(() => {
+    const cached = sessionStorage.getItem('admin_policies');
+    if (cached) {
+      try { setPolicies(JSON.parse(cached)); setLoading(false); return; } catch { /* fallthrough */ }
+    }
+    loadPolicies().finally(() => setLoading(false));
+  }, [loadPolicies]);
+
+  async function handleSync() {
     setSyncing(true);
-    setTimeout(() => setSyncing(false), 1800);
+    await loadPolicies();
+    setSyncing(false);
   }
 
+  const filtered = policies.filter((c) =>
+    !search ||
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.adminEmail.toLowerCase().includes(search.toLowerCase()) ||
+    c.schemeCode.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const safePage   = Math.min(page, totalPages);
+  const paged      = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
+
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+
+  // Page number buttons: show up to 5 around current page
+  const pageButtons = () => {
+    const pages: (number | '…')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safePage > 3) pages.push('…');
+      for (let i = Math.max(2, safePage - 1); i <= Math.min(totalPages - 1, safePage + 1); i++) pages.push(i);
+      if (safePage < totalPages - 2) pages.push('…');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -49,8 +103,8 @@ export default function CorporatesPage() {
           <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>Manage client schemes · Provision access</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>G</div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>Gideon</span>
+          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>{initials}</div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{staffName.split(' ')[0]}</span>
         </div>
       </header>
 
@@ -61,15 +115,18 @@ export default function CorporatesPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div>
               <p style={{ fontSize: 18, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>
-                Provision Corporates <span style={{ color: '#F56B22' }}>({mockCorporates.length.toLocaleString()})</span>
+                Provision Corporates{' '}
+                <span style={{ color: '#F56B22' }}>
+                  ({loading ? '…' : filtered.length.toLocaleString()})
+                </span>
               </p>
             </div>
             <div style={{ flex: 1 }} />
             {/* Search */}
             <div style={{ position: 'relative', width: 280 }}>
               <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: '#C4C9D9' }} />
-              <input value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or email..."
+              <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search by name, email or scheme..."
                 style={{ width: '100%', height: 40, paddingLeft: 38, paddingRight: 12, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
@@ -79,7 +136,7 @@ export default function CorporatesPage() {
               <ArrowDownToLine style={{ width: 15, height: 15, color: '#6B7280' }} />
             </button>
             {/* Refresh / Sync */}
-            <button onClick={handleSync}
+            <button onClick={handleSync} disabled={syncing}
               style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid #E5E7F1', background: syncing ? '#FFF5EF' : '#FAFBFC', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
               title="Sync with Prognosis">
               <RefreshCw style={{ width: 15, height: 15, color: syncing ? '#F56B22' : '#6B7280', animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
@@ -98,19 +155,44 @@ export default function CorporatesPage() {
             ))}
           </div>
 
-          {filtered.map((c) => {
-            const st = statusStyle[c.status] ?? statusStyle['Pending'];
-            const initials = c.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+          {/* Loading skeleton */}
+          {loading && (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 220px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0F1F5', flexShrink: 0 }} />
+                  <div style={{ height: 12, width: `${120 + (i * 17) % 80}px`, background: '#F0F1F5', borderRadius: 4 }} />
+                </div>
+                <div style={{ height: 12, width: 80, background: '#F0F1F5', borderRadius: 4 }} />
+                <div style={{ height: 12, width: 140, background: '#F0F1F5', borderRadius: 4 }} />
+                <div style={{ height: 22, width: 60, background: '#F0F1F5', borderRadius: 8 }} />
+              </div>
+            ))
+          )}
+
+          {/* Error */}
+          {!loading && error && (
+            <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+              <p style={{ fontSize: 13, color: '#DC2626', fontWeight: 600, marginBottom: 8 }}>{error}</p>
+              <button onClick={handleSync} style={{ fontSize: 12, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Try again</button>
+            </div>
+          )}
+
+          {/* Rows */}
+          {!loading && !error && paged.map((c) => {
+            const st = statusStyle[c.status] ?? statusStyle['Inactive'];
+            const ini = c.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
             return (
-              <Link key={c.id} href={`/admin/corporates/${c.id}`} style={{ textDecoration: 'none' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 220px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
-                  className="last:border-0 hover:bg-[#FAFBFC]">
+              <Link key={c.id} href={`/admin/corporates/${encodeURIComponent(c.groupId || c.id)}`} style={{ textDecoration: 'none' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 220px 100px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFC')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{initials}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{ini}</div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{c.name}</span>
                   </div>
                   <span style={{ fontSize: 12, color: '#9CA3B8' }}>{fmtDate(c.dateProvisioned)}</span>
-                  <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.adminEmail}</span>
+                  <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.adminEmail || '—'}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: st.bg, color: st.text, width: 'fit-content' }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot }} />{c.status}
                   </span>
@@ -119,21 +201,43 @@ export default function CorporatesPage() {
             );
           })}
 
-          {filtered.length === 0 && (
+          {!loading && !error && paged.length === 0 && (
             <div style={{ padding: '48px 24px', textAlign: 'center' }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>No corporates found</p>
               <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>Try adjusting your search</p>
             </div>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5' }}>
-            <p style={{ fontSize: 12, color: '#9CA3B8' }}>Showing {filtered.length} of {mockCorporates.length} corporates</p>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {(['‹', '1', '2', '3', '›'] as const).map((p) => (
-                <button key={p} style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: p === '1' ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer', fontSize: p === '‹' || p === '›' ? 14 : 12, fontWeight: p === '1' ? 700 : 500, background: p === '1' ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff', color: p === '1' ? '#fff' : '#6B7280', boxShadow: p === '1' ? '0 2px 6px rgba(245,107,34,0.28)' : 'none' }}>{p}</button>
-              ))}
+          {/* Pagination */}
+          {!loading && !error && totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5' }}>
+              <p style={{ fontSize: 12, color: '#9CA3B8' }}>
+                Showing {((safePage - 1) * PER_PAGE + 1).toLocaleString()}–{Math.min(safePage * PER_PAGE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} corporates
+              </p>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+                  style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7F1', borderRadius: 8, cursor: safePage === 1 ? 'default' : 'pointer', background: '#fff', opacity: safePage === 1 ? 0.4 : 1 }}>
+                  <ChevronLeft style={{ width: 14, height: 14, color: '#6B7280' }} />
+                </button>
+                {pageButtons().map((p, i) => (
+                  p === '…'
+                    ? <span key={`e${i}`} style={{ width: 30, textAlign: 'center', fontSize: 12, color: '#B0B7C9' }}>…</span>
+                    : <button key={p} onClick={() => setPage(p as number)}
+                        style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: p === safePage ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: p === safePage ? 700 : 500, background: p === safePage ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff', color: p === safePage ? '#fff' : '#6B7280', boxShadow: p === safePage ? '0 2px 6px rgba(245,107,34,0.28)' : 'none' }}>{p}</button>
+                ))}
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+                  style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7F1', borderRadius: 8, cursor: safePage === totalPages ? 'default' : 'pointer', background: '#fff', opacity: safePage === totalPages ? 0.4 : 1 }}>
+                  <ChevronRight style={{ width: 14, height: 14, color: '#6B7280' }} />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {!loading && !error && totalPages <= 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5' }}>
+              <p style={{ fontSize: 12, color: '#9CA3B8' }}>Showing {paged.length} of {filtered.length} corporates</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,36 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Users, Pencil, X, Plus, MoreHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { ArrowLeft, Send, Users, Pencil, X, Plus, MoreHorizontal, Trash2 } from 'lucide-react';
 
-/* ─── Mock data ─────────────────────────────────── */
-
-const mockCorporates: Record<string, {
-  id: string; name: string; template: string; dateProvisioned: string;
-  adminEmail: string; status: string; schemeCode: string;
-  colors: string[]; activeMembers: number;
-}> = {
-  'corp-001': { id: 'corp-001', name: 'Dangote Industries Ltd',            template: 'Default template', dateProvisioned: '2024-01-15', adminEmail: 'f.komoni@dangote.com',       status: 'Active',  schemeCode: '481421315', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 847  },
-  'corp-002': { id: 'corp-002', name: 'SME - Herconomy',                   template: 'Default template', dateProvisioned: '2026-06-24', adminEmail: 'osaze.tom@cubecover.ai',     status: 'Pending', schemeCode: '729104823', colors: ['#FF8A00','#7C88B1','#369AFE'], activeMembers: 0    },
-  'corp-003': { id: 'corp-003', name: 'Edves Nigeria Limited',             template: 'Default template', dateProvisioned: '2026-06-24', adminEmail: 'hr@edves.net',                status: 'Pending', schemeCode: '318472901', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 0    },
-  'corp-004': { id: 'corp-004', name: 'Jackson, Etti And Edu (JEE Africa)',template: 'Default template', dateProvisioned: '2026-06-24', adminEmail: 'noemail@gmail.com',           status: 'Pending', schemeCode: '204817364', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 0    },
-  'corp-005': { id: 'corp-005', name: 'Flour Mills of Nigeria Plc',        template: 'Default template', dateProvisioned: '2025-03-10', adminEmail: 'hr.admin@fmnplc.com',        status: 'Active',  schemeCode: '573829104', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 1204 },
-  'corp-006': { id: 'corp-006', name: 'Baker Hughes Nigeria Ltd',          template: 'Custom template',  dateProvisioned: '2023-08-22', adminEmail: 'c.eze@bakerhughes.com',      status: 'Active',  schemeCode: '481421315', colors: ['#FF8A00','#7C88B1','#369AFE'], activeMembers: 362  },
-  'corp-007': { id: 'corp-007', name: 'NLNG – Nigeria LNG Limited',        template: 'Default template', dateProvisioned: '2024-06-01', adminEmail: 'hr@nlng.com.ng',             status: 'Active',  schemeCode: '920384716', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 2103 },
-  'corp-008': { id: 'corp-008', name: 'Zenith Bank Plc',                   template: 'Premium template', dateProvisioned: '2024-09-15', adminEmail: 'corp.health@zenithbank.com', status: 'Active',  schemeCode: '647291038', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 5847 },
-  'corp-009': { id: 'corp-009', name: 'Primus Pharmacare Ltd',             template: 'Default template', dateProvisioned: '2025-11-02', adminEmail: 'hr@primusng.com',            status: 'Pending', schemeCode: '112938475', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 0    },
-  'corp-010': { id: 'corp-010', name: 'Okomu Oil Palm Company Plc',        template: 'Default template', dateProvisioned: '2025-07-18', adminEmail: 'admin@okomuoil.com',         status: 'Active',  schemeCode: '839104726', colors: ['#F56B22','#131C4E','#3B82F6'], activeMembers: 281  },
-};
+interface Policy {
+  id: string; groupId: string; name: string; schemeCode: string;
+  dateProvisioned: string; adminEmail: string; status: string;
+  activeMembers: number; template: string; colors: string[];
+}
 
 const PERMISSIONS = [
-  { key: 'dashboard',    label: 'Access to Dashboard' },
-  { key: 'members',      label: 'Access to Beneficiary Management' },
-  { key: 'finance',      label: 'Access to Finance' },
-  { key: 'messages',     label: 'Send & Receive Messages' },
-  { key: 'settings',     label: 'Edit Settings' },
-  { key: 'pre_employ',   label: 'Pre-Employment' },
-  { key: 'reports',      label: 'Report' },
+  { key: 'dashboard',  label: 'Access to Dashboard' },
+  { key: 'members',    label: 'Access to Beneficiary Management' },
+  { key: 'finance',    label: 'Access to Finance' },
+  { key: 'messages',   label: 'Send & Receive Messages' },
+  { key: 'settings',   label: 'Edit Settings' },
+  { key: 'pre_employ', label: 'Pre-Employment' },
+  { key: 'reports',    label: 'Report' },
 ];
 
 type PermMap = Record<string, boolean>;
@@ -45,15 +33,18 @@ interface Role {
 const defaultPerms = (): PermMap => Object.fromEntries(PERMISSIONS.map((p) => [p.key, true]));
 
 const initRoles: Role[] = [
-  { id: 'r1', name: 'Second admin', permissions: defaultPerms(), users: [{ id: 'u1', name: 'Amaka Eze', email: 'a.eze@dangote.com' }] },
+  { id: 'r1', name: 'Second admin', permissions: defaultPerms(), users: [{ id: 'u1', name: 'Amaka Eze', email: 'a.eze@corp.com' }] },
   { id: 'r2', name: 'Third admin',  permissions: defaultPerms(), users: [] },
   { id: 'r3', name: 'FOURTH',       permissions: defaultPerms(), users: [] },
 ];
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtDate = (d: string) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 const permCount = (p: PermMap) => Object.values(p).filter(Boolean).length;
 
-/* ─── Toggle ────────────────────────────────────── */
 function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
     <button onClick={onChange} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: on ? '#F56B22' : '#E5E7F1', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
@@ -62,42 +53,126 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
-/* ─── Page ───────────────────────────────────────── */
 export default function CorporateDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+  const router  = useRouter();
+  const { data: session } = useSession();
 
-  const corp = mockCorporates[id];
+  const staffName = (session?.user as { name?: string })?.name ?? 'Staff';
+  const initials  = staffName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'S';
+
+  const [corp, setCorp]         = useState<Policy | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   const [view, setView]           = useState<'detail' | 'access'>('detail');
   const [roles, setRoles]         = useState<Role[]>(initRoles);
   const [menuOpen, setMenuOpen]   = useState<string | null>(null);
   const [expandedRole, setExpanded] = useState<string | null>(null);
 
-  // Modals
-  const [showRoleModal, setShowRoleModal]         = useState(false);
-  const [showAssignModal, setShowAssignModal]     = useState(false);
-  const [showEmailToast, setShowEmailToast]       = useState(false);
-  const [showEditModal, setShowEditModal]         = useState(false);
-  const [showDeleteRole, setShowDeleteRole]       = useState<string | null>(null);
+  const [showRoleModal, setShowRoleModal]     = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showEmailToast, setShowEmailToast]   = useState(false);
+  const [showEditModal, setShowEditModal]     = useState(false);
+  const [showDeleteRole, setShowDeleteRole]   = useState<string | null>(null);
 
-  // Add role form
-  const [roleName, setRoleName]       = useState('');
-  const [rolePerms, setRolePerms]     = useState<PermMap>(defaultPerms());
+  const [roleName, setRoleName]   = useState('');
+  const [rolePerms, setRolePerms] = useState<PermMap>(defaultPerms());
   const allOn = Object.values(rolePerms).every(Boolean);
 
-  // Assign user form
   const [assignRole, setAssignRole]   = useState('');
   const [assignFirst, setAssignFirst] = useState('');
   const [assignLast, setAssignLast]   = useState('');
   const [assignEmail, setAssignEmail] = useState('');
 
-  // Edit form
-  const [editName, setEditName]       = useState(corp?.name ?? '');
-  const [editEmail, setEditEmail]     = useState(corp?.adminEmail ?? '');
-  const [editDate, setEditDate]       = useState(corp?.dateProvisioned ?? '');
+  const [editName, setEditName]   = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editDate, setEditDate]   = useState('');
 
-  if (!corp) {
+  useEffect(() => {
+    const rawId = decodeURIComponent(id ?? '');
+
+    async function load() {
+      // 1. Try sessionStorage cache first
+      const cached = sessionStorage.getItem('admin_policies');
+      if (cached) {
+        try {
+          const list: Policy[] = JSON.parse(cached);
+          const found = list.find((p) => p.groupId === rawId || p.id === rawId);
+          if (found) {
+            setCorp(found);
+            setEditName(found.name);
+            setEditEmail(found.adminEmail);
+            setEditDate(found.dateProvisioned);
+            setLoading(false);
+            return;
+          }
+        } catch { /* fallthrough */ }
+      }
+
+      // 2. Fetch from API if not cached
+      try {
+        const res  = await fetch('/api/admin/policies');
+        const json = await res.json();
+        if (res.ok) {
+          const list: Policy[] = json.policies ?? [];
+          sessionStorage.setItem('admin_policies', JSON.stringify(list));
+          const found = list.find((p) => p.groupId === rawId || p.id === rawId);
+          if (found) {
+            setCorp(found);
+            setEditName(found.name);
+            setEditEmail(found.adminEmail);
+            setEditDate(found.dateProvisioned);
+          } else {
+            setNotFound(true);
+          }
+        } else {
+          setNotFound(true);
+        }
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [id]);
+
+  const card: React.CSSProperties        = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+  const inputStyle: React.CSSProperties  = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
+  const labelStyle: React.CSSProperties  = { fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'block' };
+
+  const statusStyle: Record<string, { bg: string; text: string; dot: string }> = {
+    Active:   { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
+    Pending:  { bg: '#FFFBEB', text: '#D97706', dot: '#F59E0B' },
+    Inactive: { bg: '#F9FAFB', text: '#6B7280', dot: '#9CA3AF' },
+  };
+
+  // ── Loading ──
+  if (loading) {
+    return (
+      <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
+        <header style={{ background: '#fff', borderBottom: '1px solid #F0F1F5', height: 58, display: 'flex', alignItems: 'center', padding: '0 36px' }}>
+          <h1 style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Corporate</h1>
+        </header>
+        <div style={{ padding: '32px 36px' }}>
+          <div style={{ ...card, padding: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div style={{ width: 80, height: 80, borderRadius: 20, background: '#F0F1F5' }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ height: 20, width: 260, background: '#F0F1F5', borderRadius: 6 }} />
+                <div style={{ height: 14, width: 160, background: '#F0F1F5', borderRadius: 4 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Not found ──
+  if (notFound || !corp) {
     return (
       <div style={{ padding: 48, textAlign: 'center' }}>
         <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>Corporate not found</p>
@@ -106,7 +181,8 @@ export default function CorporateDetailPage() {
     );
   }
 
-  const initials = corp.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const corpInitials = corp.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const st = statusStyle[corp.status] ?? statusStyle['Inactive'];
 
   function sendSignupEmail() {
     setShowEmailToast(true);
@@ -139,16 +215,6 @@ export default function CorporateDetailPage() {
       : r));
   }
 
-  const statusStyle: Record<string, { bg: string; text: string; dot: string }> = {
-    Active:  { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
-    Pending: { bg: '#FFFBEB', text: '#D97706', dot: '#F59E0B' },
-  };
-  const st = statusStyle[corp.status] ?? statusStyle['Pending'];
-
-  const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
-  const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
-  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'block' };
-
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
 
@@ -156,8 +222,8 @@ export default function CorporateDetailPage() {
       <header style={{ background: '#fff', borderBottom: '1px solid #F0F1F5', height: 58, display: 'flex', alignItems: 'center', padding: '0 36px', justifyContent: 'space-between', flexShrink: 0 }}>
         <h1 style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Corporate</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>G</div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>Gideon</span>
+          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#131C4E,#3A4382)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>{initials}</div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{staffName.split(' ')[0]}</span>
         </div>
       </header>
 
@@ -208,12 +274,10 @@ export default function CorporateDetailPage() {
             {/* COMPANY CARD */}
             <div style={{ ...card, padding: '28px 28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-                {/* Logo */}
                 <div style={{ width: 80, height: 80, borderRadius: 20, background: '#F1F2F8', border: '1px solid #EDEEF2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: '#C4C9D9', letterSpacing: '-0.04em' }}>{initials}</span>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: '#C4C9D9', letterSpacing: '-0.04em' }}>{corpInitials}</span>
                 </div>
 
-                {/* Name + code */}
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 20, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', marginBottom: 6 }}>{corp.name}</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -222,7 +286,6 @@ export default function CorporateDetailPage() {
                   </div>
                 </div>
 
-                {/* Meta */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: st.bg, color: st.text }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot }} />{corp.status}
@@ -233,10 +296,10 @@ export default function CorporateDetailPage() {
 
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F1F5', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
                 {[
-                  { label: 'Start Date',      value: fmtDate(corp.dateProvisioned) },
-                  { label: 'Admin Email',      value: corp.adminEmail },
-                  { label: 'Active Members',   value: corp.activeMembers.toLocaleString() },
-                  { label: 'Brand Colours',    value: null },
+                  { label: 'Start Date',    value: fmtDate(corp.dateProvisioned) },
+                  { label: 'Admin Email',   value: corp.adminEmail || '—' },
+                  { label: 'Active Members', value: corp.activeMembers.toLocaleString() },
+                  { label: 'Brand Colours', value: null },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</p>
@@ -248,12 +311,12 @@ export default function CorporateDetailPage() {
               </div>
             </div>
 
-            {/* PORTAL PREVIEW PLACEHOLDER */}
+            {/* PORTAL PREVIEW */}
             <div style={{ ...card, padding: '28px', textAlign: 'center' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Portal Preview</p>
               <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 20 }}>Live preview of the HR portal as this client's users see it</p>
               <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', height: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 16, color: '#fff' }}>{initials}</div>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 16, color: '#fff' }}>{corpInitials}</div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{corp.name}</p>
                 <p style={{ fontSize: 11, color: '#9CA3B8' }}>Portal preview · 1 of 2 pages</p>
               </div>
@@ -270,7 +333,6 @@ export default function CorporateDetailPage() {
             </div>
 
             <div style={{ ...card, overflow: 'hidden' }}>
-              {/* Table header */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px 80px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['Role', 'Permissions', 'Users', 'Manage'].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
@@ -283,8 +345,7 @@ export default function CorporateDetailPage() {
                 const isExpanded = expandedRole === role.id;
                 return (
                   <div key={role.id}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px 80px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', transition: 'background 0.12s' }}
-                      className="hover:bg-[#FAFBFC]">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px 80px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA' }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{role.name}</span>
                       <span style={{ fontSize: 12, color: '#9CA3B8' }}>{count}/{PERMISSIONS.length}</span>
                       <button
@@ -300,15 +361,13 @@ export default function CorporateDetailPage() {
                         {menuOpen === role.id && (
                           <div style={{ position: 'absolute', right: 0, top: 38, background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 50, minWidth: 130, overflow: 'hidden' }}>
                             <button
-                              onClick={() => { setMenuOpen(null); }}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 13, fontWeight: 500, color: '#131C4E', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-                              className="hover:bg-[#FAFBFC]">
+                              onClick={() => setMenuOpen(null)}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 13, fontWeight: 500, color: '#131C4E', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                               <Pencil style={{ width: 13, height: 13, color: '#9CA3B8' }} /> Edit Role
                             </button>
                             <button
                               onClick={() => { setShowDeleteRole(role.id); setMenuOpen(null); }}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 13, fontWeight: 500, color: '#EF4444', background: 'transparent', border: 'none', cursor: 'pointer', borderTop: '1px solid #F7F8FA', textAlign: 'left' }}
-                              className="hover:bg-[#FEF2F2]">
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 13, fontWeight: 500, color: '#EF4444', background: 'transparent', border: 'none', cursor: 'pointer', borderTop: '1px solid #F7F8FA', textAlign: 'left' }}>
                               <Trash2 style={{ width: 13, height: 13 }} /> Delete Role
                             </button>
                           </div>
@@ -316,14 +375,13 @@ export default function CorporateDetailPage() {
                       </div>
                     </div>
 
-                    {/* Expanded users list */}
                     {isExpanded && (
                       <div style={{ background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                         {role.users.length === 0 ? (
                           <p style={{ padding: '12px 40px', fontSize: 12, color: '#9CA3B8' }}>No users assigned to this role yet.</p>
                         ) : (
                           role.users.map((u) => (
-                            <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 40px', borderBottom: '1px solid #F0F1F5' }} className="last:border-0">
+                            <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 40px', borderBottom: '1px solid #F0F1F5' }}>
                               <div>
                                 <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{u.name}</p>
                                 <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{u.email}</p>
@@ -352,7 +410,7 @@ export default function CorporateDetailPage() {
         )}
       </div>
 
-      {/* ── TOAST — SIGNUP EMAIL ── */}
+      {/* TOAST — SIGNUP EMAIL */}
       {showEmailToast && (
         <div style={{ position: 'fixed', bottom: 32, right: 32, background: '#131C4E', color: '#fff', borderRadius: 14, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 100, fontSize: 13, fontWeight: 600 }}>
           <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✓</span>
@@ -360,7 +418,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* ── MODAL — ADD NEW ROLE ── */}
+      {/* MODAL — ADD NEW ROLE */}
       {showRoleModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowRoleModal(false); }}>
@@ -382,14 +440,11 @@ export default function CorporateDetailPage() {
                   onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                   onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
               </div>
-
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Permissions</p>
                   <p style={{ fontSize: 11, color: '#9CA3B8' }}>Enable or disable what this role can access</p>
                 </div>
-
-                {/* All Access master toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#FAFBFC', borderRadius: 12, border: '1px solid #EDEEF2', marginBottom: 10 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>All Access</p>
                   <Toggle on={allOn} onChange={() => {
@@ -397,10 +452,9 @@ export default function CorporateDetailPage() {
                     setRolePerms(Object.fromEntries(PERMISSIONS.map((p) => [p.key, newVal])));
                   }} />
                 </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {PERMISSIONS.map(({ key, label }) => (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', borderRadius: 10 }} className="hover:bg-[#FAFBFC]">
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', borderRadius: 10 }}>
                       <p style={{ fontSize: 13, color: '#131C4E' }}>{label}</p>
                       <Toggle on={rolePerms[key]} onChange={() => setRolePerms({ ...rolePerms, [key]: !rolePerms[key] })} />
                     </div>
@@ -422,7 +476,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* ── MODAL — ASSIGN USER ── */}
+      {/* MODAL — ASSIGN USER */}
       {showAssignModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowAssignModal(false); }}>
@@ -480,7 +534,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* ── MODAL — DELETE ROLE CONFIRM ── */}
+      {/* MODAL — DELETE ROLE CONFIRM */}
       {showDeleteRole && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 20, width: 400, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.20)', textAlign: 'center' }}>
@@ -505,7 +559,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* ── MODAL — EDIT CORPORATE ── */}
+      {/* MODAL — EDIT CORPORATE */}
       {showEditModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowEditModal(false); }}>
@@ -550,7 +604,6 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* Close dropdown on outside click */}
       {menuOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setMenuOpen(null)} />}
     </div>
   );
