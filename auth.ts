@@ -121,12 +121,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.role      = (user as { role?: string }).role;
-        token.loginType = (user as { loginType?: string }).loginType;
         token.companyId = (user as { companyId?: string }).companyId ?? '';
         token.companyName = (user as { companyName?: string }).companyName ?? '';
+      }
+      // account is only present on initial sign-in — use provider to set loginType reliably
+      if (account) {
+        token.loginType = account.provider === 'staff-credentials' ? 'staff' : 'hr';
       }
       return token;
     },
