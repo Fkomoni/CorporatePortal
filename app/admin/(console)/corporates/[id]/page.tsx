@@ -9,8 +9,8 @@ import { ArrowLeft, Send, Users, Pencil, X, Plus, MoreHorizontal, Trash2 } from 
 
 interface Policy {
   id: string; groupId: string; name: string; schemeCode: string;
-  dateProvisioned: string; adminEmail: string; status: string;
-  activeMembers: number; template: string; colors: string[];
+  dateProvisioned: string; adminEmail: string; contactName: string;
+  status: string; activeMembers: number; template: string; colors: string[];
 }
 
 const PERMISSIONS = [
@@ -296,12 +296,13 @@ export default function CorporateDetailPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F1F5', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F1F5', display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
                 {[
-                  { label: 'Start Date',    value: fmtDate(corp.dateProvisioned) },
-                  { label: 'Admin Email',   value: corp.adminEmail || '—' },
+                  { label: 'Start Date',     value: fmtDate(corp.dateProvisioned) },
+                  { label: 'Contact Person', value: corp.contactName || '—' },
+                  { label: 'Admin Email',    value: corp.adminEmail  || '—' },
                   { label: 'Active Members', value: corp.activeMembers.toLocaleString() },
-                  { label: 'Brand Colours', value: null },
+                  { label: 'Brand Colours',  value: null },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</p>
