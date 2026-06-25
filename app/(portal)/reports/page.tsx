@@ -19,7 +19,7 @@ export default function ReportsPage() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Insights" subtitle="Reports &amp; Analytics" />
+      <TopBar title="Insights & Reports" subtitle="Analytics · Exports · Trends" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
