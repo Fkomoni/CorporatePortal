@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ArrowDownToLine, Filter, TrendingUp, Clock, XCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { mockClaims, mockMembers } from '@/lib/mock-data';
+import { ClaimsVisibility, DEFAULT_CLAIMS_VISIBILITY, getClaimsVisibility } from '@/lib/claims-visibility';
 
 function getEnroleeId(employeeId: string, type: string): string {
   const num = parseInt(employeeId.replace('EMP', ''), 10);
@@ -55,10 +56,15 @@ const summaryCards = [
 ];
 
 export default function ClaimsPage() {
-  const [search, setSearch]     = useState('');
-  const [catFilter, setCat]     = useState('');
+  const [search, setSearch]       = useState('');
+  const [catFilter, setCat]       = useState('');
   const [statusFilter, setStatus] = useState('');
-  const [planFilter, setPlan]   = useState('');
+  const [planFilter, setPlan]     = useState('');
+  const [vis, setVis]             = useState<ClaimsVisibility>(DEFAULT_CLAIMS_VISIBILITY);
+
+  useEffect(() => {
+    setVis(getClaimsVisibility());
+  }, []);
 
   const filtered = mockClaims.filter((c) => {
     const q = search.toLowerCase();
@@ -77,54 +83,64 @@ export default function ClaimsPage() {
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* SUMMARY STRIP */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-          {summaryCards.map((s) => (
-            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>{s.value}</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{s.label}</p>
-              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
-            </div>
-          ))}
-        </div>
+        {vis.showSummaryCards && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+            {summaryCards.map((s) => (
+              <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
+                <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>
+                  {vis.showAmounts ? s.value : '—'}
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{s.label}</p>
+                <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* TOOLBAR */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: '1 1 260px', minWidth: 220 }}>
-              <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
-              <input value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by member, ref, provider, diagnosis..."
-                style={{ width: '100%', height: 42, paddingLeft: 42, paddingRight: 14, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
-            </div>
-            {[
-              { value: catFilter,    setter: setCat,    opts: ['All Categories', ...Object.keys(categoryStyles)] },
-              { value: statusFilter, setter: setStatus, opts: ['All Statuses',   ...Object.keys(statusStyles)] },
-              { value: planFilter,   setter: setPlan,   opts: ['All Plans', 'Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'] },
-            ].map(({ value, setter, opts }) => (
-              <select key={opts[0]} value={value} onChange={(e) => setter(e.target.value)}
-                style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
-                {opts.map((o, i) => <option key={o} value={i === 0 ? '' : o}>{o}</option>)}
-              </select>
-            ))}
-            <div style={{ flex: 1 }} />
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', padding: '0 14px', height: 42, display: 'inline-flex', alignItems: 'center', background: '#FAFBFC', borderRadius: 14, border: '1px solid #E5E7F1' }}>
-              {fmt(filteredTotal)} total
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
-                <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
-              </button>
-              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
-                <ArrowDownToLine style={{ width: 13, height: 13 }} /> PDF
-              </button>
+        {vis.showFilters && (
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: '1 1 260px', minWidth: 220 }}>
+                <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
+                <input value={search} onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by member, ref, provider, diagnosis..."
+                  style={{ width: '100%', height: 42, paddingLeft: 42, paddingRight: 14, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+              </div>
+              {[
+                { value: catFilter,    setter: setCat,    opts: ['All Categories', ...Object.keys(categoryStyles)] },
+                { value: statusFilter, setter: setStatus, opts: ['All Statuses',   ...Object.keys(statusStyles)] },
+                { value: planFilter,   setter: setPlan,   opts: ['All Plans', 'Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'] },
+              ].map(({ value, setter, opts }) => (
+                <select key={opts[0]} value={value} onChange={(e) => setter(e.target.value)}
+                  style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
+                  {opts.map((o, i) => <option key={o} value={i === 0 ? '' : o}>{o}</option>)}
+                </select>
+              ))}
+              <div style={{ flex: 1 }} />
+              {vis.showAmounts && (
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', padding: '0 14px', height: 42, display: 'inline-flex', alignItems: 'center', background: '#FAFBFC', borderRadius: 14, border: '1px solid #E5E7F1' }}>
+                  {fmt(filteredTotal)} total
+                </div>
+              )}
+              {vis.showExports && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                    <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
+                  </button>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                    <ArrowDownToLine style={{ width: 13, height: 13 }} /> PDF
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
         {/* CLAIMS TABLE */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        {vis.showTable && <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div
             className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
             style={{ gridTemplateColumns: '106px 100px 118px 170px 88px 100px 88px 80px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
@@ -154,7 +170,7 @@ export default function ClaimsPage() {
                 <span className="text-[11px] text-[#9CA3B8] font-mono">{enroleeId}</span>
                 <span className="text-[11px] text-[#9CA3B8] truncate">{c.provider}</span>
                 <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
-                <span className="text-[13px] font-bold text-[#131C4E] text-right">{fmt(c.amount)}</span>
+                <span className="text-[13px] font-bold text-[#131C4E] text-right">{vis.showAmounts ? fmt(c.amount) : '—'}</span>
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: st.bg, color: st.text }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} />{c.status}
                 </span>
@@ -191,7 +207,7 @@ export default function ClaimsPage() {
               ))}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
