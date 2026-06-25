@@ -40,7 +40,7 @@ export function AdminSidebar() {
       {/* NAV */}
       <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {navItems.map(({ label, href, Icon }) => {
-          const active = pathname.startsWith(href);
+          const active = pathname?.startsWith(href) ?? false;
           return (
             <Link key={href} href={href} style={{ textDecoration: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, borderLeft: active ? '3px solid #F56B22' : '3px solid transparent', background: active ? '#FFF5EF' : 'transparent', cursor: 'pointer', transition: 'all 0.12s' }}>
