@@ -5,12 +5,59 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// ── Service token cache (reuse for ~6 hours) ──────────────────────────────────
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+
+async function getServiceToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+
+  const res = await fetch(`${BASE}/api/ApiUsers/Login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      Username: process.env.PROGNOSIS_USERNAME,
+      Password: process.env.PROGNOSIS_PASSWORD,
+    }),
+  });
+
+  console.log(`[api/policies] POST ${BASE}/api/ApiUsers/Login → HTTP ${res.status}`);
+
+  const text = await res.text();
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`ApiUsers/Login returned non-JSON (${res.status}): ${text.slice(0, 200)}`);
+  }
+
+  // Unwrap optional envelope
+  const payload = (data?.data ?? data?.Data ?? data?.result ?? data?.Result ?? data) as Record<string, unknown>;
+
+  if (payload?.status === false || payload?.status === 'error' || payload?.status === 'fail') {
+    throw new Error(String(payload.ErrorMessage ?? payload.message ?? 'Service login failed'));
+  }
+
+  const token = String(
+    payload?.accessToken ?? payload?.token ?? payload?.AccessToken ?? payload?.Token ??
+    payload?.bearer ?? payload?.Bearer ?? payload?.bearerToken ?? payload?.BearerToken ?? ''
+  );
+
+  if (!token) throw new Error('No token in ApiUsers/Login response');
+
+  cachedToken = token;
+  tokenExpiry  = Date.now() + 6 * 60 * 60 * 1000; // 6 hours
+  console.log('[api/policies] service token obtained, cached for 6h');
+  return token;
+}
+
+// ── Normalise one policy row ──────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizePolicy(p: Record<string, any>) {
-  const name = String(p.GroupName ?? p.CompanyName ?? p.Name ?? p.name ?? 'Unknown');
+  const name    = String(p.GroupName ?? p.CompanyName ?? p.Name ?? p.name ?? 'Unknown');
   const groupId = String(p.GroupID ?? p.PolicyID ?? p.Id ?? p.id ?? '');
 
-  const rawDate = p.CommencementDate ?? p.StartDate ?? p.DateCreated ?? p.CreatedDate ?? p.InceptionDate ?? '';
+  const rawDate        = p.CommencementDate ?? p.StartDate ?? p.DateCreated ?? p.CreatedDate ?? p.InceptionDate ?? '';
   const dateProvisioned = rawDate ? String(rawDate).split('T')[0] : '';
 
   const adminEmail = String(p.Email ?? p.AdminEmail ?? p.ContactEmail ?? p.HREmail ?? p.EmailAddress ?? '');
@@ -27,7 +74,7 @@ function normalizePolicy(p: Record<string, any>) {
 
   const activeMembers = Number(
     p.ActiveLives ?? p.TotalActiveLives ?? p.ActiveMembers ??
-    p.MemberCount ?? p.TotalEnrolled ?? p.NoOfLives ?? 0
+    p.MemberCount  ?? p.TotalEnrolled   ?? p.NoOfLives    ?? 0
   );
 
   const schemeCode = String(p.PolicyNumber ?? p.SchemeCode ?? p.PolicyCode ?? groupId);
@@ -46,38 +93,58 @@ function normalizePolicy(p: Record<string, any>) {
   };
 }
 
+// ── Fetch policies with optional one-time token refresh on 401/403 ────────────
+async function fetchPolicies(token: string, retry = false): Promise<Response> {
+  const res = await fetch(`${BASE}/api/CorporateProfile/GetAllPolicies`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  console.log(`[api/policies] GET GetAllPolicies → HTTP ${res.status}`);
+
+  if ((res.status === 401 || res.status === 403) && !retry) {
+    console.log('[api/policies] token rejected, refreshing...');
+    cachedToken = null;
+    tokenExpiry  = 0;
+    const fresh = await getServiceToken();
+    return fetchPolicies(fresh, true);
+  }
+  return res;
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET() {
   const session = await auth();
-  const prognosisToken = (session?.user as { prognosisToken?: string })?.prognosisToken;
 
-  if (!session || (session.user as { loginType?: string })?.loginType !== 'staff' || !prognosisToken) {
+  if (!session || (session.user as { loginType?: string })?.loginType !== 'staff') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const res = await fetch(`${BASE}/api/CorporateProfile/GetAllPolicies`, {
-      headers: {
-        Authorization: `Bearer ${prognosisToken}`,
-        Accept: 'application/json',
-      },
-    });
-
-    console.log(`[api/policies] GET ${BASE}/api/CorporateProfile/GetAllPolicies → HTTP ${res.status}`);
+    const token = await getServiceToken();
+    const res   = await fetchPolicies(token);
 
     if (!res.ok) {
+      const body = await res.text();
+      console.error(`[api/policies] GetAllPolicies error ${res.status}:`, body.slice(0, 300));
       return NextResponse.json({ error: `Prognosis error: ${res.status}` }, { status: res.status });
     }
 
-    const data = await res.json();
+    const text = await res.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error('[api/policies] non-JSON response:', text.slice(0, 300));
+      return NextResponse.json({ error: 'Prognosis returned non-JSON response' }, { status: 502 });
+    }
 
-    // Unwrap from various possible envelope shapes
+    // Unwrap envelope
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw: Record<string, any>[] =
-      Array.isArray(data) ? data :
-      Array.isArray(data?.data) ? data.data :
-      Array.isArray(data?.Data) ? data.Data :
-      Array.isArray(data?.result) ? data.result :
-      Array.isArray(data?.Result) ? data.Result :
+      Array.isArray(data)              ? data              :
+      Array.isArray((data as any)?.data)   ? (data as any).data   :
+      Array.isArray((data as any)?.Data)   ? (data as any).Data   :
+      Array.isArray((data as any)?.result) ? (data as any).result :
+      Array.isArray((data as any)?.Result) ? (data as any).Result :
       [];
 
     const policies = raw.map(normalizePolicy);
@@ -86,6 +153,6 @@ export async function GET() {
     return NextResponse.json({ policies, total: policies.length });
   } catch (err) {
     console.error('[api/policies] Error:', err);
-    return NextResponse.json({ error: 'Failed to fetch policies' }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch policies' }, { status: 500 });
   }
 }
