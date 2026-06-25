@@ -8,13 +8,13 @@ type Plan = 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan
 
 /* ── Plan tier hierarchy (lowest → highest) ─────────────────────────── */
 const PLAN_TIERS = [
-  { key: 'Plus Mini',   level: 0, label: 'All Plans',   color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
-  { key: 'Plus',        level: 1, label: 'Plus +',      color: '#C2410C', bg: '#FFF7ED', border: '#FED7AA' },
-  { key: 'Pro',         level: 2, label: 'Pro +',       color: '#475569', bg: '#F1F5F9', border: '#CBD5E1' },
-  { key: 'Max',         level: 3, label: 'Max +',       color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
-  { key: 'Promax',      level: 4, label: 'Promax +',    color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE' },
-  { key: 'Magnum',      level: 5, label: 'Magnum +',    color: '#6D28D9', bg: '#F5F3FF', border: '#DDD6FE' },
-  { key: 'Magnum Plus', level: 6, label: 'Magnum Plus', color: '#0F172A', bg: '#E2E8F0', border: '#94A3B8' },
+  { key: 'Plus Mini',   level: 0, label: 'All Plans',          color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  { key: 'Plus',        level: 1, label: 'Plus and above',     color: '#C2410C', bg: '#FFF7ED', border: '#FED7AA' },
+  { key: 'Pro',         level: 2, label: 'Pro and above',      color: '#475569', bg: '#F1F5F9', border: '#CBD5E1' },
+  { key: 'Max',         level: 3, label: 'Max and above',      color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
+  { key: 'Promax',      level: 4, label: 'Promax and above',   color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE' },
+  { key: 'Magnum',      level: 5, label: 'Magnum and above',   color: '#6D28D9', bg: '#F5F3FF', border: '#DDD6FE' },
+  { key: 'Magnum Plus', level: 6, label: 'Magnum Plus only',   color: '#0F172A', bg: '#E2E8F0', border: '#94A3B8' },
 ] as const;
 
 type PlanTierKey = typeof PLAN_TIERS[number]['key'];
