@@ -1,21 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowDownToLine, Users, Activity, Search, Building2, CreditCard } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { ReportsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 
-const reports = [
-  { id: 1, title: 'Membership Report',   desc: 'Active lives · Additions · Removals',        icon: Users,      lastGen: '22 Jun 2026' },
-  { id: 2, title: 'Utilization Report',  desc: 'Claims count · Amount · Visits',             icon: Activity,   lastGen: '22 Jun 2026' },
-  { id: 3, title: 'Claims Analysis',     desc: 'Top diagnoses · Providers · Categories',     icon: Search,     lastGen: '20 Jun 2026' },
-  { id: 4, title: 'Provider Utilization',desc: 'Visits by provider · Spend by provider',    icon: Building2,  lastGen: '20 Jun 2026' },
-  { id: 5, title: 'Financial Report',    desc: 'Invoices · Payments · Outstanding balances', icon: CreditCard, lastGen: '18 Jun 2026' },
-];
+const ALL_REPORTS = [
+  { id: 1, visKey: 'showMembershipReport',    title: 'Membership Report',    desc: 'Active lives · Additions · Removals',        icon: Users      },
+  { id: 2, visKey: 'showUtilizationReport',   title: 'Utilization Report',   desc: 'Claims count · Amount · Visits',             icon: Activity   },
+  { id: 3, visKey: 'showClaimsAnalysis',      title: 'Claims Analysis',      desc: 'Top diagnoses · Providers · Categories',     icon: Search     },
+  { id: 4, visKey: 'showProviderUtilization', title: 'Provider Utilization', desc: 'Visits by provider · Spend by provider',     icon: Building2  },
+  { id: 5, visKey: 'showFinancialReport',     title: 'Financial Report',     desc: 'Invoices · Payments · Outstanding balances', icon: CreditCard },
+] as const;
+
+const lastGenMap: Record<number, string> = { 1: '22 Jun 2026', 2: '22 Jun 2026', 3: '20 Jun 2026', 4: '20 Jun 2026', 5: '18 Jun 2026' };
 
 export default function ReportsPage() {
   const [from, setFrom] = useState('2026-01-01');
   const [to, setTo] = useState('2026-06-30');
   const [plan, setPlan] = useState('');
+  const [vis, setVis] = useState<ReportsVis>(DEFAULTS.reports);
+  useEffect(() => { setVis(getVis('reports')); }, []);
+
+  const visibleReports = ALL_REPORTS.filter((r) => vis[r.visKey]);
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -72,8 +79,13 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
+        {visibleReports.length === 0 && (
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '64px 24px', textAlign: 'center', color: '#9CA3B8', fontSize: 14 }}>
+            No reports are currently enabled. Contact your Leadway administrator.
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-4">
-          {reports.map((r) => {
+          {visibleReports.map((r) => {
             const Icon = r.icon;
             return (
               <div key={r.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 20, transition: 'box-shadow 0.15s' }}>
@@ -82,15 +94,17 @@ export default function ReportsPage() {
                   <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{r.title}</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>{r.desc}</p>
                 </div>
-                <p style={{ fontSize: 11, color: '#C4C9D9', flexShrink: 0 }} className="hidden md:block">Last generated: <span style={{ color: '#9CA3B8', fontWeight: 600 }}>{r.lastGen}</span></p>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
-                    <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
-                  </button>
-                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
-                    <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
-                  </button>
-                </div>
+                <p style={{ fontSize: 11, color: '#C4C9D9', flexShrink: 0 }} className="hidden md:block">Last generated: <span style={{ color: '#9CA3B8', fontWeight: 600 }}>{lastGenMap[r.id]}</span></p>
+                {vis.showExports && (
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                      <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
+                    </button>
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                      <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
