@@ -26,12 +26,12 @@ const topConditions = [
   { name: 'Diabetes',          visits: 89  },
 ];
 
-const topProviders = [
-  { name: 'Lagos Island General',    sub: 'General Practice · Lagos Island',  visits: 312, spend: '₦4.2M', grad: 'linear-gradient(135deg,#131C4E,#3A4382)' },
-  { name: 'Reddington Hospital',     sub: 'Multi-specialty · Victoria Island', visits: 204, spend: '₦6.8M', grad: 'linear-gradient(135deg,#F56B22,#FFB54B)' },
-  { name: 'St. Nicholas Hospital',   sub: 'Paediatrics · Obs/Gynae · Lagos',  visits: 189, spend: '₦3.1M', grad: 'linear-gradient(135deg,#10B981,#059669)' },
-  { name: 'National Hospital Abuja', sub: 'Multi-specialty · Abuja',           visits: 156, spend: '₦2.9M', grad: 'linear-gradient(135deg,#8B5CF6,#6366F1)' },
-  { name: 'Apex Dental Clinic',      sub: 'Dentistry · Ikeja',                 visits: 89,  spend: '₦0.8M', grad: 'linear-gradient(135deg,#3B82F6,#1D4ED8)' },
+const PROVIDER_GRADS = [
+  'linear-gradient(135deg,#131C4E,#3A4382)',
+  'linear-gradient(135deg,#F56B22,#FFB54B)',
+  'linear-gradient(135deg,#10B981,#059669)',
+  'linear-gradient(135deg,#8B5CF6,#6366F1)',
+  'linear-gradient(135deg,#3B82F6,#1D4ED8)',
 ];
 
 const openRequests = [
@@ -73,7 +73,13 @@ interface DashboardStats {
   newThisMonthLabel: string | null;
   totalPremium: number | null;
   claimsPaid: number | null;
+  amtClaimed: number | null;
+  uniqueClaimsCount: number | null;
+  membersUtilized: number | null;
+  utilizationRatePct: number | null;
   lossRatioPct: number | null;
+  topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
+  topServices: { service: string; visits: number; amtPaid: number }[];
   policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
@@ -117,14 +123,17 @@ export default function DashboardPage() {
   // Policy period from GetAllPolicies, e.g. "1st April 2026 – 31st March 2027"
   const policyYearLabel = stats?.policyPeriod ?? null;
 
-  const activeLives       = stats?.activeLives       ?? null;
-  const principalLives    = stats?.principalLives    ?? null;
-  const dependantLives    = stats?.dependantLives    ?? null;
-  const newThisMonth      = stats?.newThisMonth      ?? null;
-  const newThisMonthLabel = stats?.newThisMonthLabel ?? null;
-  const totalPremium      = stats?.totalPremium      ?? null;
-  const claimsPaid        = stats?.claimsPaid        ?? null;
-  const lossRatioPct      = stats?.lossRatioPct      ?? null;
+  const activeLives        = stats?.activeLives        ?? null;
+  const principalLives     = stats?.principalLives     ?? null;
+  const dependantLives     = stats?.dependantLives     ?? null;
+  const newThisMonth       = stats?.newThisMonth       ?? null;
+  const newThisMonthLabel  = stats?.newThisMonthLabel  ?? null;
+  const totalPremium       = stats?.totalPremium       ?? null;
+  const claimsPaid         = stats?.claimsPaid         ?? null;
+  const lossRatioPct       = stats?.lossRatioPct       ?? null;
+  const utilizationRatePct = stats?.utilizationRatePct ?? null;
+  const membersUtilized    = stats?.membersUtilized    ?? null;
+  const liveTopProviders   = stats?.topProviders       ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -212,9 +221,9 @@ export default function DashboardPage() {
               subColor: '#10B981', rail: '#10B981',
             },
             {
-              value: '26.4%',
+              value: utilizationRatePct !== null ? `${utilizationRatePct}%` : '—',
               label: 'Utilization Rate',
-              sub: '487 members utilized',
+              sub: membersUtilized !== null ? `${membersUtilized.toLocaleString()} members utilized` : '—',
               subColor: '#9CA3B8', rail: '#3B82F6',
             },
             {
@@ -374,21 +383,24 @@ export default function DashboardPage() {
               </div>
               <button style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View all →</button>
             </div>
-            {topProviders.map((p, i) => (
-              <div key={p.name} style={{ display: 'flex', alignItems: 'center', padding: '11px 0', borderBottom: i < topProviders.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: p.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0, marginRight: 12 }}>
-                  {p.name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
+            {(liveTopProviders ?? []).map((p, i) => (
+              <div key={p.name} style={{ display: 'flex', alignItems: 'center', padding: '11px 0', borderBottom: i < (liveTopProviders ?? []).length - 1 ? '1px solid #F5F6FA' : 'none' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: PROVIDER_GRADS[i % PROVIDER_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0, marginRight: 12 }}>
+                  {p.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.sub}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.location || '—'}</p>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{p.spend}</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{vis.showAmounts ? fmtNaira(p.amtPaid) : '—'}</p>
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.visits} visits</p>
                 </div>
               </div>
             ))}
+            {(!liveTopProviders || liveTopProviders.length === 0) && (
+              <p style={{ fontSize: 13, color: '#B0B7C9', textAlign: 'center', padding: '20px 0' }}>Loading provider data…</p>
+            )}
           </div>}
 
           <div style={{ ...card, padding: '26px 28px' }}>
