@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { verificationcode, password } = body;
+  const { verificationcode, password, email, groupId, companyName, name } = body;
 
   if (!verificationcode || !password) {
     return NextResponse.json({ error: 'Verification code and password are required' }, { status: 400 });
@@ -85,6 +87,31 @@ export async function POST(req: Request) {
         { error: d?.message ?? d?.Message ?? d?.ErrorMessage ?? `Prognosis error ${res.status}` },
         { status: res.status }
       );
+    }
+
+    // Prognosis registration confirmed — upsert HR user in our DB so they can log in
+    if (email) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      await prisma.user.upsert({
+        where: { email },
+        update: {
+          password: passwordHash,
+          name: name || email,
+          companyId: groupId || null,
+          companyName: companyName || null,
+          active: true,
+        },
+        create: {
+          email,
+          password: passwordHash,
+          name: name || email,
+          role: 'hr_admin',
+          companyId: groupId || null,
+          companyName: companyName || null,
+          active: true,
+        },
+      });
+      console.log(`[verify-registration] Upserted HR user in DB: ${email} (company: ${companyName})`);
     }
 
     return NextResponse.json({ success: true });

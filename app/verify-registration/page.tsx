@@ -13,8 +13,11 @@ function VerifyForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const urlToken = searchParams?.get('code') ?? searchParams?.get('corporateId') ?? '';
-  const urlEmail = searchParams?.get('email') ?? '';
+  const urlToken    = searchParams?.get('code') ?? searchParams?.get('corporateId') ?? '';
+  const urlEmail    = searchParams?.get('email') ?? '';
+  const urlGroupId  = searchParams?.get('groupId') ?? '';
+  const urlCompany  = searchParams?.get('company') ?? '';
+  const urlName     = searchParams?.get('name') ?? '';
 
   const [stage, setStage]           = useState<Stage>('password');
   const [email, setEmail]           = useState(urlEmail);
@@ -60,7 +63,7 @@ function VerifyForm() {
       const res  = await fetch('/api/hr/verify-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationcode: otp.trim(), password }),
+        body: JSON.stringify({ verificationcode: otp.trim(), password, email, groupId: urlGroupId, companyName: urlCompany, name: urlName }),
       });
       const json = await res.json();
       if (!res.ok) {

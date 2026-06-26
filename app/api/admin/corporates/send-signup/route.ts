@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { PolicyNumber, email, mobile, firstname, surname } = body;
+  const { PolicyNumber, groupId, companyName, email, mobile, firstname, surname } = body;
 
   if (!PolicyNumber || !email) {
     return NextResponse.json({ error: 'PolicyNumber and email are required' }, { status: 400 });
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     // Build registration link
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
     const registrationLink = otp
-      ? `${appBase}/verify-registration?email=${encodeURIComponent(email)}&code=${encodeURIComponent(String(otp))}`
+      ? `${appBase}/verify-registration?email=${encodeURIComponent(email)}&code=${encodeURIComponent(String(otp))}&groupId=${encodeURIComponent(groupId ?? '')}&company=${encodeURIComponent(companyName ?? '')}&name=${encodeURIComponent(`${firstname ?? ''} ${surname ?? ''}`.trim())}`
       : `${appBase}/verify-registration?email=${encodeURIComponent(email)}`;
 
     // Send email via Prognosis SendEmailAlert
