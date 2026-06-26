@@ -2,6 +2,7 @@
 
 import { TrendingDown, UserPlus, Receipt } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { DashboardVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -56,12 +57,29 @@ const card: React.CSSProperties = {
   boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
 };
 
+function getGreeting(firstName: string): string {
+  const hour = new Date().getHours();
+  const name = firstName || 'there';
+  if (hour < 12) return `Good morning, ${name} ☀️`;
+  if (hour < 17) return `Good afternoon, ${name} 👋`;
+  return `Good evening, ${name} 🌙`;
+}
+
 export default function DashboardPage() {
   const [vis, setVis] = useState<DashboardVis>(DEFAULTS.dashboard);
   useEffect(() => { setVis(getVis('dashboard')); }, []);
+  const { data: session } = useSession();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const user = session?.user as any;
+  const companyName: string = user?.companyName ?? '';
+  const companyId: string = user?.companyId ?? '';
+  const fullName: string = session?.user?.name ?? '';
+  const firstName = fullName.split(' ')[0];
+  const topBarSubtitle = [companyName, companyId].filter(Boolean).join(' · ');
+
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Overview" subtitle="Dangote Industries Ltd · ACM-2026 · Last updated today 09:14" showQuickActions />
+      <TopBar title="Overview" subtitle={topBarSubtitle || undefined} showQuickActions />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -69,10 +87,10 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              Good morning, Amaka ☀️
+              {getGreeting(firstName)}
             </h1>
             <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 6 }}>
-              Dangote Industries Ltd  ·  1,842 active lives  ·  Policy year Jan – Dec 2026
+              {companyName ? `${companyName}  ·  Policy year Jan – Dec 2026` : 'Policy year Jan – Dec 2026'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, padding: '14px 22px', flexShrink: 0 }}>

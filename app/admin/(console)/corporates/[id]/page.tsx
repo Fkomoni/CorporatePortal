@@ -85,10 +85,8 @@ export default function CorporateDetailPage() {
   const [signupSurname, setSignupSurname]       = useState('');
   const [signupLoading, setSignupLoading]       = useState(false);
   const [signupError, setSignupError]           = useState('');
-  const [signupLink, setSignupLink]             = useState('');
-  const [signupEmailSent, setSignupEmailSent]   = useState<boolean | null>(null);
-  const [signupEmailErr, setSignupEmailErr]     = useState('');
-  const [linkCopied, setLinkCopied]             = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [signupDebug, setSignupDebug]           = useState<Record<string, any> | null>(null);
 
   const [roleName, setRoleName]   = useState('');
   const [rolePerms, setRolePerms] = useState<PermMap>(defaultPerms());
@@ -206,16 +204,14 @@ export default function CorporateDetailPage() {
     setSignupEmail(corp.adminEmail);
     setSignupMobile(corp.phone ?? '');
     setSignupError('');
-    setSignupLink('');
-    setSignupEmailSent(null);
-    setSignupEmailErr('');
-    setLinkCopied(false);
+    setSignupDebug(null);
     setShowSignupModal(true);
   }
 
   async function sendSignupEmail() {
     if (!corp) return;
     setSignupError('');
+    setSignupDebug(null);
     setSignupLoading(true);
     try {
       const res = await fetch('/api/admin/corporates/send-signup', {
@@ -223,8 +219,6 @@ export default function CorporateDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           PolicyNumber: corp.schemeCode,
-          groupId: corp.groupId,
-          companyName: corp.name,
           email: signupEmail,
           mobile: signupMobile,
           firstname: signupFirst,
@@ -232,14 +226,14 @@ export default function CorporateDetailPage() {
         }),
       });
       const json = await res.json();
+      // Always surface the debug info in the modal
+      if (json.debug) setSignupDebug(json.debug);
       if (!res.ok) {
         setSignupError(json.error ?? 'Failed to send signup email. Please try again.');
       } else {
-        if (json.registrationLink) setSignupLink(json.registrationLink);
-        setSignupEmailSent(json.emailSent ?? false);
-        setSignupEmailErr(json.emailError ?? '');
-        setShowEmailToast({ ok: true, msg: `Registration link generated for ${signupEmail}` });
+        setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
         setTimeout(() => setShowEmailToast(null), 4000);
+        // Keep modal open to show debug response — staff can close it
       }
     } catch {
       setSignupError('Network error. Please try again.');
@@ -536,34 +530,14 @@ export default function CorporateDetailPage() {
                 </div>
               )}
 
-              {/* Registration link — shown after successful send */}
-              {signupLink && (
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '18px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ color: '#fff', fontSize: 15 }}>✓</span>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: '#065F46', margin: 0 }}>
-                        {signupEmailSent ? 'Email sent successfully' : 'Registration link ready'}
-                      </p>
-                      <p style={{ fontSize: 11, color: '#059669', margin: 0, marginTop: 1 }}>
-                        {signupEmailSent
-                          ? `An invitation was sent to ${signupEmail}`
-                          : signupEmailErr ? `Email failed — copy and share the link below` : 'Copy and share the link with the HR admin'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p style={{ fontSize: 10.5, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Registration Link</p>
-                  <div style={{ background: '#fff', border: '1px solid #D1FAE5', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <p style={{ fontSize: 12, color: '#374151', flex: 1, wordBreak: 'break-all', margin: 0, lineHeight: 1.6, fontFamily: 'monospace' }}>{signupLink}</p>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(signupLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2500); }}
-                      style={{ flexShrink: 0, height: 36, padding: '0 16px', fontSize: 12, fontWeight: 700, borderRadius: 10, border: 'none', background: linkCopied ? '#059669' : '#131C4E', color: '#fff', cursor: 'pointer', transition: 'background 0.25s', whiteSpace: 'nowrap' }}>
-                      {linkCopied ? '✓ Copied!' : 'Copy Link'}
-                    </button>
-                  </div>
+              {/* Prognosis response debug panel */}
+              {signupDebug && (
+                <div style={{ background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 10, padding: '12px 14px' }}>
+                  <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Prognosis API Response</p>
+                  <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>HTTP {signupDebug.httpStatus} · {signupDebug.httpStatus >= 200 && signupDebug.httpStatus < 300 ? '✓ OK' : '✗ Error'}</p>
+                  <pre style={{ fontSize: 11, color: '#131C4E', background: '#fff', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflowY: 'auto', margin: 0 }}>
+                    {JSON.stringify(signupDebug.prognosisResponse, null, 2)}
+                  </pre>
                 </div>
               )}
             </div>

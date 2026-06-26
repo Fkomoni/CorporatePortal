@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -108,6 +109,21 @@ function NavLink({ href, label, icon: Icon, badge, isActive }: {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const user = session?.user as any;
+  const companyName: string = user?.companyName ?? 'Corporate';
+  const companyId: string = user?.companyId ?? '';
+  const userName: string = session?.user?.name ?? '';
+  const userRole: string = user?.role ?? 'HR Administrator';
+  const companyInitials = companyName
+    .split(' ')
+    .map((w: string) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
   const isActive = (href: string) =>
     pathname === href || (pathname?.startsWith(href + '/') ?? false);
@@ -146,13 +162,13 @@ export function Sidebar() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 800, fontSize: 10,
           }}>
-            DI
+            {companyInitials || 'CO'}
           </div>
           <div className="flex-1 min-w-0">
             <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }} className="truncate">
-              Dangote Industries
+              {companyName}
             </p>
-            <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 1 }}>ACM-2026</p>
+            <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 1 }}>{companyId || '—'}</p>
           </div>
           <ChevronDown style={{ width: 13, height: 13, color: '#C8CDD9', flexShrink: 0 }} />
         </div>
@@ -180,11 +196,12 @@ export function Sidebar() {
       <div style={{ borderTop: '1px solid #EDEEF2', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }}>Favour Komoni</p>
-            <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 3 }}>HR Administrator</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }}>{userName || 'User'}</p>
+            <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 3 }}>{userRole === 'hr_admin' ? 'HR Administrator' : userRole}</p>
           </div>
           <button
             title="Log out"
+            onClick={() => signOut({ callbackUrl: '/login' })}
             style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.borderColor = '#EDEEF2'; }}
