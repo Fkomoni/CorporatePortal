@@ -320,7 +320,7 @@ function computeLossRatio({
     ? +((totalIncurred / earnedPremium) * 100).toFixed(2)
     : null;
   const cor = lossRatio == null ? null
-    : +(brokerage > 0 ? lossRatio + 2 + 12 + brokerage : lossRatio + 2 + 15).toFixed(2);
+    : Math.round(brokerage > 0 ? lossRatio + 2 + 12 + brokerage : lossRatio + 2 + 15);
   const riskStatus = lossRatio == null ? 'Unknown'
     : lossRatio <= 60 ? 'Healthy'
     : lossRatio <= 80 ? 'Watchlist'
