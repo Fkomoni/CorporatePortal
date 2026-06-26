@@ -39,52 +39,50 @@ async function fetchJson(token: string, path: string): Promise<unknown> {
   try { return JSON.parse(text); } catch { return null; }
 }
 
-// Pick the first truthy value from an object across multiple possible key names
-function pick(obj: Record<string, unknown>, ...keys: string[]): unknown {
-  for (const k of keys) {
-    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return obj[k];
-  }
-  return null;
-}
-
-// Normalise an amount that may be a plain number or a string with symbols
 function toNumber(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.]/g, ''));
   return isNaN(n) ? null : n;
 }
 
-// Unwrap common API envelope patterns: { data: ... }, { Data: ... }, { result: ... }, etc.
-function unwrap(raw: unknown): Record<string, unknown> {
-  if (!raw || typeof raw !== 'object') return {};
-  const r = raw as Record<string, unknown>;
-  const inner = r.data ?? r.Data ?? r.result ?? r.Result ?? r.payload ?? r.Payload ?? r.response ?? r.Response;
-  if (inner && typeof inner === 'object' && !Array.isArray(inner)) return inner as Record<string, unknown>;
-  if (Array.isArray(inner) && inner.length > 0) return inner[0] as Record<string, unknown>;
-  return r;
+// Unwrap envelope (data/Data/result/Result) and always return an array of records
+function toRows(raw: unknown): Record<string, unknown>[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
+  if (typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    const inner = r.data ?? r.Data ?? r.result ?? r.Result ?? r.payload ?? r.Payload;
+    if (Array.isArray(inner)) return inner as Record<string, unknown>[];
+    if (inner && typeof inner === 'object') return [inner as Record<string, unknown>];
+    return [r];
+  }
+  return [];
 }
 
-// Parse a policy year from a policyNumber string like LGHNG25000721 → 2025
-function parsePolicyYear(policyNumber: string): number | null {
-  // Try to find a 2-digit year code: first run of exactly 2 digits after alphabetic prefix
-  const m = policyNumber.match(/^[A-Z]+(\d{2})/i);
-  if (m) {
-    const yr = parseInt(m[1], 10);
-    // Treat 00–49 as 2000–2049
-    return yr >= 0 && yr <= 99 ? 2000 + yr : null;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Parse DD/MM/YYYY → { month (1-12), year }
+function parseDDMMYYYY(s: string): { month: number; year: number } | null {
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    const month = parseInt(parts[1], 10);
+    const year  = parseInt(parts[2], 10);
+    if (!isNaN(month) && !isNaN(year) && month >= 1 && month <= 12) return { month, year };
   }
   return null;
 }
 
 export interface DashboardStats {
   activeLives: number | null;
+  principalLives: number | null;
+  dependantLives: number | null;
   totalPremium: number | null;
-  outstandingPremium: number | null;
   claimsPaid: number | null;
   lossRatioPct: number | null;
-  policyStartDate: string | null;
-  policyEndDate: string | null;
-  policyYear: number | null;
+  policyPeriod: string | null;   // e.g. "Apr 2026 – Mar 2027"
+  policyYear: number | null;     // start year
+  policyFromDate: string | null;
+  policyToDate: string | null;
 }
 
 export async function GET() {
@@ -94,80 +92,85 @@ export async function GET() {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
-  const policyNumber = session.user.policyNumber ?? '';
-  const policyYearFromCode = parsePolicyYear(policyNumber);
-
   try {
     const token = await getServiceToken();
 
-    const [premiumRaw, detailsRaw] = await Promise.all([
+    const [premiumRaw, claimsRaw] = await Promise.all([
       fetchJson(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
-      fetchJson(token, `/api/CorporateProfile/GetGroupDetails?groupid=${groupId}`),
+      fetchJson(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
     ]);
 
-    const premium = unwrap(premiumRaw);
-    const details = unwrap(detailsRaw);
+    // GetGroupPremium returns an array of per-member premium records
+    const rows = toRows(premiumRaw);
 
-    // Active lives — try premium payload first, then details
-    const activeLives =
-      toNumber(pick(premium, 'TotalLives', 'ActiveLives', 'NoOfLives', 'LivesCount', 'Lives', 'TotalEnrollees', 'Enrollees', 'MemberCount', 'Members')) ??
-      toNumber(pick(details, 'TotalLives', 'ActiveLives', 'NoOfLives', 'LivesCount', 'TotalMembers', 'ActiveMembers', 'MemberCount'));
+    // Active members only
+    const activeRows = rows.filter(
+      (r) => String(r.MemberStatus_Desc ?? r.MemberStatusDesc ?? r.Status ?? '').toLowerCase() === 'active'
+    );
 
-    // Premium totals
-    const totalPremium =
-      toNumber(pick(premium, 'TotalPremium', 'GrossPremium', 'AnnualPremium', 'NetPremium', 'PremiumAmount', 'Premium', 'TotalAmount', 'Amount')) ??
-      toNumber(pick(details, 'TotalPremium', 'GrossPremium', 'AnnualPremium', 'PremiumAmount'));
+    // Unique active enrollee IDs → active lives count
+    const activeIds = new Set(
+      activeRows.map((r) => String(r.Member_EnrolleeID ?? r.MemberEnrolleeID ?? r.EnrolleeID ?? '')).filter(Boolean)
+    );
+    const activeLives = activeIds.size > 0 ? activeIds.size : null;
 
-    const outstandingPremium =
-      toNumber(pick(premium, 'OutstandingPremium', 'BalancePremium', 'UnpaidPremium', 'Balance', 'AmountDue')) ??
-      toNumber(pick(details, 'OutstandingPremium', 'BalancePremium', 'Balance'));
+    // Principals = EnrolleeID ends with /0
+    const principalIds = new Set([...activeIds].filter((id) => id.endsWith('/0')));
+    const principalLives = principalIds.size > 0 ? principalIds.size : null;
+    const dependantLives = activeLives !== null && principalLives !== null ? activeLives - principalLives : null;
 
-    const claimsPaid =
-      toNumber(pick(premium, 'ClaimsPaid', 'TotalClaims', 'ClaimAmount', 'TotalClaimAmount', 'PaidClaims')) ??
-      toNumber(pick(details, 'ClaimsPaid', 'TotalClaims', 'ClaimAmount'));
+    // Total premium = sum of IndividualPremiumFees across ALL members (not just active)
+    const totalPremium = rows.length > 0
+      ? rows.reduce((sum, r) => sum + (toNumber(r.IndividualPremiumFees ?? r.PremiumFee ?? r.Premium) ?? 0), 0)
+      : null;
+
+    // Claims paid — from GetGroupClaims
+    const claimRows = toRows(claimsRaw);
+    const claimsPaid = claimRows.length > 0
+      ? claimRows.reduce((sum, r) => sum + (toNumber(r.ClaimAmount ?? r.AmountPaid ?? r.TotalClaimed ?? r.Amount) ?? 0), 0)
+      : null;
 
     // Loss ratio
-    let lossRatioPct =
-      toNumber(pick(premium, 'LossRatio', 'ClaimsRatio', 'LossRatioPct', 'LossRatioPercent')) ??
-      toNumber(pick(details, 'LossRatio', 'ClaimsRatio'));
-    // If not directly available but we have both claims and premium, compute it
-    if (lossRatioPct === null && claimsPaid !== null && totalPremium && totalPremium > 0) {
-      lossRatioPct = Math.round((claimsPaid / totalPremium) * 100);
-    }
+    const lossRatioPct = (claimsPaid !== null && totalPremium && totalPremium > 0)
+      ? Math.round((claimsPaid / totalPremium) * 100)
+      : null;
 
-    // Policy dates
-    const policyStartDate = String(
-      pick(premium, 'PolicyStartDate', 'StartDate', 'InceptionDate', 'CommencementDate', 'FromDate') ??
-      pick(details, 'PolicyStartDate', 'StartDate', 'InceptionDate', 'CommencementDate', 'FromDate') ?? ''
-    ) || null;
+    // Policy period from first active row's Fromdate / Todate (DD/MM/YYYY)
+    const firstRow = activeRows[0] ?? rows[0];
+    const fromStr = String(firstRow?.Fromdate ?? firstRow?.FromDate ?? firstRow?.StartDate ?? '');
+    const toStr   = String(firstRow?.Todate   ?? firstRow?.ToDate   ?? firstRow?.EndDate   ?? '');
 
-    const policyEndDate = String(
-      pick(premium, 'PolicyEndDate', 'EndDate', 'ExpiryDate', 'RenewalDate', 'ToDate') ??
-      pick(details, 'PolicyEndDate', 'EndDate', 'ExpiryDate', 'RenewalDate', 'ToDate') ?? ''
-    ) || null;
+    const fromParsed = fromStr ? parseDDMMYYYY(fromStr) : null;
+    const toParsed   = toStr   ? parseDDMMYYYY(toStr)   : null;
 
-    // Derive policyYear: prefer API date, then parse from policyNumber code
-    let policyYear: number | null = policyYearFromCode;
-    if (policyStartDate) {
-      const y = parseInt(policyStartDate.slice(0, 4), 10);
-      if (!isNaN(y) && y > 2000) policyYear = y;
-    }
+    const policyPeriod = fromParsed && toParsed
+      ? `${MONTHS[fromParsed.month - 1]} ${fromParsed.year} – ${MONTHS[toParsed.month - 1]} ${toParsed.year}`
+      : null;
+
+    const policyYear = fromParsed?.year ?? null;
 
     const stats: DashboardStats = {
       activeLives,
+      principalLives,
+      dependantLives,
       totalPremium,
-      outstandingPremium,
       claimsPaid,
       lossRatioPct,
-      policyStartDate,
-      policyEndDate,
+      policyPeriod,
       policyYear,
+      policyFromDate: fromStr || null,
+      policyToDate:   toStr   || null,
     };
 
     return NextResponse.json({
       stats,
-      // Include raw data so we can inspect field names in dev if numbers look wrong
-      _debug: process.env.NODE_ENV !== 'production' ? { premiumRaw, detailsRaw } : undefined,
+      _debug: {
+        rowCount: rows.length,
+        activeRowCount: activeRows.length,
+        sampleRow: rows[0] ?? null,
+        claimsRowCount: claimRows.length,
+        claimsSampleRow: claimRows[0] ?? null,
+      },
     });
   } catch (err) {
     console.error('[hr/dashboard-stats] Error:', err);
