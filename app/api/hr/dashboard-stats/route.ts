@@ -280,12 +280,8 @@ function computeLossRatio({
       const st = String(row.CLAIM_STATUS ?? '').toLowerCase();
       paidAmt = numField(row, ['AmtPaid', ...PAID_AMOUNT_KEYS]);
       isPaid = PAID_SUBSTRINGS.some(s => st.includes(s)) || paidAmt > 0;
-      if (isPaid) {
-        // If status is paid but AmtPaid is 0, fall back to AmtClaimed (data quality gap in Prognosis)
-        const effectivePaid = paidAmt > 0 ? paidAmt : numField(row, ['AmtClaimed', ...BILLED_AMOUNT_KEYS]);
-        paid += effectivePaid;
-        paidAmt = effectivePaid;
-      } else outstanding += numField(row, ['AmtClaimed', ...BILLED_AMOUNT_KEYS]);
+      if (isPaid) paid += paidAmt;
+      else outstanding += numField(row, ['AmtClaimed', ...BILLED_AMOUNT_KEYS]);
     } else {
       const st = strField(row, STATUS_KEYS).toLowerCase();
       isPaid = ['paid','approved','settled','processed'].some(s => st.includes(s))
