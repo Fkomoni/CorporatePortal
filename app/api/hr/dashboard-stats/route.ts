@@ -5,6 +5,7 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// ── Service token (6-hour cache) ──────────────────────────────────────────────
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
@@ -31,6 +32,25 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
+// ── GetAllPolicies (24-hour cache, shared across all requests) ────────────────
+let allPoliciesCache: Record<string, unknown>[] | null = null;
+let allPoliciesExpiry = 0;
+
+async function getAllPolicies(token: string): Promise<Record<string, unknown>[]> {
+  if (allPoliciesCache && Date.now() < allPoliciesExpiry) return allPoliciesCache;
+  const res = await fetch(`${BASE}/api/CorporateProfile/GetAllPolicies`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  const text = await res.text();
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch { raw = null; }
+  const rows = toRows(raw);
+  allPoliciesCache = rows;
+  allPoliciesExpiry = Date.now() + 24 * 60 * 60 * 1000;
+  return rows;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 async function fetchJson(token: string, path: string): Promise<unknown> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -45,7 +65,6 @@ function toNumber(v: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
-// Unwrap envelope (data/Data/result/Result) and always return an array of records
 function toRows(raw: unknown): Record<string, unknown>[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw as Record<string, unknown>[];
@@ -59,19 +78,85 @@ function toRows(raw: unknown): Record<string, unknown>[] {
   return [];
 }
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
 
-// Parse DD/MM/YYYY → { month (1-12), year }
-function parseDDMMYYYY(s: string): { month: number; year: number } | null {
-  const parts = s.split('/');
-  if (parts.length === 3) {
-    const month = parseInt(parts[1], 10);
-    const year  = parseInt(parts[2], 10);
-    if (!isNaN(month) && !isNaN(year) && month >= 1 && month <= 12) return { month, year };
-  }
+function ordinal(n: number): string {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
+// Parse DD/MM/YYYY or YYYY-MM-DD → Date | null
+function parseDate(s: string): Date | null {
+  if (!s) return null;
+  // DD/MM/YYYY
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+  // YYYY-MM-DD (ISO)
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
   return null;
 }
 
+// Format Date → "31st March 2027"
+function fmtOrdinalDate(d: Date): string {
+  return `${ordinal(d.getDate())} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// Extract a date string from a policy record, trying multiple field names
+function extractDateStr(p: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = p[k];
+    if (v && typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+}
+
+// ── Policy matching ───────────────────────────────────────────────────────────
+function findPolicy(
+  policies: Record<string, unknown>[],
+  groupId: string,
+  policyNumber: string,
+): Record<string, unknown> | null {
+  if (!policies.length) return null;
+
+  const gid = String(groupId).toLowerCase();
+  const pn  = String(policyNumber).toLowerCase().replace(/\s/g, '');
+
+  // Candidate policies: match by PolicyNumber OR GroupID
+  const candidates = policies.filter((p) => {
+    const pNum = String(p.PolicyNumber ?? p.PolicyNo ?? p.PolicyCode ?? p.Policy_Number ?? '').toLowerCase().replace(/\s/g, '');
+    const gId  = String(p.GroupID ?? p.GroupId ?? p.Group_ID ?? p.GroupCode ?? '').toLowerCase();
+    return (pn && pNum === pn) || (gid && gId === gid);
+  });
+
+  const pool = candidates.length > 0 ? candidates : policies;
+
+  // Among candidates, prefer "active" status
+  const active = pool.filter((p) => {
+    const status = String(p.Status ?? p.PolicyStatus ?? p.StatusDesc ?? p.Active ?? '').toLowerCase();
+    return status.includes('active') || status === '1' || status === 'true';
+  });
+
+  const ranked = active.length > 0 ? active : pool;
+
+  // Pick the most recent by end date
+  return ranked.reduce<Record<string, unknown> | null>((best, p) => {
+    if (!best) return p;
+    const endStr  = extractDateStr(p,    'Todate','ToDate','EndDate','ExpiryDate','PolicyEndDate','RenewalDate');
+    const bestStr = extractDateStr(best, 'Todate','ToDate','EndDate','ExpiryDate','PolicyEndDate','RenewalDate');
+    const endD  = parseDate(endStr);
+    const bestD = parseDate(bestStr);
+    if (!endD) return best;
+    if (!bestD) return p;
+    return endD > bestD ? p : best;
+  }, null);
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 export interface DashboardStats {
   activeLives: number | null;
   principalLives: number | null;
@@ -79,75 +164,78 @@ export interface DashboardStats {
   totalPremium: number | null;
   claimsPaid: number | null;
   lossRatioPct: number | null;
-  policyPeriod: string | null;   // e.g. "Apr 2026 – Mar 2027"
-  policyYear: number | null;     // start year
+  policyPeriod: string | null;   // e.g. "1st April 2026 – 31st March 2027"
+  policyYear: number | null;
   policyFromDate: string | null;
   policyToDate: string | null;
 }
 
+// ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const groupId = session.user.companyId;
+  const groupId      = session.user.companyId  ?? '';
+  const policyNumber = session.user.policyNumber ?? '';
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
   try {
     const token = await getServiceToken();
 
-    const [premiumRaw, claimsRaw] = await Promise.all([
+    const [premiumRaw, claimsRaw, allPolicies] = await Promise.all([
       fetchJson(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
       fetchJson(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
+      getAllPolicies(token),
     ]);
 
-    // GetGroupPremium returns an array of per-member premium records
-    const rows = toRows(premiumRaw);
+    // ── Policy period from GetAllPolicies ────────────────────────────────────
+    const policy = findPolicy(allPolicies, groupId, policyNumber);
 
-    // Active members only
+    let policyPeriod: string | null = null;
+    let policyYear: number | null   = null;
+    let policyFromDate: string | null = null;
+    let policyToDate: string | null   = null;
+
+    if (policy) {
+      const fromStr = extractDateStr(policy, 'Fromdate','FromDate','StartDate','InceptionDate','CommencementDate','PolicyStartDate');
+      const toStr   = extractDateStr(policy, 'Todate',  'ToDate',  'EndDate',  'ExpiryDate',   'RenewalDate',    'PolicyEndDate');
+      const fromD   = parseDate(fromStr);
+      const toD     = parseDate(toStr);
+
+      if (fromD && toD) {
+        policyPeriod  = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+        policyYear    = fromD.getFullYear();
+        policyFromDate = fromStr;
+        policyToDate   = toStr;
+      }
+    }
+
+    // ── Active lives from GetGroupPremium ────────────────────────────────────
+    const rows = toRows(premiumRaw);
     const activeRows = rows.filter(
       (r) => String(r.MemberStatus_Desc ?? r.MemberStatusDesc ?? r.Status ?? '').toLowerCase() === 'active'
     );
-
-    // Unique active enrollee IDs → active lives count
     const activeIds = new Set(
       activeRows.map((r) => String(r.Member_EnrolleeID ?? r.MemberEnrolleeID ?? r.EnrolleeID ?? '')).filter(Boolean)
     );
-    const activeLives = activeIds.size > 0 ? activeIds.size : null;
-
-    // Principals = EnrolleeID ends with /0
-    const principalIds = new Set([...activeIds].filter((id) => id.endsWith('/0')));
-    const principalLives = principalIds.size > 0 ? principalIds.size : null;
+    const activeLives    = activeIds.size > 0 ? activeIds.size : null;
+    const principalLives = [...activeIds].filter((id) => id.endsWith('/0')).length || null;
     const dependantLives = activeLives !== null && principalLives !== null ? activeLives - principalLives : null;
 
-    // Total premium = sum of IndividualPremiumFees across ALL members (not just active)
+    // ── Premium (all members) ────────────────────────────────────────────────
     const totalPremium = rows.length > 0
       ? rows.reduce((sum, r) => sum + (toNumber(r.IndividualPremiumFees ?? r.PremiumFee ?? r.Premium) ?? 0), 0)
       : null;
 
-    // Claims paid — from GetGroupClaims
-    const claimRows = toRows(claimsRaw);
+    // ── Claims ───────────────────────────────────────────────────────────────
+    const claimRows  = toRows(claimsRaw);
     const claimsPaid = claimRows.length > 0
       ? claimRows.reduce((sum, r) => sum + (toNumber(r.ClaimAmount ?? r.AmountPaid ?? r.TotalClaimed ?? r.Amount) ?? 0), 0)
       : null;
 
-    // Loss ratio
     const lossRatioPct = (claimsPaid !== null && totalPremium && totalPremium > 0)
       ? Math.round((claimsPaid / totalPremium) * 100)
       : null;
-
-    // Policy period from first active row's Fromdate / Todate (DD/MM/YYYY)
-    const firstRow = activeRows[0] ?? rows[0];
-    const fromStr = String(firstRow?.Fromdate ?? firstRow?.FromDate ?? firstRow?.StartDate ?? '');
-    const toStr   = String(firstRow?.Todate   ?? firstRow?.ToDate   ?? firstRow?.EndDate   ?? '');
-
-    const fromParsed = fromStr ? parseDDMMYYYY(fromStr) : null;
-    const toParsed   = toStr   ? parseDDMMYYYY(toStr)   : null;
-
-    const policyPeriod = fromParsed && toParsed
-      ? `${MONTHS[fromParsed.month - 1]} ${fromParsed.year} – ${MONTHS[toParsed.month - 1]} ${toParsed.year}`
-      : null;
-
-    const policyYear = fromParsed?.year ?? null;
 
     const stats: DashboardStats = {
       activeLives,
@@ -158,18 +246,20 @@ export async function GET() {
       lossRatioPct,
       policyPeriod,
       policyYear,
-      policyFromDate: fromStr || null,
-      policyToDate:   toStr   || null,
+      policyFromDate,
+      policyToDate,
     };
 
     return NextResponse.json({
       stats,
       _debug: {
-        rowCount: rows.length,
+        matchedPolicy: policy,
+        policiesCount: allPolicies.length,
+        samplePolicy: allPolicies[0] ?? null,
+        premiumRowCount: rows.length,
         activeRowCount: activeRows.length,
-        sampleRow: rows[0] ?? null,
+        samplePremiumRow: rows[0] ?? null,
         claimsRowCount: claimRows.length,
-        claimsSampleRow: claimRows[0] ?? null,
       },
     });
   } catch (err) {
