@@ -2,7 +2,6 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
 
 // ── Prognosis staff login helper ──────────────────────────────────────────────
 async function prognosisStaffLogin(login: string, password: string) {
@@ -67,36 +66,70 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: '/login',
   },
   providers: [
-    // ── HR portal login (our DB) ──
+    // ── HR portal login (Prognosis ExternalPortalLogin) ──
     Credentials({
       id: 'hr-credentials',
       name: 'HR Credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
-        _loginType: { label: '', type: 'hidden' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        const base = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
+          .replace(/\/api$/, '')
+          .replace(/\/$/, '');
 
-        if (!user || !user.active) return null;
+        const serviceAuth =
+          'Basic ' +
+          Buffer.from(`${process.env.PROGNOSIS_USERNAME}:${process.env.PROGNOSIS_PASSWORD}`).toString('base64');
 
-        const valid = await bcrypt.compare(credentials.password as string, user.password);
-        if (!valid) return null;
+        try {
+          const res = await fetch(`${base}/api/Account/ExternalPortalLogin`, {
+            method: 'POST',
+            headers: { Authorization: serviceAuth, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              UserName: credentials.email,
+              Email: credentials.email,
+              Password: credentials.password,
+              LogInSource: 'Corporate',
+            }),
+          });
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          companyId: user.companyId ?? '',
-          companyName: user.companyName ?? '',
-          loginType: 'hr',
-        };
+          console.log(`[hr-login] POST ${base}/api/Account/ExternalPortalLogin → HTTP ${res.status}`);
+
+          if (res.status >= 400) {
+            console.log('[hr-login] auth failed, status:', res.status);
+            return null;
+          }
+
+          const data = await res.json();
+          console.log('[hr-login] response status:', data?.status, '| result length:', Array.isArray(data?.result) ? data.result.length : 'n/a');
+
+          if ([false, 'error', 'fail', 'failed'].includes(data?.status)) return null;
+
+          const user = Array.isArray(data?.result) ? data.result[0] : (data?.result ?? data?.user ?? data?.User ?? null);
+          if (!user) return null;
+
+          const prognosisToken: string | null =
+            data?.token ?? data?.Token ?? data?.access_token ?? data?.AccessToken ??
+            user?.Token ?? user?.AccessToken ?? user?.token ?? null;
+
+          return {
+            id: user.Id ?? user.id ?? user.UserId ?? String(credentials.email),
+            email: user.Email ?? user.email ?? String(credentials.email),
+            name: user.FullName ?? user.Name ?? user.name ?? user.UserName ?? String(credentials.email),
+            role: user.RoleName ?? user.Role ?? 'hr',
+            companyId: String(user.GroupID ?? user.GROUP_ID ?? user.CompanyId ?? user.companyId ?? ''),
+            companyName: String(user.GroupName ?? user.GROUP_NAME ?? user.CompanyName ?? user.companyName ?? ''),
+            loginType: 'hr',
+            prognosisToken: prognosisToken ?? '',
+          };
+        } catch (err) {
+          console.error('[hr-login] Prognosis auth error:', err);
+          return null;
+        }
       },
     }),
 
