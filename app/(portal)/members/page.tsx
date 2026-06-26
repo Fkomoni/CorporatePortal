@@ -149,8 +149,10 @@ function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: 
   );
 }
 
+interface RelationshipOption { text: string; value: string; }
+
 /* ── Add Member Modal ────────────────────────────────────────────────── */
-function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' | 'bulk'; onClose: () => void }) {
+function AddMemberModal({ initialMode, onClose, relationshipOptions }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[] }) {
   const [mode, setMode]             = useState<'individual' | 'bulk'>(initialMode ?? 'individual');
   const [memberType, setMemberType] = useState<'new' | 'existing'>('new');
   const [actionType, setActionType] = useState<'link' | 'form'>('link');
@@ -331,7 +333,10 @@ function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' |
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship</p>
                       <select style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
-                        {['Spouse', 'Child', 'Parent'].map((r) => <option key={r}>{r}</option>)}
+                        <option value="">Select relationship</option>
+                        {relationshipOptions.map((r) => (
+                          <option key={r.value} value={r.value}>{r.text}</option>
+                        ))}
                       </select>
                     </div>
                   )}
@@ -418,7 +423,7 @@ function AddMemberModal({ initialMode, onClose }: { initialMode?: 'individual' |
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, vis }: { member: Member; index: number; onClose: () => void; vis: PeopleVis }) {
+function Member360Drawer({ member, index, onClose, vis, relationshipOptions }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[] }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -772,17 +777,23 @@ function Member360Drawer({ member, index, onClose, vis }: { member: Member; inde
                     ))}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {[
-                      { label: 'Gender',       options: ['Female', 'Male'] },
-                      { label: 'Relationship', options: ['Spouse', 'Child', 'Parent', 'Sibling'] },
-                    ].map((f) => (
-                      <div key={f.label}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
-                        <select style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
-                          {f.options.map((o) => <option key={o}>{o}</option>)}
-                        </select>
-                      </div>
-                    ))}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Gender</p>
+                      <select style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                        {['Female', 'Male'].map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship</p>
+                      <select style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                        <option value="">Select relationship</option>
+                        {relationshipOptions
+                          .filter((r) => r.text !== 'Main member')
+                          .map((r) => (
+                            <option key={r.value} value={r.value}>{r.text}</option>
+                          ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
@@ -868,7 +879,15 @@ export default function MembersPage() {
   const [activeMember, setActiveMember]   = useState<{ member: Member; index: number } | null>(null);
   const [showAddModal, setShowAddModal]   = useState<false | 'individual' | 'bulk'>(false);
   const [viewBeneficiaries, setViewBeneficiaries] = useState(false);
+  const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetch('/api/hr/list-values')
+      .then((r) => r.json())
+      .then((d) => { if (d.relationships?.length) setRelationshipOptions(d.relationships); })
+      .catch(() => {});
+  }, []);
 
   const sourceList = viewBeneficiaries ? mockBeneficiaries : mockMembers;
 
@@ -1102,6 +1121,7 @@ export default function MembersPage() {
           index={activeMember.index}
           onClose={() => setActiveMember(null)}
           vis={vis}
+          relationshipOptions={relationshipOptions}
         />
       )}
 
@@ -1109,6 +1129,7 @@ export default function MembersPage() {
         <AddMemberModal
           initialMode={showAddModal}
           onClose={() => setShowAddModal(false)}
+          relationshipOptions={relationshipOptions}
         />
       )}
     </div>
