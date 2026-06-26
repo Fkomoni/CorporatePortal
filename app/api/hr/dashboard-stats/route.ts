@@ -230,23 +230,18 @@ function computeLossRatio({
   brokerage?: number;
   today?: Date;
 }): LossRatioResult {
-  const EMPTY: LossRatioResult = {
-    totalPremium: 0, earnedPremium: 0, paidClaims: 0, outstandingClaims: 0,
-    estimatedIBNR: 0, ibnrMethod: 'N/A', totalIncurredClaims: 0,
-    lossRatio: null, lossRatioPct: null, cor: null, brokerage, nhiaFee: 2,
-    adminFee: brokerage > 0 ? 12 : 15, riskStatus: 'Unknown', elapsedDays: 0, totalPolicyDays: 0,
-  };
-
   const ps = parseDate(policyStart);
   const pe = parseDate(policyEnd);
-  if (!ps || !pe) return EMPTY;
+  const hasPolicy = !!(ps && pe);
 
-  const totalPolicyDays = Math.max(daysApart(ps, pe), 1);
-  const asAt = today < pe ? today : pe;
-  const elapsedDays = Math.max(daysApart(ps, asAt), 0);
+  const totalPolicyDays = hasPolicy ? Math.max(daysApart(ps!, pe!), 1) : 0;
+  const asAt = hasPolicy ? (today < pe! ? today : pe!) : today;
+  const elapsedDays = hasPolicy ? Math.max(daysApart(ps!, asAt), 0) : 0;
 
   const totalPremium = premiumRows.reduce((s, r) => s + numField(r, PREMIUM_KEYS), 0);
-  const earnedPremium = totalPremium * (elapsedDays / totalPolicyDays);
+  const earnedPremium = hasPolicy && totalPolicyDays > 0
+    ? totalPremium * (elapsedDays / totalPolicyDays)
+    : 0;
 
   let paid = 0, outstanding = 0;
   const monthly: Record<string, number> = {};
@@ -256,7 +251,8 @@ function computeLossRatio({
       ? String(row[CLAIM_DATE_KEYS[0]])
       : strField(row, CLAIM_DATE_KEYS);
     const td = parseDate(tdStr);
-    if (td && (td < ps || td > pe)) continue;
+    // Only filter by policy date when we have dates; otherwise include all claims
+    if (hasPolicy && td && (td < ps! || td > pe!)) continue;
 
     const hasConfirmed = 'CLAIM_STATUS' in row;
     let isPaid = false;
@@ -302,7 +298,7 @@ function computeLossRatio({
   }
 
   const totalIncurred = paid + outstanding + ibnr;
-  const lossRatio = (claimsOk && earnedPremium > 0)
+  const lossRatio = (claimsOk && hasPolicy && earnedPremium > 0)
     ? +((totalIncurred / earnedPremium) * 100).toFixed(2)
     : null;
   const cor = lossRatio == null ? null

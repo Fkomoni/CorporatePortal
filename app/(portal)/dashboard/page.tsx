@@ -293,19 +293,26 @@ export default function DashboardPage() {
             const lrBorder = rs === 'Healthy' ? '#A7F3D0' : rs === 'Watchlist' ? '#FDE68A' : '#FECACA';
             return (
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
-            <div>
-              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>
-                Current Loss Ratio{policyYearLabel ? ` · ${policyYearLabel}` : ''}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                <span style={{ fontSize: 88, fontWeight: 900, color: lrColor, letterSpacing: '-0.05em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
-                {lossRatioPct !== null && <span style={{ fontSize: 42, fontWeight: 900, color: lrColor }}>%</span>}
-              </div>
-              {cor !== null && (
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 6 }}>
-                  COR <strong style={{ color: '#131C4E' }}>{cor}%</strong>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 40 }}>
+              <div>
+                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>
+                  Current Loss Ratio{policyYearLabel ? ` · ${policyYearLabel}` : ''}
                 </p>
-              )}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                  <span style={{ fontSize: 88, fontWeight: 900, color: lrColor, letterSpacing: '-0.05em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
+                  {lossRatioPct !== null && <span style={{ fontSize: 42, fontWeight: 900, color: lrColor }}>%</span>}
+                </div>
+              </div>
+              <div style={{ paddingBottom: 6 }}>
+                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Combined Operating Ratio</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                  <span style={{ fontSize: 44, fontWeight: 900, color: cor !== null ? lrColor : '#C4C9D9', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                    {cor !== null ? cor : '—'}
+                  </span>
+                  {cor !== null && <span style={{ fontSize: 22, fontWeight: 700, color: lrColor }}>%</span>}
+                </div>
+                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 4 }}>LR + NHIA 2% + Admin fees</p>
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: lrBg, border: `1px solid ${lrBorder}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: lrColor }}>
