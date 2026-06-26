@@ -9,7 +9,7 @@ import { useSession } from 'next-auth/react';
 
 interface Policy {
   id: string; groupId: string; name: string; schemeCode: string;
-  dateProvisioned: string; adminEmail: string; contactName: string;
+  dateProvisioned: string; adminEmail: string; contactName: string; phone: string;
   status: string; activeMembers: number; template: string; colors: string[];
 }
 
@@ -40,7 +40,7 @@ export default function CorporatesPage() {
   const [syncing, setSyncing]   = useState(false);
 
   // Bump this when the API response shape changes to bust the cache automatically
-  const CACHE_KEY = 'admin_policies_v3';
+  const CACHE_KEY = 'admin_policies_v4';
 
   const loadPolicies = useCallback(async () => {
     setError('');

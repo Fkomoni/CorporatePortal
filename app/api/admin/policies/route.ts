@@ -65,6 +65,7 @@ function normalizePolicy(p: Record<string, any>) {
 
   const adminEmail   = String(p.Company_Email1 ?? p.AdminEmail ?? p.ContactEmail ?? p.Email ?? '');
   const contactName  = String(p.Contact_name  ?? p.ContactName ?? p.contact_name ?? '');
+  const phone        = String(p.Phone1 ?? p.phone1 ?? p.Phone ?? p.phone ?? p.Mobile ?? p.mobile ?? '');
 
   const activeMembers = Number(p.NoOfLives ?? p.ActiveLives ?? p.TotalActiveLives ?? p.ActiveMembers ?? 0);
 
@@ -84,6 +85,7 @@ function normalizePolicy(p: Record<string, any>) {
     dateProvisioned,
     adminEmail,
     contactName,
+    phone,
     status,
     activeMembers,
     termDate: termDate ? termDate.toISOString().split('T')[0] : '',

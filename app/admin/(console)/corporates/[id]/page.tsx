@@ -9,7 +9,7 @@ import { ArrowLeft, Send, Users, Pencil, X, Plus, MoreHorizontal, Trash2 } from 
 
 interface Policy {
   id: string; groupId: string; name: string; schemeCode: string;
-  dateProvisioned: string; adminEmail: string; contactName: string;
+  dateProvisioned: string; adminEmail: string; contactName: string; phone: string;
   status: string; activeMembers: number; template: string; colors: string[];
 }
 
@@ -106,7 +106,7 @@ export default function CorporateDetailPage() {
 
     async function load() {
       // 1. Try sessionStorage cache first
-      const cached = sessionStorage.getItem('admin_policies_v3');
+      const cached = sessionStorage.getItem('admin_policies_v4');
       if (cached) {
         try {
           const list: Policy[] = JSON.parse(cached);
@@ -128,7 +128,7 @@ export default function CorporateDetailPage() {
         const json = await res.json();
         if (res.ok) {
           const list: Policy[] = json.policies ?? [];
-          sessionStorage.setItem('admin_policies_v3', JSON.stringify(list));
+          sessionStorage.setItem('admin_policies_v4', JSON.stringify(list));
           const found = list.find((p) => p.groupId === rawId || p.id === rawId);
           if (found) {
             setCorp(found);
@@ -202,7 +202,7 @@ export default function CorporateDetailPage() {
     setSignupFirst(parts[0] ?? '');
     setSignupSurname(parts.slice(1).join(' '));
     setSignupEmail(corp.adminEmail);
-    setSignupMobile('');
+    setSignupMobile(corp.phone ?? '');
     setSignupError('');
     setSignupDebug(null);
     setShowSignupModal(true);
@@ -212,10 +212,6 @@ export default function CorporateDetailPage() {
     if (!corp) return;
     setSignupError('');
     setSignupDebug(null);
-    if (!signupMobile.trim()) {
-      setSignupError('Mobile number is required.');
-      return;
-    }
     setSignupLoading(true);
     try {
       const res = await fetch('/api/admin/corporates/send-signup', {
@@ -521,11 +517,11 @@ export default function CorporateDetailPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Mobile Number <span style={{ color: '#EF4444' }}>*</span></label>
+                <label style={labelStyle}>Mobile Number</label>
                 <input type="tel" value={signupMobile} onChange={(e) => setSignupMobile(e.target.value)} placeholder="e.g. 08012345678"
-                  style={{ ...inputStyle, borderColor: signupError && !signupMobile ? '#EF4444' : '#E5E7F1' }}
+                  style={inputStyle}
                   onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = signupError && !signupMobile ? '#EF4444' : '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
               </div>
 
               {signupError && (
