@@ -599,16 +599,20 @@ export async function GET() {
     for (const r of claimRows) {
       const name     = String(r.Provider ?? r.ProviderName ?? '').trim();
       const location = String(r.ProviderLocation ?? r.Location ?? r.State ?? '').trim();
-      const claimNo  = String(r.ClaimNumber ?? '').trim();
+      const claimNo  = String(r.ClaimNumber ?? r.Claim_Number ?? '').trim();
+      const memberId = String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim();
+      const txDate   = String(r.TreatmentDate ?? r.DateOfService ?? '').trim().slice(0, 10);
+      // Unique visit key: prefer ClaimNumber; fall back to member+date to avoid missing rows
+      const visitKey = claimNo || (memberId && txDate ? `${memberId}|${txDate}` : '');
       const paid     = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
       if (!name) continue;
       const existing = providerMap.get(name);
       if (existing) {
-        if (claimNo) existing.visits.add(claimNo);
+        if (visitKey) existing.visits.add(visitKey);
         existing.amtPaid += paid;
       } else {
         const visits = new Set<string>();
-        if (claimNo) visits.add(claimNo);
+        if (visitKey) visits.add(visitKey);
         providerMap.set(name, { location, visits, amtPaid: paid });
       }
     }
@@ -620,17 +624,20 @@ export async function GET() {
     // ── Top 5 service types ───────────────────────────────────────────────────
     const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
-      const svc     = String(r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
-      const claimNo = String(r.ClaimNumber ?? '').trim();
-      const paid    = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
+      const svc      = String(r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
+      const claimNo  = String(r.ClaimNumber ?? r.Claim_Number ?? '').trim();
+      const memberId = String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim();
+      const txDate   = String(r.TreatmentDate ?? r.DateOfService ?? '').trim().slice(0, 10);
+      const visitKey = claimNo || (memberId && txDate ? `${memberId}|${txDate}` : '');
+      const paid     = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
       if (!svc) continue;
       const existing = serviceMap.get(svc);
       if (existing) {
-        if (claimNo) existing.visits.add(claimNo);
+        if (visitKey) existing.visits.add(visitKey);
         existing.amtPaid += paid;
       } else {
         const visits = new Set<string>();
-        if (claimNo) visits.add(claimNo);
+        if (visitKey) visits.add(visitKey);
         serviceMap.set(svc, { visits, amtPaid: paid });
       }
     }
