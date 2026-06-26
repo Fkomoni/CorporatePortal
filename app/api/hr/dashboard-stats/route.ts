@@ -278,7 +278,7 @@ function computeLossRatio({
     const countForIbnr = hasConfirmed
       ? String(row.CLAIM_STATUS ?? '').trim() === 'Paid Claims'
       : isPaid;
-    if (countForIbnr && td && td >= ps) {
+    if (countForIbnr && td && (!ps || td >= ps)) {
       const amt = hasConfirmed ? numField(row, ['AmtPaid']) : paidAmt;
       const ym = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}`;
       monthly[ym] = (monthly[ym] ?? 0) + amt;
