@@ -72,12 +72,25 @@ interface DashboardStats {
   newThisMonth: number | null;
   newThisMonthLabel: string | null;
   totalPremium: number | null;
+  earnedPremium: number | null;
+  elapsedDays: number | null;
+  totalPolicyDays: number | null;
   claimsPaid: number | null;
+  outstandingClaims: number | null;
+  estimatedIBNR: number | null;
+  ibnrMethod: string | null;
+  totalIncurredClaims: number | null;
   amtClaimed: number | null;
   uniqueClaimsCount: number | null;
   membersUtilized: number | null;
   utilizationRatePct: number | null;
   lossRatioPct: number | null;
+  lossRatioExact: number | null;
+  cor: number | null;
+  brokerage: number | null;
+  nhiaFee: number | null;
+  adminFee: number | null;
+  riskStatus: string | null;
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
   policyPeriod: string | null;
@@ -129,8 +142,11 @@ export default function DashboardPage() {
   const newThisMonth       = stats?.newThisMonth       ?? null;
   const newThisMonthLabel  = stats?.newThisMonthLabel  ?? null;
   const totalPremium       = stats?.totalPremium       ?? null;
+  const earnedPremium      = stats?.earnedPremium      ?? null;
   const claimsPaid         = stats?.claimsPaid         ?? null;
   const lossRatioPct       = stats?.lossRatioPct       ?? null;
+  const cor                = stats?.cor                ?? null;
+  const riskStatus         = stats?.riskStatus         ?? null;
   const utilizationRatePct = stats?.utilizationRatePct ?? null;
   const membersUtilized    = stats?.membersUtilized    ?? null;
   const liveTopProviders   = stats?.topProviders       ?? null;
@@ -229,9 +245,9 @@ export default function DashboardPage() {
             {
               value: lossRatioPct !== null ? `${lossRatioPct}%` : '—',
               label: 'Loss Ratio',
-              sub: lossRatioPct !== null && lossRatioPct >= 90 ? '⬤ Red · High' : lossRatioPct !== null && lossRatioPct >= 70 ? '⬤ Amber' : lossRatioPct !== null ? '⬤ Green' : '—',
-              subColor: lossRatioPct !== null && lossRatioPct >= 90 ? '#EF4444' : '#D97706',
-              rail: lossRatioPct !== null && lossRatioPct >= 90 ? '#EF4444' : '#D97706',
+              sub: riskStatus === 'Healthy' ? '⬤ Healthy' : riskStatus === 'Watchlist' ? '⬤ Watchlist' : riskStatus === 'High Risk' ? '⬤ High Risk' : riskStatus === 'Critical' ? '⬤ Critical' : '—',
+              subColor: riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : riskStatus === 'High Risk' || riskStatus === 'Critical' ? '#EF4444' : '#9CA3B8',
+              rail: riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : '#EF4444',
             },
             {
               value: totalPremium !== null ? fmtNaira(totalPremium) : '—',
@@ -255,11 +271,10 @@ export default function DashboardPage() {
         {vis.showLossRatio && (
         <div style={{ ...card, padding: '32px 36px' }}>
           {(() => {
-            const lr = lossRatioPct ?? 77;
-            const lrColor = lr >= 90 ? '#EF4444' : lr >= 70 ? '#D97706' : '#10B981';
-            const lrStatus = lr >= 90 ? 'Red Status' : lr >= 70 ? 'Amber Status' : 'Green Status';
-            const lrBg = lr >= 90 ? '#FEF2F2' : lr >= 70 ? '#FFFBEB' : '#ECFDF5';
-            const lrBorder = lr >= 90 ? '#FECACA' : lr >= 70 ? '#FDE68A' : '#A7F3D0';
+            const rs = riskStatus ?? (lossRatioPct !== null ? (lossRatioPct <= 60 ? 'Healthy' : lossRatioPct <= 80 ? 'Watchlist' : lossRatioPct <= 100 ? 'High Risk' : 'Critical') : 'Unknown');
+            const lrColor  = rs === 'Healthy' ? '#10B981' : rs === 'Watchlist' ? '#D97706' : '#EF4444';
+            const lrBg     = rs === 'Healthy' ? '#ECFDF5' : rs === 'Watchlist' ? '#FFFBEB' : '#FEF2F2';
+            const lrBorder = rs === 'Healthy' ? '#A7F3D0' : rs === 'Watchlist' ? '#FDE68A' : '#FECACA';
             return (
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
             <div>
@@ -270,16 +285,21 @@ export default function DashboardPage() {
                 <span style={{ fontSize: 88, fontWeight: 900, color: lrColor, letterSpacing: '-0.05em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
                 {lossRatioPct !== null && <span style={{ fontSize: 42, fontWeight: 900, color: lrColor }}>%</span>}
               </div>
+              {cor !== null && (
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 6 }}>
+                  COR <strong style={{ color: '#131C4E' }}>{cor}%</strong>
+                </p>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: lrBg, border: `1px solid ${lrBorder}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: lrColor }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: lrColor, display: 'inline-block' }} />
-                {lrStatus}
+                {rs}
               </span>
               <div style={{ display: 'flex', gap: 32 }}>
                 {([
-                  { label: 'Claims Paid', value: fmtNaira(claimsPaid) },
-                  { label: 'Premium',     value: fmtNaira(totalPremium) },
+                  { label: 'Claims Paid',     value: fmtNaira(claimsPaid) },
+                  { label: 'Earned Premium',  value: fmtNaira(earnedPremium ?? totalPremium) },
                 ] as { label: string; value: string }[]).map((m) => (
                   <div key={m.label}>
                     <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 3 }}>{m.label}</p>
@@ -308,7 +328,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9CA3B8' }}>
               <TrendingDown className="w-3.5 h-3.5" strokeWidth={2} />
-              {lossRatioPct !== null ? `${lossRatioPct}% current · Projected to reach ${Math.min(lossRatioPct + 7, 99)}% by year-end` : 'Loss ratio data loading…'}
+              {lossRatioPct !== null ? `${lossRatioPct}% current (${riskStatus ?? '—'}) · COR ${cor !== null ? `${cor}%` : '—'}` : 'Loss ratio data loading…'}
             </div>
           </div>
         </div>
