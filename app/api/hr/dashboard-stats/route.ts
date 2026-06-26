@@ -1,5 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
+import { prisma } from '@/lib/prisma';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -331,6 +333,91 @@ function computeLossRatio({
   };
 }
 
+// ── Scheme Health Score ───────────────────────────────────────────────────────
+function computeHealthScore({
+  lossRatio, cor, utilizationRate, outstandingClaims, paidClaims,
+}: {
+  lossRatio: number | null;
+  cor: number | null;
+  utilizationRate: number | null;
+  outstandingClaims: number;
+  paidClaims: number;
+}): { score: number; label: string } {
+  // Loss ratio (50%)
+  const lrScore = lossRatio === null ? 50
+    : lossRatio <= 60 ? 100
+    : lossRatio <= 70 ? 85
+    : lossRatio <= 80 ? 70
+    : lossRatio <= 90 ? 50
+    : lossRatio <= 100 ? 30
+    : 10;
+
+  // COR (20%)
+  const corScore = cor === null ? 50
+    : cor <= 80 ? 100
+    : cor <= 95 ? 75
+    : cor <= 110 ? 50
+    : cor <= 125 ? 30
+    : 10;
+
+  // Utilization rate (20%) — 15–35% is the healthy range
+  const u = utilizationRate;
+  const utilScore = u === null ? 50
+    : u >= 15 && u <= 35 ? 100
+    : u > 35 && u <= 50 ? 75
+    : u > 50 && u <= 65 ? 50
+    : u > 65 ? 30
+    : 60; // < 15%: slight penalty for under-access
+
+  // Claims settlement ratio (10%)
+  const total = paidClaims + outstandingClaims;
+  const settleScore = total === 0 ? 100
+    : outstandingClaims / total < 0.10 ? 100
+    : outstandingClaims / total < 0.20 ? 80
+    : outstandingClaims / total < 0.30 ? 60
+    : 40;
+
+  const score = Math.round(lrScore * 0.50 + corScore * 0.20 + utilScore * 0.20 + settleScore * 0.10);
+
+  const label = score >= 85 ? 'Excellent'
+    : score >= 70 ? 'Healthy'
+    : score >= 55 ? 'Watchlist'
+    : score >= 40 ? 'At Risk'
+    : 'Critical';
+
+  return { score, label };
+}
+
+// Store this month's snapshot; read previous quarter for trend (raw SQL — graceful if table not yet migrated)
+async function upsertHealthSnapshot(groupId: string, yearMonth: string, snap: {
+  score: number; lossRatio: number | null; cor: number | null; utilRate: number | null; riskStatus: string | null;
+}): Promise<void> {
+  try {
+    const id = randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO scheme_health_snapshots (id,"groupId","yearMonth",score,"lossRatio",cor,"utilRate","riskStatus","createdAt","updatedAt")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
+       ON CONFLICT ("groupId","yearMonth") DO UPDATE SET
+         score=$4,"lossRatio"=$5,cor=$6,"utilRate"=$7,"riskStatus"=$8,"updatedAt"=NOW()`,
+      id, groupId, yearMonth, snap.score, snap.lossRatio, snap.cor, snap.utilRate, snap.riskStatus,
+    );
+  } catch { /* table not yet migrated — silent until first deploy */ }
+}
+
+async function getPreviousQuarterScore(groupId: string, currentYM: string): Promise<number | null> {
+  try {
+    const [y, m] = currentYM.split('-').map(Number);
+    const pm = m - 3;
+    const py = y + Math.floor((pm - 1) / 12);
+    const prevYM = `${py}-${String(((pm - 1 + 12) % 12) + 1).padStart(2, '0')}`;
+    const rows = await prisma.$queryRawUnsafe<{ score: number }[]>(
+      `SELECT score FROM scheme_health_snapshots WHERE "groupId"=$1 AND "yearMonth"=$2 LIMIT 1`,
+      groupId, prevYM,
+    );
+    return rows.length > 0 ? Number(rows[0].score) : null;
+  } catch { return null; }
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface DashboardStats {
   activeLives: number | null;
@@ -364,6 +451,11 @@ export interface DashboardStats {
   // Top breakdowns (top 5 each)
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
+  // Scheme Health Score
+  schemeHealthScore: number | null;
+  schemeHealthLabel: string | null;
+  schemeHealthTrend: number | null;      // delta vs same month 3 months ago
+  schemeHealthTrendLabel: string | null; // e.g. "+3 from last quarter"
   // Policy
   policyPeriod: string | null;
   policyYear: number | null;
@@ -538,6 +630,35 @@ export async function GET() {
       ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
       : null;
 
+    // ── Scheme Health Score ───────────────────────────────────────────────────
+    const hs = computeHealthScore({
+      lossRatio:       lr.lossRatio,
+      cor:             lr.cor,
+      utilizationRate: utilizationRatePct,
+      outstandingClaims: lr.outstandingClaims,
+      paidClaims:      lr.paidClaims,
+    });
+
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Persist this month's snapshot and retrieve last quarter's for trend (non-blocking)
+    const [, prevScore] = await Promise.all([
+      upsertHealthSnapshot(groupId, currentYM, {
+        score: hs.score, lossRatio: lr.lossRatio, cor: lr.cor,
+        utilRate: utilizationRatePct, riskStatus: lr.riskStatus,
+      }),
+      getPreviousQuarterScore(groupId, currentYM),
+    ]);
+
+    const schemeHealthTrend = prevScore !== null ? hs.score - prevScore : null;
+    const schemeHealthTrendLabel = schemeHealthTrend !== null
+      ? schemeHealthTrend > 0
+        ? `▲ +${schemeHealthTrend} from last quarter`
+        : schemeHealthTrend < 0
+          ? `▼ ${schemeHealthTrend} from last quarter`
+          : 'No change from last quarter'
+      : null;
+
     const stats: DashboardStats = {
       activeLives,
       principalLives,
@@ -564,6 +685,10 @@ export async function GET() {
       nhiaFee:            lr.nhiaFee,
       adminFee:           lr.adminFee,
       riskStatus:         lr.riskStatus,
+      schemeHealthScore:      hs.score,
+      schemeHealthLabel:      hs.label,
+      schemeHealthTrend,
+      schemeHealthTrendLabel,
       topProviders,
       topServices,
       policyPeriod,
