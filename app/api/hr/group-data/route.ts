@@ -36,42 +36,47 @@ async function hit(token: string, path: string) {
     const text = await res.text();
     let body: unknown;
     try { body = JSON.parse(text); } catch { body = text; }
-    return { url, status: res.status, body };
+    return { url, status: res.status, ok: res.ok, body };
   } catch (err) {
-    return { url, status: 0, error: err instanceof Error ? err.message : String(err) };
+    return { url, status: 0, ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // groupId comes from the session (HR user's companyId) — never hardcoded.
-  // Staff/admin can override via ?groupId= for debugging only.
-  const { searchParams } = new URL(req.url);
-  const sessionGroupId = session.user.companyId;
-  const groupId = searchParams.get('groupId') ?? sessionGroupId;
-
-  if (!groupId) {
-    return NextResponse.json({ error: 'No group ID: account has no companyId and no ?groupId param provided' }, { status: 400 });
+  if (session.user.loginType !== 'hr') {
+    return NextResponse.json({ error: 'Forbidden: HR accounts only' }, { status: 403 });
   }
 
-  const cifno = searchParams.get('cifno') ?? groupId;
+  const groupId = session.user.companyId;
+  if (!groupId) {
+    return NextResponse.json({ error: 'No group ID associated with this account' }, { status: 400 });
+  }
 
-  const token = await getServiceToken();
+  const policyNumber = session.user.policyNumber;
 
-  const [groupPremium, groupClaims, memberPremium, allPolicies] = await Promise.all([
-    hit(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
-    hit(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
-    hit(token, `/api/EnrolleeProfile/GetMemberPremium?cifno=${cifno}`),
-    hit(token, `/api/CorporateProfile/GetAllPolicies`),
-  ]);
+  try {
+    const token = await getServiceToken();
 
-  return NextResponse.json({
-    groupId,
-    cifno,
-    sessionCompanyId: sessionGroupId,
-    policyNumber: session.user.policyNumber,
-    results: { groupPremium, groupClaims, memberPremium, allPolicies },
-  }, { status: 200 });
+    const [groupPremium, groupClaims, groupMembers, groupDetails] = await Promise.all([
+      hit(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
+      hit(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
+      hit(token, `/api/EnrolleeProfile/GetGroupMembers?groupid=${groupId}`),
+      hit(token, `/api/CorporateProfile/GetGroupDetails?groupid=${groupId}`),
+    ]);
+
+    return NextResponse.json({
+      groupId,
+      policyNumber,
+      companyName: session.user.companyName,
+      data: { groupPremium, groupClaims, groupMembers, groupDetails },
+    });
+  } catch (err) {
+    console.error('[hr/group-data] Error:', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to fetch group data' },
+      { status: 500 }
+    );
+  }
 }

@@ -95,6 +95,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           companyId: user.companyId ?? '',
           companyName: user.companyName ?? '',
+          policyNumber: user.policyNumber ?? '',
           loginType: 'hr',
         };
       },
@@ -138,6 +139,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role           = (user as { role?: string }).role;
         token.companyId      = (user as { companyId?: string }).companyId ?? '';
         token.companyName    = (user as { companyName?: string }).companyName ?? '';
+        token.policyNumber   = (user as { policyNumber?: string }).policyNumber ?? '';
         token.loginType      = (user as { loginType?: string }).loginType ?? 'hr';
         token.prognosisToken = (user as { prognosisToken?: string }).prognosisToken ?? '';
       }
@@ -145,12 +147,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id                         = token.sub ?? '';
-        (session.user as { role?: string }).role                     = token.role as string;
-        (session.user as { loginType?: string }).loginType           = token.loginType as string;
-        (session.user as { companyId?: string }).companyId           = token.companyId as string;
-        (session.user as { companyName?: string }).companyName       = token.companyName as string;
-        (session.user as { prognosisToken?: string }).prognosisToken = token.prognosisToken as string;
+        session.user.id             = token.sub ?? '';
+        session.user.role           = (token.role as string) ?? '';
+        session.user.loginType      = (token.loginType as string) ?? '';
+        session.user.companyId      = (token.companyId as string) ?? '';
+        session.user.companyName    = (token.companyName as string) ?? '';
+        session.user.policyNumber   = (token.policyNumber as string) ?? '';
+        session.user.prognosisToken = (token.prognosisToken as string) ?? '';
       }
       return session;
     },

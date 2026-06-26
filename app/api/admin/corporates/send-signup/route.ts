@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
+  // groupId = Prognosis GROUP_ID; PolicyNumber = GROUP_CODE/scheme code; companyName = GROUP_NAME
   const { PolicyNumber, groupId, companyName, email, mobile, firstname, surname } = body;
 
   if (!PolicyNumber || !email) {
@@ -107,7 +109,6 @@ export async function POST(req: Request) {
     console.log('[send-signup] HTTP   :', res.status);
     console.log('[send-signup] Body   :', JSON.stringify(data, null, 2));
 
-    // Always return full debug info so it's visible in the browser network tab
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const debug = { httpStatus: res.status, requestPayload, prognosisResponse: data };
@@ -124,13 +125,43 @@ export async function POST(req: Request) {
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
-    // Build registration link
+    // Build registration link with all scheme identifiers embedded
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
     const registrationLink = otp
       ? `${appBase}/verify-registration?email=${encodeURIComponent(email)}&code=${encodeURIComponent(String(otp))}&groupId=${encodeURIComponent(groupId ?? '')}&company=${encodeURIComponent(companyName ?? '')}&name=${encodeURIComponent(`${firstname ?? ''} ${surname ?? ''}`.trim())}`
       : `${appBase}/verify-registration?email=${encodeURIComponent(email)}`;
 
-    // Send email via Prognosis SendEmailAlert
+    // Pre-register HR user in our DB so scheme/policy details are available at verify time.
+    // active=false until they complete verify-registration.
+    if (groupId || companyName || PolicyNumber) {
+      try {
+        const fullName = [firstname, surname].filter(Boolean).join(' ') || email;
+        await prisma.user.upsert({
+          where: { email },
+          update: {
+            companyId: groupId ? String(groupId) : undefined,
+            companyName: companyName || undefined,
+            policyNumber: PolicyNumber || undefined,
+            name: fullName,
+          },
+          create: {
+            email,
+            password: '',
+            name: fullName,
+            role: 'hr_admin',
+            companyId: groupId ? String(groupId) : null,
+            companyName: companyName || null,
+            policyNumber: PolicyNumber || null,
+            active: false,
+          },
+        });
+        console.log(`[send-signup] Pre-registered HR user: ${email} (groupId: ${groupId}, policyNumber: ${PolicyNumber})`);
+      } catch (dbErr) {
+        console.error('[send-signup] DB pre-registration failed (non-fatal):', dbErr);
+      }
+    }
+
+    // Send registration email via Prognosis SendEmailAlert
     let emailSent = false;
     let emailError: string | null = null;
     let emailResponse: unknown = null;
