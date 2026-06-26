@@ -93,7 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               UserName: credentials.email,
               Email: credentials.email,
               Password: credentials.password,
-              LogInSource: 'Corporate',
+              LogInSource: 'Client',
             }),
           });
 
@@ -105,9 +105,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           const data = await res.json();
-          console.log('[hr-login] response status:', data?.status, '| result length:', Array.isArray(data?.result) ? data.result.length : 'n/a');
+          console.log('[hr-login] full response:', JSON.stringify(data).slice(0, 500));
 
-          if ([false, 'error', 'fail', 'failed'].includes(data?.status)) return null;
+          // Prognosis uses numeric status codes inside a 200 response for errors
+          if (!data || data?.status === false || [false, 'error', 'fail', 'failed'].includes(data?.status)
+              || (typeof data?.status === 'number' && data.status >= 400)) {
+            console.log('[hr-login] Prognosis application error, status:', data?.status);
+            return null;
+          }
 
           const user = Array.isArray(data?.result) ? data.result[0] : (data?.result ?? data?.user ?? data?.User ?? null);
           if (!user) return null;
