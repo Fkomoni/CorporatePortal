@@ -161,12 +161,20 @@ export interface DashboardStats {
   activeLives: number | null;
   principalLives: number | null;
   dependantLives: number | null;
-  newThisMonth: number | null;        // unique members whose MemberOriginalStartdate is this calendar month
-  newThisMonthLabel: string | null;   // e.g. "June 2026"
+  newThisMonth: number | null;
+  newThisMonthLabel: string | null;
   totalPremium: number | null;
-  claimsPaid: number | null;
+  // Claims
+  claimsPaid: number | null;          // sum of AmtPaid (Paid status)
+  amtClaimed: number | null;          // sum of AmtClaimed
+  uniqueClaimsCount: number | null;   // unique ClaimNumber
+  membersUtilized: number | null;     // unique MemberShipNo who accessed care
+  utilizationRatePct: number | null;  // membersUtilized / activeLives * 100
   lossRatioPct: number | null;
-  policyPeriod: string | null;   // e.g. "1st April 2026 – 31st March 2027"
+  // Top breakdowns (top 5 each)
+  topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
+  topServices: { service: string; visits: number; amtPaid: number }[];
+  policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
   policyToDate: string | null;
@@ -260,15 +268,90 @@ export async function GET() {
       ? rows.reduce((sum, r) => sum + (toNumber(r.IndividualPremiumFees ?? r.PremiumFee ?? r.Premium) ?? 0), 0)
       : null;
 
-    // ── Claims ───────────────────────────────────────────────────────────────
-    const claimRows  = toRows(claimsRaw);
-    const claimsPaid = claimRows.length > 0
-      ? claimRows.reduce((sum, r) => sum + (toNumber(r.ClaimAmount ?? r.AmountPaid ?? r.TotalClaimed ?? r.Amount) ?? 0), 0)
+    // ── Claims (GetGroupClaims fields confirmed) ─────────────────────────────
+    const claimRows = toRows(claimsRaw);
+
+    // Paid claims only for financial totals
+    const paidRows = claimRows.filter(
+      (r) => String(r.CLAIM_STATUS ?? r.ClaimStatus ?? '').trim().toLowerCase().startsWith('paid')
+    );
+
+    const claimsPaid = paidRows.length > 0
+      ? paidRows.reduce((sum, r) => sum + (toNumber(r.AmtPaid ?? r.AmountPaid ?? r.AmtClaimed) ?? 0), 0)
+      : claimRows.length > 0   // fallback: no status filter if CLAIM_STATUS absent
+        ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0), 0)
+        : null;
+
+    const amtClaimed = claimRows.length > 0
+      ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
       : null;
+
+    // Unique hospital visits = unique ClaimNumber
+    const uniqueClaimNos = new Set(
+      claimRows.map((r) => String(r.ClaimNumber ?? r.Claim_Number ?? '').trim()).filter(Boolean)
+    );
+    const uniqueClaimsCount = uniqueClaimNos.size > 0 ? uniqueClaimNos.size : null;
+
+    // Members who accessed care = unique MemberShipNo
+    const utilizedMemberIds = new Set(
+      claimRows.map((r) => String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim()).filter(Boolean)
+    );
+    const membersUtilized = utilizedMemberIds.size > 0 ? utilizedMemberIds.size : null;
+
+    // Utilization rate
+    const utilizationRatePct =
+      membersUtilized !== null && activeLives && activeLives > 0
+        ? Math.round((membersUtilized / activeLives) * 100)
+        : null;
 
     const lossRatioPct = (claimsPaid !== null && totalPremium && totalPremium > 0)
       ? Math.round((claimsPaid / totalPremium) * 100)
       : null;
+
+    // Top 5 providers by visit count
+    const providerMap = new Map<string, { location: string; visits: Set<string>; amtPaid: number }>();
+    for (const r of claimRows) {
+      const name     = String(r.Provider ?? r.ProviderName ?? '').trim();
+      const location = String(r.ProviderLocation ?? r.Location ?? r.State ?? '').trim();
+      const claimNo  = String(r.ClaimNumber ?? '').trim();
+      const paid     = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
+      if (!name) continue;
+      const existing = providerMap.get(name);
+      if (existing) {
+        if (claimNo) existing.visits.add(claimNo);
+        existing.amtPaid += paid;
+      } else {
+        const visits = new Set<string>();
+        if (claimNo) visits.add(claimNo);
+        providerMap.set(name, { location, visits, amtPaid: paid });
+      }
+    }
+    const topProviders = [...providerMap.entries()]
+      .map(([name, d]) => ({ name, location: d.location, visits: d.visits.size, amtPaid: d.amtPaid }))
+      .sort((a, b) => b.visits - a.visits)
+      .slice(0, 5);
+
+    // Top 5 service types by visit count
+    const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
+    for (const r of claimRows) {
+      const svc     = String(r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
+      const claimNo = String(r.ClaimNumber ?? '').trim();
+      const paid    = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
+      if (!svc) continue;
+      const existing = serviceMap.get(svc);
+      if (existing) {
+        if (claimNo) existing.visits.add(claimNo);
+        existing.amtPaid += paid;
+      } else {
+        const visits = new Set<string>();
+        if (claimNo) visits.add(claimNo);
+        serviceMap.set(svc, { visits, amtPaid: paid });
+      }
+    }
+    const topServices = [...serviceMap.entries()]
+      .map(([service, d]) => ({ service, visits: d.visits.size, amtPaid: d.amtPaid }))
+      .sort((a, b) => b.visits - a.visits)
+      .slice(0, 5);
 
     const stats: DashboardStats = {
       activeLives,
@@ -278,7 +361,13 @@ export async function GET() {
       newThisMonthLabel,
       totalPremium,
       claimsPaid,
+      amtClaimed,
+      uniqueClaimsCount,
+      membersUtilized,
+      utilizationRatePct,
       lossRatioPct,
+      topProviders,
+      topServices,
       policyPeriod,
       policyYear,
       policyFromDate,
@@ -295,6 +384,12 @@ export async function GET() {
         activeRowCount: activeRows.length,
         samplePremiumRow: rows[0] ?? null,
         claimsRowCount: claimRows.length,
+        paidClaimsRowCount: paidRows.length,
+        sampleClaimRow: claimRows[0] ?? null,
+        uniqueClaimsCount,
+        membersUtilized,
+        topProviders,
+        topServices,
       },
     });
   } catch (err) {
