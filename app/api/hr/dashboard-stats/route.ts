@@ -245,7 +245,6 @@ function computeLossRatio({
   let earnedPremium = 0;
   for (const r of premiumRows) {
     const fee = numField(r, PREMIUM_KEYS);
-    if (fee <= 0) continue;
     const mFromStr = strField(r, ['Fromdate','FromDate','PolicyFrom','PolicyFromDate','StartDate','InceptionDate']);
     const mToStr   = strField(r, ['Todate',  'ToDate',  'PolicyTo',  'PolicyToDate',  'EndDate',  'ExpiryDate']);
     const mFrom = parseDate(mFromStr);
