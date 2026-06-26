@@ -66,3 +66,19 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
+
+model SchemeHealthSnapshot {
+  id         String   @id @default(cuid())
+  groupId    String
+  yearMonth  String   // "YYYY-MM"
+  score      Int
+  lossRatio  Float?
+  cor        Float?
+  utilRate   Float?
+  riskStatus String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([groupId, yearMonth])
+  @@map("scheme_health_snapshots")
+}

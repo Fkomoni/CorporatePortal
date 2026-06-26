@@ -91,6 +91,10 @@ interface DashboardStats {
   nhiaFee: number | null;
   adminFee: number | null;
   riskStatus: string | null;
+  schemeHealthScore: number | null;
+  schemeHealthLabel: string | null;
+  schemeHealthTrend: number | null;
+  schemeHealthTrendLabel: string | null;
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
   policyPeriod: string | null;
@@ -149,7 +153,10 @@ export default function DashboardPage() {
   const riskStatus         = stats?.riskStatus         ?? null;
   const utilizationRatePct = stats?.utilizationRatePct ?? null;
   const membersUtilized    = stats?.membersUtilized    ?? null;
-  const liveTopProviders   = stats?.topProviders       ?? null;
+  const liveTopProviders      = stats?.topProviders         ?? null;
+  const schemeHealthScore     = stats?.schemeHealthScore    ?? null;
+  const schemeHealthLabel     = stats?.schemeHealthLabel    ?? null;
+  const schemeHealthTrendLabel = stats?.schemeHealthTrendLabel ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -167,24 +174,33 @@ export default function DashboardPage() {
               {[companyName, policyYearLabel ? `Policy year ${policyYearLabel}` : null].filter(Boolean).join('  ·  ') || 'Loading policy details…'}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, padding: '14px 22px', flexShrink: 0 }}>
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Scheme Health Score</p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                <span style={{ fontSize: 32, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>82</span>
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#C4C9D9' }}>/100</span>
+          {schemeHealthScore !== null && (() => {
+            const hsColor = schemeHealthLabel === 'Excellent' ? '#10B981'
+              : schemeHealthLabel === 'Healthy' ? '#10B981'
+              : schemeHealthLabel === 'Watchlist' ? '#D97706'
+              : schemeHealthLabel === 'At Risk' ? '#F56B22'
+              : '#EF4444';
+            return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, padding: '14px 22px', flexShrink: 0 }}>
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Scheme Health Score</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>{schemeHealthScore}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: '#C4C9D9' }}>/100</span>
+                </div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: hsColor, marginTop: 4 }}>● {schemeHealthLabel}</p>
               </div>
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#10B981', marginTop: 4 }}>● Healthy</p>
-            </div>
-            <div style={{ width: 1, height: 44, background: '#EDEEF2' }} />
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Score Trend</p>
-              <div style={{ width: 88, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ width: '82%', height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
+              <div style={{ width: 1, height: 44, background: '#EDEEF2' }} />
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Score Trend</p>
+                <div style={{ width: 88, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ width: `${schemeHealthScore}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg,${hsColor === '#10B981' ? '#10B981,#34D399' : hsColor === '#D97706' ? '#F59E0B,#FCD34D' : '#F56B22,#FF8C4B'})` }} />
+                </div>
+                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{schemeHealthTrendLabel ?? 'Building trend data…'}</p>
               </div>
-              <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>▲ +3 from last quarter</p>
             </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* ── ACTION CENTRE ── */}
