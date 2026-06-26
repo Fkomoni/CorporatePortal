@@ -511,6 +511,23 @@ export async function GET() {
 
     // ── Active lives from GetGroupPremium ────────────────────────────────────
     const rows = toRows(premiumRaw);
+
+    // Fallback: derive policy dates from premium rows when GetAllPolicies didn't resolve them
+    if ((!policyFromDate || !policyToDate) && rows.length > 0) {
+      const sample = rows[0];
+      const fromStr = extractDateStr(sample, 'Fromdate','FromDate','PolicyFromDate','PolicyFrom','StartDate','InceptionDate');
+      const toStr   = extractDateStr(sample, 'Todate',  'ToDate',  'PolicyToDate',  'PolicyTo',  'EndDate',  'ExpiryDate');
+      if (fromStr && toStr) {
+        const fromD = parseDate(fromStr);
+        const toD   = parseDate(toStr);
+        if (fromD && toD) {
+          policyFromDate = fromStr;
+          policyToDate   = toStr;
+          policyPeriod   = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+          policyYear     = fromD.getFullYear();
+        }
+      }
+    }
     const activeRows = rows.filter(
       (r) => String(r.MemberStatus_Desc ?? r.MemberStatusDesc ?? r.Status ?? '').toLowerCase() === 'active'
     );

@@ -311,7 +311,6 @@ export default function DashboardPage() {
                   </span>
                   {cor !== null && <span style={{ fontSize: 22, fontWeight: 700, color: lrColor }}>%</span>}
                 </div>
-                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 4 }}>LR + NHIA 2% + Admin fees</p>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
