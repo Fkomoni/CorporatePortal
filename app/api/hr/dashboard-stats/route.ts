@@ -466,8 +466,9 @@ export interface DashboardStats {
   nhiaFee: number | null;
   adminFee: number | null;
   riskStatus: string | null;
-  // Top breakdowns (top 5 each)
+  // Top breakdowns
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
+  allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
   // Scheme Health Score
   schemeHealthScore: number | null;
@@ -638,10 +639,10 @@ export async function GET() {
         providerMap.set(name, { location, visits, amtPaid: paid });
       }
     }
-    const topProviders = [...providerMap.entries()]
+    const allProvidersSorted = [...providerMap.entries()]
       .map(([name, d]) => ({ name, location: d.location, visits: d.visits.size, amtPaid: d.amtPaid }))
-      .sort((a, b) => b.visits - a.visits)
-      .slice(0, 5);
+      .sort((a, b) => b.visits - a.visits);
+    const topProviders = allProvidersSorted.slice(0, 5);
 
     // ── Top 5 service types ───────────────────────────────────────────────────
     const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
@@ -732,6 +733,7 @@ export async function GET() {
       schemeHealthTrend,
       schemeHealthTrendLabel,
       topProviders,
+      allProviders: allProvidersSorted,
       topServices,
       policyPeriod,
       policyYear,
