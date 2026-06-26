@@ -67,13 +67,15 @@ function getGreeting(firstName: string): string {
 
 interface DashboardStats {
   activeLives: number | null;
+  principalLives: number | null;
+  dependantLives: number | null;
   totalPremium: number | null;
-  outstandingPremium: number | null;
   claimsPaid: number | null;
   lossRatioPct: number | null;
-  policyStartDate: string | null;
-  policyEndDate: string | null;
+  policyPeriod: string | null;
   policyYear: number | null;
+  policyFromDate: string | null;
+  policyToDate: string | null;
 }
 
 function fmtNaira(amount: number | null): string {
@@ -110,21 +112,15 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  // Policy year label: prefer API date, then parsed from stats, default to session-derived
-  const policyYearLabel = (() => {
-    if (stats?.policyYear) return `Jan – Dec ${stats.policyYear}`;
-    // Parse from policyNumber as fallback: LGHNG25000721 → 25 → 2025
-    const pn = (user?.policyNumber as string | undefined) ?? '';
-    const m = pn.match(/^[A-Z]+(\d{2})/i);
-    if (m) return `Jan – Dec ${2000 + parseInt(m[1], 10)}`;
-    return null;
-  })();
+  // Policy period from API (e.g. "Apr 2026 – Mar 2027"), no hardcoded fallback
+  const policyYearLabel = stats?.policyPeriod ?? null;
 
-  const activeLives   = stats?.activeLives   ?? null;
-  const totalPremium  = stats?.totalPremium  ?? null;
-  const outstandingPremium = stats?.outstandingPremium ?? null;
-  const claimsPaid    = stats?.claimsPaid    ?? null;
-  const lossRatioPct  = stats?.lossRatioPct  ?? null;
+  const activeLives    = stats?.activeLives    ?? null;
+  const principalLives = stats?.principalLives ?? null;
+  const dependantLives = stats?.dependantLives ?? null;
+  const totalPremium   = stats?.totalPremium   ?? null;
+  const claimsPaid     = stats?.claimsPaid     ?? null;
+  const lossRatioPct   = stats?.lossRatioPct   ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -204,7 +200,9 @@ export default function DashboardPage() {
             {
               value: fmtLives(activeLives),
               label: 'Active Lives',
-              sub: '▲ Covered lives',
+              sub: principalLives !== null && dependantLives !== null
+                ? `${principalLives.toLocaleString()} staff · ${dependantLives.toLocaleString()} dependants`
+                : '▲ Covered lives',
               subColor: '#10B981', rail: '#10B981',
             },
             {
@@ -221,9 +219,9 @@ export default function DashboardPage() {
               rail: lossRatioPct !== null && lossRatioPct >= 90 ? '#EF4444' : '#D97706',
             },
             {
-              value: outstandingPremium !== null ? fmtNaira(outstandingPremium) : totalPremium !== null ? fmtNaira(totalPremium) : '—',
-              label: outstandingPremium !== null ? 'Outstanding Premium' : 'Annual Premium',
-              sub: outstandingPremium !== null ? 'Balance due' : 'Total annual premium',
+              value: totalPremium !== null ? fmtNaira(totalPremium) : '—',
+              label: 'Annual Premium',
+              sub: 'Total scheme premium',
               subColor: '#EF4444', rail: '#EF4444', sm: true,
             },
           ] as { value: string; label: string; sub: string; subColor: string; rail: string; sm?: boolean }[]).map((k) => (
