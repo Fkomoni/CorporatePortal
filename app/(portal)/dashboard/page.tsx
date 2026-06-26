@@ -293,18 +293,16 @@ export default function DashboardPage() {
             const lrBorder = rs === 'Healthy' ? '#A7F3D0' : rs === 'Watchlist' ? '#FDE68A' : '#FECACA';
             return (
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 40 }}>
               <div>
-                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>
-                  Current Loss Ratio{policyYearLabel ? ` · ${policyYearLabel}` : ''}
-                </p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Loss Ratio (LR)</p>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                  <span style={{ fontSize: 88, fontWeight: 900, color: lrColor, letterSpacing: '-0.05em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
-                  {lossRatioPct !== null && <span style={{ fontSize: 42, fontWeight: 900, color: lrColor }}>%</span>}
+                  <span style={{ fontSize: 44, fontWeight: 900, color: lrColor, letterSpacing: '-0.03em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
+                  {lossRatioPct !== null && <span style={{ fontSize: 22, fontWeight: 700, color: lrColor }}>%</span>}
                 </div>
               </div>
-              <div style={{ paddingBottom: 6 }}>
-                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Combined Operating Ratio</p>
+              <div>
+                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Combined Operating Ratio (COR)</p>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
                   <span style={{ fontSize: 44, fontWeight: 900, color: cor !== null ? lrColor : '#C4C9D9', letterSpacing: '-0.03em', lineHeight: 1 }}>
                     {cor !== null ? cor : '—'}
