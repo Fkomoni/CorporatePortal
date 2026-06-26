@@ -87,6 +87,8 @@ export default function CorporateDetailPage() {
   const [signupError, setSignupError]           = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [signupDebug, setSignupDebug]           = useState<Record<string, any> | null>(null);
+  const [signupLink, setSignupLink]             = useState<string | null>(null);
+  const [signupLinkCopied, setSignupLinkCopied] = useState(false);
 
   const [roleName, setRoleName]   = useState('');
   const [rolePerms, setRolePerms] = useState<PermMap>(defaultPerms());
@@ -205,6 +207,8 @@ export default function CorporateDetailPage() {
     setSignupMobile(corp.phone ?? '');
     setSignupError('');
     setSignupDebug(null);
+    setSignupLink(null);
+    setSignupLinkCopied(false);
     setShowSignupModal(true);
   }
 
@@ -230,12 +234,13 @@ export default function CorporateDetailPage() {
       const json = await res.json();
       // Always surface the debug info in the modal
       if (json.debug) setSignupDebug(json.debug);
+      if (json.registrationLink) { setSignupLink(json.registrationLink); setSignupLinkCopied(false); }
       if (!res.ok) {
         setSignupError(json.error ?? 'Failed to send signup email. Please try again.');
       } else {
         setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
         setTimeout(() => setShowEmailToast(null), 4000);
-        // Keep modal open to show debug response — staff can close it
+        // Keep modal open to show registration link and debug response — staff can close it
       }
     } catch {
       setSignupError('Network error. Please try again.');
@@ -529,6 +534,21 @@ export default function CorporateDetailPage() {
               {signupError && (
                 <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#EF4444', fontWeight: 500 }}>
                   {signupError}
+                </div>
+              )}
+
+              {/* Registration link — copyable */}
+              {signupLink && (
+                <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <p style={{ fontSize: 10.5, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Registration Link</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(signupLink); setSignupLinkCopied(true); setTimeout(() => setSignupLinkCopied(false), 2500); }}
+                      style={{ fontSize: 11, fontWeight: 700, color: signupLinkCopied ? '#059669' : '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      {signupLinkCopied ? '✓ Copied!' : 'Copy link'}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#374151', wordBreak: 'break-all', lineHeight: 1.6, margin: 0 }}>{signupLink}</p>
                 </div>
               )}
 
