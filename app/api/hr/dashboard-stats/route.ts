@@ -238,10 +238,29 @@ function computeLossRatio({
   const asAt = hasPolicy ? (today < pe! ? today : pe!) : today;
   const elapsedDays = hasPolicy ? Math.max(daysApart(ps!, asAt), 0) : 0;
 
+  // Written premium = sum of all IndividualPremiumFees
   const totalPremium = premiumRows.reduce((s, r) => s + numField(r, PREMIUM_KEYS), 0);
-  const earnedPremium = hasPolicy && totalPolicyDays > 0
-    ? totalPremium * (elapsedDays / totalPolicyDays)
-    : 0;
+
+  // Earned premium: computed per member using each row's own Fromdate/Todate/CoverPeriod
+  let earnedPremium = 0;
+  for (const r of premiumRows) {
+    const fee = numField(r, PREMIUM_KEYS);
+    if (fee <= 0) continue;
+    const mFromStr = strField(r, ['Fromdate','FromDate','PolicyFrom','PolicyFromDate','StartDate','InceptionDate']);
+    const mToStr   = strField(r, ['Todate',  'ToDate',  'PolicyTo',  'PolicyToDate',  'EndDate',  'ExpiryDate']);
+    const mFrom = parseDate(mFromStr);
+    const mTo   = parseDate(mToStr);
+    if (mFrom && mTo) {
+      const coverDays = numField(r, ['CoverPeriod','coverPeriod','PolicyDays','DaysInPeriod','Days'])
+        || Math.max(daysApart(mFrom, mTo), 1);
+      const asAtMember = today < mTo ? today : mTo;
+      const elapsedMember = Math.max(daysApart(mFrom, asAtMember), 0);
+      earnedPremium += fee * (elapsedMember / coverDays);
+    } else if (hasPolicy && totalPolicyDays > 0) {
+      earnedPremium += fee * (elapsedDays / totalPolicyDays);
+    }
+    // If no dates at all, member earns nothing yet (conservative)
+  }
 
   let paid = 0, outstanding = 0;
   const monthly: Record<string, number> = {};
