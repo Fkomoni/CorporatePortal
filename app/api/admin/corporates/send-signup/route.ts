@@ -124,7 +124,74 @@ export async function POST(req: Request) {
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
-    return NextResponse.json({ success: true, otp, debug });
+    // Build registration link
+    const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
+    const registrationLink = otp
+      ? `${appBase}/verify-registration?email=${encodeURIComponent(email)}&code=${encodeURIComponent(String(otp))}`
+      : `${appBase}/verify-registration?email=${encodeURIComponent(email)}`;
+
+    // Send email via Prognosis SendEmailAlert
+    let emailSent = false;
+    let emailError: string | null = null;
+    let emailResponse: unknown = null;
+
+    if (otp) {
+      const emailBody = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
+    <p style="font-size:22px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em">LEADWAY <span style="color:#F56B22;">HEALTH</span></p>
+    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL</p>
+  </div>
+  <div style="background:#fff;padding:36px 32px;border:1px solid #E5E7F1;border-top:none;">
+    <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">Complete Your Account Registration</p>
+    <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 28px">
+      Your account has been set up on the Leadway Health HMO Corporate Portal.
+      Click the button below to create your password and access the portal.
+    </p>
+    <a href="${registrationLink}" style="display:inline-block;background:#F56B22;color:#fff;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;">
+      Complete Registration
+    </a>
+    <p style="font-size:12px;color:#9CA3B8;margin:28px 0 0;line-height:1.7">
+      Or copy and paste this link:<br/>
+      <a href="${registrationLink}" style="color:#F56B22;word-break:break-all;">${registrationLink}</a>
+    </p>
+    <hr style="border:none;border-top:1px solid #F0F1F5;margin:28px 0"/>
+    <p style="font-size:11px;color:#B0B7C9;margin:0">If you did not expect this email, you can safely ignore it.</p>
+  </div>
+  <div style="background:#FAFBFC;padding:16px 32px;border:1px solid #E5E7F1;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+    <p style="font-size:11px;color:#B0B7C9;margin:0">© 2025 Leadway Health HMO. All rights reserved.</p>
+  </div>
+</div>`.trim();
+
+      try {
+        const emailRes = await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            EmailAddress: email,
+            CC: '',
+            BCC: '',
+            Subject: 'Complete Your Registration – Leadway Health Corporate Portal',
+            MessageBody: emailBody,
+            Attachments: null,
+            Category: '',
+            UserId: 0,
+            ProviderId: 0,
+            ServiceId: 0,
+            Reference: '',
+            TransactionType: '',
+          }),
+        });
+        emailResponse = await emailRes.json().catch(() => null);
+        emailSent = emailRes.ok;
+        console.log('[send-signup] SendEmailAlert →', emailRes.status, JSON.stringify(emailResponse));
+      } catch (e) {
+        emailError = e instanceof Error ? e.message : 'Email send failed';
+        console.error('[send-signup] SendEmailAlert error:', emailError);
+      }
+    }
+
+    return NextResponse.json({ success: true, otp, registrationLink, emailSent, emailError, debug: { ...debug, emailResponse } });
   } catch (err) {
     console.error('[send-signup] Error:', err);
     return NextResponse.json(

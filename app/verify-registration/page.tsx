@@ -19,11 +19,12 @@ function VerifyForm() {
   const [email, setEmail]       = useState(urlEmail);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
-  const [otp, setOtp]           = useState('');
+  const [otp, setOtp]           = useState(urlToken);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
 
   useEffect(() => { if (urlEmail) setEmail(urlEmail); }, [urlEmail]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (urlToken) setOtp(urlToken); }, [urlToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Step 1: collect password (no API call — OTP already sent by Prognosis) ──
   function handleSetPassword(e: React.FormEvent) {

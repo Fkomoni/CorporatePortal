@@ -85,6 +85,10 @@ export default function CorporateDetailPage() {
   const [signupSurname, setSignupSurname]       = useState('');
   const [signupLoading, setSignupLoading]       = useState(false);
   const [signupError, setSignupError]           = useState('');
+  const [signupLink, setSignupLink]             = useState('');
+  const [signupEmailSent, setSignupEmailSent]   = useState<boolean | null>(null);
+  const [signupEmailErr, setSignupEmailErr]     = useState('');
+  const [linkCopied, setLinkCopied]             = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [signupDebug, setSignupDebug]           = useState<Record<string, any> | null>(null);
 
@@ -205,6 +209,10 @@ export default function CorporateDetailPage() {
     setSignupMobile(corp.phone ?? '');
     setSignupError('');
     setSignupDebug(null);
+    setSignupLink('');
+    setSignupEmailSent(null);
+    setSignupEmailErr('');
+    setLinkCopied(false);
     setShowSignupModal(true);
   }
 
@@ -226,14 +234,15 @@ export default function CorporateDetailPage() {
         }),
       });
       const json = await res.json();
-      // Always surface the debug info in the modal
       if (json.debug) setSignupDebug(json.debug);
       if (!res.ok) {
         setSignupError(json.error ?? 'Failed to send signup email. Please try again.');
       } else {
-        setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
+        if (json.registrationLink) setSignupLink(json.registrationLink);
+        setSignupEmailSent(json.emailSent ?? false);
+        setSignupEmailErr(json.emailError ?? '');
+        setShowEmailToast({ ok: true, msg: `Registration link generated for ${signupEmail}` });
         setTimeout(() => setShowEmailToast(null), 4000);
-        // Keep modal open to show debug response — staff can close it
       }
     } catch {
       setSignupError('Network error. Please try again.');
@@ -530,12 +539,35 @@ export default function CorporateDetailPage() {
                 </div>
               )}
 
+              {/* Registration link panel */}
+              {signupLink && (
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <p style={{ fontSize: 10.5, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Registration Link</p>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: signupEmailSent ? '#059669' : '#D97706', background: signupEmailSent ? '#ECFDF5' : '#FFFBEB', padding: '3px 8px', borderRadius: 6 }}>
+                      {signupEmailSent ? '✓ Email sent' : signupEmailErr ? '⚠ Email failed' : '⚠ Email not sent'}
+                    </span>
+                  </div>
+                  <div style={{ background: '#fff', border: '1px solid #D1FAE5', borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <p style={{ fontSize: 11, color: '#131C4E', flex: 1, wordBreak: 'break-all', margin: 0, lineHeight: 1.5 }}>{signupLink}</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(signupLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                      style={{ flexShrink: 0, height: 30, padding: '0 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: linkCopied ? '#059669' : '#131C4E', color: '#fff', cursor: 'pointer', transition: 'background 0.2s' }}>
+                      {linkCopied ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  {signupEmailErr && (
+                    <p style={{ fontSize: 11, color: '#D97706', marginTop: 6 }}>Email error: {signupEmailErr}</p>
+                  )}
+                </div>
+              )}
+
               {/* Prognosis response debug panel */}
               {signupDebug && (
                 <div style={{ background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 10, padding: '12px 14px' }}>
                   <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Prognosis API Response</p>
                   <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>HTTP {signupDebug.httpStatus} · {signupDebug.httpStatus >= 200 && signupDebug.httpStatus < 300 ? '✓ OK' : '✗ Error'}</p>
-                  <pre style={{ fontSize: 11, color: '#131C4E', background: '#fff', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflowY: 'auto', margin: 0 }}>
+                  <pre style={{ fontSize: 11, color: '#131C4E', background: '#fff', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 180, overflowY: 'auto', margin: 0 }}>
                     {JSON.stringify(signupDebug.prognosisResponse, null, 2)}
                   </pre>
                 </div>
