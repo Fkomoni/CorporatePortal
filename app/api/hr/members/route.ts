@@ -32,15 +32,25 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-function toRows(raw: unknown): Record<string, unknown>[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
-  if (typeof raw === 'object') {
-    const r = raw as Record<string, unknown>;
-    const inner = r.data ?? r.Data ?? r.result ?? r.Result ?? r.payload ?? r.Payload;
-    if (Array.isArray(inner)) return inner as Record<string, unknown>[];
-    if (inner && typeof inner === 'object') return [inner as Record<string, unknown>];
-    return [r];
+// Recursively finds the first array-of-objects in any response shape.
+// Handles Prognosis patterns like: { results: { groupPremium: { result: [...] } } }
+function toRows(raw: unknown, depth = 0): Record<string, unknown>[] {
+  if (!raw || depth > 6) return [];
+  if (Array.isArray(raw)) return raw.filter((v) => v && typeof v === 'object') as Record<string, unknown>[];
+  if (typeof raw !== 'object') return [];
+  const r = raw as Record<string, unknown>;
+  // Pass 1: any value that is a non-empty array of objects → return it
+  for (const v of Object.values(r)) {
+    if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'object' && v[0] !== null) {
+      return v as Record<string, unknown>[];
+    }
+  }
+  // Pass 2: recurse into nested plain objects
+  for (const v of Object.values(r)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const nested = toRows(v, depth + 1);
+      if (nested.length > 0) return nested;
+    }
   }
   return [];
 }
@@ -82,7 +92,7 @@ function mapGender(raw: string): 'Male' | 'Female' {
 
 function mapPlan(raw: string): Member['plan'] {
   const s = raw.toLowerCase();
-  if (s.includes('magnum')) return 'Magnum Plan';
+  if (s.includes('magnum') || s.includes('blackcard') || s.includes('black card')) return 'Magnum Plan';
   if (s.includes('promax') || s.includes('pro max')) return 'Promax Plan';
   if (s.includes('max')) return 'Max Plan';
   if (s.includes('pro')) return 'Pro Plan';
@@ -90,32 +100,33 @@ function mapPlan(raw: string): Member['plan'] {
 }
 
 function mapType(raw: string): 'Principal' | 'Dependant' {
+  if (!raw) return 'Principal'; // unknown type → treat as principal (employee)
   const s = raw.toLowerCase();
-  if (s.includes('principal') || s.includes('employee') || s.includes('staff') || s === 'p' || s === '0') return 'Principal';
-  return 'Dependant';
+  if (s.includes('dep') || s.includes('spouse') || s.includes('child') || s.includes('beneficiar') || s === 'd' || s === '1') return 'Dependant';
+  return 'Principal'; // principal, employee, staff, or any unknown
 }
 
 function mapRow(row: Record<string, unknown>, index: number): Member {
-  const fullName  = str(row, 'MemberName', 'FullName', 'Name', 'EnrolleeName', 'Enrollee_Name', 'PatientName');
+  const fullName  = str(row, 'Member_CustomerName', 'MemberName', 'FullName', 'Full_Name', 'Name', 'EnrolleeName', 'Enrollee_Name', 'PatientName', 'SubscriberName');
   const firstName = str(row, 'FirstName', 'First_Name', 'GivenName') || splitName(fullName).firstName || 'Member';
   const rawLast   = str(row, 'LastName', 'Last_Name', 'Surname', 'FamilyName');
   const lastName  = rawLast || splitName(fullName).lastName || String(index + 1);
 
   const enrolleeId = str(row,
-    'MemberShipNo', 'MembershipNo', 'EnrolleeID', 'Enrollee_ID', 'CifNo', 'CIF_No',
-    'MemberID', 'Member_ID', 'MemberNo', 'Member_EnrolleeID', 'ID',
+    'Member_EnrolleeID', 'MemberShipNo', 'MembershipNo', 'EnrolleeID', 'Enrollee_ID',
+    'MemberCifNo', 'CifNo', 'CIF_No', 'MemberID', 'Member_ID', 'MemberNo', 'ID',
   );
 
-  const status = mapStatus(str(row, 'MemberStatus_Desc', 'Status', 'MemberStatus', 'ActiveStatus', 'EnrolleeStatus'));
-  const gender = mapGender(str(row, 'Gender', 'Sex', 'GenderDesc'));
-  const type   = mapType(str(row, 'MemberType', 'EnrolleeType', 'Relationship', 'MemberRelationship', 'RelationshipType', 'Category'));
+  const status = mapStatus(str(row, 'MemberStatus_Desc', 'Status', 'MemberStatus', 'ActiveStatus', 'EnrolleeStatus', 'PolicyStatus'));
+  const gender = mapGender(str(row, 'Member_Gender', 'Gender', 'Sex', 'GenderDesc'));
+  const type   = mapType(str(row, 'Member_Relationship', 'MemberType', 'EnrolleeType', 'Relationship', 'MemberRelationship', 'RelationshipType', 'Category'));
 
   const phone      = str(row, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone');
   const email      = str(row, 'EmailAddress', 'Email', 'email', 'ContactEmail', 'EmailAddr');
-  const dob        = str(row, 'DateOfBirth', 'DOB', 'BirthDate', 'MemberDOB', 'Date_Of_Birth');
-  const plan       = mapPlan(str(row, 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName', 'PlanDesc'));
-  const loc        = str(row, 'State', 'Location', 'Region', 'Branch', 'Address', 'City', 'StateOfResidence');
-  const enrollDate = str(row, 'MemberOriginalStartdate', 'EnrollmentDate', 'DateEnrolled', 'StartDate', 'MemberStartDate', 'InceptionDate', 'JoinDate', 'RegistrationDate');
+  const dob        = str(row, 'Member_DateOfBirth', 'DateOfBirth', 'DOB', 'BirthDate', 'MemberDOB', 'Date_Of_Birth');
+  const plan       = mapPlan(str(row, 'Member_Plan', 'Product_SchemeType', 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName', 'PlanDesc'));
+  const loc        = str(row, 'Member_CountryState', 'State', 'Location', 'Region', 'Branch', 'Address', 'City', 'StateOfResidence');
+  const enrollDate = str(row, 'MemberOriginalStartdate', 'Member_Effectivedate', 'EnrollmentDate', 'DateEnrolled', 'Fromdate', 'StartDate', 'MemberStartDate', 'InceptionDate', 'JoinDate', 'RegistrationDate');
 
   const depRaw   = row['DependantCount'] ?? row['DependantNo'] ?? row['NoOfDependants'] ?? row['Dependants'] ?? null;
   const dependants = depRaw != null ? parseInt(String(depRaw), 10) || 0 : undefined;
@@ -204,7 +215,7 @@ export async function GET() {
     // Build premium lookup keyed by enrollee ID
     const premiumByEnrollee: Map<string, Record<string, unknown>> = new Map();
     for (const r of premiumRows) {
-      const eid = str(r, 'MemberShipNo', 'MembershipNo', 'EnrolleeID', 'Member_EnrolleeID', 'CifNo', 'MemberID');
+      const eid = str(r, 'Member_EnrolleeID', 'MemberShipNo', 'MembershipNo', 'EnrolleeID', 'MemberCifNo', 'CifNo', 'MemberID');
       if (eid && !premiumByEnrollee.has(eid)) premiumByEnrollee.set(eid, r);
     }
 
@@ -291,28 +302,8 @@ export async function GET() {
         return base;
       });
     } else {
-      // Fallback: derive members from GetGroupPremium rows
-      members = premiumRows.map((row, i) => {
-        const enrolleeId = str(row, 'MemberShipNo', 'MembershipNo', 'Member_EnrolleeID', 'EnrolleeID', 'CifNo', 'MemberID');
-        const fullName   = str(row, 'MemberName', 'FullName', 'Name', 'EnrolleeName');
-        const { firstName, lastName } = splitName(fullName);
-        return {
-          id: enrolleeId || String(i),
-          employeeId: enrolleeId || `EMP${String(i + 1).padStart(4, '0')}`,
-          firstName: firstName || 'Member',
-          lastName: lastName || String(i + 1),
-          email: '',
-          phone: '',
-          gender: mapGender(str(row, 'Gender', 'Sex')),
-          dateOfBirth: str(row, 'DateOfBirth', 'DOB', 'BirthDate', 'MemberDOB'),
-          plan: mapPlan(str(row, 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName')),
-          type: mapType(str(row, 'MemberType', 'EnrolleeType', 'Relationship', 'Category')),
-          status: mapStatus(str(row, 'MemberStatus_Desc', 'Status', 'MemberStatus')),
-          location: str(row, 'State', 'Location', 'Region', 'Branch'),
-          enrollmentDate: str(row, 'MemberOriginalStartdate', 'Fromdate', 'StartDate', 'InceptionDate'),
-          dependants: undefined,
-        } satisfies Member;
-      });
+      // Fallback: derive members from GetGroupPremium rows (Member_ prefix field names handled in mapRow)
+      members = premiumRows.map((row, i) => mapRow(row, i));
     }
 
     // Summary stats

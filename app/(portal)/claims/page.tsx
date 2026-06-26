@@ -100,7 +100,7 @@ export default function ClaimsPage() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Claims" subtitle="Claims Register · Spend Analysis" />
+      <TopBar title="Claims" subtitle={stats?.policyStart && stats?.policyEnd ? `Policy ${new Date(stats.policyStart + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(stats.policyEnd + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})}` : 'Claims Register · Spend Analysis'} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 

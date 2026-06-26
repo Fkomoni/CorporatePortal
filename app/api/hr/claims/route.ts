@@ -31,17 +31,35 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-function toRows(raw: unknown): Record<string, unknown>[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
-  if (typeof raw === 'object') {
-    const r = raw as Record<string, unknown>;
-    const inner = r.data ?? r.Data ?? r.result ?? r.Result ?? r.payload ?? r.Payload;
-    if (Array.isArray(inner)) return inner as Record<string, unknown>[];
-    if (inner && typeof inner === 'object') return [inner as Record<string, unknown>];
-    return [r];
+// Recursively finds the first array-of-objects in any response shape
+function toRows(raw: unknown, depth = 0): Record<string, unknown>[] {
+  if (!raw || depth > 6) return [];
+  if (Array.isArray(raw)) return raw.filter((v) => v && typeof v === 'object') as Record<string, unknown>[];
+  if (typeof raw !== 'object') return [];
+  const r = raw as Record<string, unknown>;
+  for (const v of Object.values(r)) {
+    if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'object' && v[0] !== null) return v as Record<string, unknown>[];
+  }
+  for (const v of Object.values(r)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const nested = toRows(v, depth + 1);
+      if (nested.length > 0) return nested;
+    }
   }
   return [];
+}
+
+// Parse DD/MM/YYYY or ISO date string into Date
+function parsePolicyDate(raw: string): Date | null {
+  if (!raw) return null;
+  const dmy = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) {
+    const d = new Date(`${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const iso = raw.trim().slice(0, 10);
+  const d = new Date(`${iso}T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function str(row: Record<string, unknown>, ...keys: string[]): string {
@@ -114,6 +132,8 @@ export interface ClaimsStats {
   queriedCount: number;
   rejectedCount: number;
   totalClaims: number;
+  policyStart: string | null;
+  policyEnd: string | null;
 }
 
 export async function GET() {
@@ -129,14 +149,31 @@ export async function GET() {
   try {
     const token = await getServiceToken();
 
-    const res = await fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
-    const text = await res.text();
-    let raw: unknown = null;
-    try { raw = JSON.parse(text); } catch { /* ignored */ }
+    const [claimsRes, premiumRes] = await Promise.all([
+      fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      }),
+      fetch(`${BASE}/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      }),
+    ]);
 
-    const rows = toRows(raw);
+    const [claimsRaw, premiumRaw] = await Promise.all([
+      claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
+      premiumRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
+    ]);
+
+    // Extract policy period from premium data (first row's Fromdate / Todate)
+    const premiumRows = toRows(premiumRaw);
+    let policyStart: Date | null = null;
+    let policyEnd: Date | null = null;
+    if (premiumRows.length > 0) {
+      const p = premiumRows[0];
+      policyStart = parsePolicyDate(str(p, 'Fromdate', 'Client_DateAccepted', 'Member_Effectivedate', 'StartDate', 'InceptionDate'));
+      policyEnd   = parsePolicyDate(str(p, 'Todate', 'Client_ExpiryDate', 'EndDate', 'ExpiryDate'));
+    }
+
+    const rows = toRows(claimsRaw);
 
     // Deduplicate by ClaimNumber — accumulate amount per unique claim
     const claimMap = new Map<string, { row: Record<string, unknown>; amount: number; amtClaimed: number }>();
@@ -200,20 +237,31 @@ export async function GET() {
       });
     }
 
+    // Filter to current active policy period only
+    const filtered = policyStart && policyEnd
+      ? claims.filter((c) => {
+          if (!c.submittedDate) return false;
+          const d = new Date(`${c.submittedDate}T00:00:00`);
+          return !isNaN(d.getTime()) && d >= policyStart! && d <= policyEnd!;
+        })
+      : claims;
+
     // Sort: most recent first
-    claims.sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
+    filtered.sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
 
     const stats: ClaimsStats = {
-      totalPaidAmount:  claims.filter((c) => c.status === 'Paid').reduce((s, c) => s + c.amount, 0),
-      paidCount:        claims.filter((c) => c.status === 'Paid').length,
-      processingAmount: claims.filter((c) => c.status === 'Processing').reduce((s, c) => s + c.amtClaimed, 0),
-      processingCount:  claims.filter((c) => c.status === 'Processing').length,
-      queriedCount:     claims.filter((c) => c.status === 'Queried').length,
-      rejectedCount:    claims.filter((c) => c.status === 'Rejected').length,
-      totalClaims:      claims.length,
+      totalPaidAmount:  filtered.filter((c) => c.status === 'Paid').reduce((s, c) => s + c.amount, 0),
+      paidCount:        filtered.filter((c) => c.status === 'Paid').length,
+      processingAmount: filtered.filter((c) => c.status === 'Processing').reduce((s, c) => s + c.amtClaimed, 0),
+      processingCount:  filtered.filter((c) => c.status === 'Processing').length,
+      queriedCount:     filtered.filter((c) => c.status === 'Queried').length,
+      rejectedCount:    filtered.filter((c) => c.status === 'Rejected').length,
+      totalClaims:      filtered.length,
+      policyStart: policyStart ? policyStart.toISOString().slice(0, 10) : null,
+      policyEnd:   policyEnd   ? policyEnd.toISOString().slice(0, 10)   : null,
     };
 
-    return NextResponse.json({ claims, stats });
+    return NextResponse.json({ claims: filtered, stats });
   } catch (err) {
     console.error('[hr/claims] Error:', err);
     return NextResponse.json(
