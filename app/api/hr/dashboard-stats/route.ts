@@ -164,11 +164,7 @@ export async function GET() {
       policyYear,
     };
 
-    return NextResponse.json({
-      stats,
-      // Include raw data so we can inspect field names in dev if numbers look wrong
-      _debug: process.env.NODE_ENV !== 'production' ? { premiumRaw, detailsRaw } : undefined,
-    });
+    return NextResponse.json({ stats, _debug: { premiumRaw, detailsRaw } });
   } catch (err) {
     console.error('[hr/dashboard-stats] Error:', err);
     return NextResponse.json(
