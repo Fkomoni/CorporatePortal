@@ -65,6 +65,30 @@ function getGreeting(firstName: string): string {
   return `Good evening, ${name} 🌙`;
 }
 
+interface DashboardStats {
+  activeLives: number | null;
+  totalPremium: number | null;
+  outstandingPremium: number | null;
+  claimsPaid: number | null;
+  lossRatioPct: number | null;
+  policyStartDate: string | null;
+  policyEndDate: string | null;
+  policyYear: number | null;
+}
+
+function fmtNaira(amount: number | null): string {
+  if (amount === null) return '—';
+  if (amount >= 1_000_000_000) return `₦${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `₦${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `₦${(amount / 1_000).toFixed(0)}K`;
+  return `₦${amount.toLocaleString()}`;
+}
+
+function fmtLives(n: number | null): string {
+  if (n === null) return '—';
+  return n.toLocaleString();
+}
+
 export default function DashboardPage() {
   const [vis, setVis] = useState<DashboardVis>(DEFAULTS.dashboard);
   useEffect(() => { setVis(getVis('dashboard')); }, []);
@@ -76,6 +100,31 @@ export default function DashboardPage() {
   const fullName: string = session?.user?.name ?? '';
   const firstName = fullName.split(' ')[0];
   const topBarSubtitle = [companyName, companyId].filter(Boolean).join(' · ');
+
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+
+  useEffect(() => {
+    fetch('/api/hr/dashboard-stats')
+      .then((r) => r.json())
+      .then((d) => { if (d.stats) setStats(d.stats); })
+      .catch(() => {});
+  }, []);
+
+  // Policy year label: prefer API date, then parsed from stats, default to session-derived
+  const policyYearLabel = (() => {
+    if (stats?.policyYear) return `Jan – Dec ${stats.policyYear}`;
+    // Parse from policyNumber as fallback: LGHNG25000721 → 25 → 2025
+    const pn = (user?.policyNumber as string | undefined) ?? '';
+    const m = pn.match(/^[A-Z]+(\d{2})/i);
+    if (m) return `Jan – Dec ${2000 + parseInt(m[1], 10)}`;
+    return null;
+  })();
+
+  const activeLives   = stats?.activeLives   ?? null;
+  const totalPremium  = stats?.totalPremium  ?? null;
+  const outstandingPremium = stats?.outstandingPremium ?? null;
+  const claimsPaid    = stats?.claimsPaid    ?? null;
+  const lossRatioPct  = stats?.lossRatioPct  ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -90,7 +139,7 @@ export default function DashboardPage() {
               {getGreeting(firstName)}
             </h1>
             <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 6 }}>
-              {companyName ? `${companyName}  ·  Policy year Jan – Dec 2026` : 'Policy year Jan – Dec 2026'}
+              {[companyName, policyYearLabel ? `Policy year ${policyYearLabel}` : null].filter(Boolean).join('  ·  ') || 'Loading policy details…'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, padding: '14px 22px', flexShrink: 0 }}>
@@ -151,15 +200,38 @@ export default function DashboardPage() {
         {/* ── ROW 2: 4 KPI CARDS ── */}
         {vis.showKpiCards && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-          {[
-            { value: '1,842',  label: 'Active Lives',        sub: '▲ 24 added this month', subColor: '#10B981', rail: '#10B981' },
-            { value: '26.4%',  label: 'Utilization Rate',   sub: '487 members utilized',   subColor: '#9CA3B8', rail: '#3B82F6' },
-            { value: '77%',    label: 'Loss Ratio',         sub: '⬤ Amber · +6% QoQ',     subColor: '#D97706', rail: '#D97706' },
-            { value: '₦10.5M', label: 'Outstanding Premium',sub: 'Due in 7 days',          subColor: '#EF4444', rail: '#EF4444', sm: true },
-          ].map((k) => (
+          {([
+            {
+              value: fmtLives(activeLives),
+              label: 'Active Lives',
+              sub: '▲ Covered lives',
+              subColor: '#10B981', rail: '#10B981',
+            },
+            {
+              value: '26.4%',
+              label: 'Utilization Rate',
+              sub: '487 members utilized',
+              subColor: '#9CA3B8', rail: '#3B82F6',
+            },
+            {
+              value: lossRatioPct !== null ? `${lossRatioPct}%` : '—',
+              label: 'Loss Ratio',
+              sub: lossRatioPct !== null && lossRatioPct >= 90 ? '⬤ Red · High' : lossRatioPct !== null && lossRatioPct >= 70 ? '⬤ Amber' : lossRatioPct !== null ? '⬤ Green' : '—',
+              subColor: lossRatioPct !== null && lossRatioPct >= 90 ? '#EF4444' : '#D97706',
+              rail: lossRatioPct !== null && lossRatioPct >= 90 ? '#EF4444' : '#D97706',
+            },
+            {
+              value: outstandingPremium !== null ? fmtNaira(outstandingPremium) : totalPremium !== null ? fmtNaira(totalPremium) : '—',
+              label: outstandingPremium !== null ? 'Outstanding Premium' : 'Annual Premium',
+              sub: outstandingPremium !== null ? 'Balance due' : 'Total annual premium',
+              subColor: '#EF4444', rail: '#EF4444', sm: true,
+            },
+          ] as { value: string; label: string; sub: string; subColor: string; rail: string; sm?: boolean }[]).map((k) => (
             <div key={k.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${k.rail}` }}>
               <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12, letterSpacing: '0.01em' }}>{k.label}</p>
-              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>{k.label === 'Outstanding Premium' ? (vis.showAmounts ? k.value : '—') : k.value}</p>
+              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>
+                {(k.label.includes('Premium')) ? (vis.showAmounts ? k.value : '—') : k.value}
+              </p>
               <p style={{ fontSize: 12, fontWeight: 500, color: k.subColor }}>{k.sub}</p>
             </div>
           ))}
@@ -169,21 +241,33 @@ export default function DashboardPage() {
         {/* ── ROW 3: LOSS RATIO (large, full-width) ── */}
         {vis.showLossRatio && (
         <div style={{ ...card, padding: '32px 36px' }}>
+          {(() => {
+            const lr = lossRatioPct ?? 77;
+            const lrColor = lr >= 90 ? '#EF4444' : lr >= 70 ? '#D97706' : '#10B981';
+            const lrStatus = lr >= 90 ? 'Red Status' : lr >= 70 ? 'Amber Status' : 'Green Status';
+            const lrBg = lr >= 90 ? '#FEF2F2' : lr >= 70 ? '#FFFBEB' : '#ECFDF5';
+            const lrBorder = lr >= 90 ? '#FECACA' : lr >= 70 ? '#FDE68A' : '#A7F3D0';
+            return (
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
             <div>
-              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Current Loss Ratio · Policy Year 2026</p>
+              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>
+                Current Loss Ratio{policyYearLabel ? ` · Policy Year ${policyYearLabel.slice(-4)}` : ''}
+              </p>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                <span style={{ fontSize: 88, fontWeight: 900, color: '#D97706', letterSpacing: '-0.05em', lineHeight: 1 }}>77</span>
-                <span style={{ fontSize: 42, fontWeight: 900, color: '#D97706' }}>%</span>
+                <span style={{ fontSize: 88, fontWeight: 900, color: lrColor, letterSpacing: '-0.05em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
+                {lossRatioPct !== null && <span style={{ fontSize: 42, fontWeight: 900, color: lrColor }}>%</span>}
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: '#D97706' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#D97706', display: 'inline-block' }} />
-                Amber Status
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: lrBg, border: `1px solid ${lrBorder}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: lrColor }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: lrColor, display: 'inline-block' }} />
+                {lrStatus}
               </span>
               <div style={{ display: 'flex', gap: 32 }}>
-                {[{ label: 'Claims Paid', value: '₦48.2M' }, { label: 'Premium', value: '₦62.5M' }].map((m) => (
+                {([
+                  { label: 'Claims Paid', value: fmtNaira(claimsPaid) },
+                  { label: 'Premium',     value: fmtNaira(totalPremium) },
+                ] as { label: string; value: string }[]).map((m) => (
                   <div key={m.label}>
                     <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 3 }}>{m.label}</p>
                     <p style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{vis.showAmounts ? m.value : '—'}</p>
@@ -192,8 +276,10 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+            );
+          })()}
           <div style={{ height: 8, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
-            <div style={{ width: '77%', height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
+            <div style={{ width: `${Math.min(lossRatioPct ?? 77, 100)}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 24 }}>
@@ -209,7 +295,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9CA3B8' }}>
               <TrendingDown className="w-3.5 h-3.5" strokeWidth={2} />
-              +6% from last quarter · Projected to reach 84% by year-end
+              {lossRatioPct !== null ? `${lossRatioPct}% current · Projected to reach ${Math.min(lossRatioPct + 7, 99)}% by year-end` : 'Loss ratio data loading…'}
             </div>
           </div>
         </div>
