@@ -162,7 +162,6 @@ export default function DashboardPage() {
   const schemeHealthTrendLabel = stats?.schemeHealthTrendLabel ?? null;
 
   return (
-    <>
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Overview" subtitle={topBarSubtitle || undefined} showQuickActions />
 
@@ -494,11 +493,9 @@ export default function DashboardPage() {
         )}
 
       </div>
-    </div>
 
-    {/* ── ALL PROVIDERS MODAL ── */}
-
-    {showAllProviders && (
+      {/* ── ALL PROVIDERS MODAL ── */}
+      {showAllProviders && (
       <div
         onClick={() => setShowAllProviders(false)}
         style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}
@@ -533,7 +530,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    )}
-    </>
+      )}
+    </div>
   );
 }
