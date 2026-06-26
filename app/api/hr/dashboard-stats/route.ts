@@ -161,6 +161,8 @@ export interface DashboardStats {
   activeLives: number | null;
   principalLives: number | null;
   dependantLives: number | null;
+  newThisMonth: number | null;        // unique members whose MemberOriginalStartdate is this calendar month
+  newThisMonthLabel: string | null;   // e.g. "June 2026"
   totalPremium: number | null;
   claimsPaid: number | null;
   lossRatioPct: number | null;
@@ -222,6 +224,37 @@ export async function GET() {
     const principalLives = [...activeIds].filter((id) => id.endsWith('/0')).length || null;
     const dependantLives = activeLives !== null && principalLives !== null ? activeLives - principalLives : null;
 
+    // ── New members this calendar month (MemberOriginalStartdate) ────────────
+    // Use server time — this runs server-side so Date is reliable
+    const now = new Date();
+    const currentYear  = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-based
+
+    // De-duplicate by EnrolleeID: one row per member, use their earliest original start date
+    const memberStartMap = new Map<string, Date>();
+    for (const r of activeRows) {
+      const eid = String(r.Member_EnrolleeID ?? r.MemberEnrolleeID ?? r.EnrolleeID ?? '');
+      if (!eid) continue;
+      const startStr = String(
+        r.MemberOriginalStartdate ?? r.MemberOriginalStartDate ??
+        r.OriginalStartDate ?? r.OriginalStartdate ?? ''
+      );
+      const d = startStr ? parseDate(startStr) : null;
+      if (!d) continue;
+      const existing = memberStartMap.get(eid);
+      // Keep the earliest start date per member
+      if (!existing || d < existing) memberStartMap.set(eid, d);
+    }
+
+    const newThisMonthIds = new Set<string>();
+    for (const [eid, d] of memberStartMap) {
+      if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+        newThisMonthIds.add(eid);
+      }
+    }
+    const newThisMonth = newThisMonthIds.size > 0 ? newThisMonthIds.size : 0;
+    const newThisMonthLabel = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+
     // ── Premium (all members) ────────────────────────────────────────────────
     const totalPremium = rows.length > 0
       ? rows.reduce((sum, r) => sum + (toNumber(r.IndividualPremiumFees ?? r.PremiumFee ?? r.Premium) ?? 0), 0)
@@ -241,6 +274,8 @@ export async function GET() {
       activeLives,
       principalLives,
       dependantLives,
+      newThisMonth,
+      newThisMonthLabel,
       totalPremium,
       claimsPaid,
       lossRatioPct,

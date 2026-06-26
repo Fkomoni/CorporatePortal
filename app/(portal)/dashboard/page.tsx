@@ -69,6 +69,8 @@ interface DashboardStats {
   activeLives: number | null;
   principalLives: number | null;
   dependantLives: number | null;
+  newThisMonth: number | null;
+  newThisMonthLabel: string | null;
   totalPremium: number | null;
   claimsPaid: number | null;
   lossRatioPct: number | null;
@@ -115,12 +117,14 @@ export default function DashboardPage() {
   // Policy period from GetAllPolicies, e.g. "1st April 2026 – 31st March 2027"
   const policyYearLabel = stats?.policyPeriod ?? null;
 
-  const activeLives    = stats?.activeLives    ?? null;
-  const principalLives = stats?.principalLives ?? null;
-  const dependantLives = stats?.dependantLives ?? null;
-  const totalPremium   = stats?.totalPremium   ?? null;
-  const claimsPaid     = stats?.claimsPaid     ?? null;
-  const lossRatioPct   = stats?.lossRatioPct   ?? null;
+  const activeLives       = stats?.activeLives       ?? null;
+  const principalLives    = stats?.principalLives    ?? null;
+  const dependantLives    = stats?.dependantLives    ?? null;
+  const newThisMonth      = stats?.newThisMonth      ?? null;
+  const newThisMonthLabel = stats?.newThisMonthLabel ?? null;
+  const totalPremium      = stats?.totalPremium      ?? null;
+  const claimsPaid        = stats?.claimsPaid        ?? null;
+  const lossRatioPct      = stats?.lossRatioPct      ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -200,9 +204,11 @@ export default function DashboardPage() {
             {
               value: fmtLives(activeLives),
               label: 'Active Lives',
-              sub: principalLives !== null && dependantLives !== null
-                ? `${principalLives.toLocaleString()} staff · ${dependantLives.toLocaleString()} dependants`
-                : '▲ Covered lives',
+              sub: newThisMonth !== null && newThisMonth > 0
+                ? `▲ ${newThisMonth} added in ${newThisMonthLabel ?? 'this month'}`
+                : principalLives !== null && dependantLives !== null
+                  ? `${principalLives.toLocaleString()} staff · ${dependantLives.toLocaleString()} dependants`
+                  : '▲ Covered lives',
               subColor: '#10B981', rail: '#10B981',
             },
             {
