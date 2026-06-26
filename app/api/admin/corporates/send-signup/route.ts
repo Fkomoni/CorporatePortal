@@ -59,26 +59,33 @@ export async function POST(req: Request) {
   try {
     let token = await getServiceToken();
 
+    const requestPayload = {
+      enrolleeID: '',
+      PolicyNumber,
+      email,
+      mobile: mobile ?? '',
+      firstname: firstname ?? '',
+      surname: surname ?? '',
+      dob: '',
+      ErrorMessage: '',
+    };
+
+    console.log('[send-signup] ── REQUEST ──────────────────────────────────');
+    console.log('[send-signup] URL    :', `${BASE}/api/CorporateProfile/ClientUserRegistration`);
+    console.log('[send-signup] Payload:', JSON.stringify(requestPayload, null, 2));
+
     const callApi = async (t: string) =>
       fetch(`${BASE}/api/CorporateProfile/ClientUserRegistration`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${t}` },
-        body: JSON.stringify({
-          enrolleeID: '',
-          PolicyNumber,
-          email,
-          mobile: mobile ?? '',
-          firstname: firstname ?? '',
-          surname: surname ?? '',
-          dob: '',
-          ErrorMessage: '',
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
     let res = await callApi(token);
 
     // Refresh token once on 401/403
     if (res.status === 401 || res.status === 403) {
+      console.log('[send-signup] token rejected, refreshing...');
       cachedToken = null; tokenExpiry = 0;
       token = await getServiceToken();
       res = await callApi(token);
@@ -87,30 +94,37 @@ export async function POST(req: Request) {
     const text = await res.text();
     let data: unknown;
     try { data = JSON.parse(text); } catch {
-      return NextResponse.json({ error: 'Prognosis returned non-JSON', raw: text.slice(0, 300) }, { status: 502 });
+      console.log('[send-signup] ── RESPONSE (non-JSON) ──────────────────');
+      console.log('[send-signup] HTTP   :', res.status);
+      console.log('[send-signup] Raw    :', text);
+      return NextResponse.json({
+        error: 'Prognosis returned non-JSON',
+        debug: { httpStatus: res.status, requestPayload, rawResponse: text },
+      }, { status: 502 });
     }
 
-    console.log(`[send-signup] ClientUserRegistration → HTTP ${res.status}`, JSON.stringify(data).slice(0, 300));
+    console.log('[send-signup] ── RESPONSE ─────────────────────────────────');
+    console.log('[send-signup] HTTP   :', res.status);
+    console.log('[send-signup] Body   :', JSON.stringify(data, null, 2));
+
+    // Always return full debug info so it's visible in the browser network tab
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = data as any;
+    const debug = { httpStatus: res.status, requestPayload, prognosisResponse: data };
 
     if (!res.ok) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = data as any;
       return NextResponse.json(
-        { error: d?.message ?? d?.Message ?? d?.ErrorMessage ?? `Prognosis error ${res.status}` },
+        { error: d?.message ?? d?.Message ?? d?.ErrorMessage ?? `Prognosis error ${res.status}`, debug },
         { status: res.status }
       );
     }
 
-    // Extract OTP/token if Prognosis returns one — surface it so callers can
-    // build a deep-link to /verify-registration?code=OTP&email=EMAIL
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = data as any;
     const otp =
       d?.otp ?? d?.OTP ?? d?.verificationCode ?? d?.VerificationCode ??
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
-    return NextResponse.json({ success: true, otp, data });
+    return NextResponse.json({ success: true, otp, debug });
   } catch (err) {
     console.error('[send-signup] Error:', err);
     return NextResponse.json(

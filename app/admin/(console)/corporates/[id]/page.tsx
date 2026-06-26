@@ -85,6 +85,8 @@ export default function CorporateDetailPage() {
   const [signupSurname, setSignupSurname]       = useState('');
   const [signupLoading, setSignupLoading]       = useState(false);
   const [signupError, setSignupError]           = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [signupDebug, setSignupDebug]           = useState<Record<string, any> | null>(null);
 
   const [roleName, setRoleName]   = useState('');
   const [rolePerms, setRolePerms] = useState<PermMap>(defaultPerms());
@@ -202,12 +204,14 @@ export default function CorporateDetailPage() {
     setSignupEmail(corp.adminEmail);
     setSignupMobile('');
     setSignupError('');
+    setSignupDebug(null);
     setShowSignupModal(true);
   }
 
   async function sendSignupEmail() {
     if (!corp) return;
     setSignupError('');
+    setSignupDebug(null);
     if (!signupMobile.trim()) {
       setSignupError('Mobile number is required.');
       return;
@@ -226,18 +230,14 @@ export default function CorporateDetailPage() {
         }),
       });
       const json = await res.json();
+      // Always surface the debug info in the modal
+      if (json.debug) setSignupDebug(json.debug);
       if (!res.ok) {
         setSignupError(json.error ?? 'Failed to send signup email. Please try again.');
       } else {
-        setShowSignupModal(false);
-        // If Prognosis returned an OTP, build the direct deep-link for reference
-        if (json.otp) {
-          const base = window.location.origin;
-          const link = `${base}/verify-registration?code=${encodeURIComponent(json.otp)}&email=${encodeURIComponent(signupEmail)}`;
-          console.log('[send-signup] deep-link:', link);
-        }
         setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
         setTimeout(() => setShowEmailToast(null), 4000);
+        // Keep modal open to show debug response — staff can close it
       }
     } catch {
       setSignupError('Network error. Please try again.');
@@ -531,6 +531,17 @@ export default function CorporateDetailPage() {
               {signupError && (
                 <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#EF4444', fontWeight: 500 }}>
                   {signupError}
+                </div>
+              )}
+
+              {/* Prognosis response debug panel */}
+              {signupDebug && (
+                <div style={{ background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 10, padding: '12px 14px' }}>
+                  <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Prognosis API Response</p>
+                  <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>HTTP {signupDebug.httpStatus} · {signupDebug.httpStatus >= 200 && signupDebug.httpStatus < 300 ? '✓ OK' : '✗ Error'}</p>
+                  <pre style={{ fontSize: 11, color: '#131C4E', background: '#fff', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflowY: 'auto', margin: 0 }}>
+                    {JSON.stringify(signupDebug.prognosisResponse, null, 2)}
+                  </pre>
                 </div>
               )}
             </div>
