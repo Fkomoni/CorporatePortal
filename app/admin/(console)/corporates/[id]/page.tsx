@@ -216,7 +216,6 @@ export default function CorporateDetailPage() {
   async function sendSignupEmail() {
     if (!corp) return;
     setSignupError('');
-    setSignupDebug(null);
     setSignupLoading(true);
     try {
       const res = await fetch('/api/admin/corporates/send-signup', {
