@@ -424,10 +424,10 @@ async function getPreviousQuarterScore(groupId: string, currentYM: string): Prom
     const pm = m - 3;
     const py = y + Math.floor((pm - 1) / 12);
     const prevYM = `${py}-${String(((pm - 1 + 12) % 12) + 1).padStart(2, '0')}`;
-    const rows = await prisma.$queryRawUnsafe<{ score: number }[]>(
+    const rows = await prisma.$queryRawUnsafe(
       `SELECT score FROM scheme_health_snapshots WHERE "groupId"=$1 AND "yearMonth"=$2 LIMIT 1`,
       groupId, prevYM,
-    );
+    ) as { score: number }[];
     return rows.length > 0 ? Number(rows[0].score) : null;
   } catch { return null; }
 }

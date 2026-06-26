@@ -8,8 +8,8 @@ import {
   ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus, Camera,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
-import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
+import type { MemberStats } from '@/app/api/hr/members/route';
 import { useToast } from '@/components/ui/Toast';
 
 function getEnroleeId(employeeId: string, type: string): string {
@@ -32,10 +32,10 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   'Terminated': { bg: '#FEF2F2', text: '#DC2626', dot: '#EF4444' },
 };
 
-const summaryCards = [
-  { label: 'Active Members',    value: '1,842', sub: 'Total covered lives',  color: '#131C4E', bg: '#EEF2FF', Icon: Users       },
-  { label: 'New This Month',    value: '24',    sub: 'Enrolments in June',   color: '#10B981', bg: '#ECFDF5', Icon: Activity    },
-  { label: 'Pending Additions', value: '12',    sub: 'Awaiting activation',  color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck },
+const SUMMARY_CARD_DEFS = [
+  { label: 'Active Members',    key: 'activeCount'  as const, sub: 'Total covered lives', color: '#131C4E', bg: '#EEF2FF', Icon: Users       },
+  { label: 'New This Month',    key: 'newThisMonth' as const, sub: 'Enrolments this month', color: '#10B981', bg: '#ECFDF5', Icon: Activity    },
+  { label: 'Pending Additions', key: 'pendingCount' as const, sub: 'Awaiting activation', color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck },
 ];
 
 const avatarGradients = [
@@ -45,12 +45,6 @@ const avatarGradients = [
   'linear-gradient(135deg,#14B8A6,#0D9488)', 'linear-gradient(135deg,#F59E0B,#D97706)',
 ];
 
-const mockClaimHistory = [
-  { date: 'Jun 12, 2026', provider: 'Reddington Hospital',   category: 'Outpatient',  amount: '₦28,500',  status: 'Paid' },
-  { date: 'May 04, 2026', provider: 'Apex Dental Clinic',    category: 'Dental',      amount: '₦45,000',  status: 'Paid' },
-  { date: 'Mar 22, 2026', provider: 'Lagos Island General',  category: 'Inpatient',   amount: '₦312,000', status: 'Paid' },
-  { date: 'Feb 10, 2026', provider: 'Clear Vision Eye',      category: 'Optical',     amount: '₦22,000',  status: 'Paid' },
-];
 
 const categoryIconColors: Record<string, { bg: string; color: string }> = {
   'Outpatient': { bg: '#FFF3E8', color: '#F56B22' },
@@ -423,7 +417,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions }: { initial
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, vis, relationshipOptions }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[] }) {
+function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -513,9 +507,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions }: {
         {/* KPI strip */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           {[
-            { label: 'Dependants',  value: String(member.dependants ?? 0), Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
-            { label: 'Claims YTD',  value: '4',                            Icon: Activity,    color: '#F56B22', bg: '#FFF3E8' },
-            { label: 'Utilization', value: '74%',                          Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
+            { label: 'Dependants',  value: String(member.dependants ?? 0),                                  Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
+            { label: 'Claims YTD',  value: String(stats?.claimsYtd ?? '—'),                                 Icon: Activity,    color: '#F56B22', bg: '#FFF3E8' },
+            { label: 'Spend YTD',   value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—', Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
           ].map((k, ki) => (
             <div key={k.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRight: ki < 2 ? '1px solid #F0F1F5' : 'none' }}>
               <div style={{ width: 32, height: 32, borderRadius: 9, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
@@ -562,20 +556,23 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions }: {
 
               <div style={{ height: 1, background: '#F0F1F5', marginBottom: 24 }} />
 
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Utilization · 2026</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  { label: 'Total Spend YTD',   value: '₦407,500',   color: '#131C4E' },
-                  { label: 'Visits Count',       value: '4 visits',   color: '#131C4E' },
-                  { label: 'Avg Per Visit',      value: '₦101,875',  color: '#131C4E' },
-                  { label: 'Benefit Remaining',  value: '₦4,592,500', color: '#10B981' },
-                ].map((r) => (
-                  <div key={r.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: '#9CA3B8' }}>{r.label}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>{r.value}</span>
-                  </div>
-                ))}
-              </div>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Utilization · {new Date().getFullYear()}</p>
+              {stats ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    { label: 'Total Spend YTD', value: `₦${Math.round(stats.totalSpendYtd).toLocaleString()}`, color: '#131C4E' },
+                    { label: 'Visits Count',     value: `${stats.visitsYtd} visit${stats.visitsYtd !== 1 ? 's' : ''}`, color: '#131C4E' },
+                    { label: 'Avg Per Visit',    value: stats.visitsYtd > 0 ? `₦${Math.round(stats.totalSpendYtd / stats.visitsYtd).toLocaleString()}` : '—', color: '#131C4E' },
+                  ].map((r) => (
+                    <div key={r.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, color: '#9CA3B8' }}>{r.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 13, color: '#C4C9D9' }}>No utilization data for this member yet.</p>
+              )}
             </div>
           )}
 
@@ -583,32 +580,47 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions }: {
           {drawerTab === 'claims' && (
             <div style={{ padding: '22px 24px' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Recent Claims</p>
-              <div>
-                {mockClaimHistory.map((c, i) => {
-                  const ic = categoryIconColors[c.category] ?? { bg: '#F7F8FA', color: '#9CA3B8' };
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: i < mockClaimHistory.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 11, background: ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Activity style={{ width: 16, height: 16, color: ic.color }} strokeWidth={1.75} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.provider}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, background: ic.bg, color: ic.color, padding: '1px 7px', borderRadius: 20 }}>{c.category}</span>
-                          <span style={{ fontSize: 10, color: '#B0B7C9' }}>{c.date}</span>
+              {stats && stats.recentClaims.length > 0 ? (
+                <div>
+                  {stats.recentClaims.map((c, i) => {
+                    const ic = categoryIconColors[c.category] ?? { bg: '#F7F8FA', color: '#9CA3B8' };
+                    const fmtDate = (() => {
+                      if (!c.date) return '';
+                      const d = c.date.slice(0, 10);
+                      const parts = d.match(/^(\d{4})-(\d{2})-(\d{2})$/) ?? d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                      if (!parts) return c.date;
+                      try {
+                        const dt = d.includes('-')
+                          ? new Date(+parts[1], +parts[2] - 1, +parts[3])
+                          : new Date(+parts[3], +parts[2] - 1, +parts[1]);
+                        return dt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+                      } catch { return c.date; }
+                    })();
+                    const statusColor = c.status.toLowerCase().includes('paid') || c.status.toLowerCase().includes('approv') ? '#059669' : c.status.toLowerCase().includes('reject') ? '#DC2626' : '#D97706';
+                    const statusBg    = c.status.toLowerCase().includes('paid') || c.status.toLowerCase().includes('approv') ? '#ECFDF5' : c.status.toLowerCase().includes('reject') ? '#FEF2F2' : '#FFFBEB';
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: i < stats.recentClaims.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 11, background: ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Activity style={{ width: 16, height: 16, color: ic.color }} strokeWidth={1.75} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.provider || 'Unknown Provider'}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, background: ic.bg, color: ic.color, padding: '1px 7px', borderRadius: 20 }}>{c.category}</span>
+                            <span style={{ fontSize: 10, color: '#B0B7C9' }}>{fmtDate}</span>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>₦{Math.round(c.amount).toLocaleString()}</p>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: statusBg, padding: '1px 7px', borderRadius: 20 }}>{c.status}</span>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>{c.amount}</p>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '1px 7px', borderRadius: 20 }}>{c.status}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <button style={{ width: '100%', marginTop: 16, height: 42, fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: '#EEF2FF', cursor: 'pointer' }}>
-                View All Claims →
-              </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ fontSize: 13, color: '#C4C9D9', padding: '20px 0' }}>No claims found for this member in {new Date().getFullYear()}.</p>
+              )}
             </div>
           )}
 
@@ -846,26 +858,6 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions }: {
   );
 }
 
-/* ── Synthetic dependants for beneficiaries view ─────────────────────── */
-const depFirstNames = ['Chioma', 'Ngozi', 'Emeka Jr', 'Tunde Jr', 'Kemi', 'Blessing', 'David', 'Grace'];
-const mockBeneficiaries: Member[] = mockMembers.flatMap((m, mi) => {
-  const rows: Member[] = [m];
-  if (m.type === 'Principal' && (m.dependants ?? 0) > 0) {
-    const count = Math.min(m.dependants ?? 0, 2);
-    for (let i = 0; i < count; i++) {
-      rows.push({
-        ...m,
-        id: `${m.id}-dep-${i}`,
-        firstName: depFirstNames[(mi * 2 + i) % depFirstNames.length],
-        lastName: m.lastName,
-        email: `dep.${m.lastName.toLowerCase()}${i + 1}@personal.com`,
-        type: 'Dependant',
-        dependants: 0,
-      });
-    }
-  }
-  return rows;
-});
 
 /* ── Members Page ────────────────────────────────────────────────────── */
 export default function MembersPage() {
@@ -882,6 +874,12 @@ export default function MembersPage() {
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const { toast } = useToast();
 
+  // Live data
+  const [liveMembers, setLiveMembers]       = useState<Member[]>([]);
+  const [memberStatsMap, setMemberStatsMap] = useState<Record<string, MemberStats>>({});
+  const [pageStats, setPageStats]           = useState<{ activeCount: number; totalCount: number; principalCount: number; dependantCount: number; newThisMonth: number; pendingCount: number } | null>(null);
+  const [membersLoading, setMembersLoading] = useState(true);
+
   useEffect(() => {
     fetch('/api/hr/list-values')
       .then((r) => r.json())
@@ -889,7 +887,22 @@ export default function MembersPage() {
       .catch(() => {});
   }, []);
 
-  const sourceList = viewBeneficiaries ? mockBeneficiaries : mockMembers;
+  useEffect(() => {
+    fetch('/api/hr/members')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.members) setLiveMembers(d.members);
+        if (d.memberStats) setMemberStatsMap(d.memberStats);
+        if (d.stats) setPageStats(d.stats);
+      })
+      .catch(() => {})
+      .finally(() => setMembersLoading(false));
+  }, []);
+
+  const principals = liveMembers.filter((m) => m.type === 'Principal');
+  const allBeneficiaries = liveMembers; // principals + dependants already included
+
+  const sourceList = viewBeneficiaries ? allBeneficiaries : principals;
 
   const filtered = sourceList.filter((m) => {
     const q = search.toLowerCase();
@@ -907,25 +920,30 @@ export default function MembersPage() {
     background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   };
 
-  const principalCount = mockBeneficiaries.filter((m) => m.type === 'Principal').length;
-  const dependantCount = mockBeneficiaries.filter((m) => m.type === 'Dependant').length;
+  const principalCount = pageStats?.principalCount ?? liveMembers.filter((m) => m.type === 'Principal').length;
+  const dependantCount = pageStats?.dependantCount ?? liveMembers.filter((m) => m.type === 'Dependant').length;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="People" subtitle="Member Management · 1,842 active lives" />
+      <TopBar title="People" subtitle={`Member Management · ${pageStats ? pageStats.activeCount.toLocaleString() : '—'} active lives`} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* Summary cards — 3 columns (Pending Terminations removed) */}
         {vis.showSummaryCards && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
-          {summaryCards.map((c) => (
-            <div key={c.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${c.color}` }}>
-              <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>{c.value}</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
-              <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
-            </div>
-          ))}
+          {SUMMARY_CARD_DEFS.map((c) => {
+            const val = pageStats ? pageStats[c.key] : null;
+            return (
+              <div key={c.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${c.color}` }}>
+                <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>
+                  {membersLoading ? '…' : val != null ? val.toLocaleString() : '—'}
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
+                <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
+              </div>
+            );
+          })}
         </div>
         )}
 
@@ -992,6 +1010,7 @@ export default function MembersPage() {
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0C4A6E' }}>
               All Beneficiaries View — {principalCount} principals + {dependantCount} dependants = {principalCount + dependantCount} total covered lives
             </span>
+
             <span style={{ fontSize: 12, color: '#38BDF8', marginLeft: 'auto' }}>Showing all covered lives including dependants</span>
           </div>
         )}
@@ -1082,7 +1101,13 @@ export default function MembersPage() {
             );
           })}
 
-          {filtered.length === 0 && (
+          {membersLoading && (
+            <div className="py-16 flex flex-col items-center gap-3 text-center">
+              <div style={{ width: 32, height: 32, border: '3px solid #F0F1F5', borderTopColor: '#F56B22', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <p className="text-[13px] text-[#9CA3B8]">Loading members…</p>
+            </div>
+          )}
+          {!membersLoading && filtered.length === 0 && (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
               <div className="w-12 h-12 rounded-2xl bg-[#F7F8FA] flex items-center justify-center">
                 <Search className="w-5 h-5 text-[#9CA3B8]" />
@@ -1096,7 +1121,7 @@ export default function MembersPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">
-              Showing {filtered.length} of {viewBeneficiaries ? `${principalCount + dependantCount} beneficiaries` : '1,842 members'}
+              Showing {filtered.length} of {viewBeneficiaries ? `${principalCount + dependantCount} beneficiaries` : `${sourceList.length} members`}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {(['‹', '1', '2', '3', '›'] as const).map((p) => (
@@ -1122,6 +1147,7 @@ export default function MembersPage() {
           onClose={() => setActiveMember(null)}
           vis={vis}
           relationshipOptions={relationshipOptions}
+          stats={memberStatsMap[activeMember.member.employeeId]}
         />
       )}
 

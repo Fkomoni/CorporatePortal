@@ -162,6 +162,7 @@ export default function DashboardPage() {
   const schemeHealthTrendLabel = stats?.schemeHealthTrendLabel ?? null;
 
   return (
+    <>
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Overview" subtitle={topBarSubtitle || undefined} showQuickActions />
 
@@ -496,6 +497,7 @@ export default function DashboardPage() {
     </div>
 
     {/* ── ALL PROVIDERS MODAL ── */}
+
     {showAllProviders && (
       <div
         onClick={() => setShowAllProviders(false)}
@@ -532,5 +534,6 @@ export default function DashboardPage() {
         </div>
       </div>
     )}
+    </>
   );
 }
