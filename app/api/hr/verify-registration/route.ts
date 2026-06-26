@@ -46,7 +46,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { verificationcode, password, email, groupId, companyName, name } = body;
+  // groupId = Prognosis GROUP_ID (numeric); policyNumber = PolicyNumber / GROUP_CODE
+  const { verificationcode, password, email, groupId, companyName, name, policyNumber } = body;
 
   if (!verificationcode || !password) {
     return NextResponse.json({ error: 'Verification code and password are required' }, { status: 400 });
@@ -89,29 +90,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // Prognosis registration confirmed — upsert HR user in our DB so they can log in
+    // Prognosis registration confirmed — upsert HR user in our DB so they can log in.
+    // If groupId/policyNumber weren't in the request (Prognosis invite links don't include them),
+    // fall back to whatever was pre-registered by the admin when they sent the invite.
     if (email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      const resolvedGroupId      = groupId      ? String(groupId)      : existing?.companyId     ?? null;
+      const resolvedPolicyNumber = policyNumber || existing?.policyNumber || null;
+      const resolvedCompanyName  = companyName  || existing?.companyName  || null;
+      const resolvedName         = name         || existing?.name         || email;
+
       const passwordHash = await bcrypt.hash(password, 12);
       await prisma.user.upsert({
         where: { email },
         update: {
           password: passwordHash,
-          name: name || email,
-          companyId: groupId || null,
-          companyName: companyName || null,
+          name: resolvedName,
+          companyId: resolvedGroupId,
+          companyName: resolvedCompanyName,
+          policyNumber: resolvedPolicyNumber,
           active: true,
         },
         create: {
           email,
           password: passwordHash,
-          name: name || email,
+          name: resolvedName,
           role: 'hr_admin',
-          companyId: groupId || null,
-          companyName: companyName || null,
+          companyId: resolvedGroupId,
+          companyName: resolvedCompanyName,
+          policyNumber: resolvedPolicyNumber,
           active: true,
         },
       });
-      console.log(`[verify-registration] Upserted HR user in DB: ${email} (company: ${companyName})`);
+      console.log(`[verify-registration] Upserted HR user: ${email} (groupId: ${resolvedGroupId}, policyNumber: ${resolvedPolicyNumber}, company: ${resolvedCompanyName})`);
     }
 
     return NextResponse.json({ success: true });

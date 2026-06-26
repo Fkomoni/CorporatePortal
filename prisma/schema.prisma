@@ -15,6 +15,7 @@ model User {
   role          String    @default("hr_admin")
   companyId     String?
   companyName   String?
+  policyNumber  String?
   active        Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

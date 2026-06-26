@@ -13,11 +13,12 @@ function VerifyForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const urlToken    = searchParams?.get('code') ?? searchParams?.get('corporateId') ?? '';
-  const urlEmail    = searchParams?.get('email') ?? '';
-  const urlGroupId  = searchParams?.get('groupId') ?? '';
-  const urlCompany  = searchParams?.get('company') ?? '';
-  const urlName     = searchParams?.get('name') ?? '';
+  const urlToken        = searchParams?.get('code') ?? searchParams?.get('corporateId') ?? '';
+  const urlEmail        = searchParams?.get('email') ?? '';
+  const urlGroupId      = searchParams?.get('groupId') ?? '';
+  const urlPolicyNumber = searchParams?.get('policyNumber') ?? searchParams?.get('PolicyNumber') ?? '';
+  const urlCompanyName  = searchParams?.get('company') ?? searchParams?.get('companyName') ?? '';
+  const urlName         = searchParams?.get('name') ?? '';
 
   const [stage, setStage]           = useState<Stage>('password');
   const [email, setEmail]           = useState(urlEmail);
@@ -63,7 +64,15 @@ function VerifyForm() {
       const res  = await fetch('/api/hr/verify-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationcode: otp.trim(), password, email, groupId: urlGroupId, companyName: urlCompany, name: urlName }),
+        body: JSON.stringify({
+          verificationcode: otp.trim(),
+          password,
+          email,
+          groupId: urlGroupId,
+          policyNumber: urlPolicyNumber,
+          companyName: urlCompanyName,
+          name: urlName || email,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {

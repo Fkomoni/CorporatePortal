@@ -219,6 +219,8 @@ export default function CorporateDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           PolicyNumber: corp.schemeCode,
+          groupId: corp.groupId,
+          companyName: corp.name,
           email: signupEmail,
           mobile: signupMobile,
           firstname: signupFirst,
