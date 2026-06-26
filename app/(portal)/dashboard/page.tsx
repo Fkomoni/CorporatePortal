@@ -532,43 +532,5 @@ export default function DashboardPage() {
       </div>
       )}
     </div>
-
-    {/* ── ALL PROVIDERS MODAL ── */}
-    {showAllProviders && (
-      <div
-        onClick={() => setShowAllProviders(false)}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{ width: 480, height: '100vh', background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}
-        >
-          <div style={{ padding: '28px 28px 16px', borderBottom: '1px solid #EDEEF2', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-            <div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>All Provider Utilization</p>
-              <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>{liveAllProviders.length} providers · By visits &amp; spend</p>
-            </div>
-            <button onClick={() => setShowAllProviders(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#9CA3B8', lineHeight: 1, padding: 4 }}>✕</button>
-          </div>
-          <div style={{ padding: '12px 28px 28px' }}>
-            {liveAllProviders.map((p, i) => (
-              <div key={p.name} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: i < liveAllProviders.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, background: PROVIDER_GRADS[i % PROVIDER_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0, marginRight: 14 }}>
-                  {p.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.location || '—'}</p>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{vis.showAmounts ? fmtNaira(p.amtPaid) : '—'}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.visits} visits</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )}
   );
 }
