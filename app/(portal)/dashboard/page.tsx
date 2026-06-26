@@ -112,7 +112,7 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  // Policy period from API (e.g. "Apr 2026 – Mar 2027"), no hardcoded fallback
+  // Policy period from GetAllPolicies, e.g. "1st April 2026 – 31st March 2027"
   const policyYearLabel = stats?.policyPeriod ?? null;
 
   const activeLives    = stats?.activeLives    ?? null;
@@ -249,7 +249,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
             <div>
               <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>
-                Current Loss Ratio{policyYearLabel ? ` · Policy Year ${policyYearLabel.slice(-4)}` : ''}
+                Current Loss Ratio{policyYearLabel ? ` · ${policyYearLabel}` : ''}
               </p>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
                 <span style={{ fontSize: 88, fontWeight: 900, color: lrColor, letterSpacing: '-0.05em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
