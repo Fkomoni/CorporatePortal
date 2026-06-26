@@ -32,7 +32,7 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-// ── GetAllPolicies (24-hour cache, shared across all requests) ────────────────
+// ── GetAllPolicies (24-hour cache) ────────────────────────────────────────────
 let allPoliciesCache: Record<string, unknown>[] | null = null;
 let allPoliciesExpiry = 0;
 
@@ -50,13 +50,15 @@ async function getAllPolicies(token: string): Promise<Record<string, unknown>[]>
   return rows;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-async function fetchJson(token: string, path: string): Promise<unknown> {
+// ── HTTP helper ───────────────────────────────────────────────────────────────
+async function fetchJson(token: string, path: string): Promise<{ data: unknown; ok: boolean }> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
   const text = await res.text();
-  try { return JSON.parse(text); } catch { return null; }
+  let data: unknown = null;
+  try { data = JSON.parse(text); } catch { /* ignored */ }
+  return { data, ok: res.ok };
 }
 
 function toNumber(v: unknown): number | null {
@@ -89,24 +91,28 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
-// Parse DD/MM/YYYY or YYYY-MM-DD → Date | null
 function parseDate(s: string): Date | null {
   if (!s) return null;
-  // DD/MM/YYYY
-  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-  // YYYY-MM-DD (ISO)
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const t = String(s).trim().slice(0, 10);
+  // YYYY-MM-DD
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  // DD/MM/YYYY
+  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+  // MM/DD/YYYY
+  const mdy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mdy) {
+    const d = new Date(Number(mdy[3]), Number(mdy[1]) - 1, Number(mdy[2]));
+    if (!isNaN(d.getTime())) return d;
+  }
   return null;
 }
 
-// Format Date → "31st March 2027"
 function fmtOrdinalDate(d: Date): string {
   return `${ordinal(d.getDate())} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// Extract a date string from a policy record, trying multiple field names
 function extractDateStr(p: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
     const v = p[k];
@@ -126,7 +132,6 @@ function findPolicy(
   const gid = String(groupId).toLowerCase();
   const pn  = String(policyNumber).toLowerCase().replace(/\s/g, '');
 
-  // Candidate policies: match by PolicyNumber OR GroupID
   const candidates = policies.filter((p) => {
     const pNum = String(p.PolicyNumber ?? p.PolicyNo ?? p.PolicyCode ?? p.Policy_Number ?? '').toLowerCase().replace(/\s/g, '');
     const gId  = String(p.GroupID ?? p.GroupId ?? p.Group_ID ?? p.GroupCode ?? '').toLowerCase();
@@ -135,7 +140,6 @@ function findPolicy(
 
   const pool = candidates.length > 0 ? candidates : policies;
 
-  // Among candidates, prefer "active" status
   const active = pool.filter((p) => {
     const status = String(p.Status ?? p.PolicyStatus ?? p.StatusDesc ?? p.Active ?? '').toLowerCase();
     return status.includes('active') || status === '1' || status === 'true';
@@ -143,7 +147,6 @@ function findPolicy(
 
   const ranked = active.length > 0 ? active : pool;
 
-  // Pick the most recent by end date
   return ranked.reduce<Record<string, unknown> | null>((best, p) => {
     if (!best) return p;
     const endStr  = extractDateStr(p,    'Todate','ToDate','EndDate','ExpiryDate','PolicyEndDate','RenewalDate');
@@ -156,6 +159,178 @@ function findPolicy(
   }, null);
 }
 
+// ── Actuarial constants ───────────────────────────────────────────────────────
+const PREMIUM_KEYS = [
+  'IndividualPremiumFees','Member_Premium','ActualPremium','BasePremiumIndividual',
+  'PremiumAmount','Premium','Amount','TotalPremium','GrossPremium','NetPremium',
+  'premium_amount','premium','Production_Amount','ProductionAmount','GroupPremium',
+  'AnnualPremium','Annual_Premium','MemberPremium','MemberContribution','Contribution',
+  'PolicyPremium','Policy_Premium','PremiumDue',
+];
+const PAID_AMOUNT_KEYS  = ['AmtPaid','PaidAmount','AmountPaid','Paid_Amount','paid_amount','ClaimPaidAmount','NetPaid','Amount_Paid','TotalPaidAmount','TotalPaid'];
+const BILLED_AMOUNT_KEYS = ['AmtClaimed','BilledAmount','ClaimedAmount','Amount_Billed','billed_amount','AmountBilled','ClaimAmount','Claim_Amount','GrossAmount','TotalBilled','amount_claimed'];
+const STATUS_KEYS       = ['CLAIM_STATUS','ClaimStatus','Status','claim_status','PaymentStatus','Claim_Status'];
+const PAYMENT_DATE_KEYS = ['PaymentDate','Payment_Date','DatePaid','PaidDate','DateSettled','SettlementDate'];
+const CLAIM_DATE_KEYS   = ['TreatmentDate','DateOfService','ServiceDate','ClaimDate','Claim_Date','Treatment_Date'];
+const PAID_SUBSTRINGS   = ['paid','settled','approved','complete','processed','reimbursed'];
+
+function numField(row: Record<string, unknown>, keys: string[]): number {
+  for (const k of keys) {
+    const v = row[k];
+    if (v == null) continue;
+    if (typeof v === 'number') return v;
+    const c = String(v).replace(/[,₦$\s]/g, '').trim();
+    if (c && !isNaN(+c)) return +c;
+  }
+  return 0;
+}
+
+function strField(row: Record<string, unknown>, keys: string[]): string {
+  for (const k of keys) {
+    const v = row[k];
+    if (v != null && String(v).trim()) return String(v);
+  }
+  return '';
+}
+
+function daysApart(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+// ── Actuarial computation ─────────────────────────────────────────────────────
+interface LossRatioResult {
+  totalPremium: number;
+  earnedPremium: number;
+  paidClaims: number;
+  outstandingClaims: number;
+  estimatedIBNR: number;
+  ibnrMethod: string;
+  totalIncurredClaims: number;
+  lossRatio: number | null;
+  lossRatioPct: number | null;
+  cor: number | null;
+  brokerage: number;
+  nhiaFee: number;
+  adminFee: number;
+  riskStatus: string;
+  elapsedDays: number;
+  totalPolicyDays: number;
+}
+
+function computeLossRatio({
+  premiumRows, claimRows, claimsOk, policyStart, policyEnd, brokerage = 0, today = new Date(),
+}: {
+  premiumRows: Record<string, unknown>[];
+  claimRows: Record<string, unknown>[];
+  claimsOk: boolean;
+  policyStart: string;
+  policyEnd: string;
+  brokerage?: number;
+  today?: Date;
+}): LossRatioResult {
+  const EMPTY: LossRatioResult = {
+    totalPremium: 0, earnedPremium: 0, paidClaims: 0, outstandingClaims: 0,
+    estimatedIBNR: 0, ibnrMethod: 'N/A', totalIncurredClaims: 0,
+    lossRatio: null, lossRatioPct: null, cor: null, brokerage, nhiaFee: 2,
+    adminFee: brokerage > 0 ? 12 : 15, riskStatus: 'Unknown', elapsedDays: 0, totalPolicyDays: 0,
+  };
+
+  const ps = parseDate(policyStart);
+  const pe = parseDate(policyEnd);
+  if (!ps || !pe) return EMPTY;
+
+  const totalPolicyDays = Math.max(daysApart(ps, pe), 1);
+  const asAt = today < pe ? today : pe;
+  const elapsedDays = Math.max(daysApart(ps, asAt), 0);
+
+  const totalPremium = premiumRows.reduce((s, r) => s + numField(r, PREMIUM_KEYS), 0);
+  const earnedPremium = totalPremium * (elapsedDays / totalPolicyDays);
+
+  let paid = 0, outstanding = 0;
+  const monthly: Record<string, number> = {};
+
+  for (const row of claimRows) {
+    const tdStr = row[CLAIM_DATE_KEYS[0]] != null
+      ? String(row[CLAIM_DATE_KEYS[0]])
+      : strField(row, CLAIM_DATE_KEYS);
+    const td = parseDate(tdStr);
+    if (td && (td < ps || td > pe)) continue;
+
+    const hasConfirmed = 'CLAIM_STATUS' in row;
+    let isPaid = false;
+    let paidAmt = 0;
+
+    if (hasConfirmed) {
+      const st = String(row.CLAIM_STATUS ?? '').toLowerCase();
+      paidAmt = numField(row, ['AmtPaid', ...PAID_AMOUNT_KEYS]);
+      isPaid = PAID_SUBSTRINGS.some(s => st.includes(s)) || paidAmt > 0;
+      if (isPaid) paid += paidAmt;
+      else outstanding += numField(row, ['AmtClaimed', ...BILLED_AMOUNT_KEYS]);
+    } else {
+      const st = strField(row, STATUS_KEYS).toLowerCase();
+      isPaid = ['paid','approved','settled','processed'].some(s => st.includes(s))
+        || !!strField(row, PAYMENT_DATE_KEYS).trim()
+        || numField(row, PAID_AMOUNT_KEYS) > 0;
+      paidAmt = numField(row, PAID_AMOUNT_KEYS);
+      if (isPaid) paid += paidAmt;
+      else { const b = numField(row, BILLED_AMOUNT_KEYS); if (b > 0) outstanding += b; }
+    }
+
+    // Monthly IBNR bucket: confirmed path uses exact "Paid Claims" + AmtPaid
+    const countForIbnr = hasConfirmed
+      ? String(row.CLAIM_STATUS ?? '').trim() === 'Paid Claims'
+      : isPaid;
+    if (countForIbnr && td && td >= ps) {
+      const amt = hasConfirmed ? numField(row, ['AmtPaid']) : paidAmt;
+      const ym = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}`;
+      monthly[ym] = (monthly[ym] ?? 0) + amt;
+    }
+  }
+
+  const curYm = `${asAt.getFullYear()}-${String(asAt.getMonth() + 1).padStart(2, '0')}`;
+  const completed = Object.entries(monthly).filter(([ym]) => ym !== curYm).map(([, v]) => v);
+  let ibnr: number, ibnrMethod: string;
+  if (completed.length >= 2) {
+    const avg = completed.reduce((a, b) => a + b, 0) / completed.length;
+    ibnr = Math.max(avg - (monthly[curYm] ?? 0), 0);
+    ibnrMethod = 'Trend-based';
+  } else {
+    ibnr = paid * 0.075;
+    ibnrMethod = 'Fallback (7.5%)';
+  }
+
+  const totalIncurred = paid + outstanding + ibnr;
+  const lossRatio = (claimsOk && earnedPremium > 0)
+    ? +((totalIncurred / earnedPremium) * 100).toFixed(2)
+    : null;
+  const cor = lossRatio == null ? null
+    : +(brokerage > 0 ? lossRatio + 2 + 12 + brokerage : lossRatio + 2 + 15).toFixed(2);
+  const riskStatus = lossRatio == null ? 'Unknown'
+    : lossRatio <= 60 ? 'Healthy'
+    : lossRatio <= 80 ? 'Watchlist'
+    : lossRatio <= 100 ? 'High Risk'
+    : 'Critical';
+
+  return {
+    totalPremium:       +totalPremium.toFixed(2),
+    earnedPremium:      +earnedPremium.toFixed(2),
+    paidClaims:         +paid.toFixed(2),
+    outstandingClaims:  +outstanding.toFixed(2),
+    estimatedIBNR:      +ibnr.toFixed(2),
+    ibnrMethod,
+    totalIncurredClaims: +totalIncurred.toFixed(2),
+    lossRatio,
+    lossRatioPct: lossRatio !== null ? Math.round(lossRatio) : null,
+    cor,
+    brokerage,
+    nhiaFee: 2,
+    adminFee: brokerage > 0 ? 12 : 15,
+    riskStatus,
+    elapsedDays,
+    totalPolicyDays,
+  };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface DashboardStats {
   activeLives: number | null;
@@ -163,17 +338,33 @@ export interface DashboardStats {
   dependantLives: number | null;
   newThisMonth: number | null;
   newThisMonthLabel: string | null;
+  // Premium
   totalPremium: number | null;
+  earnedPremium: number | null;
+  elapsedDays: number | null;
+  totalPolicyDays: number | null;
   // Claims
-  claimsPaid: number | null;          // sum of AmtPaid (Paid status)
-  amtClaimed: number | null;          // sum of AmtClaimed
-  uniqueClaimsCount: number | null;   // unique ClaimNumber
-  membersUtilized: number | null;     // unique MemberShipNo who accessed care
-  utilizationRatePct: number | null;  // membersUtilized / activeLives * 100
+  claimsPaid: number | null;
+  outstandingClaims: number | null;
+  estimatedIBNR: number | null;
+  ibnrMethod: string | null;
+  totalIncurredClaims: number | null;
+  amtClaimed: number | null;
+  uniqueClaimsCount: number | null;
+  membersUtilized: number | null;
+  utilizationRatePct: number | null;
+  // Loss ratio / COR
   lossRatioPct: number | null;
+  lossRatioExact: number | null;
+  cor: number | null;
+  brokerage: number | null;
+  nhiaFee: number | null;
+  adminFee: number | null;
+  riskStatus: string | null;
   // Top breakdowns (top 5 each)
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
+  // Policy
   policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
@@ -192,32 +383,42 @@ export async function GET() {
   try {
     const token = await getServiceToken();
 
-    const [premiumRaw, claimsRaw, allPolicies] = await Promise.all([
+    const [premiumResult, claimsResult, allPolicies] = await Promise.all([
       fetchJson(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
       fetchJson(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
       getAllPolicies(token),
     ]);
 
-    // ── Policy period from GetAllPolicies ────────────────────────────────────
+    const premiumRaw = premiumResult.data;
+    const claimsRaw  = claimsResult.data;
+    const claimsOk   = claimsResult.ok && claimsResult.data !== null;
+
+    // ── Policy period + brokerage from GetAllPolicies ────────────────────────
     const policy = findPolicy(allPolicies, groupId, policyNumber);
 
-    let policyPeriod: string | null = null;
-    let policyYear: number | null   = null;
+    let policyPeriod: string | null   = null;
+    let policyYear: number | null     = null;
     let policyFromDate: string | null = null;
     let policyToDate: string | null   = null;
+    let brokerage = 0;
 
     if (policy) {
       const fromStr = extractDateStr(policy, 'Fromdate','FromDate','StartDate','InceptionDate','CommencementDate','PolicyStartDate');
-      const toStr   = extractDateStr(policy, 'Todate',  'ToDate',  'EndDate',  'ExpiryDate',   'RenewalDate',    'PolicyEndDate');
+      const toStr   = extractDateStr(policy, 'Todate',  'ToDate',  'EndDate',  'ExpiryDate',  'RenewalDate',    'PolicyEndDate');
       const fromD   = parseDate(fromStr);
       const toD     = parseDate(toStr);
 
       if (fromD && toD) {
-        policyPeriod  = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
-        policyYear    = fromD.getFullYear();
+        policyPeriod   = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+        policyYear     = fromD.getFullYear();
         policyFromDate = fromStr;
         policyToDate   = toStr;
       }
+
+      // Auto-detect brokered: brokerate field on the policy row (> 0 → brokered)
+      const brokerateRaw = policy.brokerate ?? policy.Brokerate ?? policy.BrokerRate
+        ?? policy.BrokerageRate ?? policy.brokerage ?? policy.Brokerage ?? 0;
+      brokerage = parseFloat(String(brokerateRaw).replace(/[^0-9.]/g, '')) || 0;
     }
 
     // ── Active lives from GetGroupPremium ────────────────────────────────────
@@ -232,13 +433,11 @@ export async function GET() {
     const principalLives = [...activeIds].filter((id) => id.endsWith('/0')).length || null;
     const dependantLives = activeLives !== null && principalLives !== null ? activeLives - principalLives : null;
 
-    // ── New members this calendar month (MemberOriginalStartdate) ────────────
-    // Use server time — this runs server-side so Date is reliable
+    // ── New members this calendar month ──────────────────────────────────────
     const now = new Date();
     const currentYear  = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-based
+    const currentMonth = now.getMonth();
 
-    // De-duplicate by EnrolleeID: one row per member, use their earliest original start date
     const memberStartMap = new Map<string, Date>();
     for (const r of activeRows) {
       const eid = String(r.Member_EnrolleeID ?? r.MemberEnrolleeID ?? r.EnrolleeID ?? '');
@@ -250,7 +449,6 @@ export async function GET() {
       const d = startStr ? parseDate(startStr) : null;
       if (!d) continue;
       const existing = memberStartMap.get(eid);
-      // Keep the earliest start date per member
       if (!existing || d < existing) memberStartMap.set(eid, d);
     }
 
@@ -263,52 +461,35 @@ export async function GET() {
     const newThisMonth = newThisMonthIds.size > 0 ? newThisMonthIds.size : 0;
     const newThisMonthLabel = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
 
-    // ── Premium (all members) ────────────────────────────────────────────────
-    const totalPremium = rows.length > 0
-      ? rows.reduce((sum, r) => sum + (toNumber(r.IndividualPremiumFees ?? r.PremiumFee ?? r.Premium) ?? 0), 0)
-      : null;
-
-    // ── Claims (GetGroupClaims fields confirmed) ─────────────────────────────
+    // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
     const claimRows = toRows(claimsRaw);
 
-    // Paid claims only for financial totals
-    const paidRows = claimRows.filter(
-      (r) => String(r.CLAIM_STATUS ?? r.ClaimStatus ?? '').trim().toLowerCase().startsWith('paid')
-    );
+    const lr = computeLossRatio({
+      premiumRows: rows,
+      claimRows,
+      claimsOk,
+      policyStart: policyFromDate ?? '',
+      policyEnd:   policyToDate   ?? '',
+      brokerage,
+    });
 
-    const claimsPaid = paidRows.length > 0
-      ? paidRows.reduce((sum, r) => sum + (toNumber(r.AmtPaid ?? r.AmountPaid ?? r.AmtClaimed) ?? 0), 0)
-      : claimRows.length > 0   // fallback: no status filter if CLAIM_STATUS absent
-        ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0), 0)
-        : null;
-
-    const amtClaimed = claimRows.length > 0
-      ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
-      : null;
-
-    // Unique hospital visits = unique ClaimNumber
+    // ── Utilization metrics ───────────────────────────────────────────────────
     const uniqueClaimNos = new Set(
       claimRows.map((r) => String(r.ClaimNumber ?? r.Claim_Number ?? '').trim()).filter(Boolean)
     );
     const uniqueClaimsCount = uniqueClaimNos.size > 0 ? uniqueClaimNos.size : null;
 
-    // Members who accessed care = unique MemberShipNo
     const utilizedMemberIds = new Set(
       claimRows.map((r) => String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim()).filter(Boolean)
     );
     const membersUtilized = utilizedMemberIds.size > 0 ? utilizedMemberIds.size : null;
 
-    // Utilization rate
     const utilizationRatePct =
       membersUtilized !== null && activeLives && activeLives > 0
         ? Math.round((membersUtilized / activeLives) * 100)
         : null;
 
-    const lossRatioPct = (claimsPaid !== null && totalPremium && totalPremium > 0)
-      ? Math.round((claimsPaid / totalPremium) * 100)
-      : null;
-
-    // Top 5 providers by visit count
+    // ── Top 5 providers ───────────────────────────────────────────────────────
     const providerMap = new Map<string, { location: string; visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
       const name     = String(r.Provider ?? r.ProviderName ?? '').trim();
@@ -331,7 +512,7 @@ export async function GET() {
       .sort((a, b) => b.visits - a.visits)
       .slice(0, 5);
 
-    // Top 5 service types by visit count
+    // ── Top 5 service types ───────────────────────────────────────────────────
     const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
       const svc     = String(r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
@@ -353,19 +534,36 @@ export async function GET() {
       .sort((a, b) => b.visits - a.visits)
       .slice(0, 5);
 
+    const amtClaimed = claimRows.length > 0
+      ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
+      : null;
+
     const stats: DashboardStats = {
       activeLives,
       principalLives,
       dependantLives,
       newThisMonth,
       newThisMonthLabel,
-      totalPremium,
-      claimsPaid,
+      totalPremium:       lr.totalPremium,
+      earnedPremium:      lr.earnedPremium,
+      elapsedDays:        lr.elapsedDays,
+      totalPolicyDays:    lr.totalPolicyDays,
+      claimsPaid:         lr.paidClaims,
+      outstandingClaims:  lr.outstandingClaims,
+      estimatedIBNR:      lr.estimatedIBNR,
+      ibnrMethod:         lr.ibnrMethod,
+      totalIncurredClaims: lr.totalIncurredClaims,
       amtClaimed,
       uniqueClaimsCount,
       membersUtilized,
       utilizationRatePct,
-      lossRatioPct,
+      lossRatioPct:       lr.lossRatioPct,
+      lossRatioExact:     lr.lossRatio,
+      cor:                lr.cor,
+      brokerage:          lr.brokerage,
+      nhiaFee:            lr.nhiaFee,
+      adminFee:           lr.adminFee,
+      riskStatus:         lr.riskStatus,
       topProviders,
       topServices,
       policyPeriod,
@@ -384,8 +582,23 @@ export async function GET() {
         activeRowCount: activeRows.length,
         samplePremiumRow: rows[0] ?? null,
         claimsRowCount: claimRows.length,
-        paidClaimsRowCount: paidRows.length,
+        claimsOk,
         sampleClaimRow: claimRows[0] ?? null,
+        actuarial: {
+          totalPremium:    lr.totalPremium,
+          earnedPremium:   lr.earnedPremium,
+          elapsedDays:     lr.elapsedDays,
+          totalPolicyDays: lr.totalPolicyDays,
+          paidClaims:      lr.paidClaims,
+          outstandingClaims: lr.outstandingClaims,
+          estimatedIBNR:   lr.estimatedIBNR,
+          ibnrMethod:      lr.ibnrMethod,
+          totalIncurred:   lr.totalIncurredClaims,
+          lossRatio:       lr.lossRatio,
+          cor:             lr.cor,
+          brokerage:       lr.brokerage,
+          riskStatus:      lr.riskStatus,
+        },
         uniqueClaimsCount,
         membersUtilized,
         topProviders,
