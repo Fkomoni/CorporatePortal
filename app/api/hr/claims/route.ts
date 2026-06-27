@@ -118,6 +118,7 @@ export interface LiveClaim {
   diagnosis: string;
   amount: number;
   amtClaimed: number;
+  rejectedAmount: number;
   status: 'Paid' | 'Processing' | 'Queried' | 'Rejected';
   submittedDate: string;
   settledDate?: string;
@@ -131,6 +132,7 @@ export interface ClaimsStats {
   processingCount: number;
   queriedCount: number;
   rejectedCount: number;
+  rejectedAmount: number;
   totalClaims: number;
   policyStart: string | null;
   policyEnd: string | null;
@@ -176,7 +178,7 @@ export async function GET() {
     const rows = toRows(claimsRaw);
 
     // Deduplicate by ClaimNumber — accumulate amount per unique claim
-    const claimMap = new Map<string, { row: Record<string, unknown>; amount: number; amtClaimed: number }>();
+    const claimMap = new Map<string, { row: Record<string, unknown>; amtPaid: number; amtClaimed: number }>();
 
     for (const r of rows) {
       const claimNo  = str(r, 'ClaimNumber', 'Claim_Number', 'ClaimNo', 'ClaimRef', 'Ref');
@@ -189,17 +191,19 @@ export async function GET() {
 
       if (claimMap.has(key)) {
         const existing = claimMap.get(key)!;
-        existing.amount     += amtPaid;
+        existing.amtPaid    += amtPaid;
         existing.amtClaimed += amtClaimed;
       } else {
-        claimMap.set(key, { row: r, amount: amtPaid, amtClaimed });
+        claimMap.set(key, { row: r, amtPaid, amtClaimed });
       }
     }
+
+    const PAID_SUBSTRINGS = ['paid', 'settled', 'approved', 'complete', 'processed', 'reimbursed'];
 
     const claims: LiveClaim[] = [];
     let idx = 0;
 
-    for (const [key, { row: r, amount, amtClaimed }] of claimMap.entries()) {
+    for (const [key, { row: r, amtPaid, amtClaimed }] of claimMap.entries()) {
       idx++;
       const rawStatus = str(r, 'CLAIM_STATUS', 'ClaimStatus', 'Status', 'claim_status', 'PaymentStatus', 'Claim_Status');
       const status    = mapStatus(rawStatus);
@@ -213,8 +217,26 @@ export async function GET() {
       const paidDate  = str(r, 'PaymentDate', 'Payment_Date', 'DatePaid', 'PaidDate', 'DateSettled', 'SettlementDate');
       const planRaw   = str(r, 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName');
 
-      // Use actual paid amount; fall back to claimed amount only for non-paid status display
-      const displayAmount = amount > 0 ? amount : (status !== 'Paid' ? amtClaimed : 0);
+      // Dashboard-aligned: when CLAIM_STATUS exists and claim is paid with AmtPaid=0,
+      // use AmtClaimed as effective paid amount (Prognosis data quality gap).
+      const hasConfirmed = 'CLAIM_STATUS' in r;
+      let displayAmount: number;
+      let rejectedAmount = 0;
+
+      if (hasConfirmed) {
+        const st = String(r.CLAIM_STATUS ?? '').toLowerCase();
+        const isPaid = PAID_SUBSTRINGS.some(s => st.includes(s)) || amtPaid > 0;
+        if (isPaid) {
+          displayAmount = amtPaid > 0 ? amtPaid : amtClaimed;
+          rejectedAmount = amtClaimed - displayAmount;
+        } else {
+          displayAmount = amtClaimed;
+          rejectedAmount = status === 'Rejected' ? amtClaimed : 0;
+        }
+      } else {
+        displayAmount = status === 'Paid' ? (amtPaid > 0 ? amtPaid : amtClaimed) : amtClaimed;
+        rejectedAmount = status === 'Rejected' ? amtClaimed - amtPaid : 0;
+      }
 
       // Generate a ref if none available
       const claimRef = str(r, 'ClaimNumber', 'Claim_Number', 'ClaimNo', 'ClaimRef', 'Ref') || `CLM-${idx.toString().padStart(6, '0')}`;
@@ -230,6 +252,7 @@ export async function GET() {
         diagnosis,
         amount: displayAmount,
         amtClaimed,
+        rejectedAmount: Math.max(rejectedAmount, 0),
         status,
         rawStatus,
         submittedDate: fmtDateStr(dateStr),
@@ -256,6 +279,7 @@ export async function GET() {
       processingCount:  filtered.filter((c) => c.status === 'Processing').length,
       queriedCount:     filtered.filter((c) => c.status === 'Queried').length,
       rejectedCount:    filtered.filter((c) => c.status === 'Rejected').length,
+      rejectedAmount:   filtered.reduce((s, c) => s + c.rejectedAmount, 0),
       totalClaims:      filtered.length,
       policyStart: policyStart ? policyStart.toISOString().slice(0, 10) : null,
       policyEnd:   policyEnd   ? policyEnd.toISOString().slice(0, 10)   : null,

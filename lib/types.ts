@@ -13,6 +13,7 @@ export interface Member {
   location: string;
   enrollmentDate: string;
   dependants?: number;
+  premium?: number;
 }
 
 export interface Invoice {

@@ -131,6 +131,13 @@ function mapRow(row: Record<string, unknown>, index: number): Member {
   const depRaw   = row['DependantCount'] ?? row['DependantNo'] ?? row['NoOfDependants'] ?? row['Dependants'] ?? null;
   const dependants = depRaw != null ? parseInt(String(depRaw), 10) || 0 : undefined;
 
+  const premiumRaw = num(row,
+    'IndividualPremiumFees', 'Member_Premium', 'ActualPremium', 'BasePremiumIndividual',
+    'PremiumAmount', 'Premium', 'Production_Amount', 'ProductionAmount',
+    'MemberPremium', 'MemberContribution', 'PolicyPremium',
+  );
+  const premium = premiumRaw > 0 ? premiumRaw : undefined;
+
   return {
     id: enrolleeId || String(index),
     employeeId: enrolleeId || `EMP${String(index + 1).padStart(4, '0')}`,
@@ -146,6 +153,7 @@ function mapRow(row: Record<string, unknown>, index: number): Member {
     location: loc || '',
     enrollmentDate: enrollDate || '',
     dependants,
+    premium,
   };
 }
 
@@ -304,6 +312,29 @@ export async function GET() {
       }
       return base;
     });
+
+    // Compute dependant counts by grouping on the ID prefix (everything before "/")
+    // e.g. "25190120/0" → prefix "25190120"; dependants are those sharing the prefix but not "/0"
+    const prefixCounts: Map<string, number> = new Map();
+    for (const m of members) {
+      const slash = m.employeeId.indexOf('/');
+      const prefix = slash >= 0 ? m.employeeId.slice(0, slash) : m.employeeId;
+      if (!prefix) continue;
+      const suffix = slash >= 0 ? m.employeeId.slice(slash + 1) : '0';
+      // Only count non-principal slots (suffix !== '0') as dependants
+      if (suffix !== '0') {
+        prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+      }
+    }
+    // Assign computed dependant count to each principal
+    for (const m of members) {
+      const slash = m.employeeId.indexOf('/');
+      const prefix = slash >= 0 ? m.employeeId.slice(0, slash) : m.employeeId;
+      const suffix = slash >= 0 ? m.employeeId.slice(slash + 1) : '0';
+      if (suffix === '0' && prefix) {
+        m.dependants = prefixCounts.get(prefix) ?? 0;
+      }
+    }
 
     // Summary stats
     const now          = new Date();

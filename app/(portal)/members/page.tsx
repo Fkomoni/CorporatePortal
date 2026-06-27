@@ -12,11 +12,6 @@ import type { Member } from '@/lib/types';
 import type { MemberStats } from '@/app/api/hr/members/route';
 import { useToast } from '@/components/ui/Toast';
 
-function getEnroleeId(employeeId: string, type: string): string {
-  const num = parseInt(employeeId.replace('EMP', ''), 10);
-  const base = `2100${String(num).padStart(4, '0')}`;
-  return `${base}/${type === 'Dependant' ? '1' : '0'}`;
-}
 
 const planColors: Record<string, { bg: string; text: string }> = {
   'Plus Plan':   { bg: '#FFF7ED', text: '#C2410C' },
@@ -427,7 +422,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
   const status = statusColors[member.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
   const grad   = avatarGradients[index % avatarGradients.length];
-  const enroleeId = getEnroleeId(member.employeeId, member.type);
+  const enroleeId = member.employeeId;
   const depCount  = member.dependants ?? 0;
 
   return (
@@ -475,8 +470,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, background: '#F1F2F8', color: '#3A4382', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{member.employeeId}</span>
-                {vis.showEnroleeIds && <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF3E8', color: '#F56B22', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{enroleeId}</span>}
+                <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF3E8', color: '#F56B22', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{enroleeId}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                 <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: plan.bg, color: plan.text }}>{member.plan}</span>
@@ -540,12 +534,13 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 20px', marginBottom: 24 }}>
                 {[
-                  { label: 'Date of Birth', value: new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) },
-                  { label: 'Gender',        value: member.gender },
-                  { label: 'Plan',          value: member.plan },
-                  { label: 'Member Type',   value: member.type },
-                  { label: 'State',         value: member.location },
-                  { label: 'Dependants',    value: String(member.dependants ?? 0) },
+                  { label: 'Date of Birth',       value: new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) },
+                  { label: 'Gender',              value: member.gender },
+                  { label: 'Plan',                value: member.plan },
+                  { label: 'Member Type',         value: member.type },
+                  { label: 'State',               value: member.location },
+                  { label: 'Dependants',          value: String(member.dependants ?? 0) },
+                  { label: 'Individual Premium',  value: member.premium != null ? `₦${Math.round(member.premium).toLocaleString('en-NG')}` : '—' },
                 ].map((row) => (
                   <div key={row.label}>
                     <p style={{ fontSize: 10, color: '#B0B7C9', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{row.label}</p>
@@ -1046,7 +1041,7 @@ export default function MembersPage() {
         {/* Members / Beneficiaries table */}
         <div style={{ ...card }}>
           <div className="grid items-center border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: `36px 1fr 88px${vis.showEnroleeIds ? ' 132px' : ''} 118px 76px 108px 120px 96px`, columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            style={{ gridTemplateColumns: '36px 1fr 80px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} title="Select all" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }} onClick={toggleAll} title="Click to select all">
               <span className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest select-none">
@@ -1054,7 +1049,7 @@ export default function MembersPage() {
               </span>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#C4C9D9', background: '#F0F1F5', padding: '1px 5px', borderRadius: 4, letterSpacing: '0.04em' }}>SELECT ALL</span>
             </div>
-            {['Emp ID', ...(vis.showEnroleeIds ? ['Enrolee ID'] : []), 'Plan', 'Type', 'Status', 'Phone', 'Beneficiaries'].map((h) => (
+            {['Staff ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Dependents Count'].map((h) => (
               <span key={h} className="text-[10.5px] font-bold uppercase">{h}</span>
             ))}
           </div>
@@ -1063,13 +1058,12 @@ export default function MembersPage() {
             const plan   = planColors[m.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
             const status = statusColors[m.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
             const isSel  = selected.includes(m.id);
-            const enroleeId = getEnroleeId(m.employeeId, m.type);
             const isDependant = m.type === 'Dependant';
             return (
               <div
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: `36px 1fr 88px${vis.showEnroleeIds ? ' 132px' : ''} 118px 76px 108px 120px 96px`, columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
+                style={{ gridTemplateColumns: '36px 1fr 80px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
                 onClick={() => setActiveMember({ member: m, index: i })}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />
@@ -1079,8 +1073,8 @@ export default function MembersPage() {
                   )}
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
                 </div>
-                <span className="text-[11px] text-[#9CA3B8] font-mono">{m.employeeId}</span>
-                {vis.showEnroleeIds && <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{enroleeId}</span>}
+                <span className="text-[11px] text-[#C4C9D9] font-mono">—</span>
+                <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{m.employeeId}</span>
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[11px]" style={{ color: isDependant ? '#6366F1' : '#9CA3B8', fontWeight: isDependant ? 600 : 400 }}>{m.type}</span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
@@ -1089,9 +1083,9 @@ export default function MembersPage() {
                 <span className="text-[11px] text-[#9CA3B8]">{m.phone}</span>
                 {m.type === 'Principal' ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#131C4E' }}>{(m.dependants ?? 0) + 1}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#131C4E' }}>{m.dependants ?? 0}</span>
                     <span style={{ fontSize: 10, fontWeight: 600, color: (m.dependants ?? 0) > 0 ? '#F56B22' : '#C4C9D9', background: (m.dependants ?? 0) > 0 ? '#FFF3E8' : '#F7F8FA', padding: '1px 6px', borderRadius: 6 }}>
-                      {(m.dependants ?? 0) > 0 ? `+${m.dependants} dep` : 'self only'}
+                      {(m.dependants ?? 0) > 0 ? `dep${(m.dependants ?? 0) > 1 ? 's' : ''}` : 'none'}
                     </span>
                   </span>
                 ) : (
