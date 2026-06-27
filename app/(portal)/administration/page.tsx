@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
-import { mockUsers } from '@/lib/mock-data';
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
   'Admin':      { bg: '#FFF1E6', text: '#F56B22', border: '#FFD8C0' },
   'HR Manager': { bg: '#EEF2FF', text: '#3730A3', border: '#C7D2FE' },
+  'hr_admin':   { bg: '#EEF2FF', text: '#3730A3', border: '#C7D2FE' },
   'Finance':    { bg: '#FFFBEB', text: '#D97706', border: '#FDE68A' },
   'Viewer':     { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' },
 };
@@ -51,18 +51,6 @@ const downloads = [
   { name: 'Benefit Guide',          type: 'PDF',   updated: '2026 Edition' },
 ];
 
-const schemeProfile = {
-  companyName:   'Dangote Industries Ltd',
-  billingEmail:  'hr-health@dangote.com',
-  hrContact:     'Favour Komoni',
-  address:       '1 Alfred Rewane Road, Ikoyi, Lagos',
-  schemeCode:    'DNG-2024-001',
-  renewalDate:   '31 Dec 2026',
-  activeSince:   'Jan 2024',
-  plans:         ['Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'],
-  rm: { name: 'Samuel Okafor', initials: 'SO', phone: '+234 800 532 9374', email: 's.okafor@leadway.com' },
-};
-
 const planColors: Record<string, { bg: string; text: string }> = {
   'Plus Plan':   { bg: '#FFF7ED', text: '#C2410C' },
   'Pro Plan':    { bg: '#F1F5F9', text: '#475569' },
@@ -79,7 +67,49 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
+interface CompanyProfile {
+  companyName: string;
+  companyId: string;
+  policyNumber: string;
+  user: { name: string; email: string; role: string };
+  scheme: {
+    policyStart: string;
+    policyEnd: string;
+    policyStartFmt: string;
+    policyEndFmt: string;
+    activeSince: string;
+    activePlans: string[];
+  };
+}
+
+interface PortalUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: 'Active' | 'Inactive';
+  lastLogin: string | null;
+}
+
 type Tab = 'users' | 'profile' | 'account' | 'help';
+
+function formatLastLogin(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatRoleLabel(role: string): string {
+  if (role === 'hr_admin') return 'HR Manager';
+  return role;
+}
 
 export default function AdministrationPage() {
   const [activeTab, setActiveTab]   = useState<Tab>('users');
@@ -88,7 +118,11 @@ export default function AdministrationPage() {
   const [logoDrag, setLogoDrag]     = useState(false);
   const fileRef                     = useRef<HTMLInputElement>(null);
 
-  const [profile, setProfile] = useState({ displayName: 'Favour Komoni', jobTitle: 'HR Administrator', email: 'f.komoni@dangote.com', phone: '+234 803 456 7890' });
+  // Live data state
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
+  const [portalUsers, setPortalUsers]       = useState<PortalUser[]>([]);
+  const [loading, setLoading]               = useState(true);
+
   const [notifications, setNotifications] = useState({ invoiceIssued: true, invoiceDue: true, claimUpdates: false, enrolmentConfirm: true, bulkUpload: true });
   const [passwords, setPasswords]   = useState({ current: '', next: '', confirm: '' });
   const [showPw, setShowPw]         = useState({ current: false, next: false, confirm: false });
@@ -107,6 +141,29 @@ export default function AdministrationPage() {
   const [showRoleForm, setShowRoleForm] = useState(false);
   const blankRoleForm = { name: '', desc: '', colorKey: 'purple', modules: { dashboard: true, members: true, benefits: false, finance: false, claims: false, reports: false, serviceDesk: false } };
   const [roleForm, setRoleForm] = useState(blankRoleForm);
+
+  // Profile form — initialised from API data
+  const [profile, setProfile] = useState({ displayName: '', jobTitle: '', email: '', phone: '' });
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/hr/company-profile').then((r) => r.json()),
+      fetch('/api/hr/portal-users').then((r) => r.json()),
+    ]).then(([profileData, usersData]) => {
+      if (profileData && !profileData.error) {
+        setCompanyProfile(profileData as CompanyProfile);
+        setProfile((prev) => ({
+          ...prev,
+          displayName: profileData.user?.name  || prev.displayName,
+          email:       profileData.user?.email || prev.email,
+        }));
+      }
+      if (usersData?.users) {
+        setPortalUsers(usersData.users as PortalUser[]);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
 
   function handleLogoFile(file: File) {
     const reader = new FileReader();
@@ -133,6 +190,8 @@ export default function AdministrationPage() {
   const readonlyStyle: React.CSSProperties = { ...inputStyle, background: '#F7F8FC', color: '#6B7280', cursor: 'default' };
   const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'block' };
 
+  const cp = companyProfile;
+
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Administration" subtitle="Users · Company Profile · My Account · Help" />
@@ -154,7 +213,6 @@ export default function AdministrationPage() {
         {/* ── USERS & ACCESS ── */}
         {activeTab === 'users' && (
           <>
-            {/* ── ACCESS ROLES ── */}
             <div style={{ ...card, padding: '20px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div>
@@ -195,7 +253,6 @@ export default function AdministrationPage() {
                 })}
               </div>
 
-              {/* Define Role Form */}
               {showRoleForm && (
                 <div style={{ marginTop: 20, padding: '20px', background: '#FAFBFC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>New Role</p>
@@ -260,43 +317,63 @@ export default function AdministrationPage() {
               )}
             </div>
 
+            {/* PORTAL USERS TABLE */}
             <div style={{ ...card, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
                 <div>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Portal Users</p>
-                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{mockUsers.length} active users</p>
+                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
+                    {loading ? 'Loading…' : `${portalUsers.length} user${portalUsers.length !== 1 ? 's' : ''}`}
+                  </p>
                 </div>
                 <button style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
                   <Plus style={{ width: 15, height: 15 }} /> Invite User
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 140px 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
-                {['User', 'Role', 'Last Login', 'Status', ''].map((h) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+                {['User', 'Role', 'Last Activity', 'Status', ''].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
               </div>
-              {mockUsers.map((u) => {
-                const rc = roleColors[u.role] ?? roleColors['Viewer'];
-                return (
-                  <div key={u.id}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 180px 140px 160px 130px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', transition: 'background 0.12s' }}
-                    className="last:border-0 hover:bg-[#FAFBFC]">
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{u.name}</p>
-                      <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 2 }}>{u.email}</p>
+
+              {loading ? (
+                <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: 10, color: '#9CA3B8' }}>
+                  <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+                  <span style={{ fontSize: 13 }}>Loading users…</span>
+                </div>
+              ) : portalUsers.length === 0 ? (
+                <div style={{ padding: '32px 24px', color: '#9CA3B8', fontSize: 13 }}>No portal users found.</div>
+              ) : (
+                portalUsers.map((u) => {
+                  const displayRole = formatRoleLabel(u.role);
+                  const rc = roleColors[displayRole] ?? roleColors['Viewer'];
+                  return (
+                    <div key={u.id}
+                      style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px 160px 130px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', transition: 'background 0.12s' }}
+                      className="last:border-0 hover:bg-[#FAFBFC]">
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{u.name}</p>
+                        <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 2 }}>{u.email}</p>
+                      </div>
+                      <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: rc.bg, color: rc.text, width: 'fit-content' }}>{displayRole}</span>
+                      <span style={{ fontSize: 12, color: '#9CA3B8' }}>{formatLastLogin(u.lastLogin)}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        background: u.status === 'Active' ? '#ECFDF5' : '#F7F8FA',
+                        color:      u.status === 'Active' ? '#059669'  : '#9CA3B8',
+                        width: 'fit-content' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'Active' ? '#10B981' : '#D1D5DB' }} />
+                        {u.status}
+                      </span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>Edit</button>
+                        <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>
+                          {u.status === 'Active' ? 'Disable' : 'Enable'}
+                        </button>
+                      </div>
                     </div>
-                    <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: rc.bg, color: rc.text, width: 'fit-content' }}>{u.role}</span>
-                    <span style={{ fontSize: 12, color: '#9CA3B8' }}>Today</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: '#ECFDF5', color: '#059669', width: 'fit-content' }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} /> Active
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>Edit</button>
-                      <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>Disable</button>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </>
         )}
@@ -317,14 +394,14 @@ export default function AdministrationPage() {
                     <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 1 }}>Appears in the portal sidebar and header</p>
                   </div>
                 </div>
-
                 <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                   <div style={{ width: 88, height: 88, borderRadius: 20, border: '2px dashed #E5E7F1', background: '#FAFBFC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                     {logoUrl
                       ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                      : <span style={{ fontSize: 22, fontWeight: 900, color: '#C4C9D9', letterSpacing: '-0.04em' }}>DI</span>}
+                      : <span style={{ fontSize: 22, fontWeight: 900, color: '#C4C9D9', letterSpacing: '-0.04em' }}>
+                          {cp?.companyName?.slice(0, 2).toUpperCase() || 'GN'}
+                        </span>}
                   </div>
-
                   <div
                     onDragOver={(e) => { e.preventDefault(); setLogoDrag(true); }}
                     onDragLeave={() => setLogoDrag(false)}
@@ -337,91 +414,104 @@ export default function AdministrationPage() {
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); }} />
                 </div>
-
                 {logoUrl && (
                   <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-                    <button style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>
-                      Save Logo
-                    </button>
-                    <button onClick={() => setLogoUrl(null)} style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 10, cursor: 'pointer' }}>
-                      Remove
-                    </button>
+                    <button style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>Save Logo</button>
+                    <button onClick={() => setLogoUrl(null)} style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 10, cursor: 'pointer' }}>Remove</button>
                   </div>
                 )}
               </div>
 
-              {/* COMPANY DETAILS — read-only */}
+              {/* COMPANY DETAILS */}
               <div style={{ ...card, padding: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Company Details</p>
                   <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 10px' }}>Read-only · Managed by Leadway Health</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  {[
-                    { label: 'Company Name',   value: schemeProfile.companyName },
-                    { label: 'HR Contact',     value: schemeProfile.hrContact },
-                    { label: 'Billing Email',  value: schemeProfile.billingEmail },
-                    { label: 'Office Address', value: schemeProfile.address },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={label === 'Office Address' ? { gridColumn: '1 / -1' } : {}}>
-                      <label style={labelStyle}>{label}</label>
-                      <input readOnly value={value} style={readonlyStyle} />
-                    </div>
-                  ))}
-                </div>
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3B8', fontSize: 13 }}>
+                    <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading…
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    {[
+                      { label: 'Company Name',  value: cp?.companyName  || '—' },
+                      { label: 'Group ID',      value: cp?.companyId    || '—' },
+                      { label: 'Policy Number', value: cp?.policyNumber || '—' },
+                      { label: 'HR Contact',    value: cp?.user?.name   || '—' },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <label style={labelStyle}>{label}</label>
+                        <input readOnly value={value} style={readonlyStyle} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* RIGHT COLUMN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* SCHEME INFO — read-only */}
+              {/* SCHEME INFO */}
               <div style={{ ...card, padding: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Scheme Info</p>
                   <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 10px' }}>Read-only</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {[
-                    { label: 'Scheme Code',  value: schemeProfile.schemeCode },
-                    { label: 'Active Since', value: schemeProfile.activeSince },
-                    { label: 'Renewal Date', value: schemeProfile.renewalDate },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <label style={labelStyle}>{label}</label>
-                      <input readOnly value={value} style={readonlyStyle} />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={labelStyle}>Active Plan Tiers</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                      {schemeProfile.plans.map((p) => {
-                        const pc = planColors[p] ?? { bg: '#F1F5F9', text: '#475569' };
-                        return <span key={p} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, background: pc.bg, color: pc.text }}>{p}</span>;
-                      })}
-                    </div>
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3B8', fontSize: 13 }}>
+                    <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading…
                   </div>
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {[
+                      { label: 'Policy Start', value: cp?.scheme?.policyStartFmt || '—' },
+                      { label: 'Renewal Date', value: cp?.scheme?.policyEndFmt   || '—' },
+                      { label: 'Active Since',  value: cp?.scheme?.activeSince    || '—' },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <label style={labelStyle}>{label}</label>
+                        <input readOnly value={value} style={readonlyStyle} />
+                      </div>
+                    ))}
+                    {cp?.scheme?.activePlans && cp.scheme.activePlans.length > 0 && (
+                      <div>
+                        <label style={labelStyle}>Active Plan Tiers</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                          {cp.scheme.activePlans.map((p) => {
+                            const pc = planColors[p] ?? { bg: '#F1F5F9', text: '#475569' };
+                            return <span key={p} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, background: pc.bg, color: pc.text }}>{p}</span>;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* RM CARD */}
-              <div style={{ borderRadius: 16, padding: '22px 24px', color: '#fff', background: 'linear-gradient(135deg,#131C4E,#3A4382)' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Your Account Manager</p>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 20 }}>Dedicated support for your scheme</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{schemeProfile.rm.initials}</div>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700 }}>{schemeProfile.rm.name}</p>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Corporate Account Manager</p>
+              {/* CONTACT LEADWAY HEALTH */}
+              <div style={{ ...card, padding: '22px 24px' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Contact Leadway Health</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Phone style={{ width: 14, height: 14, color: '#3A4382' }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>Customer Care</p>
+                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>0800-LEADWAY</p>
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Phone style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.phone}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Mail style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.email}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 10, color: '#fff', cursor: 'pointer' }}>📞 Call</button>
-                  <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: '#fff', border: 'none', borderRadius: 10, color: '#131C4E', cursor: 'pointer' }}>✉ Email</button>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Mail style={{ width: 14, height: 14, color: '#3A4382' }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>Corporate Email</p>
+                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>corporate@leadwayhealth.com</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -450,7 +540,7 @@ export default function AdministrationPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Job Title</label>
-                    <input value={profile.jobTitle} onChange={(e) => setProfile({ ...profile, jobTitle: e.target.value })} style={inputStyle}
+                    <input value={profile.jobTitle} onChange={(e) => setProfile({ ...profile, jobTitle: e.target.value })} placeholder="e.g. HR Administrator" style={inputStyle}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                   </div>
@@ -461,7 +551,7 @@ export default function AdministrationPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Phone Number</label>
-                    <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} style={inputStyle}
+                    <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="+234 …" style={inputStyle}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                   </div>
@@ -541,17 +631,14 @@ export default function AdministrationPage() {
                   </div>
                 </div>
 
-                {/* Setup wizard */}
                 {twoFaEnabled && !twoFaActive && (
                   <div style={{ borderRadius: 14, border: '1px solid #E5E7F1', overflow: 'hidden' }}>
-
-                    {/* Step 1 — choose method */}
                     {twoFaSetup === 'choose' && (
                       <div style={{ padding: '20px' }}>
                         <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Step 1 of 2 · Choose verification method</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {([
-                            { key: 'email' as const, Icon: Mail,  label: 'Email',            desc: `Send a one-time code to ${profile.email}` },
+                            { key: 'email' as const, Icon: Mail,  label: 'Email',            desc: `Send a one-time code to ${profile.email || 'your email'}` },
                             { key: 'sms'   as const, Icon: Phone, label: 'SMS Text Message', desc: 'Receive a one-time code on your registered phone' },
                           ]).map(({ key, Icon, label, desc }) => (
                             <button key={key} onClick={() => { setTwoFaMethod(key); setTwoFaSetup('scan'); }}
@@ -569,61 +656,36 @@ export default function AdministrationPage() {
                       </div>
                     )}
 
-                    {/* Step 2 — scan / verify */}
                     {twoFaSetup === 'scan' && (
                       <div style={{ padding: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                           <button onClick={() => setTwoFaSetup('choose')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>← Back</button>
                           <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2 · {twoFaMethod === 'email' ? 'Verify Email' : 'Verify Phone'}</p>
                         </div>
-
-                        {twoFaMethod === 'email' ? (
-                          <div>
-                            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>
-                              A verification code has been sent to <strong>{profile.email}</strong>. Enter it below to confirm.
-                            </p>
-                            <label style={labelStyle}>6-digit code</label>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                              <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
-                                style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
-                                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
-                              <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
-                                style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
-                                Verify
-                              </button>
-                            </div>
-                            <button style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                              Resend Code
-                            </button>
-                          </div>
-                        ) : (
-                          <div>
-                            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>
-                              A verification code will be sent to <strong>{profile.phone}</strong>. Enter it below to confirm.
-                            </p>
-                            <label style={labelStyle}>6-digit code</label>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                              <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
-                                style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
-                                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
-                              <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
-                                style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
-                                Verify
-                              </button>
-                            </div>
-                            <button style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                              Send Code
-                            </button>
-                          </div>
-                        )}
+                        <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>
+                          {twoFaMethod === 'email'
+                            ? <>A verification code has been sent to <strong>{profile.email || 'your email'}</strong>. Enter it below.</>
+                            : <>A verification code will be sent to <strong>{profile.phone || 'your phone'}</strong>. Enter it below.</>}
+                        </p>
+                        <label style={labelStyle}>6-digit code</label>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <input value={twoFaCode} onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000 000" maxLength={6}
+                            style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                          <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
+                            style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+                            Verify
+                          </button>
+                        </div>
+                        <button style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                          {twoFaMethod === 'email' ? 'Resend Code' : 'Send Code'}
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Active state */}
                 {twoFaActive && (
                   <div style={{ marginTop: 20, padding: '14px 16px', background: '#F0FDF4', borderRadius: 12, border: '1px solid #BBF7D0', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Check style={{ width: 16, height: 16, color: '#15803D', flexShrink: 0 }} />
@@ -714,26 +776,6 @@ export default function AdministrationPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ borderRadius: 16, padding: '22px 24px', color: '#fff', background: 'linear-gradient(135deg,#131C4E,#3A4382)' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Your Account Manager</p>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 20 }}>Dedicated support for your scheme</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{schemeProfile.rm.initials}</div>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700 }}>{schemeProfile.rm.name}</p>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Corporate Account Manager</p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Phone style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.phone}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}><Mail style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)' }} />{schemeProfile.rm.email}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 10, color: '#fff', cursor: 'pointer' }}>📞 Call</button>
-                  <button style={{ flex: 1, height: 38, fontSize: 12, fontWeight: 600, background: '#fff', border: 'none', borderRadius: 10, color: '#131C4E', cursor: 'pointer' }}>✉ Email</button>
-                </div>
-              </div>
-
               <div style={{ ...card, padding: '22px 24px' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Contact Leadway Health</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
