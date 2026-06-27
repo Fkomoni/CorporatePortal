@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { Member } from '@/lib/types';
+import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -106,7 +107,27 @@ function mapType(raw: string): 'Principal' | 'Dependant' {
   return 'Principal'; // principal, employee, staff, or any unknown
 }
 
-function mapRow(row: Record<string, unknown>, index: number): Member {
+// Classify a relationship text as Principal or Dependant using the fetched relationship list.
+// principalTexts: lowercase texts from GetBeneficiaryRelationship that mean "main member"
+// knownTexts: all lowercase texts returned by the API (so unknown → fallback)
+function classifyByRelationship(
+  raw: string,
+  principalTexts: Set<string>,
+  knownTexts: Set<string>,
+): 'Principal' | 'Dependant' | null {
+  if (!raw) return null;
+  const s = raw.toLowerCase().trim();
+  if (principalTexts.has(s)) return 'Principal';
+  if (knownTexts.has(s)) return 'Dependant'; // known but not principal → dependant
+  return null; // not found in the list — fall back to other logic
+}
+
+function mapRow(
+  row: Record<string, unknown>,
+  index: number,
+  principalTexts: Set<string>,
+  knownRelTexts: Set<string>,
+): Member {
   const fullName  = str(row, 'Member_CustomerName', 'MemberName', 'FullName', 'Full_Name', 'Name', 'EnrolleeName', 'Enrollee_Name', 'PatientName', 'SubscriberName');
   const firstName = str(row, 'FirstName', 'First_Name', 'GivenName') || splitName(fullName).firstName || 'Member';
   const rawLast   = str(row, 'LastName', 'Last_Name', 'Surname', 'FamilyName');
@@ -120,13 +141,19 @@ function mapRow(row: Record<string, unknown>, index: number): Member {
   const status = mapStatus(str(row, 'MemberStatus_Desc', 'Status', 'MemberStatus', 'ActiveStatus', 'EnrolleeStatus', 'PolicyStatus'));
   const gender = mapGender(str(row, 'Member_Gender', 'Gender', 'Sex', 'GenderDesc'));
 
-  // Use the enrollee ID suffix as the authoritative type signal:
-  // /0 = Principal (main member), anything else (/1 /2 /3 ...) = Dependant.
-  // Fall back to the relationship field text only when there is no "/" in the ID.
+  // Type classification — layered approach:
+  // 1. ID suffix (most reliable): /0 = Principal, /1+ = Dependant
+  // 2. Relationship field matched against GetBeneficiaryRelationship list
+  // 3. Heuristic mapType() fallback
   const idSuffix = enrolleeId.includes('/') ? enrolleeId.split('/').pop() : null;
-  const type: 'Principal' | 'Dependant' = idSuffix !== null
-    ? (idSuffix === '0' ? 'Principal' : 'Dependant')
-    : mapType(str(row, 'Member_Relationship', 'MemberType', 'EnrolleeType', 'Relationship', 'MemberRelationship', 'RelationshipType', 'Category'));
+  let type: 'Principal' | 'Dependant';
+  if (idSuffix !== null) {
+    type = idSuffix === '0' ? 'Principal' : 'Dependant';
+  } else {
+    const relRaw = str(row, 'Member_Relationship', 'MemberType', 'EnrolleeType', 'Relationship', 'MemberRelationship', 'RelationshipType', 'Category');
+    const fromApi = classifyByRelationship(relRaw, principalTexts, knownRelTexts);
+    type = fromApi ?? mapType(relRaw);
+  }
 
   const phone      = str(row, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone');
   const email      = str(row, 'EmailAddress', 'Email', 'email', 'ContactEmail', 'EmailAddr');
@@ -192,7 +219,7 @@ function inferCategory(row: Record<string, unknown>): string {
   return 'Outpatient';
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
@@ -205,7 +232,7 @@ export async function GET() {
   try {
     const token = await getServiceToken();
 
-    const [membersRes, premiumRes, claimsRes] = await Promise.all([
+    const [membersRes, premiumRes, claimsRes, relRes] = await Promise.all([
       fetch(`${BASE}/api/EnrolleeProfile/GetGroupMembers?groupid=${groupId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       }),
@@ -215,13 +242,39 @@ export async function GET() {
       fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       }),
+      fetch(`${BASE}/api/ListValues/GetBeneficiaryRelationship`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      }),
     ]);
 
-    const [membersRaw, premiumRaw, claimsRaw] = await Promise.all([
+    const [membersRaw, premiumRaw, claimsRaw, relRaw] = await Promise.all([
       membersRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
       premiumRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
       claimsRes.text().then((t)  => { try { return JSON.parse(t);  } catch { return null;  } }),
+      relRes.text().then((t)     => { try { return JSON.parse(t);  } catch { return null;  } }),
     ]);
+
+    // Build relationship lookup sets from GetBeneficiaryRelationship
+    // principalTexts: relationship texts that identify a "main member" (Principal)
+    // knownRelTexts: all texts returned by the API
+    const principalTexts = new Set<string>();
+    const knownRelTexts  = new Set<string>();
+    const relItems: unknown[] = Array.isArray(relRaw) ? relRaw : [];
+    for (const item of relItems) {
+      if (!item || typeof item !== 'object') continue;
+      const rec = item as Record<string, unknown>;
+      const text = String(rec.Text ?? rec.text ?? '').trim().toLowerCase();
+      if (!text) continue;
+      knownRelTexts.add(text);
+      // Texts that represent the main/principal member
+      if (
+        text.includes('main') || text.includes('primary') || text.includes('principal') ||
+        text.includes('staff') || text.includes('employee') || text.includes('subscriber') ||
+        text.includes('self') || text.includes('insured')
+      ) {
+        principalTexts.add(text);
+      }
+    }
 
     const memberRows  = toRows(membersRaw);
     const premiumRows = toRows(premiumRaw);
@@ -310,7 +363,7 @@ export async function GET() {
     }
 
     const members: Member[] = primaryRows.map((row, i) => {
-      const base = mapRow(row, i);
+      const base = mapRow(row, i, principalTexts, knownRelTexts);
       // Enrich with GetGroupMembers fields if available (phone, email, etc.)
       const mRow = memberByEnrollee.get(base.employeeId);
       if (mRow) {
@@ -357,6 +410,9 @@ export async function GET() {
       return y === now.getFullYear() && mo === now.getMonth();
     }).length;
 
+    void logAudit({ session, action: 'VIEW_MEMBERS', resource: 'members', request: req,
+      details: { totalCount: members.length, groupId } });
+
     return NextResponse.json({
       members,
       memberStats: memberStatsMap,
@@ -376,6 +432,8 @@ export async function GET() {
         primaryRowCount: primaryRows.length,
         firstPremiumKeys: premiumRows[0] ? Object.keys(premiumRows[0]).slice(0, 15) : [],
         firstMemberKeys:  memberRows[0]  ? Object.keys(memberRows[0]).slice(0, 15)  : [],
+        relationshipTexts: Array.from(knownRelTexts),
+        principalTexts: Array.from(principalTexts),
       },
     });
   } catch (err) {

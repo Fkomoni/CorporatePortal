@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -112,7 +113,7 @@ async function fetchPolicies(token: string, retry = false): Promise<Response> {
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
 
   if (!session || (session.user as { loginType?: string })?.loginType !== 'staff') {
@@ -171,6 +172,9 @@ export async function GET() {
     const policies = unique.filter((p) => p.status === 'Active');
 
     console.log(`[api/policies] raw=${raw.length} unique_groups=${unique.length} active=${policies.length}`);
+
+    void logAudit({ session, action: 'VIEW_CORPORATES', resource: 'policies', request: req,
+      details: { total: policies.length } });
 
     return NextResponse.json({ policies, total: policies.length });
   } catch (err) {

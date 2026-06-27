@@ -82,3 +82,24 @@ model SchemeHealthSnapshot {
   @@unique([groupId, yearMonth])
   @@map("scheme_health_snapshots")
 }
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  userId      String?
+  userEmail   String
+  userName    String
+  userRole    String
+  loginType   String   // "hr" | "staff"
+  companyId   String?
+  companyName String?
+  action      String
+  resource    String
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+
+  @@index([companyId, timestamp])
+  @@index([loginType, timestamp])
+  @@map("audit_logs")
+}

@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutGrid, Settings2, LogOut } from 'lucide-react';
+import { LayoutGrid, Settings2, LogOut, ClipboardList } from 'lucide-react';
 
 const navItems = [
-  { label: 'Corporates',      href: '/admin/corporates',       Icon: LayoutGrid },
-  { label: 'Portal Settings', href: '/admin/portal-settings',  Icon: Settings2  },
+  { label: 'Corporates',      href: '/admin/corporates',       Icon: LayoutGrid  },
+  { label: 'Portal Settings', href: '/admin/portal-settings',  Icon: Settings2   },
+  { label: 'Audit Logs',      href: '/admin/audit-logs',       Icon: ClipboardList },
 ];
 
 export function AdminSidebar() {

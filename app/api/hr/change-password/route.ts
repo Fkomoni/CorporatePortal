@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       );
     }
 
+    void logAudit({ session, action: 'CHANGE_PASSWORD', resource: 'password', request: req });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[change-password] Error:', err);

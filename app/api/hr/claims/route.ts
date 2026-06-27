@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -138,7 +139,7 @@ export interface ClaimsStats {
   policyEnd: string | null;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
@@ -284,6 +285,9 @@ export async function GET() {
       policyStart: policyStart ? policyStart.toISOString().slice(0, 10) : null,
       policyEnd:   policyEnd   ? policyEnd.toISOString().slice(0, 10)   : null,
     };
+
+    void logAudit({ session, action: 'VIEW_CLAIMS', resource: 'claims', request: req,
+      details: { totalClaims: filtered.length, groupId } });
 
     return NextResponse.json({ claims: filtered, stats });
   } catch (err) {
