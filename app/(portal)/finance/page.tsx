@@ -133,7 +133,7 @@ export default function FinancePage() {
   const [savedReceipt, setSavedReceipt] = useState('');
   const [saveError, setSaveError] = useState('');
 
-  const printRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Load outstanding balance on mount
   useEffect(() => {
@@ -172,6 +172,7 @@ export default function FinancePage() {
       const data = await res.json();
       if (!res.ok) { setInvoiceError(data.error ?? 'Failed to load invoice'); return; }
       setInvoiceData(data);
+      setTimeout(() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch {
       setInvoiceError('Network error. Please try again.');
     } finally {
@@ -399,8 +400,19 @@ export default function FinancePage() {
             </div>
 
             {/* Line items table */}
-            {invoiceData && (
-              <div ref={printRef} id="invoice-print-area" style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+            {invoiceData && invoiceData.count === 0 && (
+              <div ref={tableRef} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '60px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FileText style={{ width: 20, height: 20, color: '#F56B22' }} />
+                </div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>No records found</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', textAlign: 'center', maxWidth: 340 }}>
+                  No {invoiceType === 'additions' ? 'additions' : invoiceType === 'deletions' ? 'deletions' : 'endorsement records'} were found for your company in the current period. If you believe this is incorrect, please contact Leadway Health.
+                </p>
+              </div>
+            )}
+            {invoiceData && invoiceData.count > 0 && (
+              <div ref={tableRef} id="invoice-print-area" style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
                 {/* Table header */}
                 <div style={{ padding: '20px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
