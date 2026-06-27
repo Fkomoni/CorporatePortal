@@ -895,9 +895,13 @@ export default function MembersPage() {
   }, []);
 
   const principals = liveMembers.filter((m) => m.type === 'Principal');
-  const allBeneficiaries = liveMembers; // principals + dependants already included
+  const allBeneficiaries = liveMembers;
 
   const sourceList = viewBeneficiaries ? allBeneficiaries : principals;
+
+  // Dynamic filter options — only show values that exist in the current source list
+  const availablePlans    = ['All Plans',   ...Array.from(new Set(sourceList.map((m) => m.plan))).sort()];
+  const availableStatuses = ['All Status',  ...Array.from(new Set(sourceList.map((m) => m.status))).sort()];
 
   const filtered = sourceList.filter((m) => {
     const q = search.toLowerCase();
@@ -915,8 +919,9 @@ export default function MembersPage() {
     background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   };
 
-  const principalCount = pageStats?.principalCount ?? liveMembers.filter((m) => m.type === 'Principal').length;
-  const dependantCount = pageStats?.dependantCount ?? liveMembers.filter((m) => m.type === 'Dependant').length;
+  // Covered lives = Active only, for uniformity across all views
+  const principalCount = liveMembers.filter((m) => m.type === 'Principal' && m.status === 'Active').length;
+  const dependantCount = liveMembers.filter((m) => m.type === 'Dependant' && m.status === 'Active').length;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -953,8 +958,8 @@ export default function MembersPage() {
                 onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
             </div>
             {[
-              { value: planFilter,   setter: setPlanFilter,   options: ['All Plans','Plus Plan','Pro Plan','Max Plan','Promax Plan','Magnum Plan'] },
-              { value: statusFilter, setter: setStatusFilter, options: ['All Status','Active','Pending','Terminated'] },
+              { value: planFilter,   setter: setPlanFilter,   options: availablePlans },
+              { value: statusFilter, setter: setStatusFilter, options: availableStatuses },
             ].map(({ value, setter, options }) => (
               <select key={options[0]} value={value} onChange={(e) => setter(e.target.value)}
                 style={{ height: 42, padding: '0 34px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
@@ -1003,7 +1008,7 @@ export default function MembersPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 14 }}>
             <Users style={{ width: 18, height: 18, color: '#0284C7', flexShrink: 0 }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0C4A6E' }}>
-              All Beneficiaries View — {principalCount} principals + {dependantCount} dependants = {principalCount + dependantCount} total covered lives
+              All Beneficiaries View — {principalCount} active principals + {dependantCount} active dependants = {principalCount + dependantCount} active covered lives
             </span>
 
             <span style={{ fontSize: 12, color: '#38BDF8', marginLeft: 'auto' }}>Showing all covered lives including dependants</span>

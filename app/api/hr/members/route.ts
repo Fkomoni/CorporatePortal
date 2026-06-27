@@ -363,8 +363,9 @@ export async function GET() {
       stats: {
         activeCount,
         totalCount: members.length,
-        principalCount: members.filter((m) => m.type === 'Principal').length,
-        dependantCount:  members.filter((m) => m.type === 'Dependant').length,
+        // Active-only counts for uniformity — "covered lives" means active lives
+        principalCount: members.filter((m) => m.type === 'Principal' && m.status === 'Active').length,
+        dependantCount:  members.filter((m) => m.type === 'Dependant'  && m.status === 'Active').length,
         newThisMonth,
         pendingCount: members.filter((m) => m.status === 'Pending').length,
       },
