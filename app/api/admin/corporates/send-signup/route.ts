@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -221,6 +222,9 @@ export async function POST(req: Request) {
         console.error('[send-signup] SendEmailAlert error:', emailError);
       }
     }
+
+    void logAudit({ session, action: 'SEND_SIGNUP_EMAIL', resource: 'corporates', request: req,
+      details: { PolicyNumber: body.PolicyNumber, email: body.email, emailSent } });
 
     return NextResponse.json({ success: true, otp, registrationLink, emailSent, emailError, debug: { ...debug, emailResponse } });
   } catch (err) {

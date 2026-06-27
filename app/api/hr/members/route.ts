@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { Member } from '@/lib/types';
+import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -218,7 +219,7 @@ function inferCategory(row: Record<string, unknown>): string {
   return 'Outpatient';
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
@@ -408,6 +409,9 @@ export async function GET() {
         : [parseInt(match[3], 10), parseInt(match[2], 10) - 1];
       return y === now.getFullYear() && mo === now.getMonth();
     }).length;
+
+    void logAudit({ session, action: 'VIEW_MEMBERS', resource: 'members', request: req,
+      details: { totalCount: members.length, groupId } });
 
     return NextResponse.json({
       members,

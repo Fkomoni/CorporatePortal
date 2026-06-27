@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2 } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -91,7 +91,19 @@ interface PortalUser {
   lastLogin: string | null;
 }
 
-type Tab = 'users' | 'profile' | 'account' | 'help';
+interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  userEmail: string;
+  userName: string;
+  userRole: string;
+  action: string;
+  resource: string;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+}
+
+type Tab = 'users' | 'profile' | 'account' | 'help' | 'audit';
 
 function formatLastLogin(iso: string | null): string {
   if (!iso) return '—';
@@ -122,6 +134,10 @@ export default function AdministrationPage() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [portalUsers, setPortalUsers]       = useState<PortalUser[]>([]);
   const [loading, setLoading]               = useState(true);
+  const [auditLogs, setAuditLogs]           = useState<AuditLogEntry[]>([]);
+  const [auditTotal, setAuditTotal]         = useState(0);
+  const [auditLoading, setAuditLoading]     = useState(false);
+  const [togglingUser, setTogglingUser]     = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState({ invoiceIssued: true, invoiceDue: true, claimUpdates: false, enrolmentConfirm: true, bulkUpload: true });
   const [passwords, setPasswords]   = useState({ current: '', next: '', confirm: '' });
@@ -165,6 +181,35 @@ export default function AdministrationPage() {
     }).catch(() => setLoading(false));
   }, []);
 
+  function loadAuditLogs() {
+    setAuditLoading(true);
+    fetch('/api/hr/audit-logs?limit=100')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.logs) { setAuditLogs(data.logs); setAuditTotal(data.total ?? data.logs.length); }
+        setAuditLoading(false);
+      })
+      .catch(() => setAuditLoading(false));
+  }
+
+  async function toggleUserStatus(user: PortalUser) {
+    setTogglingUser(user.id);
+    try {
+      const res = await fetch('/api/hr/portal-users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, active: user.status !== 'Active' }),
+      });
+      if (res.ok) {
+        setPortalUsers((prev) => prev.map((u) => u.id === user.id
+          ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' }
+          : u));
+      }
+    } finally {
+      setTogglingUser(null);
+    }
+  }
+
   function handleLogoFile(file: File) {
     const reader = new FileReader();
     reader.onload = (e) => setLogoUrl(e.target?.result as string);
@@ -184,6 +229,7 @@ export default function AdministrationPage() {
     { key: 'profile', label: 'Company Profile' },
     { key: 'account', label: 'My Account' },
     { key: 'help',    label: 'Help & Downloads' },
+    { key: 'audit',   label: 'Audit Trail' },
   ];
 
   const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
@@ -200,7 +246,7 @@ export default function AdministrationPage() {
         {/* TAB SWITCHER */}
         <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
           {tabs.map(({ key, label }) => (
-            <button key={key} onClick={() => setActiveTab(key)}
+            <button key={key} onClick={() => { setActiveTab(key); if (key === 'audit' && auditLogs.length === 0) loadAuditLogs(); }}
               style={{ padding: '9px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
                 background: activeTab === key ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : 'transparent',
                 color: activeTab === key ? '#fff' : '#6B7280',
@@ -366,8 +412,11 @@ export default function AdministrationPage() {
                       </span>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>Edit</button>
-                        <button style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>
-                          {u.status === 'Active' ? 'Disable' : 'Enable'}
+                        <button
+                          disabled={togglingUser === u.id}
+                          onClick={() => toggleUserStatus(u)}
+                          style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: u.status === 'Active' ? '#EF4444' : '#059669', border: `1px solid ${u.status === 'Active' ? '#FECACA' : '#A7F3D0'}`, borderRadius: 8, background: u.status === 'Active' ? '#FEF2F2' : '#ECFDF5', cursor: togglingUser === u.id ? 'wait' : 'pointer', opacity: togglingUser === u.id ? 0.6 : 1 }}>
+                          {togglingUser === u.id ? '…' : u.status === 'Active' ? 'Disable' : 'Enable'}
                         </button>
                       </div>
                     </div>
@@ -799,6 +848,88 @@ export default function AdministrationPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── AUDIT TRAIL ── */}
+        {activeTab === 'audit' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Activity Audit Trail</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
+                  {auditLoading ? 'Loading…' : `${auditTotal} event${auditTotal !== 1 ? 's' : ''} recorded for your company`}
+                </p>
+              </div>
+              <button
+                onClick={loadAuditLogs}
+                disabled={auditLoading}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 36, padding: '0 16px', fontSize: 12, fontWeight: 600, border: '1px solid #E5E7F1', borderRadius: 20, background: '#fff', color: '#6B7280', cursor: auditLoading ? 'wait' : 'pointer', opacity: auditLoading ? 0.6 : 1 }}>
+                <ClipboardList style={{ width: 13, height: 13 }} />
+                Refresh
+              </button>
+            </div>
+
+            <div style={{ ...card, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 140px 140px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+                {['Time', 'Event', 'User', 'Action'].map((h) => (
+                  <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
+                ))}
+              </div>
+
+              {auditLoading ? (
+                <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: 10, color: '#9CA3B8' }}>
+                  <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+                  <span style={{ fontSize: 13 }}>Loading audit log…</span>
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3B8' }}>
+                  <ClipboardList style={{ width: 32, height: 32, margin: '0 auto 12px', color: '#E5E7F1' }} />
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', marginBottom: 4 }}>No activity recorded yet</p>
+                  <p style={{ fontSize: 12 }}>Actions taken in the portal will appear here</p>
+                </div>
+              ) : (
+                auditLogs.map((log) => {
+                  const actionColors: Record<string, { bg: string; text: string }> = {
+                    VIEW_MEMBERS:       { bg: '#EFF6FF', text: '#2563EB' },
+                    EXPORT_MEMBERS:     { bg: '#F0FDF4', text: '#16A34A' },
+                    VIEW_CLAIMS:        { bg: '#FFF7ED', text: '#EA580C' },
+                    EXPORT_CLAIMS:      { bg: '#F0FDF4', text: '#16A34A' },
+                    CHANGE_PASSWORD:    { bg: '#FEF2F2', text: '#DC2626' },
+                    VIEW_PORTAL_USERS:  { bg: '#F5F3FF', text: '#7C3AED' },
+                    TOGGLE_USER_STATUS: { bg: '#FFFBEB', text: '#D97706' },
+                    VIEW_DASHBOARD:     { bg: '#F0FDF4', text: '#16A34A' },
+                    VIEW_COMPANY_PROFILE: { bg: '#F1F5F9', text: '#475569' },
+                  };
+                  const ac = actionColors[log.action] ?? { bg: '#F1F5F9', text: '#6B7280' };
+                  const dt = new Date(log.timestamp);
+                  const timeStr = isNaN(dt.getTime()) ? log.timestamp : dt.toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                  const actionLabel = log.action.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+
+                  return (
+                    <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 140px 140px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
+                      <span style={{ fontSize: 12, color: '#9CA3B8', fontVariantNumeric: 'tabular-nums' }}>{timeStr}</span>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>{actionLabel}</p>
+                        {log.details && typeof log.details === 'object' && (log.details as Record<string,unknown>).totalCount !== undefined && (
+                          <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{String((log.details as Record<string,unknown>).totalCount)} records</p>
+                        )}
+                        {log.details && typeof log.details === 'object' && (log.details as Record<string,unknown>).targetUserName && (
+                          <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>User: {String((log.details as Record<string,unknown>).targetUserName)} → {String((log.details as Record<string,unknown>).newStatus)}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.userName}</p>
+                        <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.userEmail}</p>
+                      </div>
+                      <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: ac.bg, color: ac.text, width: 'fit-content', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {log.resource}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
