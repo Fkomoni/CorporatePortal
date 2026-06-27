@@ -17,6 +17,7 @@ import {
   LogOut,
   Heart,
   UserCheck,
+  ClipboardList,
 } from 'lucide-react';
 
 const mainNav = [
@@ -32,6 +33,7 @@ const mainNav = [
 ];
 
 const bottomNav = [
+  { href: '/audit-logs',     label: 'Audit Log',      icon: ClipboardList },
   { href: '/administration', label: 'Administration', icon: Settings },
 ];
 
