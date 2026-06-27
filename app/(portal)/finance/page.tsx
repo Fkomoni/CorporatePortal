@@ -120,6 +120,7 @@ export default function FinancePage() {
   const [toDate, setToDate] = useState('');
 
   const [history, setHistory] = useState<InvoiceHistory | null>(null);
+  const [historyList, setHistoryList] = useState<InvoiceRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
 
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
@@ -135,12 +136,15 @@ export default function FinancePage() {
 
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // Load outstanding balance on mount
+  // Load invoice history on mount
   useEffect(() => {
     fetch('/api/hr/invoice/history')
       .then((r) => r.json())
-      .then((d) => setHistory(d))
-      .catch(() => setHistory(null))
+      .then((d) => {
+        setHistory(d.summary ?? d);
+        setHistoryList(d.list ?? []);
+      })
+      .catch(() => { setHistory(null); setHistoryList([]); })
       .finally(() => setHistoryLoading(false));
   }, []);
 
@@ -320,18 +324,70 @@ export default function FinancePage() {
                 </div>
               </div>
             )}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '40px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: '#FFF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FileText style={{ width: 22, height: 22, color: '#F56B22' }} />
+            {/* Past invoices list */}
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+              <div style={{ padding: '20px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>Invoice History</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 3 }}>All invoices raised for your company</p>
+                </div>
+                <button onClick={() => setTab('generate')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.22)', whiteSpace: 'nowrap' }}>
+                  + New Invoice
+                </button>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Ready to generate your invoice?</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>Switch to the Generate Invoice tab to create invoices for additions, deletions, or endorsements.</p>
-              </div>
-              <button onClick={() => setTab('generate')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>
-                Generate Invoice <ChevronRight style={{ width: 14, height: 14 }} />
-              </button>
+
+              {historyLoading ? (
+                <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
+                  <Loader2 style={{ width: 24, height: 24, color: '#F56B22', animation: 'spin 1s linear infinite' }} />
+                </div>
+              ) : historyList.length === 0 ? (
+                <div style={{ padding: '56px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#F7F8FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText style={{ width: 20, height: 20, color: '#9CA3B8' }} />
+                  </div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>No invoices found</p>
+                  <p style={{ fontSize: 12, color: '#9CA3B8' }}>No invoice history has been recorded for your company yet.</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+                        {['Receipt No.', 'Date Raised', 'Total Amount', 'Amount Paid', 'Outstanding', 'Next Due', 'Status'].map((h) => (
+                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyList.map((row, i) => {
+                        const receipt = String(row.ReceiptNumber ?? row.receiptnumber ?? '—');
+                        const created = String(row.createddate ?? row.DatePaid ?? row.datepaid ?? '');
+                        const total = Number(row.TotalAmount ?? row.totalamount ?? 0);
+                        const paid = Number(row.AmountPaid ?? row.amountpaid ?? 0);
+                        const outstanding = Number(row.OutstandingBalance ?? row.OutstandingBalance ?? (total - paid));
+                        const nextDue = String(row.NextDue ?? row.nextdue ?? '');
+                        const isPaid = outstanding <= 0;
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #F7F8FA' }}>
+                            <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#131C4E' }}>{receipt}</td>
+                            <td style={{ padding: '13px 16px', color: '#6B7280', whiteSpace: 'nowrap' }}>{created ? new Date(created).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                            <td style={{ padding: '13px 16px', fontWeight: 700, color: '#131C4E' }}>{fmt(total)}</td>
+                            <td style={{ padding: '13px 16px', color: '#059669', fontWeight: 600 }}>{fmt(paid)}</td>
+                            <td style={{ padding: '13px 16px', color: outstanding > 0 ? '#DC2626' : '#059669', fontWeight: 600 }}>{outstanding > 0 ? fmt(outstanding) : 'Nil'}</td>
+                            <td style={{ padding: '13px 16px', color: '#6B7280', whiteSpace: 'nowrap' }}>{nextDue ? new Date(nextDue).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                            <td style={{ padding: '13px 16px' }}>
+                              <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, background: isPaid ? '#ECFDF5' : '#FEF2F2', color: isPaid ? '#059669' : '#DC2626' }}>
+                                {isPaid ? 'Paid' : 'Outstanding'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
