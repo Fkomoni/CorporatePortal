@@ -906,18 +906,17 @@ export default function AdministrationPage() {
                   const dt = new Date(log.timestamp);
                   const timeStr = isNaN(dt.getTime()) ? log.timestamp : dt.toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
                   const actionLabel = log.action.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+                  const d = (log.details ?? {}) as Record<string, unknown>;
+                  const detailCount = d.totalCount !== undefined ? `${String(d.totalCount)} records` : d.totalClaims !== undefined ? `${String(d.totalClaims)} claims` : null;
+                  const detailUser  = d.targetUserName ? `User: ${String(d.targetUserName)} → ${String(d.newStatus ?? '')}` : null;
 
                   return (
                     <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 140px 140px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
                       <span style={{ fontSize: 12, color: '#9CA3B8', fontVariantNumeric: 'tabular-nums' }}>{timeStr}</span>
                       <div>
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>{actionLabel}</p>
-                        {log.details && typeof log.details === 'object' && (log.details as Record<string,unknown>).totalCount !== undefined && (
-                          <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{String((log.details as Record<string,unknown>).totalCount)} records</p>
-                        )}
-                        {log.details && typeof log.details === 'object' && (log.details as Record<string,unknown>).targetUserName && (
-                          <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>User: {String((log.details as Record<string,unknown>).targetUserName)} → {String((log.details as Record<string,unknown>).newStatus)}</p>
-                        )}
+                        {detailCount && <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{detailCount}</p>}
+                        {detailUser  && <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{detailUser}</p>}
                       </div>
                       <div>
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.userName}</p>
