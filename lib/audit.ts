@@ -51,7 +51,7 @@ export async function logAudit({ session, action, resource, details, request }: 
         companyName: user.companyName ?? null,
         action,
         resource,
-        details:     details ?? null,
+        details:     details ?? undefined,
         ipAddress:   ipAddress ?? null,
         userAgent:   userAgent ?? null,
       },
