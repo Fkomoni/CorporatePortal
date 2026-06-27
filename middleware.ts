@@ -10,7 +10,7 @@ export default auth((req) => {
   // Never intercept API routes — they handle their own auth
   if (pathname.startsWith('/api/')) return NextResponse.next();
 
-  const isAdminRoute  = pathname.startsWith('/admin');
+  const isAdminRoute  = pathname === '/admin' || pathname.startsWith('/admin/');
   // /verify-registration is a public page — let unauthenticated users through
   const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login') && pathname !== '/verify-registration';
   const isStaffLogin  = pathname === '/admin/login';
