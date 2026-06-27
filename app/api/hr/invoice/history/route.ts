@@ -17,8 +17,9 @@ export async function GET() {
       { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
     );
     const data = await res.json();
-    const result = Array.isArray(data?.result) && data.result.length > 0 ? data.result[0] : null;
-    return NextResponse.json(result ?? {});
+    const list: Record<string, unknown>[] = Array.isArray(data?.result) ? data.result : [];
+    const summary = list.length > 0 ? list[0] : null;
+    return NextResponse.json({ summary: summary ?? {}, list });
   } catch (err) {
     console.error('[hr/invoice/history] Error:', err);
     return NextResponse.json(
