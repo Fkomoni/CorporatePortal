@@ -119,7 +119,14 @@ function mapRow(row: Record<string, unknown>, index: number): Member {
 
   const status = mapStatus(str(row, 'MemberStatus_Desc', 'Status', 'MemberStatus', 'ActiveStatus', 'EnrolleeStatus', 'PolicyStatus'));
   const gender = mapGender(str(row, 'Member_Gender', 'Gender', 'Sex', 'GenderDesc'));
-  const type   = mapType(str(row, 'Member_Relationship', 'MemberType', 'EnrolleeType', 'Relationship', 'MemberRelationship', 'RelationshipType', 'Category'));
+
+  // Use the enrollee ID suffix as the authoritative type signal:
+  // /0 = Principal (main member), anything else (/1 /2 /3 ...) = Dependant.
+  // Fall back to the relationship field text only when there is no "/" in the ID.
+  const idSuffix = enrolleeId.includes('/') ? enrolleeId.split('/').pop() : null;
+  const type: 'Principal' | 'Dependant' = idSuffix !== null
+    ? (idSuffix === '0' ? 'Principal' : 'Dependant')
+    : mapType(str(row, 'Member_Relationship', 'MemberType', 'EnrolleeType', 'Relationship', 'MemberRelationship', 'RelationshipType', 'Category'));
 
   const phone      = str(row, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone');
   const email      = str(row, 'EmailAddress', 'Email', 'email', 'ContactEmail', 'EmailAddr');
