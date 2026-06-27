@@ -281,30 +281,29 @@ export async function GET() {
     }
 
     // ── Map member rows to Member objects ─────────────────────────────────
-    let members: Member[];
+    // GetGroupPremium is the primary source — it has the confirmed field names
+    // (Member_EnrolleeID, Member_CustomerName, Member_Relationship, etc.)
+    // GetGroupMembers is used only as enrichment for extra fields (phone, email)
+    // when available and the enrollee IDs match.
+    const primaryRows = premiumRows.length > 0 ? premiumRows : memberRows;
 
-    if (memberRows.length > 0) {
-      members = memberRows.map((row, i) => {
-        const base = mapRow(row, i);
-        const pRow = premiumByEnrollee.get(base.employeeId);
-        if (pRow) {
-          if (!base.enrollmentDate)
-            base.enrollmentDate = str(pRow, 'MemberOriginalStartdate', 'Fromdate', 'StartDate', 'InceptionDate');
-          if (!base.status || base.status === 'Active') {
-            const ps = str(pRow, 'MemberStatus_Desc', 'Status', 'MemberStatus');
-            if (ps) base.status = mapStatus(ps);
-          }
-          if (base.plan === 'Plus Plan') {
-            const pp = str(pRow, 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName');
-            if (pp) base.plan = mapPlan(pp);
-          }
-        }
-        return base;
-      });
-    } else {
-      // Fallback: derive members from GetGroupPremium rows (Member_ prefix field names handled in mapRow)
-      members = premiumRows.map((row, i) => mapRow(row, i));
+    // Build a lookup from GetGroupMembers by enrollee ID for enrichment
+    const memberByEnrollee: Map<string, Record<string, unknown>> = new Map();
+    for (const r of memberRows) {
+      const eid = str(r, 'Member_EnrolleeID', 'MemberShipNo', 'MembershipNo', 'EnrolleeID', 'CifNo', 'MemberID');
+      if (eid && !memberByEnrollee.has(eid)) memberByEnrollee.set(eid, r);
     }
+
+    const members: Member[] = primaryRows.map((row, i) => {
+      const base = mapRow(row, i);
+      // Enrich with GetGroupMembers fields if available (phone, email, etc.)
+      const mRow = memberByEnrollee.get(base.employeeId);
+      if (mRow) {
+        if (!base.phone) base.phone = str(mRow, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo');
+        if (!base.email) base.email = str(mRow, 'EmailAddress', 'Email', 'email');
+      }
+      return base;
+    });
 
     // Summary stats
     const now          = new Date();
@@ -331,7 +330,14 @@ export async function GET() {
         newThisMonth,
         pendingCount: members.filter((m) => m.status === 'Pending').length,
       },
-      source: memberRows.length > 0 ? 'GetGroupMembers' : 'GetGroupPremium',
+      source: premiumRows.length > 0 ? 'GetGroupPremium' : 'GetGroupMembers',
+      _debug: {
+        memberRowCount: memberRows.length,
+        premiumRowCount: premiumRows.length,
+        primaryRowCount: primaryRows.length,
+        firstPremiumKeys: premiumRows[0] ? Object.keys(premiumRows[0]).slice(0, 15) : [],
+        firstMemberKeys:  memberRows[0]  ? Object.keys(memberRows[0]).slice(0, 15)  : [],
+      },
     });
   } catch (err) {
     console.error('[hr/members] Error:', err);
