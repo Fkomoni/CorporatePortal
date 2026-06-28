@@ -81,17 +81,11 @@ export async function GET(req: Request) {
       : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
       : [];
 
-    // Filter to principal member only to avoid duplicates (M+1, M+2 dependant rows)
-    const principalRows = arr.filter((r) => {
-      if (!r || typeof r !== 'object') return false;
-      const row = r as Record<string, unknown>;
-      const mt = String(row['membertype'] ?? row['MemberType'] ?? 'M').trim();
-      return mt === 'M' || mt === '';
-    });
-
     const categoryMap = new Map<string, BenefitCategory>();
+    // Track seen (category, benefitName) pairs to deduplicate across member-type/age-band rows
+    const seenItems = new Set<string>();
 
-    for (const r of principalRows) {
+    for (const r of arr) {
       if (!r || typeof r !== 'object') continue;
       const row = r as Record<string, unknown>;
 
@@ -104,8 +98,8 @@ export async function GET(req: Request) {
         String(row['DEPARTMENT'] ?? row['Department'] ?? row['BenefitName'] ?? row['Name'] ?? row['Description'] ?? '').trim()
       );
 
-      const limitStr  = formatLimit(row['LIMIT'] ?? row['Limit'] ?? row['BenefitLimit'] ?? row['Amount']);
-      const waitStr   = formatWaitingPeriod(row['WaitingPeriod'] ?? row['waiting_period'] ?? row['WaitPeriod']);
+      const limitStr = formatLimit(row['LIMIT'] ?? row['Limit'] ?? row['BenefitLimit'] ?? row['Amount']);
+      const waitStr  = formatWaitingPeriod(row['WaitingPeriod'] ?? row['waiting_period'] ?? row['WaitPeriod']);
 
       if (!categoryMap.has(category)) {
         categoryMap.set(category, { category, limit: '', waitingPeriod: null, covered: [], excluded: [] });
@@ -115,9 +109,13 @@ export async function GET(req: Request) {
       if (!cat.limit && limitStr) cat.limit = limitStr;
       if (!cat.waitingPeriod && waitStr) cat.waitingPeriod = waitStr;
 
-      // All rows from GetSchemeBenefits are covered benefits (category field = "Benefit")
+      // Deduplicate benefit items across member-type / age-band rows (M+1, M+2, age bands, etc.)
       if (benefitName) {
-        cat.covered.push(benefitName);
+        const key = `${category}||${benefitName}`;
+        if (!seenItems.has(key)) {
+          seenItems.add(key);
+          cat.covered.push(benefitName);
+        }
       }
     }
 
