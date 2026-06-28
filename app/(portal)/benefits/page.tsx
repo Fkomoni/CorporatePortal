@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { BenefitsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
-import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText, Syringe, Sparkles } from 'lucide-react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText, Syringe, Sparkles, Stethoscope } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import type { BenefitCategory } from '@/app/api/hr/benefits/scheme-benefits/route';
@@ -41,6 +41,7 @@ const categoryMeta: Record<string, { Icon: React.ElementType; color: string; bg:
   'Lens and Frames':         { Icon: Eye,           color: '#8B5CF6', bg: '#F5F3FF' },
   Specialist:                { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
   'Advanced Investigations': { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
+  Surgery:                   { Icon: Stethoscope,   color: '#DC2626', bg: '#FEF2F2' },
   Emergency:                 { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
   'Major Disease Benefit':   { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
   'Additional Benefits':       { Icon: Activity,      color: '#6D28D9', bg: '#F5F3FF' },
