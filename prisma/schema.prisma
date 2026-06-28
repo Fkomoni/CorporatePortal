@@ -83,6 +83,25 @@ model SchemeHealthSnapshot {
   @@map("scheme_health_snapshots")
 }
 
+model MemberInvitation {
+  id           String    @id @default(cuid())
+  token        String    @unique @default(cuid())
+  email        String
+  employeeCode String
+  schemeId     String
+  schemeName   String
+  groupId      String
+  scope        String    @default("self") // "self" | "self-dependent"
+  used         Boolean   @default(false)
+  usedAt       DateTime?
+  expiresAt    DateTime
+  createdBy    String
+  createdAt    DateTime  @default(now())
+
+  @@index([email, employeeCode])
+  @@map("member_invitations")
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())
