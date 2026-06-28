@@ -44,6 +44,7 @@ const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   Hospital:   { bg: '#EFF6FF', color: '#2563EB' },
   Optical:    { bg: '#F5F3FF', color: '#7C3AED' },
   Dental:     { bg: '#FFFBEB', color: '#D97706' },
+  'Spa/Gym':  { bg: '#ECFDF5', color: '#059669' },
 };
 
 export default function BenefitsPage() {
@@ -66,7 +67,7 @@ export default function BenefitsPage() {
   const [providers, setProviders]         = useState<Provider[]>([]);
   const [provLoading, setProvLoading]     = useState(false);
   const [provError, setProvError]         = useState('');
-  const [provCounts, setProvCounts]       = useState<{ hospitals: number; eyeClinics: number; dentalClinics: number } | null>(null);
+  const [provCounts, setProvCounts]       = useState<{ hospitals: number; eyeClinics: number; dentalClinics: number; spaGyms: number } | null>(null);
 
   useEffect(() => {
     fetch('/api/hr/benefits/schemes')
@@ -287,9 +288,10 @@ export default function BenefitsPage() {
             {provCounts && !provLoading && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
-                  { label: 'Hospitals', count: provCounts.hospitals,   bg: '#EFF6FF', color: '#2563EB' },
-                  { label: 'Eye Clinics', count: provCounts.eyeClinics, bg: '#F5F3FF', color: '#7C3AED' },
-                  { label: 'Dental Clinics', count: provCounts.dentalClinics, bg: '#FFFBEB', color: '#D97706' },
+                  { label: 'Hospitals',     count: provCounts.hospitals,    bg: '#EFF6FF', color: '#2563EB' },
+                  { label: 'Eye Clinics',   count: provCounts.eyeClinics,   bg: '#F5F3FF', color: '#7C3AED' },
+                  { label: 'Dental Clinics',count: provCounts.dentalClinics, bg: '#FFFBEB', color: '#D97706' },
+                  ...(provCounts.spaGyms > 0 ? [{ label: 'Spa & Gym', count: provCounts.spaGyms, bg: '#ECFDF5', color: '#059669' }] : []),
                 ].map((c) => (
                   <div key={c.label} style={{ padding: '8px 18px', borderRadius: 12, background: c.bg, border: `1px solid ${c.color}22` }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: c.color }}>{c.count.toLocaleString()}</span>
@@ -314,6 +316,7 @@ export default function BenefitsPage() {
                 <option value="Hospital">Hospital</option>
                 <option value="Optical">Optical / Eye</option>
                 <option value="Dental">Dental</option>
+                <option value="Spa/Gym">Spa &amp; Gym</option>
               </select>
               <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}
                 style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>

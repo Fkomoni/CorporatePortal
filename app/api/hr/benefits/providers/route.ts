@@ -59,6 +59,7 @@ function normalise(row: unknown, type: string): Provider | null {
   const name = s(r,
     'ProviderName', 'Provider_Name', 'Name', 'HospitalName', 'Hospital_Name',
     'EyeClinicName', 'Eye_Clinic_Name', 'DentalClinicName', 'Dental_Clinic_Name',
+    'SpaName', 'Spa_Name', 'GymName', 'Gym_Name', 'SpaAndGymName',
     'ClinicName', 'Clinic_Name', 'FacilityName',
   );
   if (!name) return null;
@@ -79,6 +80,15 @@ function normalise(row: unknown, type: string): Provider | null {
   return { id: id || name, name, address, city, state, phone, type, status, specialties };
 }
 
+function extractArray(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  const r = raw as Record<string, unknown>;
+  for (const k of ['data', 'Data', 'result', 'Result', 'providers', 'Providers']) {
+    if (Array.isArray(r?.[k])) return r[k] as unknown[];
+  }
+  return [];
+}
+
 async function fetchProviders(token: string, endpoint: string, schemeId: string, type: string): Promise<Provider[]> {
   const params = new URLSearchParams({ SchemeID: schemeId, MinimumID: '0', NoOfRecords: '500', pageSize: '500' });
   const url = `${BASE}${endpoint}?${params}`;
@@ -90,15 +100,28 @@ async function fetchProviders(token: string, endpoint: string, schemeId: string,
       console.warn(`[providers] Non-JSON from ${endpoint} (${res.status})`);
       return [];
     }
-    const arr: unknown[] = Array.isArray(raw) ? raw
-      : Array.isArray((raw as Record<string,unknown>)?.data)   ? (raw as Record<string,unknown>).data   as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.Data)   ? (raw as Record<string,unknown>).Data   as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.Result) ? (raw as Record<string,unknown>).Result as unknown[]
-      : [];
-    return arr.map((r) => normalise(r, type)).filter((p): p is Provider => p !== null);
+    return extractArray(raw).map((r) => normalise(r, type)).filter((p): p is Provider => p !== null);
   } catch (e) {
     console.warn(`[providers] Error fetching ${endpoint}:`, e);
+    return [];
+  }
+}
+
+async function fetchSpaGym(token: string, schemeId: string): Promise<Provider[]> {
+  // Spa/Gym uses a different param casing and starts MinimumID at 1
+  const params = new URLSearchParams({ schemeid: schemeId, MinimumID: '1', NoOfRecords: '500', pageSize: '500' });
+  const url = `${BASE}/api/ListValues/GetSpaAndGymClinicByPlanCode?${params}`;
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+    const text = await res.text();
+    let raw: unknown;
+    try { raw = JSON.parse(text); } catch {
+      console.warn(`[providers] Non-JSON from GetSpaAndGymClinicByPlanCode (${res.status})`);
+      return [];
+    }
+    return extractArray(raw).map((r) => normalise(r, 'Spa/Gym')).filter((p): p is Provider => p !== null);
+  } catch (e) {
+    console.warn('[providers] Error fetching GetSpaAndGymClinicByPlanCode:', e);
     return [];
   }
 }
@@ -117,17 +140,23 @@ export async function GET(req: Request) {
   try {
     const token = await getServiceToken();
 
-    const [hospitals, eyeClinics, dentalClinics] = await Promise.all([
+    const [hospitals, eyeClinics, dentalClinics, spaGyms] = await Promise.all([
       fetchProviders(token, '/api/Provider/GetProvidersByPlanCode',    schemeId, 'Hospital'),
       fetchProviders(token, '/api/Provider/GetEyeClinicByPlanCode',    schemeId, 'Optical'),
       fetchProviders(token, '/api/Provider/GetDentalClinicByPlanCode', schemeId, 'Dental'),
+      fetchSpaGym(token, schemeId),
     ]);
 
-    const providers = [...hospitals, ...eyeClinics, ...dentalClinics];
+    const providers = [...hospitals, ...eyeClinics, ...dentalClinics, ...spaGyms];
 
     return NextResponse.json({
       providers,
-      counts: { hospitals: hospitals.length, eyeClinics: eyeClinics.length, dentalClinics: dentalClinics.length },
+      counts: {
+        hospitals: hospitals.length,
+        eyeClinics: eyeClinics.length,
+        dentalClinics: dentalClinics.length,
+        spaGyms: spaGyms.length,
+      },
       total: providers.length,
     });
   } catch (err) {
