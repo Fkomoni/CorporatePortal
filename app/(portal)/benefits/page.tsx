@@ -160,6 +160,11 @@ export default function BenefitsPage() {
             {schemesError && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{schemesError}</div>
             )}
+            {!schemesLoading && !schemesError && schemes.length === 0 && (
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E', fontSize: 13 }}>
+                No schemes found for this company. Visit <a href="/api/hr/benefits/debug" target="_blank" style={{ color: '#F56B22', fontWeight: 600 }}>/api/hr/benefits/debug</a> to inspect the raw API response.
+              </div>
+            )}
             {!schemesLoading && schemes.length > 0 && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {schemes.map((scheme, idx) => {
