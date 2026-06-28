@@ -31,7 +31,8 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-async function probe(token: string, url: string) {
+async function probeScheme(token: string, schemeId: string) {
+  const url = `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&languageId=1`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
     const text = await res.text();
@@ -42,9 +43,19 @@ async function probe(token: string, url: string) {
       : Array.isArray((raw as Record<string,unknown>)?.Data)   ? (raw as Record<string,unknown>).Data   as unknown[]
       : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
       : [];
-    return { url, status: res.status, rows: arr.length, raw };
+
+    // Extract unique SERVICE values from the array
+    const services = arr.length > 0
+      ? [...new Set(arr.map((r) => String((r as Record<string,unknown>)?.SERVICE ?? '').trim()).filter(Boolean))]
+      : [];
+
+    const firstMemberType = arr.length > 0
+      ? String((arr[0] as Record<string,unknown>)?.membertype ?? '')
+      : '';
+
+    return { schemeId, status: res.status, rows: arr.length, services, firstMemberType, topLevelKeys: raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.keys(raw as object).slice(0, 6) : [] };
   } catch (e) {
-    return { url, status: 0, rows: 0, raw: String(e) };
+    return { schemeId, status: 0, rows: 0, services: [], firstMemberType: '', topLevelKeys: [], error: String(e) };
   }
 }
 
@@ -56,21 +67,51 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
+
+  // Multi-ID mode: ?ids=169614,169615,169616,...
+  const idsParam = searchParams.get('ids');
+  if (idsParam) {
+    const ids = idsParam.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 30);
+    try {
+      const token = await getServiceToken();
+      const results = await Promise.all(ids.map((id) => probeScheme(token, id)));
+      const withData = results.filter((r) => r.rows > 0);
+      return NextResponse.json({ withData, all: results });
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
+    }
+  }
+
+  // Single-ID mode: ?schemeId=xxx (original behaviour, probes many URL variants)
   const schemeId   = searchParams.get('schemeId')  ?? '141378';
   const schemeCode = searchParams.get('schemeCode') ?? 'GEHEALTHCARE';
   const groupId    = session.user.companyId ?? '';
+
+  async function probeUrl(token: string, url: string) {
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+      const text = await res.text();
+      let raw: unknown;
+      try { raw = JSON.parse(text); } catch { raw = text; }
+      const arr: unknown[] = Array.isArray(raw) ? (raw as unknown[])
+        : Array.isArray((raw as Record<string,unknown>)?.data)   ? (raw as Record<string,unknown>).data   as unknown[]
+        : Array.isArray((raw as Record<string,unknown>)?.Data)   ? (raw as Record<string,unknown>).Data   as unknown[]
+        : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
+        : [];
+      return { url, status: res.status, rows: arr.length, raw };
+    } catch (e) {
+      return { url, status: 0, rows: 0, raw: String(e) };
+    }
+  }
 
   try {
     const token = await getServiceToken();
 
     const candidates = [
-      // Previously tested — kept for reference
       `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&languageId=1`,
       `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}`,
-      // With groupId
       `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&groupId=${groupId}`,
       `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&groupId=${groupId}&languageId=1`,
-      // Alternate endpoint names
       `${BASE}/api/CorporatePortal/GetPolicyBenefits?schemeId=${schemeId}`,
       `${BASE}/api/CorporatePortal/GetPolicyBenefits?schemeId=${schemeId}&groupId=${groupId}`,
       `${BASE}/api/CorporatePortal/GetSchemeDetails?schemeId=${schemeId}`,
@@ -85,10 +126,9 @@ export async function GET(req: Request) {
       `${BASE}/api/CorporatePortal/GetBenefitLimit?schemeId=${schemeId}`,
     ];
 
-    const results = await Promise.all(candidates.map((url) => probe(token, url)));
-
-    const withData  = results.filter((r) => r.rows > 0);
-    const working   = results.filter((r) => r.status !== 500 && r.status !== 0 && r.status !== 404);
+    const results = await Promise.all(candidates.map((url) => probeUrl(token, url)));
+    const withData = results.filter((r) => r.rows > 0);
+    const working  = results.filter((r) => r.status !== 500 && r.status !== 0 && r.status !== 404);
 
     return NextResponse.json({ schemeId, schemeCode, groupId, withData, working, all: results });
   } catch (err) {
