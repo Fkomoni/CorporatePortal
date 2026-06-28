@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BenefitsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
+import type { BenefitCategory } from '@/app/api/hr/benefits/scheme-benefits/route';
 
-type Plan = 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan';
-
-/* ── Plan tier hierarchy (lowest → highest) ─────────────────────────── */
+/* ── Plan tier hierarchy (lowest → highest) — still used for provider search ── */
 const PLAN_TIERS = [
   { key: 'Plus Mini',   level: 0, label: 'All Plans',          color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
   { key: 'Plus',        level: 1, label: 'Plus and above',     color: '#C2410C', bg: '#FFF7ED', border: '#FED7AA' },
@@ -20,47 +20,16 @@ const PLAN_TIERS = [
 
 type PlanTierKey = typeof PLAN_TIERS[number]['key'];
 
-const benefits: Record<Plan, { category: string; limit: string; includes: string[]; excludes: string[]; waitingPeriod?: string }[]> = {
-  'Plus Plan': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation'], excludes: ['Specialist referrals', 'Cosmetic procedures'] },
-    { category: 'Inpatient',  limit: '₦1,500,000 / yr',  includes: ['Basic surgery'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '6 months' },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits'], excludes: ['Elective admission'] },
-  ],
-  'Pro Plan': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Basic diagnostics'], excludes: ['Cosmetic procedures'] },
-    { category: 'Inpatient',  limit: '₦3,000,000 / yr',  includes: ['Surgery', 'Physiotherapy'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
-    { category: 'Maternity',  limit: '₦250,000',          includes: ['ANC', 'Delivery'], excludes: ['IVF / ART', 'C-Section elective'], waitingPeriod: '9 months' },
-    { category: 'Dental',     limit: '₦80,000 / yr',      includes: ['Routine check', 'Extraction'], excludes: ['Restoration', 'Orthodontics'], waitingPeriod: '6 months' },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance'], excludes: [] },
-  ],
-  'Max Plan': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Diagnostics', 'Drugs (formulary)'], excludes: ['Cosmetic procedures'] },
-    { category: 'Inpatient',  limit: '₦5,000,000 / yr',  includes: ['Surgery', 'ICU', 'Physiotherapy'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
-    { category: 'Maternity',  limit: '₦400,000',          includes: ['ANC', 'Delivery', 'Postnatal'], excludes: ['IVF / ART'], waitingPeriod: '6 months' },
-    { category: 'Dental',     limit: '₦150,000 / yr',     includes: ['Routine check', 'Restoration', 'Extraction'], excludes: ['Orthodontics', 'Implants'], waitingPeriod: '3 months' },
-    { category: 'Optical',    limit: '₦80,000 / yr',      includes: ['Eye test', 'Frames', 'Lenses'], excludes: ['Contact lenses'], waitingPeriod: '3 months' },
-    { category: 'Specialist', limit: '₦2,000,000 / yr',   includes: ['Cardiology', 'Orthopaedics', 'Oncology'], excludes: ['Experimental treatment'] },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance', 'Emergency surgery'], excludes: [] },
-  ],
-  'Promax Plan': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Diagnostics', 'Drugs (formulary)', 'Specialist referral'], excludes: ['Cosmetic procedures'] },
-    { category: 'Inpatient',  limit: '₦10,000,000 / yr', includes: ['Surgery', 'ICU', 'Physiotherapy', 'Private ward'], excludes: ['Pre-existing (yr 1)'], waitingPeriod: '3 months' },
-    { category: 'Maternity',  limit: '₦600,000',          includes: ['ANC', 'Delivery', 'Postnatal', 'C-Section'], excludes: ['IVF / ART'], waitingPeriod: '3 months' },
-    { category: 'Dental',     limit: '₦250,000 / yr',     includes: ['Routine check', 'Restoration', 'Extraction', 'Orthodontics'], excludes: ['Implants'], waitingPeriod: '3 months' },
-    { category: 'Optical',    limit: '₦120,000 / yr',     includes: ['Eye test', 'Frames', 'Lenses', 'Contact lenses'], excludes: [], waitingPeriod: '3 months' },
-    { category: 'Specialist', limit: '₦5,000,000 / yr',   includes: ['Cardiology', 'Orthopaedics', 'Oncology', 'Neurology'], excludes: ['Experimental treatment'] },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance', 'Emergency surgery', 'Air evacuation'], excludes: [] },
-  ],
-  'Magnum Plan': [
-    { category: 'Outpatient', limit: 'Unlimited visits', includes: ['GP Consultation', 'Diagnostics', 'Drugs (full formulary)', 'Specialist referral', 'Telemedicine'], excludes: [] },
-    { category: 'Inpatient',  limit: 'Unlimited',         includes: ['Surgery', 'ICU', 'Physiotherapy', 'Private suite', 'VIP ward'], excludes: [], waitingPeriod: 'None' },
-    { category: 'Maternity',  limit: 'Unlimited',          includes: ['ANC', 'Delivery', 'Postnatal', 'C-Section', 'IVF (2 cycles)'], excludes: [] },
-    { category: 'Dental',     limit: 'Unlimited',          includes: ['Full dental coverage', 'Implants', 'Orthodontics'], excludes: [] },
-    { category: 'Optical',    limit: 'Unlimited',          includes: ['Eye test', 'Frames', 'Lenses', 'LASIK referral'], excludes: [] },
-    { category: 'Specialist', limit: 'Unlimited',          includes: ['All specialties', 'International referral', 'Second opinion'], excludes: [] },
-    { category: 'Emergency',  limit: 'As incurred',        includes: ['A&E visits', 'Ambulance', 'Emergency surgery', 'International evacuation'], excludes: [] },
-  ],
-};
+// Scheme button accent colours (cycles by index)
+const SCHEME_COLORS = [
+  { accent: '#C2410C', bg: '#FFEDD5', border: '#C2410C' },
+  { accent: '#475569', bg: '#E2E8F0', border: '#475569' },
+  { accent: '#D97706', bg: '#FEF3C7', border: '#D97706' },
+  { accent: '#2563EB', bg: '#DBEAFE', border: '#2563EB' },
+  { accent: '#6D28D9', bg: '#EDE9FE', border: '#6D28D9' },
+  { accent: '#059669', bg: '#D1FAE5', border: '#059669' },
+  { accent: '#BE123C', bg: '#FFE4E6', border: '#BE123C' },
+];
 
 const categoryMeta: Record<string, { Icon: React.ElementType; color: string; bg: string }> = {
   Outpatient: { Icon: Activity,      color: '#10B981', bg: '#ECFDF5' },
@@ -91,7 +60,46 @@ export default function BenefitsPage() {
   const [activeTab, setActiveTab] = useState<'plans' | 'providers'>('plans');
   const [vis, setBenVis] = useState<BenefitsVis>(DEFAULTS.benefits);
   useEffect(() => { setBenVis(getVis('benefits')); }, []);
-  const [activePlan, setActivePlan] = useState<Plan>('Max Plan');
+
+  // Dynamic schemes + benefits
+  const [schemes, setSchemes]               = useState<PolicyScheme[]>([]);
+  const [schemesLoading, setSchemesLoading] = useState(true);
+  const [schemesError, setSchemesError]     = useState('');
+  const [activeSchemeId, setActiveSchemeId] = useState<string>('');
+  const [categories, setCategories]         = useState<BenefitCategory[]>([]);
+  const [bensLoading, setBensLoading]       = useState(false);
+  const [bensError, setBensError]           = useState('');
+
+  useEffect(() => {
+    fetch('/api/hr/benefits/schemes')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setSchemesError(d.error); return; }
+        const list: PolicyScheme[] = d.schemes ?? [];
+        setSchemes(list);
+        if (list.length > 0) setActiveSchemeId(list[0].schemeId);
+      })
+      .catch(() => setSchemesError('Failed to load schemes'))
+      .finally(() => setSchemesLoading(false));
+  }, []);
+
+  const loadBenefits = useCallback((schemeId: string) => {
+    if (!schemeId) return;
+    setBensLoading(true); setBensError('');
+    fetch(`/api/hr/benefits/scheme-benefits?schemeId=${encodeURIComponent(schemeId)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setBensError(d.error); return; }
+        setCategories(d.categories ?? []);
+      })
+      .catch(() => setBensError('Failed to load benefits'))
+      .finally(() => setBensLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (activeSchemeId) loadBenefits(activeSchemeId);
+  }, [activeSchemeId, loadBenefits]);
+
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanTierKey | ''>('');
@@ -141,96 +149,122 @@ export default function BenefitsPage() {
         </div>
         {activeTab === 'plans' && (
           <>
-            {/* Plan selector */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              {(['Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'] as Plan[]).map((plan) => {
-                const isActive = activePlan === plan;
-                const colors: Record<Plan, { accent: string; bg: string; activeBg: string }> = {
-                  'Plus Plan':   { accent: '#C2410C', bg: '#FFF7ED', activeBg: '#FFEDD5' },
-                  'Pro Plan':    { accent: '#475569', bg: '#F1F5F9', activeBg: '#E2E8F0' },
-                  'Max Plan':    { accent: '#D97706', bg: '#FFFBEB', activeBg: '#FEF3C7' },
-                  'Promax Plan': { accent: '#2563EB', bg: '#EFF6FF', activeBg: '#DBEAFE' },
-                  'Magnum Plan': { accent: '#6D28D9', bg: '#F5F3FF', activeBg: '#EDE9FE' },
-                };
-                const c = colors[plan];
-                return (
-                  <button key={plan} onClick={() => setActivePlan(plan)}
-                    style={{
-                      padding: '10px 24px',
-                      borderRadius: 12,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      border: `1.5px solid ${isActive ? c.accent : '#E5E7F1'}`,
-                      background: isActive ? c.activeBg : '#fff',
-                      color: isActive ? c.accent : '#6B7280',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      boxShadow: isActive ? `0 2px 8px rgba(0,0,0,0.08)` : 'none',
-                    }}>
-                    {plan}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Scheme selector — loaded from GetPolicySchemes */}
+            {schemesLoading && (
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[1,2,3].map((i) => (
+                  <div key={i} style={{ height: 42, width: 120, borderRadius: 12, background: '#F0F1F5', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+            )}
+            {schemesError && (
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{schemesError}</div>
+            )}
+            {!schemesLoading && schemes.length > 0 && (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {schemes.map((scheme, idx) => {
+                  const isActive = activeSchemeId === scheme.schemeId;
+                  const c = SCHEME_COLORS[idx % SCHEME_COLORS.length];
+                  return (
+                    <button key={scheme.schemeId}
+                      onClick={() => setActiveSchemeId(scheme.schemeId)}
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: 12,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        border: `1.5px solid ${isActive ? c.accent : '#E5E7F1'}`,
+                        background: isActive ? c.bg : '#fff',
+                        color: isActive ? c.accent : '#6B7280',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                      }}>
+                      {scheme.schemeName}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            {/* Benefit cards — two-column grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-              {benefits[activePlan].map((b) => {
-                const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
-                const Icon = meta.Icon;
-                const totalItems = b.includes.length + b.excludes.length;
-                return (
-                  <div key={b.category} style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-                    {/* Card header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 28px', borderBottom: '1px solid #F0F1F5' }}>
-                      <div style={{ width: 52, height: 52, borderRadius: 14, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Icon style={{ width: 24, height: 24, color: meta.color }} strokeWidth={1.75} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{b.category}</p>
-                        <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{totalItems} benefits covered · Limit: <span style={{ fontWeight: 600, color: '#131C4E' }}>{b.limit}</span></p>
-                      </div>
-                      {b.waitingPeriod && (
-                        <span style={{ fontSize: 11, fontWeight: 600, background: '#FFFBEB', color: '#D97706', padding: '4px 12px', borderRadius: 99, border: '1px solid #FDE68A', flexShrink: 0 }}>
-                          {b.waitingPeriod} waiting period
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Includes section */}
-                    <div style={{ padding: '0 28px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderLeft: '3px solid #F56B22', paddingLeft: 12, marginLeft: -12 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>What&apos;s Covered</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, background: '#ECFDF5', color: '#059669', padding: '3px 10px', borderRadius: 99 }}>{b.includes.length} COVERED</span>
-                      </div>
-                      {b.includes.map((inc, i) => (
-                        <div key={inc} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #F7F8FA' }}>
-                          <CheckCircle style={{ width: 16, height: 16, color: '#10B981', flexShrink: 0 }} strokeWidth={2.5} />
-                          <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{inc}</span>
+            {/* Benefit cards — loaded from GetSchemeBenefits */}
+            {bensLoading && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
+                {[1,2,3,4].map((i) => (
+                  <div key={i} style={{ height: 200, borderRadius: 20, background: '#F7F8FC', border: '1px solid #EDEEF2', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+            )}
+            {bensError && (
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{bensError}</div>
+            )}
+            {!bensLoading && !bensError && categories.length === 0 && activeSchemeId && (
+              <div style={{ textAlign: 'center', padding: '56px 24px', color: '#9CA3B8', fontSize: 14 }}>No benefit details available for this scheme.</div>
+            )}
+            {!bensLoading && categories.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                {categories.map((b) => {
+                  const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
+                  const Icon = meta.Icon;
+                  const totalItems = b.covered.length + b.excluded.length;
+                  return (
+                    <div key={b.category} style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                      {/* Card header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 28px', borderBottom: '1px solid #F0F1F5' }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 14, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Icon style={{ width: 24, height: 24, color: meta.color }} strokeWidth={1.75} />
                         </div>
-                      ))}
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{b.category}</p>
+                          <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
+                            {totalItems} benefit{totalItems !== 1 ? 's' : ''} covered
+                            {b.limit ? <> · Limit: <span style={{ fontWeight: 600, color: '#131C4E' }}>{b.limit}</span></> : null}
+                          </p>
+                        </div>
+                        {b.waitingPeriod && (
+                          <span style={{ fontSize: 11, fontWeight: 600, background: '#FFFBEB', color: '#D97706', padding: '4px 12px', borderRadius: 99, border: '1px solid #FDE68A', flexShrink: 0 }}>
+                            {b.waitingPeriod} waiting period
+                          </span>
+                        )}
+                      </div>
 
-                      {/* Excludes section */}
-                      {b.excludes.length > 0 && (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderTop: '1px solid #F0F1F5', marginTop: 4, borderLeft: '3px solid #EF4444', paddingLeft: 12, marginLeft: -12 }}>
-                            <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Not Covered</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, background: '#FEF2F2', color: '#DC2626', padding: '3px 10px', borderRadius: 99 }}>{b.excludes.length} EXCLUDED</span>
+                      {/* Covered */}
+                      {b.covered.length > 0 && (
+                        <div style={{ padding: '0 28px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderLeft: '3px solid #F56B22', paddingLeft: 12, marginLeft: -12 }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>What&apos;s Covered</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, background: '#ECFDF5', color: '#059669', padding: '3px 10px', borderRadius: 99 }}>{b.covered.length} COVERED</span>
                           </div>
-                          {b.excludes.map((exc, i) => (
-                            <div key={exc} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #F7F8FA' }}>
+                          {b.covered.map((inc, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #F7F8FA' }}>
+                              <CheckCircle style={{ width: 16, height: 16, color: '#10B981', flexShrink: 0 }} strokeWidth={2.5} />
+                              <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{inc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Excluded */}
+                      {b.excluded.length > 0 && (
+                        <div style={{ padding: '0 28px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderTop: b.covered.length > 0 ? '1px solid #F0F1F5' : 'none', marginTop: b.covered.length > 0 ? 4 : 0, borderLeft: '3px solid #EF4444', paddingLeft: 12, marginLeft: -12 }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Not Covered</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, background: '#FEF2F2', color: '#DC2626', padding: '3px 10px', borderRadius: 99 }}>{b.excluded.length} EXCLUDED</span>
+                          </div>
+                          {b.excluded.map((exc, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #F7F8FA' }}>
                               <XCircle style={{ width: 16, height: 16, color: '#EF4444', flexShrink: 0 }} strokeWidth={2.5} />
                               <span style={{ fontSize: 13, color: '#9CA3B8', fontWeight: 500 }}>{exc}</span>
                             </div>
                           ))}
-                        </>
+                        </div>
                       )}
                       <div style={{ height: 8 }} />
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
         {activeTab === 'providers' && (
