@@ -10,6 +10,7 @@ import {
 import { TopBar } from '@/components/layout/TopBar';
 import type { Member } from '@/lib/types';
 import type { MemberStats } from '@/app/api/hr/members/route';
+import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 
 
@@ -141,14 +142,17 @@ function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: 
 interface RelationshipOption { text: string; value: string; }
 
 /* ── Add Member Modal ────────────────────────────────────────────────── */
-function AddMemberModal({ initialMode, onClose, relationshipOptions }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[] }) {
+function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[] }) {
   const [mode, setMode]             = useState<'individual' | 'bulk'>(initialMode ?? 'individual');
   const [memberType, setMemberType] = useState<'new' | 'existing'>('new');
   const [actionType, setActionType] = useState<'link' | 'form'>('link');
   const [linkScope, setLinkScope]   = useState<'self' | 'self-dependent'>('self');
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
   const [email, setEmail]           = useState('');
+  const [selectedSchemeId, setSelectedSchemeId] = useState<string>(() => schemes[0]?.schemeId ?? '');
   const { toast } = useToast();
+
+  const selectedScheme = schemes.find((s) => s.schemeId === selectedSchemeId) ?? schemes[0];
 
   const inputStyle: React.CSSProperties = {
     width: '100%', height: 40, padding: '0 14px', fontSize: 13,
@@ -160,7 +164,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions }: { initial
     if (mode === 'individual' && actionType === 'link') {
       toast(`Self-enrolment link sent to ${email || 'staff member'}.`, 'info');
     } else if (mode === 'individual' && actionType === 'form') {
-      toast('Member record created successfully.', 'info');
+      // selectedScheme.schemeId and selectedScheme.schemeCode are available here for the Prognosis API call
+      toast(`Member record created on scheme ${selectedScheme?.schemeName ?? ''}.`, 'info');
     } else if (mode === 'bulk' && bulkAction === 'csv') {
       toast('Census CSV uploaded. Members will be activated shortly.', 'info');
     } else {
@@ -314,9 +319,20 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions }: { initial
                   ))}
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Plan</p>
-                    <select style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
-                      {['Plus Plan', 'Pro Plan', 'Max Plan', 'Promax Plan', 'Magnum Plan'].map((p) => <option key={p}>{p}</option>)}
-                    </select>
+                    {schemes.length > 0 ? (
+                      <select
+                        value={selectedSchemeId}
+                        onChange={(e) => setSelectedSchemeId(e.target.value)}
+                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+                        {schemes.map((s) => (
+                          <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9', fontSize: 12 }}>
+                        Loading plans…
+                      </div>
+                    )}
                   </div>
                   {memberType === 'existing' && (
                     <div>
@@ -869,14 +885,16 @@ export default function MembersPage() {
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const { toast } = useToast();
 
-  // Max family size from policy schemes (used for dependant limit validation)
+  // Policy schemes — used for dependant limit validation and plan dropdown in AddMemberModal
+  const [schemes, setSchemes] = useState<PolicyScheme[]>([]);
   const [maxFamilySize, setMaxFamilySize] = useState<number>(8);
   useEffect(() => {
     fetch('/api/hr/benefits/schemes')
       .then((r) => r.json())
       .then((d) => {
-        const schemes: { maxFamilySize: number | null }[] = d.schemes ?? [];
-        const sizes = schemes.map((s) => s.maxFamilySize).filter((n): n is number => n !== null && n > 0);
+        const loaded: PolicyScheme[] = d.schemes ?? [];
+        setSchemes(loaded);
+        const sizes = loaded.map((s) => s.maxFamilySize).filter((n): n is number => n !== null && n > 0);
         if (sizes.length > 0) setMaxFamilySize(Math.min(...sizes));
       })
       .catch(() => {});
@@ -1169,6 +1187,7 @@ export default function MembersPage() {
           initialMode={showAddModal}
           onClose={() => setShowAddModal(false)}
           relationshipOptions={relationshipOptions}
+          schemes={schemes}
         />
       )}
     </div>
