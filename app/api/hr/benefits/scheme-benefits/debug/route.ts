@@ -31,6 +31,23 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
+async function probe(token: string, url: string) {
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+    const text = await res.text();
+    let raw: unknown;
+    try { raw = JSON.parse(text); } catch { raw = text; }
+    const arr: unknown[] = Array.isArray(raw) ? (raw as unknown[])
+      : Array.isArray((raw as Record<string,unknown>)?.data)   ? (raw as Record<string,unknown>).data   as unknown[]
+      : Array.isArray((raw as Record<string,unknown>)?.Data)   ? (raw as Record<string,unknown>).Data   as unknown[]
+      : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
+      : [];
+    return { url, status: res.status, rows: arr.length, raw };
+  } catch (e) {
+    return { url, status: 0, rows: 0, raw: String(e) };
+  }
+}
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -39,42 +56,35 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const schemeId = searchParams.get('schemeId');
-  if (!schemeId) return NextResponse.json({ error: 'schemeId query param required' }, { status: 400 });
+  const schemeId   = searchParams.get('schemeId')  ?? '141378';
+  const schemeCode = searchParams.get('schemeCode') ?? 'GEHEALTHCARE';
+  const groupId    = session.user.companyId ?? '';
 
   try {
     const token = await getServiceToken();
-    const url = `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&languageId=1`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
-    const text = await res.text();
-    let raw: unknown;
-    try { raw = JSON.parse(text); } catch { raw = text; }
 
-    const isArray = Array.isArray(raw);
-    const topLevelKeys = raw && typeof raw === 'object' && !isArray ? Object.keys(raw as object) : [];
+    const candidates = [
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&languageId=1`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?PlanID=${schemeId}&languageId=1`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?PlanID=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?planId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemecode=${schemeCode}`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeCode=${schemeCode}`,
+      `${BASE}/api/CorporatePortal/GetPlanBenefits?schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetPlanBenefits?PlanID=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetBenefits?schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetBenefits?groupId=${groupId}&schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetGroupBenefits?groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetGroupBenefits?groupId=${groupId}&schemeId=${schemeId}`,
+    ];
 
-    const arr: unknown[] = isArray ? (raw as unknown[])
-      : Array.isArray((raw as Record<string,unknown>)?.data) ? (raw as Record<string,unknown>).data as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.Data) ? (raw as Record<string,unknown>).Data as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
-      : [];
+    const results = await Promise.all(candidates.map((url) => probe(token, url)));
 
-    const allKeys = new Set<string>();
-    arr.forEach((r) => { if (r && typeof r === 'object') Object.keys(r as object).forEach((k) => allKeys.add(k)); });
+    const withData  = results.filter((r) => r.rows > 0);
+    const working   = results.filter((r) => r.status !== 500 && r.status !== 0 && r.status !== 404);
 
-    return NextResponse.json({
-      schemeId,
-      endpoint: url,
-      httpStatus: res.status,
-      isArray,
-      topLevelKeys,
-      detectedArrayLength: arr.length,
-      allFieldNamesInRows: [...allKeys],
-      rawSample: arr.slice(0, 3),
-      rawResponse: raw,
-    });
+    return NextResponse.json({ schemeId, schemeCode, groupId, withData, working, all: results });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
   }
