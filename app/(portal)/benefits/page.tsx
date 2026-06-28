@@ -185,7 +185,12 @@ export default function BenefitsPage() {
                         transition: 'all 0.15s',
                         boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                       }}>
-                      {scheme.schemeName}
+                      <span style={{ display: 'block', lineHeight: 1.3 }}>{scheme.schemeName}</span>
+                      {scheme.schemeCode && (
+                        <span style={{ display: 'block', fontSize: 10, fontWeight: 500, opacity: 0.7, marginTop: 2 }}>
+                          {scheme.schemeCode}{scheme.maxFamilySize ? ` · Max ${scheme.maxFamilySize} dependants` : ''}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

@@ -34,6 +34,8 @@ async function getServiceToken(): Promise<string> {
 export interface PolicyScheme {
   schemeId: string;
   schemeName: string;
+  schemeCode: string;
+  maxFamilySize: number | null;
 }
 
 function str(row: Record<string, unknown>, ...keys: string[]): string {
@@ -77,9 +79,12 @@ export async function GET() {
       .filter((r) => r && typeof r === 'object')
       .map((r) => {
         const row = r as Record<string, unknown>;
-        const id   = str(row, 'SchemeId', 'schemeId', 'scheme_id', 'Id', 'id', 'PlanId', 'planId');
-        const name = str(row, 'SchemeName', 'schemeName', 'scheme_name', 'Name', 'name', 'PlanName', 'planName', 'Description');
-        return { schemeId: id, schemeName: name };
+        // API returns PlanID (capital D) and PlanName
+        const id   = str(row, 'PlanID', 'PlanId', 'SchemeId', 'schemeId', 'scheme_id', 'Id', 'id');
+        const name = str(row, 'PlanName', 'planName', 'SchemeName', 'schemeName', 'scheme_name', 'Name', 'name', 'Description');
+        const code = str(row, 'schemecode', 'SchemeCode', 'schemeCode', 'PlanCode', 'planCode');
+        const maxFam = row['MaximumFamilySize'] != null ? Number(row['MaximumFamilySize']) : null;
+        return { schemeId: id, schemeName: name, schemeCode: code, maxFamilySize: isNaN(maxFam as number) ? null : maxFam };
       })
       .filter((s) => s.schemeId && s.schemeName);
 
