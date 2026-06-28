@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { BenefitsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
-import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText } from 'lucide-react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText, Syringe, Sparkles } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import type { BenefitCategory } from '@/app/api/hr/benefits/scheme-benefits/route';
@@ -43,9 +43,12 @@ const categoryMeta: Record<string, { Icon: React.ElementType; color: string; bg:
   'Advanced Investigations': { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
   Emergency:                 { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
   'Major Disease Benefit':   { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
-  'Additional Benefits':     { Icon: Activity,      color: '#6D28D9', bg: '#F5F3FF' },
-  Gym:                       { Icon: Activity,      color: '#059669', bg: '#ECFDF5' },
-  'Health Checks':           { Icon: Activity,      color: '#D97706', bg: '#FFFBEB' },
+  'Additional Benefits':       { Icon: Activity,      color: '#6D28D9', bg: '#F5F3FF' },
+  Gym:                         { Icon: Activity,      color: '#059669', bg: '#ECFDF5' },
+  'Health Checks':             { Icon: Activity,      color: '#D97706', bg: '#FFFBEB' },
+  'Health Check Basic':        { Icon: Activity,      color: '#D97706', bg: '#FFFBEB' },
+  'Immunization Vaccines':     { Icon: Syringe,       color: '#0891B2', bg: '#ECFEFF' },
+  'SPA Treatment (Voucher PA )': { Icon: Sparkles,   color: '#7C3AED', bg: '#F5F3FF' },
 };
 
 const providers: { name: string; city: string; state: string; phone: string; specialties: string[]; type: string; status: string; minPlan: PlanTierKey }[] = [
