@@ -31,10 +31,16 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-export interface RelationshipOption {
-  text: string;
-  value: string;
+async function fetchJson(token: string, url: string): Promise<unknown> {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return null; }
 }
+
+export interface RelationshipOption { text: string; value: string; }
+export interface GenderOption       { text: string; value: string; }
+export interface MaritalOption      { text: string; value: string; }
+export interface StateOption        { text: string; value: string; }
 
 export async function GET() {
   const session = await auth();
@@ -42,28 +48,51 @@ export async function GET() {
 
   try {
     const token = await getServiceToken();
-    const res = await fetch(`${BASE}/api/ListValues/GetBeneficiaryRelationship`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
 
-    const text = await res.text();
-    let raw: unknown;
-    try { raw = JSON.parse(text); } catch {
-      return NextResponse.json({ error: 'Prognosis returned non-JSON', relationships: [] }, { status: 502 });
-    }
+    const [relRaw, genderRaw, maritalRaw, statesRaw] = await Promise.all([
+      fetchJson(token, `${BASE}/api/ListValues/GetBeneficiaryRelationship`),
+      fetchJson(token, `${BASE}/api/ListValues/GetGender`),
+      fetchJson(token, `${BASE}/api/ListValues/GetMaritalStatus`),
+      fetchJson(token, `${BASE}/api/ListValues/GetStates`),
+    ]);
 
-    // Normalise to { text, value }[] — Prognosis returns { Text, Value, ... }
-    const relationships: RelationshipOption[] = Array.isArray(raw)
-      ? raw.map((item: Record<string, unknown>) => ({
+    // Relationships → {Text, Value}[]
+    const relationships: RelationshipOption[] = Array.isArray(relRaw)
+      ? relRaw.map((item: Record<string, unknown>) => ({
           text: String(item.Text ?? item.text ?? '').trim(),
           value: String(item.Value ?? item.value ?? ''),
         })).filter((r) => r.text && r.value)
       : [];
 
-    return NextResponse.json({ relationships });
+    // Gender → {result: [{Sex_id, Sex}]}
+    const genderArr: unknown[] = Array.isArray((genderRaw as Record<string,unknown>)?.result)
+      ? (genderRaw as Record<string,unknown>).result as unknown[]
+      : Array.isArray(genderRaw) ? genderRaw as unknown[] : [];
+    const genders: GenderOption[] = genderArr.map((item) => {
+      const r = item as Record<string, unknown>;
+      return { text: String(r.Sex ?? r.sex ?? '').trim(), value: String(r.Sex_id ?? r.sex_id ?? '') };
+    }).filter((g) => g.text && g.value);
+
+    // Marital status → {result: [{Marital_statusid, MaritalStatus}]}
+    const maritalArr: unknown[] = Array.isArray((maritalRaw as Record<string,unknown>)?.result)
+      ? (maritalRaw as Record<string,unknown>).result as unknown[]
+      : Array.isArray(maritalRaw) ? maritalRaw as unknown[] : [];
+    const maritalStatuses: MaritalOption[] = maritalArr.map((item) => {
+      const r = item as Record<string, unknown>;
+      return { text: String(r.MaritalStatus ?? r.maritalStatus ?? '').trim(), value: String(r.Marital_statusid ?? r.marital_statusid ?? '') };
+    }).filter((m) => m.text && m.value);
+
+    // States → [{Text, Value}]
+    const statesArr: unknown[] = Array.isArray(statesRaw) ? statesRaw as unknown[] : [];
+    const states: StateOption[] = statesArr.map((item) => {
+      const r = item as Record<string, unknown>;
+      return { text: String(r.Text ?? r.text ?? '').trim(), value: String(r.Value ?? r.value ?? '') };
+    }).filter((s) => s.text && s.value);
+
+    return NextResponse.json({ relationships, genders, maritalStatuses, states });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err), relationships: [] },
+      { error: err instanceof Error ? err.message : String(err), relationships: [], genders: [], maritalStatuses: [], states: [] },
       { status: 500 }
     );
   }

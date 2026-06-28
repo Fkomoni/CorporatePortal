@@ -140,6 +140,10 @@ function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: 
 }
 
 interface RelationshipOption { text: string; value: string; }
+interface ListItem { text: string; value: string; }
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const GENOTYPES    = ['AA', 'AS', 'SS', 'AC'];
 
 /* ── Add Member Modal ────────────────────────────────────────────────── */
 function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[] }) {
@@ -148,9 +152,60 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   const [actionType, setActionType] = useState<'link' | 'form'>('link');
   const [linkScope, setLinkScope]   = useState<'self' | 'self-dependent'>('self');
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
-  const [email, setEmail]           = useState('');
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(() => schemes[0]?.schemeId ?? '');
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+
+  // List values
+  const [genders, setGenders]       = useState<ListItem[]>([]);
+  const [maritalOpts, setMarital]   = useState<ListItem[]>([]);
+  const [stateOpts, setStates]      = useState<ListItem[]>([]);
+  useEffect(() => {
+    fetch('/api/hr/list-values').then((r) => r.json()).then((d) => {
+      if (d.genders)        setGenders(d.genders);
+      if (d.maritalStatuses) setMarital(d.maritalStatuses);
+      if (d.states)         setStates(d.states);
+    }).catch(() => {});
+  }, []);
+
+  // Link form fields
+  const [linkEmail, setLinkEmail]     = useState('');
+  const [linkEmpCode, setLinkEmpCode] = useState('');
+  const [generatedUrl, setGeneratedUrl] = useState('');
+
+  // Direct form fields
+  const [firstName, setFirstName]   = useState('');
+  const [surname, setSurname]       = useState('');
+  const [otherNames, setOtherNames] = useState('');
+  const [empCode, setEmpCode]       = useState('');
+  const [email, setEmail]           = useState('');
+  const [mobile, setMobile]         = useState('');
+  const [mobile2, setMobile2]       = useState('');
+  const [dob, setDob]               = useState('');
+  const [sexId, setSexId]           = useState('');
+  const [maritalStatus, setMarStatus] = useState('');
+  const [stateId, setStateId]       = useState('');
+  const [address, setAddress]       = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [genotype, setGenotype]     = useState('');
+  const [preExisting, setPreExist]  = useState('');
+  const [photoBase64, setPhotoB64]  = useState('');
+  const [photoType, setPhotoType]   = useState('');
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [header, b64] = result.split(',');
+      const mime = header.match(/data:([^;]+);/)?.[1] ?? file.type;
+      setPhotoB64(b64 ?? '');
+      setPhotoType(mime);
+    };
+    reader.readAsDataURL(file);
+  }
 
   const selectedScheme = schemes.find((s) => s.schemeId === selectedSchemeId) ?? schemes[0];
 
@@ -159,23 +214,68 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
     border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC',
     color: '#131C4E', outline: 'none', boxSizing: 'border-box',
   };
+  const focusOn  = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { e.currentTarget.style.borderColor = '#F56B22'; };
+  const focusOff = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { e.currentTarget.style.borderColor = '#E5E7F1'; };
 
-  function handleSubmit() {
-    if (mode === 'individual' && actionType === 'link') {
-      toast(`Self-enrolment link sent to ${email || 'staff member'}.`, 'info');
-    } else if (mode === 'individual' && actionType === 'form') {
-      // selectedScheme.schemeId and selectedScheme.schemeCode are available here for the Prognosis API call
-      toast(`Member record created on scheme ${selectedScheme?.schemeName ?? ''}.`, 'info');
-    } else if (mode === 'bulk' && bulkAction === 'csv') {
-      toast('Census CSV uploaded. Members will be activated shortly.', 'info');
-    } else {
-      toast(`Bulk invitation links sent (${linkScope === 'self' ? 'Principal only' : 'Principal + Dependent'}).`, 'info');
+  async function handleSubmit() {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (mode === 'individual' && actionType === 'link') {
+        // Generate invitation link tied to email + employee code
+        if (!linkEmail || !linkEmpCode) {
+          toast('Staff email and employee code are required.', 'error'); setSubmitting(false); return;
+        }
+        const res = await fetch('/api/hr/members/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: linkEmail, employeeCode: linkEmpCode, schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', scope: linkScope }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { toast(data.error ?? 'Failed to generate link', 'error'); setSubmitting(false); return; }
+        setGeneratedUrl(data.url);
+        toast('Enrolment link generated! Copy it below.', 'success');
+        setSubmitting(false);
+        return;
+      }
+
+      if (mode === 'individual' && actionType === 'form') {
+        if (!firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !stateId) {
+          toast('Please fill all required fields.', 'error'); setSubmitting(false); return;
+        }
+        const res = await fetch('/api/hr/members/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '',
+            firstName, surname, otherNames, dateOfBirth: dob,
+            sexId, maritalStatus, email, mobile, mobile2,
+            postalTownId: stateId, address, bloodGroup, genotype,
+            employeeCode: empCode, preExistingCondition: preExisting || 'None',
+            enrolleePicture: photoBase64, enrolleePictureType: photoType,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { toast(data.error ?? 'Failed to add member', 'error'); setSubmitting(false); return; }
+        const memberId = data.fullEnrolleeId || data.membershipNo || '';
+        toast(`${firstName} ${surname} enrolled!${memberId ? ` Member ID: ${memberId}` : ''}`, 'success');
+        onClose();
+        return;
+      }
+
+      if (mode === 'bulk' && bulkAction === 'csv') {
+        toast('Census CSV uploaded. Members will be activated shortly.', 'info');
+      } else {
+        toast('Bulk invitation links sent.', 'info');
+      }
+      onClose();
+    } finally {
+      setSubmitting(false);
     }
-    onClose();
   }
 
-  const submitLabel =
-    mode === 'individual' && actionType === 'link' ? 'Send Link'
+  const submitLabel = submitting ? 'Please wait…'
+    : mode === 'individual' && actionType === 'link' ? 'Generate Link'
     : mode === 'individual' ? 'Add Member'
     : bulkAction === 'csv' ? 'Upload & Enrol'
     : 'Send Invitations';
@@ -185,7 +285,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        width: 560, maxHeight: '88vh', background: '#fff', borderRadius: 20, zIndex: 50,
+        width: 600, maxHeight: '90vh', background: '#fff', borderRadius: 20, zIndex: 50,
         display: 'flex', flexDirection: 'column',
         boxShadow: '0 24px 80px rgba(0,0,0,0.18)', overflow: 'hidden',
       }}>
@@ -236,16 +336,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
               <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>How to Enrol</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
                 {([
-                  {
-                    key: 'link',
-                    label: 'Send Self-Enrolment Link',
-                    desc: memberType === 'new' ? 'Staff enrols themselves via a link' : 'Staff adds their own dependent via link',
-                  },
-                  {
-                    key: 'form',
-                    label: 'HR Adds Directly',
-                    desc: memberType === 'new' ? 'Fill the form on their behalf' : 'HR adds dependent on their behalf',
-                  },
+                  { key: 'link', label: 'Send Self-Enrolment Link', desc: 'Staff fills in their own details via a secure link' },
+                  { key: 'form', label: 'HR Adds Directly',         desc: 'HR fills the form on the staff member\'s behalf' },
                 ] as const).map((t) => (
                   <div key={t.key} onClick={() => setActionType(t.key)}
                     style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${actionType === t.key ? '#3A4382' : '#E5E7F1'}`, background: actionType === t.key ? '#EEF2FF' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
@@ -255,97 +347,195 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                 ))}
               </div>
 
-              {/* Enrolment scope — only for new + link */}
-              {actionType === 'link' && memberType === 'new' && (
+              {/* ── LINK flow ── */}
+              {actionType === 'link' && (
                 <>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Enrolment Scope</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
-                    {([
-                      { key: 'self',           label: 'Principal Only',         desc: 'Staff member enrols themselves only' },
-                      { key: 'self-dependent', label: 'Principal + Dependent',  desc: 'Staff + one or more dependants' },
-                    ] as const).map((t) => (
-                      <div key={t.key} onClick={() => setLinkScope(t.key)}
-                        style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${linkScope === t.key ? '#10B981' : '#E5E7F1'}`, background: linkScope === t.key ? '#ECFDF5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: linkScope === t.key ? '#059669' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                        <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
+                  {/* Scope */}
+                  {memberType === 'new' && (
+                    <>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Enrolment Scope</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
+                        {([
+                          { key: 'self',           label: 'Principal Only',        desc: 'Staff member enrols themselves only' },
+                          { key: 'self-dependent', label: 'Principal + Dependent', desc: 'Staff + one or more dependants' },
+                        ] as const).map((t) => (
+                          <div key={t.key} onClick={() => setLinkScope(t.key)}
+                            style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${linkScope === t.key ? '#10B981' : '#E5E7F1'}`, background: linkScope === t.key ? '#ECFDF5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: linkScope === t.key ? '#059669' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
+                            <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </>
+                  )}
+
+                  {/* Plan */}
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan</p>
+                    {schemes.length > 0 ? (
+                      <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
+                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                      </select>
+                    ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
                   </div>
+
+                  {/* Email + Employee Code */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Staff Email *</p>
+                      <input type="email" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)}
+                        placeholder="e.g. john.doe@company.com" style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Employee Code *</p>
+                      <input value={linkEmpCode} onChange={(e) => setLinkEmpCode(e.target.value)}
+                        placeholder="e.g. EMP-9988" style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 16 }}>
+                    The link is tied to this email + employee code. Staff must verify both to enrol — preventing the link from being shared or reused.
+                  </p>
+
+                  {/* Generated link */}
+                  {generatedUrl && (
+                    <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 16px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link generated — copy and send to the staff member:</p>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <input readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
+                        <button onClick={() => { navigator.clipboard.writeText(generatedUrl); toast('Copied!', 'success'); }}
+                          style={{ height: 40, padding: '0 14px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 10, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
-              {/* Email field — for link mode */}
-              {actionType === 'link' && (
-                <div style={{ marginBottom: 8 }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Staff Email Address</p>
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    type="email"
-                    placeholder="e.g. john.doe@company.com"
-                    style={{ ...inputStyle, height: 44, fontSize: 14 }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }}
-                  />
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 6 }}>
-                    {memberType === 'new'
-                      ? `A unique ${linkScope === 'self-dependent' ? 'principal + dependent' : 'principal-only'} enrolment link will be sent to this address.`
-                      : "A link to add a dependent will be sent to the member's registered email."}
-                  </p>
-                </div>
-              )}
-
-              {/* Direct form — for form mode */}
+              {/* ── DIRECT FORM flow ── */}
               {actionType === 'form' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 4 }}>
-                  <PhotoUpload />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  {[
-                    { label: 'First Name',     placeholder: 'e.g. Amaka' },
-                    { label: 'Last Name',      placeholder: 'e.g. Okafor' },
-                    { label: 'Employee ID',    placeholder: 'e.g. EMP0042' },
-                    { label: 'Email Address',  placeholder: 'e.g. amaka@company.com' },
-                    { label: 'Phone Number',   placeholder: 'e.g. 08012345678' },
-                    { label: 'Date of Birth',  placeholder: 'DD MMM YYYY' },
-                  ].map((f) => (
-                    <div key={f.label}>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
-                      <input placeholder={f.placeholder} style={inputStyle}
-                        onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
-                        onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {/* Photo */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div onClick={() => photoRef.current?.click()} style={{ width: 72, height: 72, borderRadius: '50%', border: '2px dashed #D1D5DB', background: '#F7F8FC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      {photoBase64
+                        ? <img src={`data:${photoType};base64,${photoBase64}`} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <Camera style={{ width: 24, height: 24, color: '#C4C9D9' }} />}
                     </div>
-                  ))}
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Plan</p>
-                    {schemes.length > 0 ? (
-                      <select
-                        value={selectedSchemeId}
-                        onChange={(e) => setSelectedSchemeId(e.target.value)}
-                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
-                        {schemes.map((s) => (
-                          <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9', fontSize: 12 }}>
-                        Loading plans…
-                      </div>
-                    )}
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Passport Photo <span style={{ color: '#B0B7C9', fontWeight: 400 }}>(optional)</span></p>
+                      <button type="button" onClick={() => photoRef.current?.click()}
+                        style={{ height: 32, padding: '0 14px', fontSize: 12, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 8, background: '#FFF5EF', cursor: 'pointer' }}>
+                        {photoBase64 ? 'Change' : 'Upload Photo'}
+                      </button>
+                    </div>
+                    <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
                   </div>
+
+                  {/* Plan */}
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Plan *</p>
+                    {schemes.length > 0 ? (
+                      <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
+                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                      </select>
+                    ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                  </div>
+
+                  {/* Personal */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    {[
+                      { label: 'First Name *',  value: firstName,  set: setFirstName,  ph: 'e.g. Amaka'     },
+                      { label: 'Surname *',     value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
+                      { label: 'Other Names',   value: otherNames, set: setOtherNames, ph: 'Middle name(s)' },
+                      { label: 'Employee Code *', value: empCode,  set: setEmpCode,    ph: 'e.g. EMP-9988'  },
+                      { label: 'Email *',       value: email,      set: setEmail,      ph: 'amaka@company.com', type: 'email' },
+                      { label: 'Mobile *',      value: mobile,     set: setMobile,     ph: '08012345678', type: 'tel' },
+                      { label: 'Alt. Mobile',   value: mobile2,    set: setMobile2,    ph: '07012345678', type: 'tel' },
+                      { label: 'Date of Birth *', value: dob,      set: setDob,        ph: '', type: 'date' },
+                    ].map((f) => (
+                      <div key={f.label}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
+                        <input type={f.type ?? 'text'} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph}
+                          style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                      </div>
+                    ))}
+
+                    {/* Gender */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Gender *</p>
+                      <select value={sexId} onChange={(e) => setSexId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        <option value="">Select</option>
+                        {genders.map((g) => <option key={g.value} value={g.value}>{g.text}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Marital Status */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Marital Status</p>
+                      <select value={maritalStatus} onChange={(e) => setMarStatus(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        <option value="">Select</option>
+                        {maritalOpts.map((m) => <option key={m.value} value={m.value}>{m.text}</option>)}
+                      </select>
+                    </div>
+
+                    {/* State */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
+                      <select value={stateId} onChange={(e) => setStateId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        <option value="">Select state</option>
+                        {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Blood Group */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Blood Group</p>
+                      <select value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        <option value="">Select</option>
+                        {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Genotype */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Genotype</p>
+                      <select value={genotype} onChange={(e) => setGenotype(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                        <option value="">Select</option>
+                        {GENOTYPES.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Home Address</p>
+                    <input value={address} onChange={(e) => setAddress(e.target.value)}
+                      placeholder="e.g. 12 Adeola Odeku Street, Victoria Island"
+                      style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                  </div>
+
+                  {/* Pre-existing */}
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Pre-existing Conditions</p>
+                    <textarea value={preExisting} onChange={(e) => setPreExist(e.target.value)}
+                      placeholder="List any pre-existing conditions, or leave blank if none"
+                      rows={2}
+                      style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'vertical' }}
+                      onFocus={focusOn} onBlur={focusOff} />
+                  </div>
+
                   {memberType === 'existing' && (
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship</p>
-                      <select style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+                      <select style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
                         <option value="">Select relationship</option>
-                        {relationshipOptions.map((r) => (
-                          <option key={r.value} value={r.value}>{r.text}</option>
-                        ))}
+                        {relationshipOptions.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
                       </select>
                     </div>
                   )}
-                </div>
                 </div>
               )}
             </>
@@ -357,8 +547,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
               <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Bulk Action Type</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
                 {([
-                  { key: 'csv',    label: 'Upload Census CSV',       desc: 'HR adds multiple members at once via spreadsheet' },
-                  { key: 'invite', label: 'Bulk Send Invite Links',  desc: 'Email self-enrolment links to a list of staff' },
+                  { key: 'csv',    label: 'Upload Census CSV',      desc: 'HR adds multiple members at once via spreadsheet' },
+                  { key: 'invite', label: 'Bulk Send Invite Links', desc: 'Email self-enrolment links to a list of staff' },
                 ] as const).map((t) => (
                   <div key={t.key} onClick={() => setBulkAction(t.key)}
                     style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${bulkAction === t.key ? '#F56B22' : '#E5E7F1'}`, background: bulkAction === t.key ? '#FFF8F5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
@@ -401,7 +591,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       <Upload style={{ width: 22, height: 22, color: '#10B981' }} />
                     </div>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Upload staff email list (CSV)</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>One email per row · We'll send a unique link to each</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>One email per row · We&apos;ll send a unique link to each</p>
                     <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 12, background: '#ECFDF5', cursor: 'pointer' }}>
                       Browse File
                     </button>
@@ -417,10 +607,17 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
           <button onClick={onClose} style={{ height: 44, padding: '0 22px', fontSize: 14, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
             Cancel
           </button>
-          <button onClick={handleSubmit}
-            style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 3px 12px rgba(245,107,34,0.35)' }}>
-            {submitLabel}
-          </button>
+          {!(mode === 'individual' && actionType === 'link' && generatedUrl) && (
+            <button onClick={handleSubmit} disabled={submitting}
+              style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: submitting ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 3px 12px rgba(245,107,34,0.35)' }}>
+              {submitLabel}
+            </button>
+          )}
+          {mode === 'individual' && actionType === 'link' && generatedUrl && (
+            <button onClick={onClose} style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#059669,#10B981)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 3px 12px rgba(16,185,129,0.3)' }}>
+              Done
+            </button>
+          )}
         </div>
       </div>
     </>
