@@ -412,7 +412,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions }: { initial
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats }) {
+function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats, maxFamilySize }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -723,9 +723,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                   }}>
                     {depCount} existing dependant{depCount !== 1 ? 's' : ''}
                   </span>
-                  {depCount >= 4 && (
+                  {depCount >= maxFamilySize && (
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#DC2626' }}>
-                      Check plan limit
+                      Max {maxFamilySize} dependants
                     </span>
                   )}
                 </div>
@@ -816,10 +816,10 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                       {member.firstName} will receive a secure link to register their additional dependent — they fill in the details and upload any required documents themselves.
                     </p>
                   </div>
-                  {depCount >= 4 && (
+                  {depCount >= maxFamilySize && (
                     <div style={{ padding: '12px 16px', background: '#FFFBEB', borderRadius: 14, border: '1px solid #FDE68A' }}>
                       <p style={{ fontSize: 12, fontWeight: 600, color: '#D97706' }}>
-                        ⚠ This member already has {depCount} dependants. Confirm plan limits before proceeding.
+                        ⚠ This member already has {depCount} dependant{depCount !== 1 ? 's' : ''} — the plan limit is {maxFamilySize}. Adding more may be rejected by Prognosis.
                       </p>
                     </div>
                   )}
@@ -868,6 +868,19 @@ export default function MembersPage() {
   const [viewBeneficiaries, setViewBeneficiaries] = useState(false);
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const { toast } = useToast();
+
+  // Max family size from policy schemes (used for dependant limit validation)
+  const [maxFamilySize, setMaxFamilySize] = useState<number>(8);
+  useEffect(() => {
+    fetch('/api/hr/benefits/schemes')
+      .then((r) => r.json())
+      .then((d) => {
+        const schemes: { maxFamilySize: number | null }[] = d.schemes ?? [];
+        const sizes = schemes.map((s) => s.maxFamilySize).filter((n): n is number => n !== null && n > 0);
+        if (sizes.length > 0) setMaxFamilySize(Math.min(...sizes));
+      })
+      .catch(() => {});
+  }, []);
 
   // Live data
   const [liveMembers, setLiveMembers]       = useState<Member[]>([]);
@@ -1147,6 +1160,7 @@ export default function MembersPage() {
           vis={vis}
           relationshipOptions={relationshipOptions}
           stats={memberStatsMap[activeMember.member.employeeId]}
+          maxFamilySize={maxFamilySize}
         />
       )}
 
