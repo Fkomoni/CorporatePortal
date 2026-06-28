@@ -1,19 +1,21 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 
-const BASE = 'https://prognosis-api.leadwayhealth.com';
+const BASE = (process.env.PROGNOSIS_BASE_URL ?? process.env.PROGNOSIS_API_BASE ?? 'https://prognosis-api.leadwayhealth.com')
+  .replace(/\/api$/, '')
+  .replace(/\/$/, '');
 
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
 async function getServiceToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
-  const res = await fetch(`${BASE}/api/UserAccount/SignIn`, {
+  const res = await fetch(`${BASE}/api/ApiUsers/Login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
-      userName: process.env.PROGNOSIS_USERNAME,
-      password: process.env.PROGNOSIS_PASSWORD,
+      Username: process.env.PROGNOSIS_USERNAME,
+      Password: process.env.PROGNOSIS_PASSWORD,
     }),
   });
   const text = await res.text();
@@ -23,10 +25,11 @@ async function getServiceToken(): Promise<string> {
   }
   const payload = (data?.data ?? data?.Data ?? data?.result ?? data?.Result ?? data) as Record<string, unknown>;
   const token = String(
-    payload?.accessToken ?? payload?.token ?? payload?.AccessToken ?? payload?.Token ??
+    payload?.token ?? payload?.Token ?? payload?.access_token ??
+    payload?.accessToken ?? payload?.AccessToken ??
     payload?.bearer ?? payload?.Bearer ?? payload?.bearerToken ?? payload?.BearerToken ?? ''
   );
-  if (!token) throw new Error('No token from UserAccount/SignIn');
+  if (!token) throw new Error('No token from ApiUsers/Login');
   cachedToken = token;
   tokenExpiry = Date.now() + 6 * 60 * 60 * 1000;
   return token;
