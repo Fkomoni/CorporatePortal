@@ -120,18 +120,36 @@ export async function POST(req: Request) {
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
 
+    const r = raw as Record<string, unknown>;
+
     if (!res.ok) {
-      const msg = (raw as Record<string,unknown>)?.Message ?? (raw as Record<string,unknown>)?.message ?? text.slice(0, 200);
+      const msg = r?.Message ?? r?.message ?? r?.error ?? r?.Error ?? text.slice(0, 300);
       return NextResponse.json({ error: String(msg) }, { status: res.status });
     }
 
-    const r = raw as Record<string, unknown>;
+    // Prognosis sometimes returns HTTP 200 with status:"error" in the body
+    const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
+    const apiMessage = String(r?.message ?? r?.Message ?? '');
+    if (apiStatus && apiStatus !== 'success') {
+      console.error('[hr/members/add] Prognosis error body:', text.slice(0, 500));
+      return NextResponse.json({ error: apiMessage || `Enrolment failed (${apiStatus})` }, { status: 422 });
+    }
+
+    const fullEnrolleeId = String(r?.fullEnrolleeId ?? r?.FullEnrolleeId ?? '');
+    const membershipNo   = String(r?.membershipNo   ?? r?.MembershipNo   ?? '');
+
+    // If no member ID came back, treat it as a failure so the error surfaces
+    if (!fullEnrolleeId && !membershipNo) {
+      console.error('[hr/members/add] No member ID in response:', text.slice(0, 500));
+      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID was returned. Please check with Leadway Health.' }, { status: 422 });
+    }
+
     return NextResponse.json({
       success: true,
       cifNumber: r?.cifNumber ?? r?.CifNumber ?? null,
-      membershipNo: String(r?.membershipNo ?? r?.MembershipNo ?? ''),
+      membershipNo,
       suffix: String(r?.suffix ?? r?.Suffix ?? '0'),
-      fullEnrolleeId: String(r?.fullEnrolleeId ?? r?.FullEnrolleeId ?? ''),
+      fullEnrolleeId,
     });
   } catch (err) {
     console.error('[hr/members/add] Error:', err);
