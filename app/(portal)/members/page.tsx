@@ -154,6 +154,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(() => schemes[0]?.schemeId ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError]   = useState('');
   const { toast } = useToast();
 
   // List values
@@ -220,11 +221,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   async function handleSubmit() {
     if (submitting) return;
     setSubmitting(true);
+    setFormError('');
     try {
       if (mode === 'individual' && actionType === 'link') {
-        // Generate invitation link tied to email + employee code
         if (!linkEmail || !linkEmpCode) {
-          toast('Staff email and employee code are required.', 'error'); setSubmitting(false); return;
+          setFormError('Staff email and employee code are required.'); return;
         }
         const res = await fetch('/api/hr/members/invite', {
           method: 'POST',
@@ -232,16 +233,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
           body: JSON.stringify({ email: linkEmail, employeeCode: linkEmpCode, schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', scope: linkScope }),
         });
         const data = await res.json();
-        if (!res.ok || data.error) { toast(data.error ?? 'Failed to generate link', 'error'); setSubmitting(false); return; }
+        if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to generate link'); return; }
         setGeneratedUrl(data.url);
         toast('Enrolment link generated! Copy it below.', 'success');
-        setSubmitting(false);
         return;
       }
 
       if (mode === 'individual' && actionType === 'form') {
         if (!firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !stateId) {
-          toast('Please fill all required fields.', 'error'); setSubmitting(false); return;
+          setFormError('Please fill all required fields: First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State.'); return;
         }
         const res = await fetch('/api/hr/members/add', {
           method: 'POST',
@@ -256,7 +256,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
           }),
         });
         const data = await res.json();
-        if (!res.ok || data.error) { toast(data.error ?? 'Failed to add member', 'error'); setSubmitting(false); return; }
+        if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add member'); return; }
         const memberId = data.fullEnrolleeId || data.membershipNo || '';
         toast(`${firstName} ${surname} enrolled!${memberId ? ` Member ID: ${memberId}` : ''}`, 'success');
         onClose();
@@ -265,10 +265,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
 
       if (mode === 'bulk' && bulkAction === 'csv') {
         toast('Census CSV uploaded. Members will be activated shortly.', 'info');
-      } else {
+        onClose();
+      } else if (mode === 'bulk') {
         toast('Bulk invitation links sent.', 'info');
+        onClose();
       }
-      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -313,6 +317,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+
+          {/* Inline error banner */}
+          {formError && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
+              <AlertCircle style={{ width: 16, height: 16, color: '#DC2626', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 13, color: '#DC2626', lineHeight: 1.5 }}>{formError}</span>
+            </div>
+          )}
 
           {/* ── Individual mode ── */}
           {mode === 'individual' && (
