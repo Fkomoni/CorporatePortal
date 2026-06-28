@@ -64,19 +64,25 @@ export async function GET(req: Request) {
     const token = await getServiceToken();
 
     const candidates = [
+      // Previously tested — kept for reference
       `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&languageId=1`,
       `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetSchemeBenefits?PlanID=${schemeId}&languageId=1`,
-      `${BASE}/api/CorporatePortal/GetSchemeBenefits?PlanID=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetSchemeBenefits?planId=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemecode=${schemeCode}`,
-      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeCode=${schemeCode}`,
-      `${BASE}/api/CorporatePortal/GetPlanBenefits?schemeId=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetPlanBenefits?PlanID=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetBenefits?schemeId=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetBenefits?groupId=${groupId}&schemeId=${schemeId}`,
-      `${BASE}/api/CorporatePortal/GetGroupBenefits?groupId=${groupId}`,
-      `${BASE}/api/CorporatePortal/GetGroupBenefits?groupId=${groupId}&schemeId=${schemeId}`,
+      // With groupId
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&groupId=${groupId}&languageId=1`,
+      // Alternate endpoint names
+      `${BASE}/api/CorporatePortal/GetPolicyBenefits?schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetPolicyBenefits?schemeId=${schemeId}&groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetSchemeDetails?schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetPlanDetails?PlanID=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetBenefitsByPlan?PlanID=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetBenefitsByScheme?schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetMemberBenefits?groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetGroupPolicyBenefits?groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetGroupPolicyBenefits?groupId=${groupId}&schemeId=${schemeId}`,
+      `${BASE}/api/CorporatePortal/GetCompanyBenefits?groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetBenefitLimit?groupId=${groupId}`,
+      `${BASE}/api/CorporatePortal/GetBenefitLimit?schemeId=${schemeId}`,
     ];
 
     const results = await Promise.all(candidates.map((url) => probe(token, url)));

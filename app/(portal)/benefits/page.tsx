@@ -32,13 +32,20 @@ const SCHEME_COLORS = [
 ];
 
 const categoryMeta: Record<string, { Icon: React.ElementType; color: string; bg: string }> = {
-  Outpatient: { Icon: Activity,      color: '#10B981', bg: '#ECFDF5' },
-  Inpatient:  { Icon: Building2,     color: '#3B82F6', bg: '#EFF6FF' },
-  Maternity:  { Icon: Heart,         color: '#EC4899', bg: '#FDF2F8' },
-  Dental:     { Icon: Smile,         color: '#F59E0B', bg: '#FFFBEB' },
-  Optical:    { Icon: Eye,           color: '#8B5CF6', bg: '#F5F3FF' },
-  Specialist: { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
-  Emergency:  { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
+  Outpatient:                { Icon: Activity,      color: '#10B981', bg: '#ECFDF5' },
+  Inpatient:                 { Icon: Building2,     color: '#3B82F6', bg: '#EFF6FF' },
+  Maternity:                 { Icon: Heart,         color: '#EC4899', bg: '#FDF2F8' },
+  Dental:                    { Icon: Smile,         color: '#F59E0B', bg: '#FFFBEB' },
+  Dentistry:                 { Icon: Smile,         color: '#F59E0B', bg: '#FFFBEB' },
+  Optical:                   { Icon: Eye,           color: '#8B5CF6', bg: '#F5F3FF' },
+  'Lens and Frames':         { Icon: Eye,           color: '#8B5CF6', bg: '#F5F3FF' },
+  Specialist:                { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
+  'Advanced Investigations': { Icon: FlaskConical,  color: '#0891B2', bg: '#ECFEFF' },
+  Emergency:                 { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
+  'Major Disease Benefit':   { Icon: AlertTriangle, color: '#EF4444', bg: '#FEF2F2' },
+  'Additional Benefits':     { Icon: Activity,      color: '#6D28D9', bg: '#F5F3FF' },
+  Gym:                       { Icon: Activity,      color: '#059669', bg: '#ECFDF5' },
+  'Health Checks':           { Icon: Activity,      color: '#D97706', bg: '#FFFBEB' },
 };
 
 const providers: { name: string; city: string; state: string; phone: string; specialties: string[]; type: string; status: string; minPlan: PlanTierKey }[] = [
@@ -204,7 +211,18 @@ export default function BenefitsPage() {
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{bensError}</div>
             )}
             {!bensLoading && !bensError && categories.length === 0 && activeSchemeId && (
-              <div style={{ textAlign: 'center', padding: '56px 24px', color: '#9CA3B8', fontSize: 14 }}>No benefit details available for this scheme.</div>
+              <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', padding: '48px 40px', textAlign: 'center' }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <FileText style={{ width: 26, height: 26, color: '#D97706' }} strokeWidth={1.5} />
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Benefit details not yet available</p>
+                <p style={{ fontSize: 13, color: '#9CA3B8', maxWidth: 420, margin: '0 auto', lineHeight: 1.65 }}>
+                  The Prognosis API hasn&apos;t returned benefit data for this scheme yet. This is usually because the plan&apos;s benefit schedule hasn&apos;t been configured on the insurer&apos;s system, or access hasn&apos;t been granted to the service account.
+                </p>
+                <p style={{ fontSize: 12, color: '#B0B7C9', marginTop: 16 }}>
+                  Contact Leadway Health to request that benefits be set up for <strong style={{ color: '#131C4E' }}>{schemes.find((s) => s.schemeId === activeSchemeId)?.schemeName ?? activeSchemeId}</strong>.
+                </p>
+              </div>
             )}
             {!bensLoading && categories.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
