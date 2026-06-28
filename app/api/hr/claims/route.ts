@@ -152,21 +152,12 @@ export async function GET(req: Request) {
   try {
     const token = await getServiceToken();
 
-    const [claimsRes, premiumRes] = await Promise.all([
-      fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      }),
-      fetch(`${BASE}/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      }),
-    ]);
+    // Fetch policy period first; use it to derive the claims date range
+    const premiumRes = await fetch(`${BASE}/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    const premiumRaw = await premiumRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } });
 
-    const [claimsRaw, premiumRaw] = await Promise.all([
-      claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
-      premiumRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
-    ]);
-
-    // Extract policy period from premium data (first row's Fromdate / Todate)
     const premiumRows = toRows(premiumRaw);
     let policyStart: Date | null = null;
     let policyEnd: Date | null = null;
@@ -176,102 +167,76 @@ export async function GET(req: Request) {
       policyEnd   = parsePolicyDate(str(p, 'Todate', 'Client_ExpiryDate', 'EndDate', 'ExpiryDate'));
     }
 
-    const rows = toRows(claimsRaw);
+    // Fall back to current calendar year if policy dates unavailable
+    const now = new Date();
+    const fromDate = policyStart
+      ? policyStart.toISOString().slice(0, 10)
+      : `${now.getFullYear()}-01-01`;
+    const toDate = policyEnd
+      ? policyEnd.toISOString().slice(0, 10)
+      : `${now.getFullYear()}-12-31`;
 
-    // Deduplicate by ClaimNumber — accumulate amount per unique claim
-    const claimMap = new Map<string, { row: Record<string, unknown>; amtPaid: number; amtClaimed: number }>();
+    const claimsRes = await fetch(
+      `${BASE}/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${fromDate}&toDate=${toDate}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    );
+    const claimsRaw = await claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } });
 
-    for (const r of rows) {
-      const claimNo  = str(r, 'ClaimNumber', 'Claim_Number', 'ClaimNo', 'ClaimRef', 'Ref');
-      const memberId = str(r, 'MemberShipNo', 'MembershipNo', 'MemberNo', 'EnrolleeID', 'Member_ID', 'CifNo');
-      const dateStr  = str(r, 'TreatmentDate', 'DateOfService', 'ServiceDate', 'ClaimDate', 'Treatment_Date');
-      const key      = claimNo || (memberId && dateStr ? `${memberId}|${dateStr.slice(0, 10)}` : `row-${claimMap.size}`);
-
-      const amtPaid    = num(r, 'AmtPaid', 'PaidAmount', 'AmountPaid', 'Paid_Amount', 'ClaimPaidAmount', 'NetPaid');
-      const amtClaimed = num(r, 'AmtClaimed', 'BilledAmount', 'ClaimedAmount', 'Amount_Billed', 'AmountBilled', 'ClaimAmount');
-
-      if (claimMap.has(key)) {
-        const existing = claimMap.get(key)!;
-        existing.amtPaid    += amtPaid;
-        existing.amtClaimed += amtClaimed;
-      } else {
-        claimMap.set(key, { row: r, amtPaid, amtClaimed });
-      }
-    }
-
-    const PAID_SUBSTRINGS = ['paid', 'settled', 'approved', 'complete', 'processed', 'reimbursed'];
+    // New response shape: { status: "success", data: [...] }
+    const rows: Record<string, unknown>[] = Array.isArray(claimsRaw?.data)
+      ? (claimsRaw.data as Record<string, unknown>[])
+      : toRows(claimsRaw);
 
     const claims: LiveClaim[] = [];
-    let idx = 0;
 
-    for (const [key, { row: r, amtPaid, amtClaimed }] of claimMap.entries()) {
-      idx++;
-      const rawStatus = str(r, 'CLAIM_STATUS', 'ClaimStatus', 'Status', 'claim_status', 'PaymentStatus', 'Claim_Status');
-      const status    = mapStatus(rawStatus);
+    for (let idx = 0; idx < rows.length; idx++) {
+      const r = rows[idx];
 
-      const memberId  = str(r, 'MemberShipNo', 'MembershipNo', 'MemberNo', 'EnrolleeID', 'Member_ID', 'CifNo');
-      const fullName  = str(r, 'MemberName', 'FullName', 'Name', 'EnrolleeName', 'PatientName', 'Enrollee_Name');
-      const provider  = str(r, 'ProviderName', 'Provider', 'HospitalName', 'FacilityName', 'Provider_Name', 'ServiceProvider');
-      const diagnosis = str(r, 'Diagnosis', 'DiagnosisDesc', 'Diagnoses', 'Condition', 'PrimaryDiagnosis', 'MainDiagnosis');
-      const catRaw    = str(r, 'ServiceType', 'ClaimType', 'Category', 'BenefitType', 'ServiceCategory', 'ClaimCategory', 'CareType');
-      const dateStr   = str(r, 'TreatmentDate', 'DateOfService', 'ServiceDate', 'ClaimDate', 'Treatment_Date', 'ClaimSubmitDate');
-      const paidDate  = str(r, 'PaymentDate', 'Payment_Date', 'DatePaid', 'PaidDate', 'DateSettled', 'SettlementDate');
-      const planRaw   = str(r, 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName');
+      const rawStatus  = str(r, 'claim_status', 'ClaimStatus', 'Status', 'CLAIM_STATUS');
+      const status     = mapStatus(rawStatus);
 
-      // Dashboard-aligned: when CLAIM_STATUS exists and claim is paid with AmtPaid=0,
-      // use AmtClaimed as effective paid amount (Prognosis data quality gap).
-      const hasConfirmed = 'CLAIM_STATUS' in r;
-      let displayAmount: number;
-      let rejectedAmount = 0;
+      const claimIdNum = r['claim_id'] != null ? String(r['claim_id']) : '';
+      const claimRef   = claimIdNum || `CLM-${(idx + 1).toString().padStart(6, '0')}`;
+      const key        = claimRef;
 
-      if (hasConfirmed) {
-        const st = String(r.CLAIM_STATUS ?? '').toLowerCase();
-        const isPaid = PAID_SUBSTRINGS.some(s => st.includes(s)) || amtPaid > 0;
-        if (isPaid) {
-          displayAmount = amtPaid > 0 ? amtPaid : amtClaimed;
-          rejectedAmount = amtClaimed - displayAmount;
-        } else {
-          displayAmount = amtClaimed;
-          rejectedAmount = status === 'Rejected' ? amtClaimed : 0;
-        }
-      } else {
-        displayAmount = status === 'Paid' ? (amtPaid > 0 ? amtPaid : amtClaimed) : amtClaimed;
-        rejectedAmount = status === 'Rejected' ? amtClaimed - amtPaid : 0;
-      }
+      // PatientName = person treated; PrincipalName = policy holder
+      const memberName = str(r, 'PatientName', 'PrincipalName', 'MemberName', 'EnrolleeName');
+      const enrolleeId = str(r, 'EnrolleeID', 'MemberShipNo', 'MembershipNo');
+      const cifNumber  = r['cif_number'] != null ? String(r['cif_number']) : '';
+      const employeeId = enrolleeId || cifNumber;
 
-      // Generate a ref if none available
-      const claimRef = str(r, 'ClaimNumber', 'Claim_Number', 'ClaimNo', 'ClaimRef', 'Ref') || `CLM-${idx.toString().padStart(6, '0')}`;
+      const provider   = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
+      // ProcedureName is the most specific diagnosis; FilterType is the care category
+      const diagnosis  = str(r, 'ProcedureName', 'Diagnosis', 'DiagnosisDesc');
+      const catRaw     = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
+      const dateStr    = str(r, 'claim_date', 'TreatmentDate', 'DateOfService', 'ClaimDate');
+
+      const amtClaimed = num(r, 'AmtClaimed', 'BilledAmount', 'ClaimedAmount');
+      const amtPaid    = num(r, 'AmtPaid', 'PaidAmount', 'AmountPaid');
+
+      const displayAmount  = status === 'Paid' ? (amtPaid > 0 ? amtPaid : amtClaimed) : amtClaimed;
+      const rejectedAmount = status === 'Rejected' ? Math.max(amtClaimed - amtPaid, 0) : 0;
 
       claims.push({
         id: key,
         claimRef,
-        memberName: fullName,
-        employeeId: memberId,
-        plan: planRaw || 'Plus Plan',
+        memberName,
+        employeeId,
+        plan: 'Plus Plan',
         provider,
         category: mapCategory(catRaw || diagnosis),
         diagnosis,
         amount: displayAmount,
         amtClaimed,
-        rejectedAmount: Math.max(rejectedAmount, 0),
+        rejectedAmount,
         status,
         rawStatus,
         submittedDate: fmtDateStr(dateStr),
-        settledDate: paidDate ? fmtDateStr(paidDate) : undefined,
       });
     }
 
-    // Filter to current active policy period only
-    const filtered = policyStart && policyEnd
-      ? claims.filter((c) => {
-          if (!c.submittedDate) return false;
-          const d = new Date(`${c.submittedDate}T00:00:00`);
-          return !isNaN(d.getTime()) && d >= policyStart! && d <= policyEnd!;
-        })
-      : claims;
-
     // Sort: most recent first
-    filtered.sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
+    const filtered = [...claims].sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
 
     const stats: ClaimsStats = {
       totalPaidAmount:  filtered.filter((c) => c.status === 'Paid').reduce((s, c) => s + c.amount, 0),
