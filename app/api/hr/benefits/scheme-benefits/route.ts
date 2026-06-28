@@ -31,15 +31,6 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-export interface SchemeBenefit {
-  category: string;
-  benefitName: string;
-  limit: string;
-  isCovered: boolean;
-  waitingPeriod: string | null;
-  description: string;
-}
-
 export interface BenefitCategory {
   category: string;
   limit: string;
@@ -48,19 +39,16 @@ export interface BenefitCategory {
   excluded: string[];
 }
 
-function str(row: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = row[k];
-    if (v != null && String(v).trim() && String(v).trim().toLowerCase() !== 'null') return String(v).trim();
-  }
-  return '';
+function formatLimit(raw: unknown): string {
+  const n = Number(raw);
+  if (!raw || isNaN(n) || n === 0) return '';
+  return `₦${n.toLocaleString('en-NG')}`;
 }
 
-function isCoveredValue(row: Record<string, unknown>): boolean {
-  const v = row['IsCovered'] ?? row['isCovered'] ?? row['is_covered'] ?? row['Covered'] ?? row['covered'] ?? row['Status'] ?? row['status'] ?? true;
-  if (typeof v === 'boolean') return v;
-  const s = String(v).toLowerCase();
-  return !['false', '0', 'no', 'excluded', 'not covered'].includes(s);
+function formatWaitingPeriod(raw: unknown): string | null {
+  const n = Number(raw);
+  if (!raw || isNaN(n) || n === 0) return null;
+  return `${n} day${n === 1 ? '' : 's'}`;
 }
 
 export async function GET(req: Request) {
@@ -86,40 +74,50 @@ export async function GET(req: Request) {
       throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 200)}`);
     }
 
+    // Unwrap {status, data} envelope or bare array
     const arr: unknown[] = Array.isArray(raw) ? raw
       : Array.isArray((raw as Record<string,unknown>)?.data) ? (raw as Record<string,unknown>).data as unknown[]
       : Array.isArray((raw as Record<string,unknown>)?.Data) ? (raw as Record<string,unknown>).Data as unknown[]
       : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
       : [];
 
-    // Group flat benefit rows into categories
+    // Filter to principal member only to avoid duplicates (M+1, M+2 dependant rows)
+    const principalRows = arr.filter((r) => {
+      if (!r || typeof r !== 'object') return false;
+      const row = r as Record<string, unknown>;
+      const mt = String(row['membertype'] ?? row['MemberType'] ?? 'M').trim();
+      return mt === 'M' || mt === '';
+    });
+
     const categoryMap = new Map<string, BenefitCategory>();
 
-    for (const r of arr) {
+    for (const r of principalRows) {
       if (!r || typeof r !== 'object') continue;
       const row = r as Record<string, unknown>;
 
-      const category    = str(row, 'Category', 'BenefitCategory', 'benefit_category', 'ServiceType', 'Group', 'BenefitGroup') || 'General';
-      const benefitName = str(row, 'BenefitName', 'benefit_name', 'Name', 'Description', 'ServiceName', 'Benefit');
-      const limit       = str(row, 'Limit', 'BenefitLimit', 'benefit_limit', 'Amount', 'CoverLimit', 'MaxAmount', 'LimitAmount');
-      const waitingPeriod = str(row, 'WaitingPeriod', 'waiting_period', 'WaitPeriod') || null;
-      const covered     = isCoveredValue(row);
+      // Real API fields: SERVICE = category name, DEPARTMENT = benefit item, LIMIT = ₦ limit
+      const category = (
+        String(row['SERVICE'] ?? row['Service'] ?? row['Category'] ?? row['BenefitCategory'] ?? row['ServiceType'] ?? '').trim()
+      ) || 'General';
+
+      const benefitName = (
+        String(row['DEPARTMENT'] ?? row['Department'] ?? row['BenefitName'] ?? row['Name'] ?? row['Description'] ?? '').trim()
+      );
+
+      const limitStr  = formatLimit(row['LIMIT'] ?? row['Limit'] ?? row['BenefitLimit'] ?? row['Amount']);
+      const waitStr   = formatWaitingPeriod(row['WaitingPeriod'] ?? row['waiting_period'] ?? row['WaitPeriod']);
 
       if (!categoryMap.has(category)) {
-        categoryMap.set(category, { category, limit: limit || '', waitingPeriod: waitingPeriod || null, covered: [], excluded: [] });
+        categoryMap.set(category, { category, limit: '', waitingPeriod: null, covered: [], excluded: [] });
       }
 
       const cat = categoryMap.get(category)!;
-      // Use the category-level limit from the first row that has one
-      if (!cat.limit && limit) cat.limit = limit;
-      if (!cat.waitingPeriod && waitingPeriod) cat.waitingPeriod = waitingPeriod;
+      if (!cat.limit && limitStr) cat.limit = limitStr;
+      if (!cat.waitingPeriod && waitStr) cat.waitingPeriod = waitStr;
 
+      // All rows from GetSchemeBenefits are covered benefits (category field = "Benefit")
       if (benefitName) {
-        if (covered) {
-          cat.covered.push(benefitName);
-        } else {
-          cat.excluded.push(benefitName);
-        }
+        cat.covered.push(benefitName);
       }
     }
 
