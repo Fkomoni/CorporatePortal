@@ -177,6 +177,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   // Principal picker (for "Existing staff's dependent" flow)
   const [principalSearch, setPrincipalSearch] = useState('');
   const [selectedPrincipal, setSelectedPrincipal] = useState<Member | null>(null);
+  const [principalProfile, setPrincipalProfile] = useState<{ cifNumber: string; schemeId: string; schemeName: string; groupId: string; employeeCode: string } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [relId, setRelId] = useState('');
 
   // Direct form fields
@@ -237,14 +239,28 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     return null;
   }
 
-  function selectPrincipal(p: Member) {
+  async function selectPrincipal(p: Member) {
     setSelectedPrincipal(p);
+    setPrincipalProfile(null);
     setEmpCode(p.employeeId);
     setLinkEmpCode(p.employeeId);
     setLinkEmail(p.email);
-    const scheme = resolveScheme(p);
-    if (scheme) setSelectedSchemeId(scheme.schemeId);
+    // Pre-fill scheme from local data while the API loads
+    const localScheme = resolveScheme(p);
+    if (localScheme) setSelectedSchemeId(localScheme.schemeId);
     setPrincipalSearch('');
+    // Fetch full profile from Prognosis to get exact CIF, schemeId, schemeName
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`/api/hr/members/enrollee-profile?enrolleeId=${encodeURIComponent(p.employeeId)}`);
+      const data = await res.json();
+      if (res.ok && data.cifNumber) {
+        setPrincipalProfile(data);
+        if (data.schemeId) setSelectedSchemeId(data.schemeId);
+        if (data.employeeCode) setEmpCode(data.employeeCode);
+      }
+    } catch { /* use local data as fallback */ }
+    finally { setProfileLoading(false); }
   }
 
   function copyText(text: string, label = 'Copied!') {
@@ -321,18 +337,21 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!firstName || !surname || !dob || !sexId || !stateId || !relId) {
           setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender, State and Relationship.'); return;
         }
-        if (!selectedPrincipal.cifNumber) { setFormError('The selected principal has no CIF number on record. Please refresh the member list and try again.'); return; }
-        const depScheme = resolveScheme(selectedPrincipal);
-        const resolvedSchemeId   = depScheme?.schemeId   ?? selectedPrincipal.schemeId ?? '';
-        const resolvedSchemeName = depScheme?.schemeName ?? selectedPrincipal.plan;
-        if (!resolvedSchemeId) { setFormError(`Cannot resolve scheme for "${selectedPrincipal.plan}". Please contact support.`); return; }
+        // Use live profile from Prognosis API; fall back to local member data
+        const profile = principalProfile;
+        const resolvedCif        = profile?.cifNumber || selectedPrincipal.cifNumber || '';
+        const resolvedSchemeId   = profile?.schemeId  || selectedPrincipal.schemeId  || resolveScheme(selectedPrincipal)?.schemeId  || '';
+        const resolvedSchemeName = profile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan;
+        const resolvedEmpCode    = profile?.employeeCode || selectedPrincipal.employeeId;
+        if (!resolvedCif) { setFormError('Could not find principal CIF number. Please try selecting them again.'); return; }
+        if (!resolvedSchemeId) { setFormError(`Cannot resolve scheme for this principal. Please contact support.`); return; }
         const res = await fetch('/api/hr/members/add-dependents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            parentCif: Number(selectedPrincipal.cifNumber) || selectedPrincipal.cifNumber,
+            parentCif: Number(resolvedCif) || resolvedCif,
             schemeId: resolvedSchemeId, schemeName: resolvedSchemeName,
-            employeeCode: selectedPrincipal.employeeId,
+            employeeCode: resolvedEmpCode,
             dependents: [{
               firstName, surname, otherNames, dateOfBirth: dob,
               sexId, maritalStatus, email, mobile,
@@ -687,9 +706,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
                             <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId}</p>
-                            <p style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>{resolveScheme(selectedPrincipal)?.schemeName ?? selectedPrincipal.plan}</p>
+                            <p style={{ fontSize: 11, color: profileLoading ? '#9CA3B8' : '#059669', fontWeight: 600 }}>{profileLoading ? 'Loading plan…' : (principalProfile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan)}</p>
                           </div>
-                          <button onClick={() => { setSelectedPrincipal(null); setPrincipalSearch(''); setLinkEmpCode(''); setLinkEmail(''); }}
+                          <button onClick={() => { setSelectedPrincipal(null); setPrincipalProfile(null); setPrincipalSearch(''); setLinkEmpCode(''); setLinkEmail(''); }}
                             style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
                             Change
                           </button>
@@ -794,12 +813,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
                             <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId}</p>
-                            <p style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>{resolveScheme(selectedPrincipal)?.schemeName ?? selectedPrincipal.plan}</p>
-                            {!selectedPrincipal.cifNumber && (
-                              <p style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>⚠ No CIF on record — refresh member list and try again</p>
+                            <p style={{ fontSize: 11, color: profileLoading ? '#9CA3B8' : '#059669', fontWeight: 600 }}>{profileLoading ? 'Loading plan…' : (principalProfile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan)}</p>
+                            {!profileLoading && !principalProfile?.cifNumber && !selectedPrincipal.cifNumber && (
+                              <p style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>⚠ No CIF found — try selecting again</p>
                             )}
                           </div>
-                          <button onClick={() => { setSelectedPrincipal(null); setPrincipalSearch(''); }}
+                          <button onClick={() => { setSelectedPrincipal(null); setPrincipalProfile(null); setPrincipalSearch(''); }}
                             style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
                             Change
                           </button>
