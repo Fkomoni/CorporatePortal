@@ -213,6 +213,20 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
   const selectedScheme = schemes.find((s) => s.schemeId === selectedSchemeId) ?? schemes[0];
 
+  function resolveScheme(p: Member) {
+    return schemes.find((s) => s.schemeId === p.schemeId) ?? schemes.find((s) => s.schemeName === p.plan) ?? null;
+  }
+
+  function selectPrincipal(p: Member) {
+    setSelectedPrincipal(p);
+    setEmpCode(p.employeeId);
+    setLinkEmpCode(p.employeeId);
+    setLinkEmail(p.email);
+    const scheme = resolveScheme(p);
+    if (scheme) setSelectedSchemeId(scheme.schemeId);
+    setPrincipalSearch('');
+  }
+
   function copyText(text: string, label = 'Copied!') {
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(text).then(() => toast(label, 'success')).catch(() => fallbackCopy(text, label));
@@ -652,7 +666,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
-                            <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId} · {selectedPrincipal.plan}</p>
+                            <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId}</p>
+                            <p style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>{resolveScheme(selectedPrincipal)?.schemeName ?? selectedPrincipal.plan}</p>
                           </div>
                           <button onClick={() => { setSelectedPrincipal(null); setPrincipalSearch(''); setLinkEmpCode(''); setLinkEmail(''); }}
                             style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
@@ -669,15 +684,18 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                               {principals.filter((p) => {
                                 const q = principalSearch.toLowerCase();
                                 return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
-                              }).slice(0, 8).map((p) => (
-                                <div key={p.id} onClick={() => { setSelectedPrincipal(p); setLinkEmpCode(p.employeeId); setLinkEmail(p.email); setPrincipalSearch(''); }}
-                                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F8FC')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
-                                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{p.firstName} {p.lastName}</p>
-                                  <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0 }}>{p.employeeId} · {p.plan}</p>
-                                </div>
-                              ))}
+                              }).slice(0, 8).map((p) => {
+                                const sc = resolveScheme(p);
+                                return (
+                                  <div key={p.id} onClick={() => selectPrincipal(p)}
+                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F8FC')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
+                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{p.firstName} {p.lastName}</p>
+                                    <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0 }}>{p.employeeId} · {sc?.schemeName ?? p.plan}</p>
+                                  </div>
+                                );
+                              })}
                               {principals.filter((p) => { const q = principalSearch.toLowerCase(); return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q); }).length === 0 && (
                                 <p style={{ padding: '12px 14px', fontSize: 12, color: '#9CA3B8', margin: 0 }}>No matching staff found</p>
                               )}
@@ -755,7 +773,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
-                            <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId} · {selectedPrincipal.plan}</p>
+                            <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId}</p>
+                            <p style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>{resolveScheme(selectedPrincipal)?.schemeName ?? selectedPrincipal.plan}</p>
                             {!selectedPrincipal.cifNumber && (
                               <p style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>⚠ No CIF on record — refresh member list and try again</p>
                             )}
@@ -782,15 +801,18 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                                   return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
                                 })
                                 .slice(0, 8)
-                                .map((p) => (
-                                  <div key={p.id} onClick={() => { setSelectedPrincipal(p); setEmpCode(p.employeeId); setSelectedSchemeId(schemes.find((s) => s.schemeName === p.plan)?.schemeId ?? selectedSchemeId); setPrincipalSearch(''); }}
-                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F8FC')}
-                                    onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
-                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{p.firstName} {p.lastName}</p>
-                                    <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0 }}>{p.employeeId} · {p.plan}</p>
-                                  </div>
-                                ))}
+                                .map((p) => {
+                                  const sc = resolveScheme(p);
+                                  return (
+                                    <div key={p.id} onClick={() => selectPrincipal(p)}
+                                      style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F8FC')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
+                                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{p.firstName} {p.lastName}</p>
+                                      <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0 }}>{p.employeeId} · {sc?.schemeName ?? p.plan}</p>
+                                    </div>
+                                  );
+                                })}
                               {principals.filter((p) => {
                                 const q = principalSearch.toLowerCase();
                                 return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
