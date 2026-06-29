@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { cacheGet, cacheSet } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -46,6 +47,9 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const cached = cacheGet<object>('list-values');
+  if (cached) return NextResponse.json(cached);
+
   try {
     const token = await getServiceToken();
 
@@ -89,7 +93,9 @@ export async function GET() {
       return { text: String(r.Text ?? r.text ?? '').trim(), value: String(r.Value ?? r.value ?? '') };
     }).filter((s) => s.text && s.value);
 
-    return NextResponse.json({ relationships, genders, maritalStatuses, states });
+    const body = { relationships, genders, maritalStatuses, states };
+    cacheSet('list-values', body);
+    return NextResponse.json(body);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err), relationships: [], genders: [], maritalStatuses: [], states: [] },

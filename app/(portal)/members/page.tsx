@@ -1142,6 +1142,7 @@ export default function MembersPage() {
   const [memberStatsMap, setMemberStatsMap] = useState<Record<string, MemberStats>>({});
   const [pageStats, setPageStats]           = useState<{ activeCount: number; totalCount: number; principalCount: number; dependantCount: number; newThisMonth: number; pendingCount: number } | null>(null);
   const [membersLoading, setMembersLoading] = useState(true);
+  const [refreshing, setRefreshing]         = useState(false);
 
   useEffect(() => {
     fetch('/api/hr/list-values')
@@ -1150,17 +1151,21 @@ export default function MembersPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    fetch('/api/hr/members')
+  const loadMembers = React.useCallback((fresh = false) => {
+    if (fresh) setRefreshing(true); else setMembersLoading(true);
+    fetch(`/api/hr/members${fresh ? '?fresh=1' : ''}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.members) setLiveMembers(d.members);
         if (d.memberStats) setMemberStatsMap(d.memberStats);
         if (d.stats) setPageStats(d.stats);
+        if (fresh) toast('Member list refreshed', 'success');
       })
-      .catch(() => {})
-      .finally(() => setMembersLoading(false));
-  }, []);
+      .catch(() => { if (fresh) toast('Refresh failed', 'error'); })
+      .finally(() => { setMembersLoading(false); setRefreshing(false); });
+  }, [toast]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
 
   const principals = liveMembers.filter((m) => m.type === 'Principal');
   const allBeneficiaries = liveMembers;
@@ -1254,6 +1259,12 @@ export default function MembersPage() {
             )}
 
             <div style={{ width: 1, height: 28, background: '#E5E7F1' }} />
+            <button onClick={() => loadMembers(true)} disabled={refreshing}
+              title="Refresh member list (pulls latest data from Prognosis)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 16px', fontSize: 13, fontWeight: 500, color: refreshing ? '#9CA3B8' : '#059669', border: `1px solid ${refreshing ? '#E5E7F1' : '#BBF7D0'}`, borderRadius: 14, background: refreshing ? '#F9FAFB' : '#F0FDF4', cursor: refreshing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
             <button onClick={() => setShowAddModal('bulk')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 14, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <Upload style={{ width: 15, height: 15 }} /> Bulk Upload
