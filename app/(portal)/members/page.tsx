@@ -161,11 +161,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [genders, setGenders]       = useState<ListItem[]>([]);
   const [maritalOpts, setMarital]   = useState<ListItem[]>([]);
   const [stateOpts, setStates]      = useState<ListItem[]>([]);
+  const [regionOpts, setRegions]    = useState<ListItem[]>([]);
+  const [townOpts, setTowns]        = useState<ListItem[]>([]);
+  const [townsLoading, setTownsLoading] = useState(false);
   useEffect(() => {
     fetch('/api/hr/list-values').then((r) => r.json()).then((d) => {
       if (d.genders)        setGenders(d.genders);
       if (d.maritalStatuses) setMarital(d.maritalStatuses);
       if (d.states)         setStates(d.states);
+      if (d.regions?.length) setRegions(d.regions);
     }).catch(() => {});
   }, []);
 
@@ -193,6 +197,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [sexId, setSexId]           = useState('');
   const [maritalStatus, setMarStatus] = useState('');
   const [stateId, setStateId]       = useState('');
+  const [regionId, setRegionId]     = useState('');
+  const [townId, setTownId]         = useState('');
   const [address, setAddress]       = useState('');
   const [preExisting, setPreExist]  = useState('');
   const [photoBase64, setPhotoB64]  = useState('');
@@ -261,6 +267,19 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       }
     } catch { /* use local data as fallback */ }
     finally { setProfileLoading(false); }
+  }
+
+  function handleRegionChange(rid: string) {
+    setRegionId(rid);
+    setTownId('');
+    setTowns([]);
+    if (!rid) return;
+    setTownsLoading(true);
+    fetch(`/api/hr/list-values?type=towns&regionId=${rid}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.towns?.length) setTowns(d.towns); })
+      .catch(() => {})
+      .finally(() => setTownsLoading(false));
   }
 
   function copyText(text: string, label = 'Copied!') {
@@ -334,8 +353,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       if (mode === 'individual' && actionType === 'form' && memberType === 'existing') {
         // Adding a dependent to an existing principal via HR direct form
         if (!selectedPrincipal) { setFormError('Please search and select the staff member this dependent belongs to.'); return; }
-        if (!firstName || !surname || !dob || !sexId || !stateId || !relId) {
-          setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender, State and Relationship.'); return;
+        if (!firstName || !surname || !dob || !sexId || !relId) {
+          setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender and Relationship.'); return;
         }
         // Use live profile from Prognosis API; fall back to local member data
         const profile = principalProfile;
@@ -355,7 +374,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             dependents: [{
               firstName, surname, otherNames, dateOfBirth: dob,
               sexId, maritalStatus, email, mobile,
-              postalTownId: stateId, relationshipId: relId,
+              regionId, postalTownId: townId || stateId, relationshipId: relId,
               preExistingCondition: preExisting || 'None',
               enrolleePicture: photoBase64, enrolleePictureType: photoType,
             }],
@@ -934,13 +953,33 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       </select>
                     </div>
 
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
-                      <select value={stateId} onChange={(e) => setStateId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                        <option value="">Select state</option>
-                        {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
-                      </select>
-                    </div>
+                    {regionOpts.length > 0 ? (
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Region</p>
+                        <select value={regionId} onChange={(e) => handleRegionChange(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                          <option value="">Select region</option>
+                          {regionOpts.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State</p>
+                        <select value={stateId} onChange={(e) => setStateId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                          <option value="">Select state</option>
+                          {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+                    {regionId && (
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Town</p>
+                        <select value={townId} onChange={(e) => setTownId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff} disabled={townsLoading}>
+                          <option value="">{townsLoading ? 'Loading towns…' : 'Select town'}</option>
+                          {townOpts.map((t) => <option key={t.value} value={t.value}>{t.text}</option>)}
+                        </select>
+                      </div>
+                    )}
 
                     {memberType === 'existing' && (
                       <div style={{ gridColumn: '1 / -1' }}>

@@ -40,6 +40,7 @@ export interface Dependent {
   maritalStatus?: string;
   email?: string;
   mobile?: string;
+  regionId?: string;
   postalTownId: string;
   relationshipId: string;
   preExistingCondition?: string;
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
       groupid: Number(groupId) || groupId,
       schemeid: Number(schemeId) || schemeId,
       Scheme: schemeName,
-      regionid: 1,
+      regionid: dep.regionId ? (Number(dep.regionId) || dep.regionId) : 1,
       Parent_Cif: parentCif,
       FirstName: dep.firstName,
       Surname: dep.surname,
