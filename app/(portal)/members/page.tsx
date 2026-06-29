@@ -297,20 +297,20 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   }
 
   function copyText(text: string, label = 'Copied!') {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(() => toast(label, 'success')).catch(() => fallbackCopy(text, label));
-    } else {
-      fallbackCopy(text, label);
-    }
-  }
-  function fallbackCopy(text: string, label: string) {
+    // Always do the textarea trick first (works inside modals/dialogs where
+    // navigator.clipboard requires a top-level browsing context focus).
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
+    ta.setSelectionRange(0, 99999);
+    try { document.execCommand('copy'); } catch { /* ignore */ }
     document.body.removeChild(ta);
+    // Also try the modern API in case execCommand is deprecated in the browser.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { /* already copied via execCommand */ });
+    }
     toast(label, 'success');
   }
 
@@ -1864,9 +1864,15 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input readOnly value={depGeneratedUrl} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
                         <button onClick={() => {
-                          if (navigator.clipboard?.writeText) {
-                            navigator.clipboard.writeText(depGeneratedUrl).then(() => toast('Link copied!', 'success')).catch(() => { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Link copied!', 'success'); });
-                          } else { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Link copied!', 'success'); }
+                          const ta = document.createElement('textarea');
+                          ta.value = depGeneratedUrl;
+                          ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+                          document.body.appendChild(ta);
+                          ta.select(); ta.setSelectionRange(0, 99999);
+                          try { document.execCommand('copy'); } catch { /* ignore */ }
+                          document.body.removeChild(ta);
+                          if (navigator.clipboard?.writeText) navigator.clipboard.writeText(depGeneratedUrl).catch(() => {});
+                          toast('Link copied!', 'success');
                         }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
                       </div>
                     </div>
