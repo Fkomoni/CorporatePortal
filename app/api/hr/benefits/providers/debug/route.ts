@@ -60,13 +60,14 @@ export async function GET(req: Request) {
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
 
   // Step 2: probe each provider endpoint
-  const q = `schemeid=${encodeURIComponent(schemeId)}&MinimumID=1&NoOfRecords=10&pageSize=10`;
+  const q    = `schemeid=${encodeURIComponent(schemeId)}&MinimumID=1&NoOfRecords=10&pageSize=10`;
+  const spaQ = `SchemeID=${encodeURIComponent(schemeId)}&MinimumID=0&NoOfRecords=10&pageSize=0`;
 
   const [hospitals, eyeClinics, dental, spaGym] = await Promise.all([
     probe(`${BASE}/api/ListValues/GetGeneralHospitalByPlanCode?${q}`, { headers }),
     probe(`${BASE}/api/ListValues/GetEyeClinicByPlanCode?${q}`, { headers }),
     probe(`${BASE}/api/ListValues/GetDentalClinicByPlanCode?${q}`, { headers }),
-    probe(`${BASE}/api/ListValues/GetSpaAndGymClinicByPlanCode?${q}`, { headers }),
+    probe(`${BASE}/api/ListValues/GetGeneralGymandSpaByPlanCode?${spaQ}`, { headers }),
   ]);
 
   return NextResponse.json({
@@ -77,7 +78,7 @@ export async function GET(req: Request) {
       hospitals:  { url: `/api/ListValues/GetGeneralHospitalByPlanCode?schemeid=${schemeId}`, status: hospitals.status, bodyPreview: hospitals.bodyPreview },
       eyeClinics: { url: `/api/ListValues/GetEyeClinicByPlanCode?schemeid=${schemeId}`, status: eyeClinics.status, bodyPreview: eyeClinics.bodyPreview },
       dental:     { url: `/api/ListValues/GetDentalClinicByPlanCode?schemeid=${schemeId}`, status: dental.status, bodyPreview: dental.bodyPreview },
-      spaGym:     { url: `/api/ListValues/GetSpaAndGymClinicByPlanCode?schemeid=${schemeId}`, status: spaGym.status, bodyPreview: spaGym.bodyPreview },
+      spaGym:     { url: `/api/ListValues/GetGeneralGymandSpaByPlanCode?SchemeID=${schemeId}`, status: spaGym.status, bodyPreview: spaGym.bodyPreview },
     },
   });
 }

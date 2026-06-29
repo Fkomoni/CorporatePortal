@@ -95,10 +95,9 @@ function extractArray(raw: unknown): unknown[] {
   return [];
 }
 
-// All ListValues endpoints share the same lowercase schemeid param and pagination shape.
-// No NoOfRecords/pageSize limit — pass a very large value so all records come back.
-async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string): Promise<{ providers: Provider[]; error?: string }> {
-  const params = new URLSearchParams({ schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' });
+async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string, paramOverrides?: Record<string, string>): Promise<{ providers: Provider[]; error?: string }> {
+  const base = { schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' };
+  const params = new URLSearchParams({ ...base, ...paramOverrides });
   const url = `${BASE}${endpoint}?${params}`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
@@ -140,7 +139,7 @@ export async function GET(req: Request) {
       fetchListValues(token, '/api/ListValues/GetGeneralHospitalByPlanCode', schemeId, 'Hospital'),
       fetchListValues(token, '/api/ListValues/GetEyeClinicByPlanCode',       schemeId, 'Optical'),
       fetchListValues(token, '/api/ListValues/GetDentalClinicByPlanCode',    schemeId, 'Dental'),
-      fetchListValues(token, '/api/ListValues/GetSpaAndGymClinicByPlanCode', schemeId, 'Spa/Gym'),
+      fetchListValues(token, '/api/ListValues/GetGeneralGymandSpaByPlanCode', schemeId, 'Spa/Gym', { SchemeID: schemeId, schemeid: schemeId, MinimumID: '0', NoOfRecords: '9999', pageSize: '0' }),
     ]);
 
     const hospitals     = hospResult.providers;
