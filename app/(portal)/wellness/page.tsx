@@ -160,6 +160,19 @@ const HEALTH_TALK_CATEGORIES: { category: string; color: string; topics: string[
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 
+const INITIAL_TALK_LOG = [
+  { id: 1, category: 'Non-Communicable Diseases', topic: 'Hypertension: Causes, Risks and Management', format: 'Onsite',  requestedDate: 'Jun 10, 2026', scheduledDate: 'Jun 25, 2026', status: 'Confirmed' },
+  { id: 2, category: 'Mental Wellness',           topic: 'Stress and Coping Strategies',               format: 'Virtual', requestedDate: 'Jun 5, 2026',  scheduledDate: 'Jun 18, 2026', status: 'Completed' },
+  { id: 3, category: 'Human Behaviour',           topic: 'Nutrition and Balanced Diet',                format: 'Onsite',  requestedDate: 'May 28, 2026', scheduledDate: '—',            status: 'Requested' },
+];
+
+const TALK_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  Requested: { bg: '#FFFBEB', text: '#D97706' },
+  Confirmed: { bg: '#EFF6FF', text: '#2563EB' },
+  Completed: { bg: '#ECFDF5', text: '#059669' },
+  Cancelled: { bg: '#FEF2F2', text: '#DC2626' },
+};
+
 const SCREENING_STATS = {
   totalEligible:  1247,
   hrReferral:      143,
@@ -228,6 +241,7 @@ export default function WellnessPage() {
   const [talkSent, setTalkSent]       = useState(false);
   const [talkSubmitting, setTalkSubmitting] = useState(false);
   const [talkError, setTalkError]     = useState<string | null>(null);
+  const [talkLog, setTalkLog]         = useState(INITIAL_TALK_LOG);
 
   // Onsite screening form
   const [scrParticipants, setScrParticipants] = useState('');
@@ -407,6 +421,7 @@ export default function WellnessPage() {
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error ?? 'Failed to send');
+                    setTalkLog((prev) => [{ id: Date.now(), category: talkCategory, topic: talkTopic, format: talkType === 'onsite' ? 'Onsite' : 'Virtual', requestedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), scheduledDate: talkDate ? new Date(talkDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', status: 'Requested' }, ...prev]);
                     setTalkSent(true); setTalkCategory(''); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes('');
                   } catch (e) {
                     setTalkError(e instanceof Error ? e.message : 'Failed to send request');
@@ -759,6 +774,54 @@ export default function WellnessPage() {
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#ECFDF5', color: '#059669', width: 'fit-content' }}>{s.status}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Health Talks Log */}
+            <div style={{ ...card, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Health Talk Requests</p>
+                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Topics requested, scheduled dates and confirmation status</p>
+                </div>
+                <button onClick={() => setActiveTab('talks')} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: '#FFF5EF', border: '1px solid #FFCFB0', borderRadius: 99, padding: '5px 14px', cursor: 'pointer' }}>
+                  + New Request
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+                {['Topic', 'Category', 'Format', 'Requested', 'Scheduled', 'Status'].map((h) => (
+                  <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
+                ))}
+              </div>
+              {talkLog.length === 0 && (
+                <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 13, color: '#9CA3B8' }}>No health talk requests yet. Submit one from the Health Talks tab.</p>
+                </div>
+              )}
+              {talkLog.map((t, i) => {
+                const sc = TALK_STATUS_COLORS[t.status] ?? TALK_STATUS_COLORS['Requested'];
+                return (
+                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: i < talkLog.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.topic}</p>
+                    <p style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.category}</p>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600,
+                      color: t.format === 'Onsite' ? '#F56B22' : '#7C3AED',
+                      background: t.format === 'Onsite' ? '#FFF5EF' : '#F5F3FF',
+                      padding: '3px 10px', borderRadius: 8, width: 'fit-content' }}>
+                      {t.format === 'Onsite' ? <MapPin style={{ width: 10, height: 10 }} /> : <Video style={{ width: 10, height: 10 }} />}
+                      {t.format}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock style={{ width: 11, height: 11, color: '#9CA3B8' }} />
+                      <span style={{ fontSize: 11, color: '#9CA3B8' }}>{t.requestedDate}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock style={{ width: 11, height: 11, color: t.scheduledDate === '—' ? '#D1D5DB' : '#059669' }} />
+                      <span style={{ fontSize: 11, color: t.scheduledDate === '—' ? '#D1D5DB' : '#059669', fontWeight: t.scheduledDate === '—' ? 400 : 600 }}>{t.scheduledDate}</span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: sc.bg, color: sc.text, width: 'fit-content' }}>{t.status}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
