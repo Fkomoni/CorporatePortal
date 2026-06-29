@@ -117,6 +117,7 @@ export async function POST(req: Request) {
       body: JSON.stringify(payload),
     });
     const text = await res.text();
+    console.log(`[hr/members/add] Prognosis HTTP ${res.status}: ${text.slice(0, 500)}`);
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
 
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
     // Prognosis sometimes returns HTTP 200 with status:"error" in the body
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');
-    if (apiStatus && apiStatus !== 'success') {
+    if (apiStatus && apiStatus !== 'success' && apiStatus !== '200') {
       console.error('[hr/members/add] Prognosis error body:', text.slice(0, 500));
       return NextResponse.json({ error: apiMessage || `Enrolment failed (${apiStatus})` }, { status: 422 });
     }

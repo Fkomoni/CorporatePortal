@@ -60,15 +60,13 @@ export async function GET(req: Request) {
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
 
   // Step 2: probe each provider endpoint
-  const baseParams = schemeId
-    ? `SchemeID=${encodeURIComponent(schemeId)}&MinimumID=0&NoOfRecords=10&pageSize=10`
-    : 'SchemeID=MISSING&MinimumID=0&NoOfRecords=10&pageSize=10';
+  const q = `schemeid=${encodeURIComponent(schemeId)}&MinimumID=1&NoOfRecords=10&pageSize=10`;
 
   const [hospitals, eyeClinics, dental, spaGym] = await Promise.all([
-    probe(`${BASE}/api/Provider/GetProvidersByPlanCode?${baseParams}`, { headers }),
-    probe(`${BASE}/api/Provider/GetEyeClinicByPlanCode?${baseParams}`, { headers }),
-    probe(`${BASE}/api/Provider/GetDentalClinicByPlanCode?${baseParams}`, { headers }),
-    probe(`${BASE}/api/ListValues/GetSpaAndGymClinicByPlanCode?schemeid=${encodeURIComponent(schemeId)}&MinimumID=1&NoOfRecords=10&pageSize=10`, { headers }),
+    probe(`${BASE}/api/ListValues/GetGeneralHospitalByPlanCode?${q}`, { headers }),
+    probe(`${BASE}/api/ListValues/GetEyeClinicByPlanCode?${q}`, { headers }),
+    probe(`${BASE}/api/ListValues/GetDentalClinicByPlanCode?${q}`, { headers }),
+    probe(`${BASE}/api/ListValues/GetSpaAndGymClinicByPlanCode?${q}`, { headers }),
   ]);
 
   return NextResponse.json({
@@ -76,9 +74,9 @@ export async function GET(req: Request) {
     schemeId,
     authSummary,
     endpoints: {
-      hospitals:  { url: `/api/Provider/GetProvidersByPlanCode?SchemeID=${schemeId}`, status: hospitals.status, bodyPreview: hospitals.bodyPreview },
-      eyeClinics: { url: `/api/Provider/GetEyeClinicByPlanCode?SchemeID=${schemeId}`, status: eyeClinics.status, bodyPreview: eyeClinics.bodyPreview },
-      dental:     { url: `/api/Provider/GetDentalClinicByPlanCode?SchemeID=${schemeId}`, status: dental.status, bodyPreview: dental.bodyPreview },
+      hospitals:  { url: `/api/ListValues/GetGeneralHospitalByPlanCode?schemeid=${schemeId}`, status: hospitals.status, bodyPreview: hospitals.bodyPreview },
+      eyeClinics: { url: `/api/ListValues/GetEyeClinicByPlanCode?schemeid=${schemeId}`, status: eyeClinics.status, bodyPreview: eyeClinics.bodyPreview },
+      dental:     { url: `/api/ListValues/GetDentalClinicByPlanCode?schemeid=${schemeId}`, status: dental.status, bodyPreview: dental.bodyPreview },
       spaGym:     { url: `/api/ListValues/GetSpaAndGymClinicByPlanCode?schemeid=${schemeId}`, status: spaGym.status, bodyPreview: spaGym.bodyPreview },
     },
   });
