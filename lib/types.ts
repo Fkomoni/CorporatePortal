@@ -1,6 +1,7 @@
 export interface Member {
   id: string;
   employeeId: string;
+  staffId?: string;
   firstName: string;
   lastName: string;
   email: string;

@@ -422,7 +422,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Top Provider Utilization</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>By visits &amp; spend · 2026</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>By amount paid · 2026</p>
               </div>
               <button onClick={() => setShowAllProviders(true)} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View all →</button>
             </div>
