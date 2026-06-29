@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit';
+import { prisma } from '@/lib/prisma';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -168,8 +169,25 @@ export async function GET(req: Request) {
 
     const unique = Array.from(latestByGroup.values()).map(normalizePolicy);
 
-    // Only serve currently-active policies
-    const policies = unique.filter((p) => p.status === 'Active');
+    // Only serve currently-active policies (Termdate not expired)
+    const active = unique.filter((p) => p.status === 'Active');
+
+    // Fetch lastLogin for every admin email in one query
+    const emails = [...new Set(active.map((p) => p.adminEmail).filter(Boolean))];
+    const users  = emails.length
+      ? await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true, lastLogin: true } })
+      : [];
+    const loginMap = new Map(users.map((u) => [u.email, u.lastLogin]));
+
+    const policies = active.map((p) => {
+      const lastLogin = loginMap.get(p.adminEmail) ?? null;
+      return {
+        ...p,
+        lastLogin: lastLogin ? lastLogin.toISOString() : null,
+        // Portal status: Active = has logged in, Pending = never logged in
+        portalStatus: lastLogin ? 'Active' : 'Pending',
+      };
+    });
 
     console.log(`[api/policies] raw=${raw.length} unique_groups=${unique.length} active=${policies.length}`);
 

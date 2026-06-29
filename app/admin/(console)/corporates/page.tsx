@@ -10,7 +10,8 @@ import { useSession } from 'next-auth/react';
 interface Policy {
   id: string; groupId: string; name: string; schemeCode: string;
   dateProvisioned: string; adminEmail: string; contactName: string; phone: string;
-  status: string; activeMembers: number; template: string; colors: string[];
+  status: string; portalStatus: string; lastLogin: string | null;
+  activeMembers: number; template: string; colors: string[];
 }
 
 const PER_PAGE = 50;
@@ -152,10 +153,10 @@ export default function CorporatesPage() {
         {/* TABLE */}
         <div style={{ ...card, overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 180px 100px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
-            {['Name', 'Date Provisioned', 'Admin Email', 'Contact', 'Status'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 160px 130px 110px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+            {['Name', 'Date Provisioned', 'Admin Email', 'Contact', 'Last Sign-In', 'Portal Status'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {h} {h !== 'Status' && <span style={{ color: '#D0D4E0', fontSize: 10 }}>↕</span>}
+                {h} {h !== 'Portal Status' && <span style={{ color: '#D0D4E0', fontSize: 10 }}>↕</span>}
               </span>
             ))}
           </div>
@@ -163,7 +164,7 @@ export default function CorporatesPage() {
           {/* Loading skeleton */}
           {loading && (
             Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 180px 100px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 160px 130px 110px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0F1F5', flexShrink: 0 }} />
                   <div style={{ height: 12, width: `${120 + (i * 17) % 80}px`, background: '#F0F1F5', borderRadius: 4 }} />
@@ -171,7 +172,8 @@ export default function CorporatesPage() {
                 <div style={{ height: 12, width: 80, background: '#F0F1F5', borderRadius: 4 }} />
                 <div style={{ height: 12, width: 140, background: '#F0F1F5', borderRadius: 4 }} />
                 <div style={{ height: 12, width: 110, background: '#F0F1F5', borderRadius: 4 }} />
-                <div style={{ height: 22, width: 60, background: '#F0F1F5', borderRadius: 8 }} />
+                <div style={{ height: 12, width: 90, background: '#F0F1F5', borderRadius: 4 }} />
+                <div style={{ height: 22, width: 70, background: '#F0F1F5', borderRadius: 8 }} />
               </div>
             ))
           )}
@@ -186,11 +188,12 @@ export default function CorporatesPage() {
 
           {/* Rows */}
           {!loading && !error && paged.map((c, idx) => {
-            const st = statusStyle[c.status] ?? statusStyle['Inactive'];
+            const portalStatus = c.portalStatus ?? (c.lastLogin ? 'Active' : 'Pending');
+            const st = statusStyle[portalStatus] ?? statusStyle['Pending'];
             const sn = (safePage - 1) * PER_PAGE + idx + 1;
             return (
               <Link key={c.id} href={`/admin/corporates/${encodeURIComponent(c.groupId || c.id)}`} style={{ textDecoration: 'none' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 180px 100px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 130px 200px 160px 130px 110px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFC')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = '')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -203,8 +206,11 @@ export default function CorporatesPage() {
                   <span style={{ fontSize: 12, color: '#9CA3B8' }}>{fmtDate(c.dateProvisioned)}</span>
                   <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.adminEmail || '—'}</span>
                   <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contactName || '—'}</span>
+                  <span style={{ fontSize: 12, color: c.lastLogin ? '#131C4E' : '#C4C9D9' }}>
+                    {c.lastLogin ? fmtDate(c.lastLogin.split('T')[0]) : 'Never'}
+                  </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: st.bg, color: st.text, width: 'fit-content' }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot }} />{c.status}
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot }} />{portalStatus}
                   </span>
                 </div>
               </Link>
