@@ -253,6 +253,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         }
         const isDepLink = memberType === 'existing';
         const depScheme = isDepLink && selectedPrincipal ? schemes.find((s) => s.schemeName === selectedPrincipal.plan) : null;
+        if (isDepLink && selectedPrincipal && !depScheme) {
+          setFormError(`Cannot find scheme matching "${selectedPrincipal.plan}". Please refresh the page and try again.`); return;
+        }
         const res = await fetch('/api/hr/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -283,13 +286,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender, State and Relationship.'); return;
         }
         if (!selectedPrincipal.cifNumber) { setFormError('The selected principal has no CIF number on record. Please refresh the member list and try again.'); return; }
-        const depScheme = schemes.find((s) => s.schemeName === selectedPrincipal.plan) ?? schemes[0];
+        const depScheme = schemes.find((s) => s.schemeName === selectedPrincipal.plan);
+        if (!depScheme) { setFormError(`Cannot find scheme matching "${selectedPrincipal.plan}". Please refresh the page and try again.`); return; }
         const res = await fetch('/api/hr/members/add-dependents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             parentCif: Number(selectedPrincipal.cifNumber) || selectedPrincipal.cifNumber,
-            schemeId: depScheme?.schemeId ?? '', schemeName: depScheme?.schemeName ?? selectedPrincipal.plan,
+            schemeId: depScheme.schemeId, schemeName: depScheme.schemeName,
             employeeCode: selectedPrincipal.employeeId,
             dependents: [{
               firstName, surname, otherNames, dateOfBirth: dob,
