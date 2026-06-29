@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? process.env.PROGNOSIS_API_BASE ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -131,6 +132,13 @@ export async function GET(req: Request) {
   const schemeId = searchParams.get('schemeId');
   if (!schemeId) return NextResponse.json({ error: 'schemeId is required' }, { status: 400 });
 
+  const fresh = searchParams.get('fresh') === '1';
+  const cacheKey = `providers-${schemeId}`;
+  if (fresh) cacheBust(cacheKey);
+
+  const cached = cacheGet<object>(cacheKey);
+  if (cached) return NextResponse.json({ ...cached, cached: true });
+
   try {
     const token = await getServiceToken();
 
@@ -157,7 +165,7 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json({
+    const body = {
       providers,
       counts: {
         hospitals: hospitals.length,
@@ -166,7 +174,9 @@ export async function GET(req: Request) {
         spaGyms: spaGyms.length,
       },
       total: providers.length,
-    });
+    };
+    cacheSet(cacheKey, body);
+    return NextResponse.json(body);
   } catch (err) {
     console.error('[hr/benefits/providers] Error:', err);
     return NextResponse.json(

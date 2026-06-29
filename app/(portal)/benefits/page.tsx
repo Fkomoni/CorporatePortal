@@ -95,10 +95,13 @@ export default function BenefitsPage() {
       .finally(() => setBensLoading(false));
   }, []);
 
-  const loadProviders = useCallback((schemeId: string) => {
+  const [provRefreshing, setProvRefreshing] = useState(false);
+
+  const loadProviders = useCallback((schemeId: string, fresh = false) => {
     if (!schemeId) return;
-    setProvLoading(true); setProvError('');
-    fetch(`/api/hr/benefits/providers?schemeId=${encodeURIComponent(schemeId)}`)
+    if (fresh) setProvRefreshing(true); else setProvLoading(true);
+    setProvError('');
+    fetch(`/api/hr/benefits/providers?schemeId=${encodeURIComponent(schemeId)}${fresh ? '&fresh=1' : ''}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.error) { setProvError(d.error); return; }
@@ -106,7 +109,7 @@ export default function BenefitsPage() {
         setProvCounts(d.counts ?? null);
       })
       .catch(() => setProvError('Failed to load providers'))
-      .finally(() => setProvLoading(false));
+      .finally(() => { setProvLoading(false); setProvRefreshing(false); });
   }, []);
 
   useEffect(() => {
@@ -323,6 +326,12 @@ export default function BenefitsPage() {
                 <option value="">All States</option>
                 {allStates.map((s) => <option key={s}>{s}</option>)}
               </select>
+              <button onClick={() => loadProviders(activeSchemeId, true)} disabled={provRefreshing || !activeSchemeId}
+                title="Refresh provider list (pulls latest data from Prognosis)"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 16px', fontSize: 13, fontWeight: 500, color: provRefreshing ? '#9CA3B8' : '#059669', border: `1px solid ${provRefreshing ? '#E5E7F1' : '#BBF7D0'}`, borderRadius: 14, background: provRefreshing ? '#F9FAFB' : '#F0FDF4', cursor: provRefreshing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: provRefreshing ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                {provRefreshing ? 'Refreshing…' : 'Refresh'}
+              </button>
             </div>
 
             {/* Provider list */}

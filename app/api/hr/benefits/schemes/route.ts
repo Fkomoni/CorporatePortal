@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { cacheGet, cacheSet } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -56,6 +57,9 @@ export async function GET() {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID in session' }, { status: 400 });
 
+  const cached = cacheGet<object>(`schemes-${groupId}`);
+  if (cached) return NextResponse.json(cached);
+
   try {
     const token = await getServiceToken();
     const res = await fetch(
@@ -88,7 +92,9 @@ export async function GET() {
       })
       .filter((s) => s.schemeId && s.schemeName);
 
-    return NextResponse.json({ schemes, raw: arr.slice(0, 3) });
+    const body = { schemes, raw: arr.slice(0, 3) };
+    cacheSet(`schemes-${groupId}`, body);
+    return NextResponse.json(body);
   } catch (err) {
     console.error('[hr/benefits/schemes] Error:', err);
     return NextResponse.json(

@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { Member } from '@/lib/types';
 import { logAudit } from '@/lib/audit';
+import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -229,6 +230,13 @@ export async function GET(req: Request) {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
+  const fresh = new URL(req.url).searchParams.get('fresh') === '1';
+  const cacheKey = `members-${groupId}`;
+  if (fresh) cacheBust(cacheKey);
+
+  const cached = cacheGet<object>(cacheKey);
+  if (cached) return NextResponse.json({ ...cached, cached: true });
+
   try {
     const token = await getServiceToken();
 
@@ -413,13 +421,12 @@ export async function GET(req: Request) {
     void logAudit({ session, action: 'VIEW_MEMBERS', resource: 'members', request: req,
       details: { totalCount: members.length, groupId } });
 
-    return NextResponse.json({
+    const body = {
       members,
       memberStats: memberStatsMap,
       stats: {
         activeCount,
         totalCount: members.length,
-        // Active-only counts for uniformity — "covered lives" means active lives
         principalCount: members.filter((m) => m.type === 'Principal' && m.status === 'Active').length,
         dependantCount:  members.filter((m) => m.type === 'Dependant'  && m.status === 'Active').length,
         newThisMonth,
@@ -435,7 +442,9 @@ export async function GET(req: Request) {
         relationshipTexts: Array.from(knownRelTexts),
         principalTexts: Array.from(principalTexts),
       },
-    });
+    };
+    cacheSet(cacheKey, body);
+    return NextResponse.json(body);
   } catch (err) {
     console.error('[hr/members] Error:', err);
     return NextResponse.json(
