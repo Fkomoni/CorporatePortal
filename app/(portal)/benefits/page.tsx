@@ -66,6 +66,7 @@ export default function BenefitsPage() {
   // Providers
   const [providers, setProviders]         = useState<Provider[]>([]);
   const [provLoading, setProvLoading]     = useState(false);
+  const [provRefreshing, setProvRefreshing] = useState(false);
   const [provError, setProvError]         = useState('');
   const [provCounts, setProvCounts]       = useState<{ hospitals: number; eyeClinics: number; dentalClinics: number; spaGyms: number } | null>(null);
 
@@ -95,13 +96,13 @@ export default function BenefitsPage() {
       .finally(() => setBensLoading(false));
   }, []);
 
-  const [provRefreshing, setProvRefreshing] = useState(false);
-
   const loadProviders = useCallback((schemeId: string, fresh = false) => {
     if (!schemeId) return;
-    if (fresh) setProvRefreshing(true); else setProvLoading(true);
+    if (fresh) setProvRefreshing(true);
+    else setProvLoading(true);
     setProvError('');
-    fetch(`/api/hr/benefits/providers?schemeId=${encodeURIComponent(schemeId)}${fresh ? '&fresh=1' : ''}`)
+    const qs = fresh ? `&fresh=1` : '';
+    fetch(`/api/hr/benefits/providers?schemeId=${encodeURIComponent(schemeId)}${qs}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.error) { setProvError(d.error); return; }
@@ -327,9 +328,12 @@ export default function BenefitsPage() {
                 {allStates.map((s) => <option key={s}>{s}</option>)}
               </select>
               <button onClick={() => loadProviders(activeSchemeId, true)} disabled={provRefreshing || !activeSchemeId}
-                title="Refresh provider list (pulls latest data from Prognosis)"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 16px', fontSize: 13, fontWeight: 500, color: provRefreshing ? '#9CA3B8' : '#059669', border: `1px solid ${provRefreshing ? '#E5E7F1' : '#BBF7D0'}`, borderRadius: 14, background: provRefreshing ? '#F9FAFB' : '#F0FDF4', cursor: provRefreshing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: provRefreshing ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                title="Refresh provider list from Prognosis"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: provRefreshing ? '#F0FDF4' : 'linear-gradient(135deg,#ECFDF5,#D1FAE5)', color: '#059669', border: '1px solid #A7F3D0', borderRadius: 14, cursor: provRefreshing ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: !activeSchemeId ? 0.5 : 1 }}>
+                <svg style={{ width: 15, height: 15, animation: provRefreshing ? 'spin 0.7s linear infinite' : 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+                  <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                </svg>
                 {provRefreshing ? 'Refreshing…' : 'Refresh'}
               </button>
             </div>

@@ -43,12 +43,18 @@ export interface GenderOption       { text: string; value: string; }
 export interface MaritalOption      { text: string; value: string; }
 export interface StateOption        { text: string; value: string; }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const cached = cacheGet<object>('list-values');
-  if (cached) return NextResponse.json(cached);
+  const { searchParams } = new URL(req.url);
+  const fresh = searchParams.get('fresh') === '1';
+  const CACHE_KEY = 'list-values';
+
+  if (!fresh) {
+    const cached = cacheGet<object>(CACHE_KEY);
+    if (cached) return NextResponse.json({ ...cached, cached: true });
+  }
 
   try {
     const token = await getServiceToken();
@@ -93,9 +99,9 @@ export async function GET() {
       return { text: String(r.Text ?? r.text ?? '').trim(), value: String(r.Value ?? r.value ?? '') };
     }).filter((s) => s.text && s.value);
 
-    const body = { relationships, genders, maritalStatuses, states };
-    cacheSet('list-values', body);
-    return NextResponse.json(body);
+    const payload = { relationships, genders, maritalStatuses, states };
+    cacheSet(CACHE_KEY, payload);
+    return NextResponse.json(payload);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err), relationships: [], genders: [], maritalStatuses: [], states: [] },
