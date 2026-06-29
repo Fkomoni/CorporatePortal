@@ -150,7 +150,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   const [actionType, setActionType] = useState<'link' | 'form'>('link');
   const [linkScope, setLinkScope]   = useState<'self' | 'self-dependent'>('self');
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
-  const [selectedSchemeId, setSelectedSchemeId] = useState<string>(() => schemes[0]?.schemeId ?? '');
+  const [selectedSchemeId, setSelectedSchemeId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState('');
   const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string } | null>(null);
@@ -237,8 +237,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
       }
 
       if (mode === 'individual' && actionType === 'form') {
-        if (!firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !stateId) {
-          setFormError('Please fill all required fields: First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State.'); return;
+        if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !stateId) {
+          setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State.'); return;
         }
         const res = await fetch('/api/hr/members/add', {
           method: 'POST',
@@ -418,13 +418,18 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
 
                   {/* Plan */}
                   <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan</p>
-                    {schemes.length > 0 ? (
-                      <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
-                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                        {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
-                      </select>
-                    ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Select Plan *</p>
+                    <div style={{ position: 'relative' }}>
+                      {schemes.length > 0 ? (
+                        <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
+                          style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
+                          onFocus={focusOn} onBlur={focusOff}>
+                          <option value="">— Choose a plan —</option>
+                          {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                        </select>
+                      ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                      <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
                   </div>
 
                   {/* Email + Employee Code */}
@@ -482,13 +487,18 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
 
                   {/* Plan */}
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Plan *</p>
-                    {schemes.length > 0 ? (
-                      <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
-                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                        {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
-                      </select>
-                    ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Select Plan *</p>
+                    <div style={{ position: 'relative' }}>
+                      {schemes.length > 0 ? (
+                        <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
+                          style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
+                          onFocus={focusOn} onBlur={focusOff}>
+                          <option value="">— Choose a plan —</option>
+                          {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                        </select>
+                      ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                      <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
                   </div>
 
                   {/* Personal */}
