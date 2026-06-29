@@ -742,7 +742,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   </div>
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 16 }}>
                     {memberType === 'existing'
-                      ? 'The dependent enrolment link will be tied to this staff member's record.'
+                      ? "The dependent enrolment link will be tied to this staff member's record."
                       : 'The link is tied to this email + employee code. Staff must verify both to enrol — preventing misuse.'}
                   </p>
 
