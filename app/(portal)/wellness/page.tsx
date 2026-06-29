@@ -226,6 +226,8 @@ export default function WellnessPage() {
   const [talkAttendees, setTalkAttendees] = useState('');
   const [talkNotes, setTalkNotes]     = useState('');
   const [talkSent, setTalkSent]       = useState(false);
+  const [talkSubmitting, setTalkSubmitting] = useState(false);
+  const [talkError, setTalkError]     = useState<string | null>(null);
 
   // Onsite screening form
   const [scrParticipants, setScrParticipants] = useState('');
@@ -233,6 +235,8 @@ export default function WellnessPage() {
   const [scrVenue, setScrVenue]       = useState('');
   const [scrNotes, setScrNotes]       = useState('');
   const [scrSent, setScrSent]         = useState(false);
+  const [scrSubmitting, setScrSubmitting] = useState(false);
+  const [scrError, setScrError]       = useState<string | null>(null);
 
   // Send screening link form — member search
   const [linkQuery, setLinkQuery]         = useState('');
@@ -391,12 +395,31 @@ export default function WellnessPage() {
               </div>
 
               <button
-                onClick={() => { if (talkTopic && talkDate && talkAttendees) { setTalkSent(true); setTalkCategory(''); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes(''); } }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
-                <Send style={{ width: 14, height: 14 }} /> Send Request to Client Services
+                disabled={talkSubmitting || !talkTopic || !talkDate || !talkAttendees}
+                onClick={async () => {
+                  if (!talkTopic || !talkDate || !talkAttendees) return;
+                  setTalkSubmitting(true); setTalkError(null);
+                  try {
+                    const res = await fetch('/api/hr/wellness/request', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ type: 'talk', talkFormat: talkType, talkCategory, talkTopic, talkDate, talkDuration, talkAttendees, talkVenue: talkNotes }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error ?? 'Failed to send');
+                    setTalkSent(true); setTalkCategory(''); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes('');
+                  } catch (e) {
+                    setTalkError(e instanceof Error ? e.message : 'Failed to send request');
+                  } finally {
+                    setTalkSubmitting(false);
+                  }
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: talkSubmitting ? 'wait' : 'pointer', opacity: (!talkTopic || !talkDate || !talkAttendees) ? 0.5 : 1, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', transition: 'opacity 0.2s' }}>
+                <Send style={{ width: 14, height: 14 }} /> {talkSubmitting ? 'Sending…' : 'Send Request to Client Services'}
               </button>
 
-              {talkSent && <SuccessBanner message="Request sent! Leadway Health client services will reach out within 1 business day to confirm." />}
+              {talkError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginTop: 16 }}><p style={{ fontSize: 13, color: '#DC2626' }}>{talkError}</p></div>}
+              {talkSent && <SuccessBanner message="Request sent to clientservices@leadway.com — they will reach out within 1 business day to confirm." />}
             </div>
 
             {/* Topic browser sidebar — accordion */}
@@ -488,11 +511,30 @@ export default function WellnessPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => { if (scrParticipants && scrDate && scrVenue) { setScrSent(true); setScrParticipants(''); setScrDate(''); setScrVenue(''); setScrNotes(''); } }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#2563EB,#3B82F6)', boxShadow: '0 2px 10px rgba(37,99,235,0.28)' }}>
-                  <Send style={{ width: 14, height: 14 }} /> Submit to Client Services
+                  disabled={scrSubmitting || !scrParticipants || !scrDate || !scrVenue}
+                  onClick={async () => {
+                    if (!scrParticipants || !scrDate || !scrVenue) return;
+                    setScrSubmitting(true); setScrError(null);
+                    try {
+                      const res = await fetch('/api/hr/wellness/request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'screening', scrParticipants, scrDate, scrVenue, scrNotes }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error ?? 'Failed to send');
+                      setScrSent(true); setScrParticipants(''); setScrDate(''); setScrVenue(''); setScrNotes('');
+                    } catch (e) {
+                      setScrError(e instanceof Error ? e.message : 'Failed to send request');
+                    } finally {
+                      setScrSubmitting(false);
+                    }
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: scrSubmitting ? 'wait' : 'pointer', opacity: (!scrParticipants || !scrDate || !scrVenue) ? 0.5 : 1, background: 'linear-gradient(135deg,#2563EB,#3B82F6)', boxShadow: '0 2px 10px rgba(37,99,235,0.28)', transition: 'opacity 0.2s' }}>
+                  <Send style={{ width: 14, height: 14 }} /> {scrSubmitting ? 'Sending…' : 'Submit to Client Services'}
                 </button>
-                {scrSent && <SuccessBanner message="Screening request submitted! Client services will confirm logistics within 2 business days." />}
+                {scrError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginTop: 16 }}><p style={{ fontSize: 13, color: '#DC2626' }}>{scrError}</p></div>}
+                {scrSent && <SuccessBanner message="Screening request sent to clientservices@leadway.com — they will confirm logistics within 2 business days." />}
               </div>
             </div>
 
