@@ -109,14 +109,17 @@ export async function POST(req: Request) {
       EnrolleePictureType: dep.enrolleePictureType ?? '',
     }));
 
+    const requestBody = { AddBeneficiary: addBeneficiary };
+    console.log('[hr/members/add-dependents] REQUEST payload:', JSON.stringify(requestBody, null, 2));
+
     const res = await fetch(`${BASE}/api/CorporatePortal/AddDependentsOnly`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ AddBeneficiary: addBeneficiary }),
+      body: JSON.stringify(requestBody),
     });
 
     const text = await res.text();
-    console.log(`[hr/members/add-dependents] Prognosis HTTP ${res.status}: ${text.slice(0, 500)}`);
+    console.log(`[hr/members/add-dependents] RESPONSE HTTP ${res.status}: ${text.slice(0, 1000)}`);
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
 
