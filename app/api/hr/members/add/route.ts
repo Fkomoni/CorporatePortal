@@ -37,24 +37,16 @@ export interface AddMemberPayload {
   firstName: string;
   surname: string;
   otherNames?: string;
-  dateOfBirth: string;         // ISO date string
+  dateOfBirth: string;
   sexId: string;               // "1" Male, "2" Female
   maritalStatus?: string;
   email: string;
   mobile: string;
-  mobile2?: string;
-  homePhone?: string;
-  workPhone?: string;
-  postalTownId: string;        // state ID
-  address?: string;
+  postalTownId: string;
   bloodGroup?: string;
   genotype?: string;
   employeeCode: string;
-  preExistingCondition?: string;
   cadre?: string;
-  hospital?: string;
-  enrolleePicture?: string;    // base64
-  enrolleePictureType?: string;
 }
 
 export async function POST(req: Request) {
@@ -92,23 +84,14 @@ export async function POST(req: Request) {
       Sex_ID: sexId,
       MaritalStatus: body.maritalStatus ?? '',
       EmailAdress: email,
-      Home_Phone: body.homePhone ?? '',
-      Work_Phone: body.workPhone ?? '',
       Mobile: mobile,
-      Mobile2: body.mobile2 ?? '',
-      Hospital: body.hospital ?? '',
-      Postal_Phone: '',
       Postal_Town_ID: postalTownId,
-      Physical_Add1: body.address ?? '',
-      Relationship_ID: '30',  // principal
+      Relationship_ID: '30',
       BloodGroup: body.bloodGroup ?? '',
       genotype: body.genotype ?? '',
       employeecode: employeeCode,
-      DeviceID: '',
-      PreExistingCondition: body.preExistingCondition ?? 'None',
       cadre: body.cadre ?? '',
-      EnrolleePicture: body.enrolleePicture ?? '',
-      EnrolleePictureType: body.enrolleePictureType ?? '',
+      registrationsource: 'Web Portal',
     };
 
     const res = await fetch(`${BASE}/api/CorporatePortal/AddPrincipalOnly`, {
@@ -136,21 +119,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: apiMessage || `Enrolment failed (${apiStatus})` }, { status: 422 });
     }
 
-    const fullEnrolleeId = String(r?.fullEnrolleeId ?? r?.FullEnrolleeId ?? '');
-    const membershipNo   = String(r?.membershipNo   ?? r?.MembershipNo   ?? '');
+    const cifNumber    = r?.Cif_Number  ?? r?.cifNumber  ?? r?.CifNumber  ?? null;
+    const membershipNo = String(r?.MembershipNo ?? r?.membershipNo ?? '');
+    const suffix       = String(r?.Suffix ?? r?.suffix ?? '0');
 
-    // If no member ID came back, treat it as a failure so the error surfaces
-    if (!fullEnrolleeId && !membershipNo) {
+    // Success requires at least a MembershipNo or Cif_Number
+    if (!membershipNo && !cifNumber) {
       console.error('[hr/members/add] No member ID in response:', text.slice(0, 500));
-      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID was returned. Please check with Leadway Health.' }, { status: 422 });
+      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID returned. Please check with Leadway Health.' }, { status: 422 });
     }
 
     return NextResponse.json({
       success: true,
-      cifNumber: r?.cifNumber ?? r?.CifNumber ?? null,
+      cifNumber,
       membershipNo,
-      suffix: String(r?.suffix ?? r?.Suffix ?? '0'),
-      fullEnrolleeId,
+      suffix,
     });
   } catch (err) {
     console.error('[hr/members/add] Error:', err);
