@@ -641,7 +641,7 @@ export async function GET() {
     }
     const allProvidersSorted = [...providerMap.entries()]
       .map(([name, d]) => ({ name, location: d.location, visits: d.visits.size, amtPaid: d.amtPaid }))
-      .sort((a, b) => b.visits - a.visits);
+      .sort((a, b) => b.amtPaid - a.amtPaid);
     const topProviders = allProvidersSorted.slice(0, 5);
 
     // ── Top 5 service types ───────────────────────────────────────────────────

@@ -156,8 +156,9 @@ function mapRow(
     type = fromApi ?? mapType(relRaw);
   }
 
-  const phone      = str(row, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone');
+  const phone      = str(row, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone', 'HomePhone', 'WorkPhone');
   const email      = str(row, 'EmailAddress', 'Email', 'email', 'ContactEmail', 'EmailAddr');
+  const staffId    = str(row, 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'EmpNo', 'StaffCode', 'HR_EmployeeID', 'HREmployeeID', 'Employee_Code', 'StaffNo');
   const dob        = str(row, 'Member_DateOfBirth', 'DateOfBirth', 'DOB', 'BirthDate', 'MemberDOB', 'Date_Of_Birth');
   const plan       = mapPlan(str(row, 'Member_Plan', 'Product_SchemeType', 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName', 'PlanDesc'));
   const loc        = str(row, 'Member_CountryState', 'State', 'Location', 'Region', 'Branch', 'Address', 'City', 'StateOfResidence');
@@ -179,6 +180,7 @@ function mapRow(
   return {
     id: enrolleeId || String(index),
     employeeId: enrolleeId || `EMP${String(index + 1).padStart(4, '0')}`,
+    staffId: staffId || undefined,
     firstName,
     lastName,
     email: email || '',
@@ -378,20 +380,28 @@ export async function GET(req: Request) {
     // when available and the enrollee IDs match.
     const primaryRows = premiumRows.length > 0 ? premiumRows : memberRows;
 
-    // Build a lookup from GetGroupMembers by enrollee ID for enrichment
+    // Build a lookup from GetGroupMembers by enrollee ID for enrichment.
+    // Store both the full ID and the prefix (before '/') to handle format mismatches.
     const memberByEnrollee: Map<string, Record<string, unknown>> = new Map();
     for (const r of memberRows) {
       const eid = str(r, 'Member_EnrolleeID', 'MemberShipNo', 'MembershipNo', 'EnrolleeID', 'CifNo', 'MemberID');
-      if (eid && !memberByEnrollee.has(eid)) memberByEnrollee.set(eid, r);
+      if (!eid) continue;
+      if (!memberByEnrollee.has(eid)) memberByEnrollee.set(eid, r);
+      // Also index by prefix (strip '/suffix') to match premium rows that include the suffix
+      const prefix = eid.includes('/') ? eid.split('/')[0] : null;
+      if (prefix && !memberByEnrollee.has(prefix)) memberByEnrollee.set(prefix, r);
     }
 
     const members: Member[] = primaryRows.map((row, i) => {
       const base = mapRow(row, i, principalTexts, knownRelTexts);
-      // Enrich with GetGroupMembers fields if available (phone, email, etc.)
-      const mRow = memberByEnrollee.get(base.employeeId);
+      // Enrich with GetGroupMembers fields if available (phone, email, staffId, etc.)
+      // Try exact ID match first, then prefix match (strip '/0' suffix)
+      const basePrefix = base.employeeId.includes('/') ? base.employeeId.split('/')[0] : null;
+      const mRow = memberByEnrollee.get(base.employeeId) ?? (basePrefix ? memberByEnrollee.get(basePrefix) : undefined);
       if (mRow) {
-        if (!base.phone) base.phone = str(mRow, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo');
+        if (!base.phone) base.phone = str(mRow, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone');
         if (!base.email) base.email = str(mRow, 'EmailAddress', 'Email', 'email');
+        if (!base.staffId) base.staffId = str(mRow, 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'StaffCode') || undefined;
       }
       return base;
     });

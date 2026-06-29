@@ -1259,6 +1259,20 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [depMaxCount, setDepMaxCount]       = useState(1);
   const [depLinkEmail, setDepLinkEmail]     = useState(member.email ?? '');
   const avatarInputRef                      = useRef<HTMLInputElement>(null);
+
+  // Biodata: enriched phone + staffId fetched from GetEnrolleeBioDataByEnrolleeID
+  const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
+  const [bioStaffId, setBioStaffId]         = useState<string | null>(member.staffId || null);
+  useEffect(() => {
+    if (!member.employeeId) return;
+    fetch(`/api/hr/members/biodata?enrolleeid=${encodeURIComponent(member.employeeId)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.phone) setBioPhone(d.phone);
+        if (d.staffId) setBioStaffId(d.staffId);
+      })
+      .catch(() => { /* silently ignore */ });
+  }, [member.employeeId]);
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
   const status = statusColors[member.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
@@ -1474,11 +1488,13 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 20px', marginBottom: 24 }}>
                 {[
-                  { label: 'Date of Birth',       value: new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) },
+                  { label: 'Date of Birth',       value: member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
                   { label: 'Gender',              value: member.gender },
                   { label: 'Plan',                value: member.plan },
                   { label: 'Member Type',         value: member.type },
-                  { label: 'State',               value: member.location },
+                  { label: 'Phone',               value: bioPhone || '—' },
+                  { label: 'Staff ID',            value: bioStaffId || '—' },
+                  { label: 'State',               value: member.location || '—' },
                   { label: 'Dependants',          value: String(member.dependants ?? 0) },
                   { label: 'Individual Premium',  value: member.premium != null ? `₦${Math.round(member.premium).toLocaleString('en-NG')}` : '—' },
                 ].map((row) => (
@@ -1836,10 +1852,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link ready — copy and share:</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input readOnly value={depGeneratedUrl} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
-                        <button onClick={() => {
-                          if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(depGeneratedUrl); } else { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-                          toast('Copied!', 'success');
-                        }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
+                        <button onClick={() => copyText(depGeneratedUrl, 'Link copied!')} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
                       </div>
                     </div>
                   )}
@@ -2142,7 +2155,7 @@ export default function MembersPage() {
                   )}
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
                 </div>
-                <span className="text-[11px] text-[#C4C9D9] font-mono">—</span>
+                <span className="text-[11px] text-[#131C4E] font-mono">{m.staffId || '—'}</span>
                 <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{m.employeeId}</span>
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[11px]" style={{ color: isDependant ? '#6366F1' : '#9CA3B8', fontWeight: isDependant ? 600 : 400 }}>{m.type}</span>
