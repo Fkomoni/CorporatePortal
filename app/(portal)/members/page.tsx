@@ -271,8 +271,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
         onClose();
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
-      setFormError(msg);
+      setFormError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setSubmitting(false);
     }
