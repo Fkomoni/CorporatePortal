@@ -119,11 +119,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: apiMessage || `Enrolment failed (${apiStatus})` }, { status: 422 });
     }
 
-    const cifNumber  = r?.Cif_Number  ?? r?.cifNumber  ?? r?.CifNumber  ?? null;
-    const enrolleeId = String(r?.MembershipNo ?? r?.membershipNo ?? r?.EnrolleeId ?? r?.enrolleeId ?? '');
-    const suffix     = String(r?.Suffix ?? r?.suffix ?? '0');
+    const cifNumber    = r?.Cif_Number  ?? r?.cifNumber  ?? r?.CifNumber  ?? null;
+    const membershipNo = String(r?.MembershipNo ?? r?.membershipNo ?? '');
+    const suffix       = String(r?.Suffix ?? r?.suffix ?? '0');
 
-    // Success requires at least an enrolleeId (MembershipNo) or Cif_Number
+    // Full Enrolee ID = MembershipNo/Suffix  e.g. "26307209/0"
+    const enrolleeId = membershipNo ? `${membershipNo}/${suffix}` : '';
+
+    // Success requires at least an enrolleeId or Cif_Number
     if (!enrolleeId && !cifNumber) {
       console.error('[hr/members/add] No member ID in response:', text.slice(0, 500));
       return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID returned. Please check with Leadway Health.' }, { status: 422 });
@@ -132,8 +135,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       cifNumber,
-      enrolleeId,   // MembershipNo from Prognosis = Enrolee ID shown to HR
-      suffix,
+      enrolleeId,  // MembershipNo/Suffix e.g. "26307209/0"
     });
   } catch (err) {
     console.error('[hr/members/add] Error:', err);
