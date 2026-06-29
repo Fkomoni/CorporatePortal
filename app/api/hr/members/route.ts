@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { Member } from '@/lib/types';
 import { logAudit } from '@/lib/audit';
+import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -229,9 +230,24 @@ export async function GET(req: Request) {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
+  const url = new URL(req.url);
+  const fresh = url.searchParams.get('fresh') === '1';
+  const skipClaims = url.searchParams.get('skipClaims') === '1';
+  const cacheKey = `members-${groupId}`;
+
+  // Cache only applies to the full response (with claims)
+  if (!skipClaims) {
+    if (fresh) cacheBust(cacheKey);
+    else {
+      const cached = cacheGet<object>(cacheKey);
+      if (cached) return NextResponse.json({ ...cached, cached: true });
+    }
+  }
+
   try {
     const token = await getServiceToken();
 
+    // When skipClaims=1, skip GetGroupClaims (the heaviest call) for fast initial load
     const [membersRes, premiumRes, claimsRes, relRes] = await Promise.all([
       fetch(`${BASE}/api/EnrolleeProfile/GetGroupMembers?groupid=${groupId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -239,9 +255,11 @@ export async function GET(req: Request) {
       fetch(`${BASE}/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       }),
-      fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      }),
+      skipClaims
+        ? Promise.resolve(null)
+        : fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          }),
       fetch(`${BASE}/api/ListValues/GetBeneficiaryRelationship`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       }),
@@ -250,7 +268,7 @@ export async function GET(req: Request) {
     const [membersRaw, premiumRaw, claimsRaw, relRaw] = await Promise.all([
       membersRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
       premiumRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
-      claimsRes.text().then((t)  => { try { return JSON.parse(t);  } catch { return null;  } }),
+      claimsRes ? claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }) : Promise.resolve(null),
       relRes.text().then((t)     => { try { return JSON.parse(t);  } catch { return null;  } }),
     ]);
 
@@ -278,7 +296,7 @@ export async function GET(req: Request) {
 
     const memberRows  = toRows(membersRaw);
     const premiumRows = toRows(premiumRaw);
-    const claimRows   = toRows(claimsRaw);
+    const claimRows   = skipClaims ? [] : toRows(claimsRaw);
 
     // Build premium lookup keyed by enrollee ID
     const premiumByEnrollee: Map<string, Record<string, unknown>> = new Map();
@@ -413,13 +431,12 @@ export async function GET(req: Request) {
     void logAudit({ session, action: 'VIEW_MEMBERS', resource: 'members', request: req,
       details: { totalCount: members.length, groupId } });
 
-    return NextResponse.json({
+    const responsePayload = {
       members,
       memberStats: memberStatsMap,
       stats: {
         activeCount,
         totalCount: members.length,
-        // Active-only counts for uniformity — "covered lives" means active lives
         principalCount: members.filter((m) => m.type === 'Principal' && m.status === 'Active').length,
         dependantCount:  members.filter((m) => m.type === 'Dependant'  && m.status === 'Active').length,
         newThisMonth,
@@ -435,7 +452,12 @@ export async function GET(req: Request) {
         relationshipTexts: Array.from(knownRelTexts),
         principalTexts: Array.from(principalTexts),
       },
-    });
+    };
+
+    // Cache only the full response (with claims), not the fast skipClaims one
+    if (!skipClaims) cacheSet(cacheKey, responsePayload);
+
+    return NextResponse.json(responsePayload);
   } catch (err) {
     console.error('[hr/members] Error:', err);
     return NextResponse.json(

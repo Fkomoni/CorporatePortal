@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { PeopleVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
@@ -1142,6 +1142,9 @@ export default function MembersPage() {
   const [memberStatsMap, setMemberStatsMap] = useState<Record<string, MemberStats>>({});
   const [pageStats, setPageStats]           = useState<{ activeCount: number; totalCount: number; principalCount: number; dependantCount: number; newThisMonth: number; pendingCount: number } | null>(null);
   const [membersLoading, setMembersLoading] = useState(true);
+  const [refreshing, setRefreshing]         = useState(false);
+  const [page, setPage]                     = useState(0);
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     fetch('/api/hr/list-values')
@@ -1150,17 +1153,35 @@ export default function MembersPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    fetch('/api/hr/members')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.members) setLiveMembers(d.members);
-        if (d.memberStats) setMemberStatsMap(d.memberStats);
-        if (d.stats) setPageStats(d.stats);
-      })
-      .catch(() => {})
-      .finally(() => setMembersLoading(false));
+  const loadMembers = useCallback(async (fresh = false) => {
+    if (fresh) setRefreshing(true);
+    else setMembersLoading(true);
+    setPage(0);
+
+    const qs = new URLSearchParams({ skipClaims: '1', ...(fresh ? { fresh: '1' } : {}) });
+    try {
+      const d = await fetch(`/api/hr/members?${qs}`).then((r) => r.json());
+      if (d.members) setLiveMembers(d.members);
+      if (d.stats)   setPageStats(d.stats);
+    } catch { /* keep showing whatever was there */ }
+    finally {
+      setMembersLoading(false);
+      setRefreshing(false);
+    }
+
+    // Background: fetch full response (with claims) — updates stats when ready
+    try {
+      const qs2 = new URLSearchParams(fresh ? { fresh: '1' } : {});
+      const d2 = await fetch(`/api/hr/members${qs2.toString() ? `?${qs2}` : ''}`).then((r) => r.json());
+      if (d2.memberStats) setMemberStatsMap(d2.memberStats);
+      if (d2.stats) setPageStats(d2.stats); // update stats too (full response has same stats)
+    } catch { /* claims stats are optional */ }
   }, []);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  // Reset to page 0 whenever search/filter changes
+  useEffect(() => { setPage(0); }, [search, planFilter, statusFilter, viewBeneficiaries]);
 
   const principals = liveMembers.filter((m) => m.type === 'Principal');
   const allBeneficiaries = liveMembers;
@@ -1177,6 +1198,10 @@ export default function MembersPage() {
       && (!planFilter || m.plan === planFilter)
       && (!statusFilter || m.status === statusFilter);
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages - 1);
+  const paged      = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const toggleSelect = (id: string) => setSelected((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
   const allSelected  = filtered.length > 0 && selected.length === filtered.length;
@@ -1258,6 +1283,15 @@ export default function MembersPage() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 14, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <Upload style={{ width: 15, height: 15 }} /> Bulk Upload
             </button>
+            <button onClick={() => loadMembers(true)} disabled={refreshing}
+              title="Refresh member list from Prognosis"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: refreshing ? '#F0FDF4' : 'linear-gradient(135deg,#ECFDF5,#D1FAE5)', color: '#059669', border: '1px solid #A7F3D0', borderRadius: 14, cursor: refreshing ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: refreshing ? 0.8 : 1 }}>
+              <svg style={{ width: 15, height: 15, animation: refreshing ? 'spin 0.7s linear infinite' : 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+                <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+              </svg>
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
             <button onClick={() => toast('Member list exported to Excel.')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <ArrowDownToLine style={{ width: 15, height: 15 }} /> Export XLS
@@ -1327,7 +1361,8 @@ export default function MembersPage() {
             ))}
           </div>
 
-          {filtered.map((m, i) => {
+          {paged.map((m, i) => {
+            const globalIndex = safePage * PAGE_SIZE + i;
             const plan   = planColors[m.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
             const status = statusColors[m.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
             const isSel  = selected.includes(m.id);
@@ -1337,7 +1372,7 @@ export default function MembersPage() {
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
                 style={{ gridTemplateColumns: '36px 1fr 80px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
-                onClick={() => setActiveMember({ member: m, index: i })}
+                onClick={() => setActiveMember({ member: m, index: globalIndex })}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -1388,21 +1423,30 @@ export default function MembersPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">
-              Showing {filtered.length} of {viewBeneficiaries ? `${principalCount + dependantCount} beneficiaries` : `${sourceList.length} members`}
+              Showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length} {viewBeneficiaries ? 'beneficiaries' : 'members'}
+              {filtered.length < sourceList.length && ` (filtered from ${sourceList.length})`}
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              {(['‹', '1', '2', '3', '›'] as const).map((p) => (
-                <button key={p} style={{
-                  width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: p === '1' ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer',
-                  fontSize: p === '‹' || p === '›' ? 15 : 12, fontWeight: p === '1' ? 700 : 500,
-                  background: p === '1' ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff',
-                  color: p === '1' ? '#fff' : '#6B7280',
-                  boxShadow: p === '1' ? '0 2px 6px rgba(245,107,34,0.28)' : 'none',
-                  transition: 'all 0.15s',
-                }}>{p}</button>
-              ))}
-            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}
+                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7F1', borderRadius: 8, cursor: safePage === 0 ? 'default' : 'pointer', fontSize: 15, background: '#fff', color: safePage === 0 ? '#D1D5DB' : '#6B7280', transition: 'all 0.15s' }}>‹</button>
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pg = i;
+                  if (totalPages > 7) {
+                    if (safePage < 4) pg = i;
+                    else if (safePage > totalPages - 5) pg = totalPages - 7 + i;
+                    else pg = safePage - 3 + i;
+                  }
+                  const isActive = pg === safePage;
+                  return (
+                    <button key={pg} onClick={() => setPage(pg)}
+                      style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: isActive ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500, background: isActive ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff', color: isActive ? '#fff' : '#6B7280', boxShadow: isActive ? '0 2px 6px rgba(245,107,34,0.28)' : 'none', transition: 'all 0.15s' }}>{pg + 1}</button>
+                  );
+                })}
+                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}
+                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7F1', borderRadius: 8, cursor: safePage >= totalPages - 1 ? 'default' : 'pointer', fontSize: 15, background: '#fff', color: safePage >= totalPages - 1 ? '#D1D5DB' : '#6B7280', transition: 'all 0.15s' }}>›</button>
+              </div>
+            )}
           </div>
         </div>
       </div>

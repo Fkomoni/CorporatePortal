@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -46,7 +47,7 @@ function str(row: Record<string, unknown>, ...keys: string[]): string {
   return '';
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
@@ -55,6 +56,16 @@ export async function GET() {
 
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID in session' }, { status: 400 });
+
+  const { searchParams } = new URL(req.url);
+  const fresh = searchParams.get('fresh') === '1';
+  const cacheKey = `schemes-${groupId}`;
+
+  if (fresh) cacheBust(cacheKey);
+  else {
+    const cached = cacheGet<object>(cacheKey);
+    if (cached) return NextResponse.json({ ...cached, cached: true });
+  }
 
   try {
     const token = await getServiceToken();
@@ -88,7 +99,9 @@ export async function GET() {
       })
       .filter((s) => s.schemeId && s.schemeName);
 
-    return NextResponse.json({ schemes, raw: arr.slice(0, 3) });
+    const payload = { schemes, raw: arr.slice(0, 3) };
+    cacheSet(cacheKey, payload);
+    return NextResponse.json(payload);
   } catch (err) {
     console.error('[hr/benefits/schemes] Error:', err);
     return NextResponse.json(
