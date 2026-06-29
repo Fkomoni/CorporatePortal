@@ -3,6 +3,10 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
+const PROGNOSIS_BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
+  .replace(/\/api$/, '')
+  .replace(/\/$/, '');
+
 declare module 'next-auth' {
   interface User {
     loginType?: string;
@@ -83,30 +87,41 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.login || !credentials?.password) return null;
 
-        // Staff are stored in the same DB — look up by email (login field)
-        const user = await prisma.user.findFirst({
-          where: {
-            email: credentials.login as string,
+        try {
+          const res = await fetch(`${PROGNOSIS_BASE}/api/Account/ExternalPortalLogin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              email: credentials.login,
+              password: credentials.password,
+              LogInSource: 'CorporatePortal',
+            }),
+          });
+
+          if (!res.ok) return null;
+
+          const data = await res.json() as Record<string, unknown>;
+          const payload = (data?.result ?? data?.Result ?? data?.data ?? data?.Data ?? data) as Record<string, unknown> | null;
+          if (!payload) return null;
+
+          // Prognosis returns an array or object — normalise
+          const record = Array.isArray(payload) ? payload[0] as Record<string, unknown> : payload;
+          if (!record) return null;
+
+          const email = String(record.email ?? record.Email ?? record.EmailAddress ?? credentials.login);
+          const name  = String(record.name ?? record.Name ?? record.FullName ?? record.fullName ?? credentials.login);
+          const id    = String(record.id ?? record.Id ?? record.userId ?? record.UserId ?? email);
+
+          return {
+            id,
+            email,
+            name,
+            loginType: 'staff',
             role: 'staff',
-            active: true,
-          },
-        });
-
-        if (!user) return null;
-
-        const valid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-        if (!valid) return null;
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          loginType: 'staff',
-          role: user.role,
-        };
+          };
+        } catch {
+          return null;
+        }
       },
     }),
   ],
