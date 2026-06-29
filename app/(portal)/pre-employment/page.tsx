@@ -132,6 +132,8 @@ export default function PreEmploymentPage() {
   const [selectedFacility, setSelectedFacility] = useState<{ name: string; address: string; type: string } | null>(null);
   const [selectedTests, setSelectedTests]       = useState<Set<string>>(new Set());
   const [submitted, setSubmitted]               = useState(false);
+  const [submitting, setSubmitting]             = useState(false);
+  const [submitError, setSubmitError]           = useState<string | null>(null);
 
   const set = (k: keyof typeof form, v: string) => {
     setForm((p) => ({ ...p, [k]: v }));
@@ -178,9 +180,39 @@ export default function PreEmploymentPage() {
 
   const canSubmit = form.name && form.email && form.phone && form.gender && form.dob && form.state && selectedFacility && selectedTests.size > 0 && form.date;
 
-  function handleSubmit() {
-    if (!canSubmit) return;
-    setSubmitted(true);
+  async function handleSubmit() {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true); setSubmitError(null);
+    const testLabels = [
+      'Complete Physical Examination (BMI, Blood Pressure, Pulse Rate)',
+      ...ALL_TESTS.filter((t) => selectedTests.has(t.id)).map((t) => t.label),
+    ];
+    try {
+      const res = await fetch('/api/hr/pre-employment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateName: form.name,
+          candidateEmail: form.email,
+          candidatePhone: form.phone,
+          gender: form.gender,
+          dob: form.dob,
+          state: form.state,
+          facilityName: selectedFacility!.name,
+          facilityAddress: selectedFacility!.address,
+          preferredDate: form.date,
+          tests: testLabels,
+          notes: form.notes || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to send');
+      setSubmitted(true);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Failed to send request');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function reset() {
@@ -417,10 +449,13 @@ export default function PreEmploymentPage() {
               </p>
             )}
           </div>
-          <button onClick={handleSubmit} disabled={!canSubmit}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: canSubmit ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.45, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: canSubmit ? '0 2px 10px rgba(245,107,34,0.32)' : 'none', transition: 'all 0.2s', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            <Send style={{ width: 14, height: 14 }} /> Get Quote from Leadway
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            {submitError && <p style={{ fontSize: 12, color: '#DC2626', maxWidth: 320, textAlign: 'right' }}>{submitError}</p>}
+            <button onClick={handleSubmit} disabled={!canSubmit || submitting}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: (canSubmit && !submitting) ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.45, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: canSubmit ? '0 2px 10px rgba(245,107,34,0.32)' : 'none', transition: 'all 0.2s', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              <Send style={{ width: 14, height: 14 }} /> {submitting ? 'Sending…' : 'Get Quote from Leadway'}
+            </button>
+          </div>
         </div>
 
       </div>
