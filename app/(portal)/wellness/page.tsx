@@ -11,12 +11,12 @@ import type { Member } from '@/lib/types';
 
 // ── Health Talk Topics ────────────────────────────────────────────────────────
 
-const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
+const HEALTH_TALK_CATEGORIES: { category: string; color: string; topics: string[] }[] = [
   {
     category: 'Human Behaviour',
+    color: '#F56B22',
     topics: [
       'Alcohol and Substance Abuse',
-      'Causes and Effects of HIV',
       'Accident Preparedness and First Aid',
       'Benefits of Physical Exercise',
       'Benefits of Yoga, Meditation and Mindfulness',
@@ -25,7 +25,6 @@ const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
       'Challenges of Sedentary Lifestyle',
       'Dangers of Drug Abuse',
       'Dangers of Smoking',
-      'Effects of Sleep Deprivation',
       'Employee Wellness and Productivity',
       'Ergonomics in the Workplace',
       'Food Poisoning and Hygiene',
@@ -42,6 +41,7 @@ const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
   },
   {
     category: 'Health and Wellbeing',
+    color: '#059669',
     topics: [
       'Antenatal and Postnatal Care',
       'Benefits of Breastfeeding',
@@ -57,20 +57,53 @@ const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
       'Management of Chronic Pain',
       'Managing Allergies and Asthma',
       'Menopause: Symptoms and Management',
-      'Men\'s Health Awareness',
+      "Men's Health Awareness",
       'Nutrition for the Elderly',
       'Preventing Back Pain',
       'Sexual and Reproductive Health',
       'Skin Care and Dermatology',
       'Understanding Anaemia',
-      'Women\'s Health Awareness',
+      "Women's Health Awareness",
+    ],
+  },
+  {
+    category: 'Fatigue',
+    color: '#D97706',
+    topics: [
+      'Causes and Effects of Workplace Fatigue',
+      'Compassion Fatigue in Caregivers',
+      'Fatigue and Occupational Safety',
+      'Managing Chronic Fatigue Syndrome',
+      'Mental Fatigue and Cognitive Performance',
+      'Nutrition Strategies to Combat Fatigue',
+      'Physical Fatigue vs Mental Fatigue',
+      'Recognising and Preventing Burnout',
+      'Shift Work and Fatigue Management',
+      'The Role of Hydration in Energy Levels',
+    ],
+  },
+  {
+    category: 'Healthy Sleep',
+    color: '#7C3AED',
+    topics: [
+      'Building a Healthy Sleep Routine',
+      'Effects of Sleep Deprivation on Health',
+      'How Screen Time Affects Sleep Quality',
+      'Managing Insomnia Naturally',
+      'Shift Work and Sleep Disorders',
+      'Sleep Apnoea: Awareness and Treatment',
+      'Sleep and Mental Health',
+      'Sleep and Weight Management',
+      'The Science of Sleep Cycles',
+      'Tips for Better Sleep Hygiene',
     ],
   },
   {
     category: 'Communicable Diseases',
+    color: '#DC2626',
     topics: [
-      'COVID-19: Prevention and Management',
       'Cholera: Prevention and Control',
+      'COVID-19: Prevention and Management',
       'Hepatitis B and C Awareness',
       'HIV/AIDS: Prevention, Treatment and Living with HIV',
       'Lassa Fever Awareness',
@@ -85,6 +118,7 @@ const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
   },
   {
     category: 'Non-Communicable Diseases',
+    color: '#2563EB',
     topics: [
       'Arthritis: Types, Symptoms and Management',
       'Cancer Awareness and Early Detection',
@@ -106,10 +140,11 @@ const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
   },
   {
     category: 'Mental Wellness',
+    color: '#0891B2',
     topics: [
       'Anxiety Disorders: Recognising and Managing Anxiety',
-      'Burnout: Causes, Symptoms and Recovery',
       'Building Emotional Resilience',
+      'Burnout: Causes, Symptoms and Recovery',
       'Dealing with Grief and Loss',
       'Depression: Awareness and Support',
       'Managing Work-Life Balance',
@@ -184,6 +219,7 @@ export default function WellnessPage() {
   // Health talks form
   const [talkType, setTalkType]       = useState<'onsite' | 'virtual'>('onsite');
   const [talkCategory, setTalkCategory] = useState('');
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [talkTopic, setTalkTopic]     = useState('');
   const [talkDate, setTalkDate]       = useState('');
   const [talkDuration, setTalkDuration] = useState('60');
@@ -363,27 +399,55 @@ export default function WellnessPage() {
               {talkSent && <SuccessBanner message="Request sent! Leadway Health client services will reach out within 1 business day to confirm." />}
             </div>
 
-            {/* Topic browser sidebar */}
-            <div style={{ ...card, padding: '22px 24px', maxHeight: 520, overflowY: 'auto' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Leadway HMO Topic Library</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                {HEALTH_TALK_CATEGORIES.map((cat) => (
-                  <div key={cat.category}>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F56B22', marginBottom: 8 }}>{cat.category}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                      {cat.topics.map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => { setTalkCategory(cat.category); setTalkTopic(t); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, background: talkTopic === t ? '#FFF5EF' : 'transparent', border: talkTopic === t ? '1px solid #FFCFB0' : '1px solid transparent', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.12s' }}
-                        >
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: talkTopic === t ? '#F56B22' : '#D1D5DB', flexShrink: 0, transition: 'background 0.12s' }} />
-                          <p style={{ fontSize: 11.5, color: talkTopic === t ? '#F56B22' : '#374151', fontWeight: talkTopic === t ? 600 : 400 }}>{t}</p>
-                        </button>
-                      ))}
+            {/* Topic browser sidebar — accordion */}
+            <div style={{ ...card, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #F0F1F5' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Leadway HMO Topic Library</p>
+                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>Click a category to browse topics</p>
+              </div>
+              <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                {HEALTH_TALK_CATEGORIES.map((cat) => {
+                  const isOpen = expandedCats.has(cat.category);
+                  return (
+                    <div key={cat.category} style={{ borderBottom: '1px solid #F7F8FA' }}>
+                      {/* Category header */}
+                      <button
+                        onClick={() => {
+                          const next = new Set(expandedCats);
+                          if (isOpen) next.delete(cat.category); else next.add(cat.category);
+                          setExpandedCats(next);
+                        }}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>{cat.category}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#9CA3B8', background: '#F0F1F5', borderRadius: 99, padding: '1px 7px' }}>{cat.topics.length}</span>
+                        </div>
+                        <span style={{ fontSize: 14, color: '#9CA3B8', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
+                      </button>
+
+                      {/* Topics */}
+                      {isOpen && (
+                        <div style={{ padding: '4px 20px 12px 20px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {cat.topics.map((t) => {
+                            const sel = talkTopic === t && talkCategory === cat.category;
+                            return (
+                              <button
+                                key={t}
+                                onClick={() => { setTalkCategory(cat.category); setTalkTopic(t); }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, background: sel ? `${cat.color}12` : 'transparent', border: sel ? `1px solid ${cat.color}40` : '1px solid transparent', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.1s' }}
+                              >
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: sel ? cat.color : '#D1D5DB', flexShrink: 0 }} />
+                                <span style={{ fontSize: 11.5, color: sel ? cat.color : '#374151', fontWeight: sel ? 600 : 400 }}>{t}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
