@@ -170,13 +170,14 @@ export default function ClaimsPage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflowX: 'auto' }}>
             <div
               className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '130px 130px 110px 160px 1fr 92px 95px 96px 82px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1100 }}>
+              style={{ gridTemplateColumns: '120px 130px 110px 80px 130px 180px 90px 95px 96px 82px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1250 }}>
               <span>Ref</span>
               <span>Member</span>
               <span>Enrolee ID</span>
+              <span>ICD Code</span>
+              <span>ICD Description</span>
               <span>Provider</span>
-              <span>ICD Code / Diagnosis</span>
-              <span>Category</span>
+              <span>State</span>
               <span className="text-right">Amount</span>
               <span>Status</span>
               <span>Date</span>
@@ -197,7 +198,7 @@ export default function ClaimsPage() {
                 <div
                   key={c.id || i}
                   className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                  style={{ gridTemplateColumns: '130px 130px 110px 160px 1fr 92px 95px 96px 82px', columnGap: 12, padding: '14px 24px', minWidth: 1100 }}>
+                  style={{ gridTemplateColumns: '120px 130px 110px 80px 130px 180px 90px 95px 96px 82px', columnGap: 12, padding: '14px 24px', minWidth: 1250 }}>
                   <span className="text-[12px] font-bold text-[#F56B22] font-mono truncate">{c.claimRef}</span>
                   <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-[#131C4E] truncate">{initials}</p>
@@ -207,16 +208,14 @@ export default function ClaimsPage() {
                     )}
                   </div>
                   <span className="text-[11px] text-[#9CA3B8] font-mono">{c.employeeId || '—'}</span>
+                  <span className="text-[12px] font-mono font-bold text-[#F56B22] truncate">{c.icdCode || '—'}</span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || ''}>{c.icdDescription || '—'}</p>
+                  </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '—'}</p>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-[#131C4E] truncate font-medium" title={c.icdDescription || c.diagnosis || ''}>
-                      {c.icdCode ? <span className="font-mono text-[#F56B22] mr-1">{c.icdCode}</span> : null}
-                      {c.icdDescription || c.diagnosis || '—'}
-                    </p>
-                  </div>
-                  <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
+                  <span className="text-[11px] text-[#9CA3B8] truncate">{c.providerState || '—'}</span>
                   <span className="text-[13px] font-bold text-[#131C4E] text-right">{vis.showAmounts ? fmt(c.amount) : '—'}</span>
                   <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: st.bg, color: st.text }}>
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} />{c.status}
