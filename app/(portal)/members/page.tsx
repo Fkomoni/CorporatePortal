@@ -770,6 +770,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
   const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
+  const [sendingId, setSendingId]           = useState(false);
   const avatarInputRef                      = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
@@ -777,6 +778,34 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const grad   = avatarGradients[index % avatarGradients.length];
   const enroleeId = member.employeeId;
   const depCount  = member.dependants ?? 0;
+
+  async function handleSendEnroleeId() {
+    if (sendingId) return;
+    if (!member.email) { toast('No email address on record for this member.', 'error'); return; }
+    setSendingId(true);
+    try {
+      const res = await fetch('/api/hr/members/send-enrolee-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: member.email,
+          enroleeId,
+          memberName: member.name,
+          schemeName: member.plan,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast(data.error ?? 'Failed to send email', 'error');
+      } else {
+        toast(`Enrolee ID sent to ${member.email}`, 'success');
+      }
+    } catch {
+      toast('Failed to send email. Please try again.', 'error');
+    } finally {
+      setSendingId(false);
+    }
+  }
 
   return (
     <>
@@ -1014,9 +1043,10 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           {/* Row 1 — Send Enrolee ID + Add Dependent (principals only) */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={() => toast(`Enrolee ID ${enroleeId} sent to ${member.email}.`, 'info')}
-              style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Send style={{ width: 14, height: 14 }} /> Send Enrolee ID
+              onClick={handleSendEnroleeId}
+              disabled={sendingId}
+              style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: sendingId ? '#9CA3B8' : '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: sendingId ? '#F7F8FA' : 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: sendingId ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.15s' }}>
+              <Send style={{ width: 14, height: 14 }} /> {sendingId ? 'Sending…' : 'Send Enrolee ID'}
             </button>
             {member.type === 'Principal' && (
               <button
