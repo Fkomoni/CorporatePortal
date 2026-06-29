@@ -211,10 +211,9 @@ export async function GET(req: Request) {
 
       const provider      = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
       const providerState = str(r, 'ProviderState', 'HospitalState', 'State');
-      const icdCode       = str(r, 'ICDCode', 'ICD_Code', 'icd_code', 'DiagnosisCode');
-      const icdDescription = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'DiagnosisDesc');
-      // ProcedureName is the procedure; fall back to ICD description if blank
-      const diagnosis     = str(r, 'ProcedureName', 'Diagnosis') || icdDescription;
+      const icdCode       = str(r, 'ICDCode', 'ICD_Code', 'icd_code', 'Icdcode', 'icdCode', 'DiagnosisCode', 'diagnosis_code', 'ICD');
+      const icdDescription = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'IcdDescription', 'icdDescription', 'DiagnosisDesc', 'DiagnosisDescription', 'diagnosis_desc', 'DiagnosisName', 'Diagnosis');
+      const diagnosis     = str(r, 'ProcedureName', 'ServiceName') || icdDescription || str(r, 'Diagnosis');
       const catRaw        = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
       const dateStr       = str(r, 'TreatmentDate', 'claim_date', 'DateOfService', 'ClaimDate');
 
@@ -248,8 +247,23 @@ export async function GET(req: Request) {
       });
     }
 
+    // Deduplicate by claim_id — API returns one row per procedure;
+    // keep the row that has the most data (ICD code preferred)
+    const seen = new Map<string, LiveClaim>();
+    for (const c of claims) {
+      const existing = seen.get(c.claimRef);
+      if (!existing) {
+        seen.set(c.claimRef, c);
+      } else {
+        // Replace if current row adds ICD code the existing row was missing
+        const gainIcd = !existing.icdCode && c.icdCode;
+        const gainDesc = !existing.icdDescription && c.icdDescription;
+        if (gainIcd || gainDesc) seen.set(c.claimRef, { ...existing, icdCode: c.icdCode || existing.icdCode, icdDescription: c.icdDescription || existing.icdDescription, diagnosis: c.diagnosis || existing.diagnosis });
+      }
+    }
+
     // Sort: most recent first
-    const filtered = [...claims].sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
+    const filtered = [...seen.values()].sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
 
     const stats: ClaimsStats = {
       totalPaidAmount:  filtered.filter((c) => c.status === 'Paid').reduce((s, c) => s + c.amount, 0),
