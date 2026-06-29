@@ -72,10 +72,10 @@ function normalise(row: unknown, type: string): Provider | null {
 
   const id      = s(r, 'ProviderID', 'Provider_ID', 'ID', 'Id', 'ProviderCode', 'Code', 'providercode', 'provider_id');
   const address = s(r, 'ProviderAddress', 'Address', 'Address1', 'Address2', 'Street', 'StreetAddress');
-  const city    = s(r, 'Town', 'City', 'CityName', 'TownName', 'LGA', 'region', 'Region');
-  const state   = s(r, 'State', 'StateName', 'State_Name', 'StateOfResidence');
+  const city    = s(r, 'CityOfOrigin', 'Town', 'City', 'CityName', 'TownName', 'LGA', 'region', 'Region');
+  const state   = s(r, 'StateOfOrigin', 'State', 'StateName', 'State_Name', 'StateOfResidence');
   const phone   = s(r, 'PhoneNumber', 'Phone', 'phone1', 'Phone1', 'phone2', 'Phone2', 'TelephoneNo', 'Telephone', 'Mobile', 'ContactPhone');
-  const rawStatus = s(r, 'ProviderStatus', 'Status', 'IsActive', 'Active', 'AccreditationStatus');
+  const rawStatus = s(r, 'status_id', 'ProviderStatus', 'Status', 'IsActive', 'Active', 'AccreditationStatus');
   const status  = ['true', '1', 'active', 'accredited', 'yes'].includes(rawStatus.toLowerCase())
     ? 'Active'
     : rawStatus || 'Active';

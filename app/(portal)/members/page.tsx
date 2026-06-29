@@ -142,8 +142,6 @@ function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: 
 interface RelationshipOption { text: string; value: string; }
 interface ListItem { text: string; value: string; }
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const GENOTYPES    = ['AA', 'AS', 'SS', 'AC'];
 
 /* ── Add Member Modal ────────────────────────────────────────────────── */
 function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[] }) {
@@ -187,8 +185,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   const [maritalStatus, setMarStatus] = useState('');
   const [stateId, setStateId]       = useState('');
   const [address, setAddress]       = useState('');
-  const [bloodGroup, setBloodGroup] = useState('');
-  const [genotype, setGenotype]     = useState('');
   const [preExisting, setPreExist]  = useState('');
   const [photoBase64, setPhotoB64]  = useState('');
   const [photoType, setPhotoType]   = useState('');
@@ -250,7 +246,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
             schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '',
             firstName, surname, otherNames, dateOfBirth: dob,
             sexId, maritalStatus, email, mobile, mobile2,
-            postalTownId: stateId, address, bloodGroup, genotype,
+            postalTownId: stateId, address,
             employeeCode: empCode, preExistingCondition: preExisting || 'None',
             enrolleePicture: photoBase64, enrolleePictureType: photoType,
           }),
@@ -501,23 +497,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       </select>
                     </div>
 
-                    {/* Blood Group */}
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Blood Group</p>
-                      <select value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                        <option value="">Select</option>
-                        {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-
-                    {/* Genotype */}
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Genotype</p>
-                      <select value={genotype} onChange={(e) => setGenotype(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                        <option value="">Select</option>
-                        {GENOTYPES.map((g) => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
                   </div>
 
                   {/* Address */}
