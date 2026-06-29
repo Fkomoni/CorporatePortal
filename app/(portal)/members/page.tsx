@@ -144,7 +144,7 @@ interface ListItem { text: string; value: string; }
 
 
 /* ── Add Member Modal ────────────────────────────────────────────────── */
-function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[] }) {
+function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, principals }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[]; principals: Member[] }) {
   const [mode, setMode]             = useState<'individual' | 'bulk'>(initialMode ?? 'individual');
   const [step, setStep]             = useState<1 | 2 | 3>(1);
   const [memberType, setMemberType] = useState<'new' | 'existing'>('new');
@@ -173,6 +173,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   const [linkEmail, setLinkEmail]     = useState('');
   const [linkEmpCode, setLinkEmpCode] = useState('');
   const [generatedUrl, setGeneratedUrl] = useState('');
+
+  // Principal picker (for "Existing staff's dependent" flow)
+  const [principalSearch, setPrincipalSearch] = useState('');
+  const [selectedPrincipal, setSelectedPrincipal] = useState<Member | null>(null);
+  const [relId, setRelId] = useState('');
 
   // Direct form fields
   const [firstName, setFirstName]   = useState('');
@@ -243,15 +248,63 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
         if (!linkEmail || !linkEmpCode) {
           setFormError('Staff email and employee code are required.'); return;
         }
+        if (memberType === 'existing' && !selectedPrincipal) {
+          setFormError('Please search and select the staff member this dependent link is for.'); return;
+        }
+        const isDepLink = memberType === 'existing';
+        const depScheme = isDepLink && selectedPrincipal ? schemes.find((s) => s.schemeName === selectedPrincipal.plan) : null;
         const res = await fetch('/api/hr/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: linkEmail, employeeCode: linkEmpCode, schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', scope: linkScope }),
+          body: JSON.stringify({
+            email: linkEmail,
+            employeeCode: isDepLink && selectedPrincipal ? selectedPrincipal.employeeId : linkEmpCode,
+            schemeId: isDepLink && depScheme ? depScheme.schemeId : selectedSchemeId,
+            schemeName: isDepLink && depScheme ? depScheme.schemeName : (selectedScheme?.schemeName ?? ''),
+            scope: linkScope,
+            ...(isDepLink && selectedPrincipal ? {
+              inviteType: 'dependent',
+              parentCif: String(selectedPrincipal.cifNumber ?? ''),
+              maxDependents: 1,
+            } : {}),
+          }),
         });
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to generate link'); return; }
         setGeneratedUrl(data.url);
         toast('Enrolment link generated! Copy it below.', 'success');
+        return;
+      }
+
+      if (mode === 'individual' && actionType === 'form' && memberType === 'existing') {
+        // Adding a dependent to an existing principal via HR direct form
+        if (!selectedPrincipal) { setFormError('Please search and select the staff member this dependent belongs to.'); return; }
+        if (!firstName || !surname || !dob || !sexId || !stateId || !relId) {
+          setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender, State and Relationship.'); return;
+        }
+        if (!selectedPrincipal.cifNumber) { setFormError('The selected principal has no CIF number on record. Please refresh the member list and try again.'); return; }
+        const depScheme = schemes.find((s) => s.schemeName === selectedPrincipal.plan) ?? schemes[0];
+        const res = await fetch('/api/hr/members/add-dependents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parentCif: Number(selectedPrincipal.cifNumber) || selectedPrincipal.cifNumber,
+            schemeId: depScheme?.schemeId ?? '', schemeName: depScheme?.schemeName ?? selectedPrincipal.plan,
+            employeeCode: selectedPrincipal.employeeId,
+            dependents: [{
+              firstName, surname, otherNames, dateOfBirth: dob,
+              sexId, maritalStatus, email, mobile,
+              postalTownId: stateId, relationshipId: relId,
+              preExistingCondition: preExisting || 'None',
+              enrolleePicture: photoBase64, enrolleePictureType: photoType,
+            }],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add dependent'); return; }
+        const enrolled = data.enrolled?.[0];
+        const memberId = enrolled?.enrolleeId || enrolled?.membershipNo || '';
+        setEnrollResult({ name: `${firstName} ${surname}`, memberId });
         return;
       }
 
@@ -583,36 +636,88 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
               {/* ── LINK flow ── */}
               {actionType === 'link' && (
                 <>
-                  {/* Plan */}
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Select Plan *</p>
-                    <div style={{ position: 'relative' }}>
-                      {schemes.length > 0 ? (
-                        <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
-                          style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
-                          onFocus={focusOn} onBlur={focusOff}>
-                          <option value="">— Choose a plan —</option>
-                          {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
-                        </select>
-                      ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
-                      <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  {/* Principal picker for dependent link */}
+                  {memberType === 'existing' && (
+                    <div style={{ background: '#F7F8FC', borderRadius: 14, padding: '14px 16px', border: selectedPrincipal ? '1.5px solid #10B981' : '1.5px solid #E5E7F1', marginBottom: 16 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Select Principal Staff Member *</p>
+                      {selectedPrincipal ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
+                            <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId} · {selectedPrincipal.plan}</p>
+                          </div>
+                          <button onClick={() => { setSelectedPrincipal(null); setPrincipalSearch(''); setLinkEmpCode(''); setLinkEmail(''); }}
+                            style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <input value={principalSearch} onChange={(e) => setPrincipalSearch(e.target.value)}
+                            placeholder="Type name or employee ID…"
+                            style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                          {principalSearch.length >= 2 && (
+                            <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto', borderRadius: 10, border: '1px solid #E5E7F1', background: '#fff' }}>
+                              {principals.filter((p) => {
+                                const q = principalSearch.toLowerCase();
+                                return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
+                              }).slice(0, 8).map((p) => (
+                                <div key={p.id} onClick={() => { setSelectedPrincipal(p); setLinkEmpCode(p.employeeId); setLinkEmail(p.email); setPrincipalSearch(''); }}
+                                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F8FC')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
+                                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{p.firstName} {p.lastName}</p>
+                                  <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0 }}>{p.employeeId} · {p.plan}</p>
+                                </div>
+                              ))}
+                              {principals.filter((p) => { const q = principalSearch.toLowerCase(); return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q); }).length === 0 && (
+                                <p style={{ padding: '12px 14px', fontSize: 12, color: '#9CA3B8', margin: 0 }}>No matching staff found</p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  </div>
+                  )}
+
+                  {/* Plan — only for non-dependent links */}
+                  {memberType !== 'existing' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Select Plan *</p>
+                      <div style={{ position: 'relative' }}>
+                        {schemes.length > 0 ? (
+                          <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
+                            style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
+                            onFocus={focusOn} onBlur={focusOff}>
+                            <option value="">— Choose a plan —</option>
+                            {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                          </select>
+                        ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                        <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </div>
+                    </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Staff Email *</p>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                        {memberType === 'existing' ? 'Send Link To (Email) *' : 'Staff Email *'}
+                      </p>
                       <input type="email" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)}
                         placeholder="e.g. john.doe@company.com" style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                     </div>
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Employee Code *</p>
-                      <input value={linkEmpCode} onChange={(e) => setLinkEmpCode(e.target.value)}
-                        placeholder="e.g. EMP-9988" style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
-                    </div>
+                    {memberType !== 'existing' && (
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Employee Code *</p>
+                        <input value={linkEmpCode} onChange={(e) => setLinkEmpCode(e.target.value)}
+                          placeholder="e.g. EMP-9988" style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                      </div>
+                    )}
                   </div>
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 16 }}>
-                    The link is tied to this email + employee code. Staff must verify both to enrol — preventing misuse.
+                    {memberType === 'existing'
+                      ? 'The dependent enrolment link will be tied to this staff member's record.'
+                      : 'The link is tied to this email + employee code. Staff must verify both to enrol — preventing misuse.'}
                   </p>
 
                   {generatedUrl && (
@@ -633,6 +738,64 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
               {/* ── FORM flow ── */}
               {actionType === 'form' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                  {/* Principal picker — only for "existing staff's dependent" */}
+                  {memberType === 'existing' && (
+                    <div style={{ background: '#F7F8FC', borderRadius: 14, padding: '14px 16px', border: selectedPrincipal ? '1.5px solid #10B981' : '1.5px solid #E5E7F1' }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Principal Staff Member *</p>
+                      {selectedPrincipal ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
+                            <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId} · {selectedPrincipal.plan}</p>
+                            {!selectedPrincipal.cifNumber && (
+                              <p style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>⚠ No CIF on record — refresh member list and try again</p>
+                            )}
+                          </div>
+                          <button onClick={() => { setSelectedPrincipal(null); setPrincipalSearch(''); }}
+                            style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <input
+                            value={principalSearch}
+                            onChange={(e) => setPrincipalSearch(e.target.value)}
+                            placeholder="Type name or employee ID to search…"
+                            style={inputStyle}
+                            onFocus={focusOn} onBlur={focusOff}
+                          />
+                          {principalSearch.length >= 2 && (
+                            <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto', borderRadius: 10, border: '1px solid #E5E7F1', background: '#fff' }}>
+                              {principals
+                                .filter((p) => {
+                                  const q = principalSearch.toLowerCase();
+                                  return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
+                                })
+                                .slice(0, 8)
+                                .map((p) => (
+                                  <div key={p.id} onClick={() => { setSelectedPrincipal(p); setEmpCode(p.employeeId); setSelectedSchemeId(schemes.find((s) => s.schemeName === p.plan)?.schemeId ?? selectedSchemeId); setPrincipalSearch(''); }}
+                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F8FC')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
+                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', margin: 0 }}>{p.firstName} {p.lastName}</p>
+                                    <p style={{ fontSize: 11, color: '#9CA3B8', margin: 0 }}>{p.employeeId} · {p.plan}</p>
+                                  </div>
+                                ))}
+                              {principals.filter((p) => {
+                                const q = principalSearch.toLowerCase();
+                                return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) || p.employeeId.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
+                              }).length === 0 && (
+                                <p style={{ padding: '12px 14px', fontSize: 12, color: '#9CA3B8', margin: 0 }}>No matching staff found</p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {/* Photo */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div onClick={() => photoRef.current?.click()} style={{ width: 68, height: 68, borderRadius: '50%', border: '2px dashed #D1D5DB', background: '#F7F8FC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
@@ -650,28 +813,30 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                     <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
                   </div>
 
-                  {/* Plan */}
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Select Plan *</p>
-                    <div style={{ position: 'relative' }}>
-                      {schemes.length > 0 ? (
-                        <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
-                          style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
-                          onFocus={focusOn} onBlur={focusOff}>
-                          <option value="">— Choose a plan —</option>
-                          {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
-                        </select>
-                      ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
-                      <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  {/* Plan — hidden for "existing" since it's inherited from the principal */}
+                  {memberType !== 'existing' && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Select Plan *</p>
+                      <div style={{ position: 'relative' }}>
+                        {schemes.length > 0 ? (
+                          <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
+                            style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
+                            onFocus={focusOn} onBlur={focusOff}>
+                            <option value="">— Choose a plan —</option>
+                            {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                          </select>
+                        ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                        <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     {[
                       { label: 'First Name *',    value: firstName,  set: setFirstName,  ph: 'e.g. Amaka'     },
                       { label: 'Surname *',       value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
                       { label: 'Other Names',     value: otherNames, set: setOtherNames, ph: 'Middle name(s)' },
-                      { label: 'Employee Code *', value: empCode,    set: setEmpCode,    ph: 'e.g. EMP-9988'  },
+                      ...(memberType !== 'existing' ? [{ label: 'Employee Code *', value: empCode, set: setEmpCode, ph: 'e.g. EMP-9988' }] : []),
                       { label: 'Email *',         value: email,      set: setEmail,      ph: 'amaka@company.com', type: 'email' },
                       { label: 'Mobile *',        value: mobile,     set: setMobile,     ph: '08012345678',   type: 'tel' },
                       { label: 'Alt. Mobile',     value: mobile2,    set: setMobile2,    ph: '07012345678',   type: 'tel' },
@@ -707,6 +872,16 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                         {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
                       </select>
                     </div>
+
+                    {memberType === 'existing' && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship to Principal *</p>
+                        <select value={relId} onChange={(e) => setRelId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
+                          <option value="">Select relationship</option>
+                          {relationshipOptions.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -724,16 +899,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'vertical' }}
                       onFocus={focusOn} onBlur={focusOff} />
                   </div>
-
-                  {memberType === 'existing' && (
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship to Principal</p>
-                      <select style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                        <option value="">Select relationship</option>
-                        {relationshipOptions.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
-                      </select>
-                    </div>
-                  )}
                 </div>
               )}
             </>
@@ -1754,6 +1919,7 @@ export default function MembersPage() {
           onClose={() => setShowAddModal(false)}
           relationshipOptions={relationshipOptions}
           schemes={schemes}
+          principals={principals}
         />
       )}
     </div>
