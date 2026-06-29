@@ -111,6 +111,7 @@ export async function POST(req: Request) {
       EnrolleePictureType: body.enrolleePictureType ?? '',
     };
 
+    console.log('[hr/members/add] PAYLOAD SENT TO PROGNOSIS:', JSON.stringify(payload));
     const res = await fetch(`${BASE}/api/CorporatePortal/AddPrincipalOnly`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
