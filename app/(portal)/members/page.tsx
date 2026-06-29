@@ -1004,8 +1004,19 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 4 }}>✓ Enrolment link sent to {linkEmail}</p>
                       <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 10 }}>The staff member will receive an email with the link. You can also copy it below as a backup:</p>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <input readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
-                        <button onClick={() => copyText(generatedUrl, 'Link copied!')}
+                        <input id="generated-url-input" readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
+                        <button onClick={() => {
+                          const inp = document.getElementById('generated-url-input') as HTMLInputElement | null;
+                          if (inp) { inp.select(); inp.setSelectionRange(0, 99999); }
+                          if (navigator.clipboard?.writeText) {
+                            navigator.clipboard.writeText(generatedUrl)
+                              .then(() => toast('Link copied!', 'success'))
+                              .catch(() => { document.execCommand('copy'); toast('Link copied!', 'success'); });
+                          } else {
+                            document.execCommand('copy');
+                            toast('Link copied!', 'success');
+                          }
+                        }}
                           style={{ height: 40, padding: '0 14px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 10, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Copy
                         </button>
