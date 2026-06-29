@@ -15,8 +15,6 @@ interface InvitationMeta {
   expiresAt: string;
 }
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const GENOTYPES    = ['AA', 'AS', 'SS', 'AC'];
 
 const inputStyle: React.CSSProperties = {
   width: '100%', height: 42, padding: '0 14px', fontSize: 14,
@@ -33,7 +31,7 @@ export default function EnrollPage() {
   const [maritalStatuses, setMarital] = useState<ListItem[]>([]);
   const [states, setStates]           = useState<ListItem[]>([]);
   const [submitting, setSubmitting]   = useState(false);
-  const [enrollResult, setEnrollResult] = useState<{ fullEnrolleeId: string; membershipNo: string } | null>(null);
+  const [enrollResult, setEnrollResult] = useState<{ enrolleeId: string; membershipNo: string } | null>(null);
 
   // Form fields
   const [firstName, setFirstName]         = useState('');
@@ -46,8 +44,6 @@ export default function EnrollPage() {
   const [mobile2, setMobile2]             = useState('');
   const [postalTownId, setStateId]        = useState('');
   const [address, setAddress]             = useState('');
-  const [bloodGroup, setBloodGroup]       = useState('');
-  const [genotype, setGenotype]           = useState('');
   const [preExisting, setPreExisting]     = useState('');
   const [photoBase64, setPhoto]           = useState('');
   const [photoType, setPhotoType]         = useState('');
@@ -99,7 +95,6 @@ export default function EnrollPage() {
           employeeCode: invitation.employeeCode,
           firstName, surname, otherNames, dateOfBirth, sexId,
           maritalStatus, mobile, mobile2, postalTownId, address,
-          bloodGroup, genotype,
           preExistingCondition: preExisting || 'None',
           enrolleePicture: photoBase64,
           enrolleePictureType: photoType,
@@ -110,7 +105,7 @@ export default function EnrollPage() {
         setErrorMsg(data.error ?? 'Enrolment failed. Please try again.');
         setStatus('error');
       } else {
-        setEnrollResult({ fullEnrolleeId: data.fullEnrolleeId ?? '', membershipNo: data.membershipNo ?? '' });
+        setEnrollResult({ enrolleeId: data.enrolleeId ?? '', membershipNo: data.membershipNo ?? '' });
         setStatus('success');
       }
     } catch {
@@ -143,7 +138,7 @@ export default function EnrollPage() {
     return <StatusScreen icon="alert" color="#DC2626" bg="#FEF2F2" title="Invalid Link" message={errorMsg || 'This enrolment link is not valid. Please contact your HR team.'} />;
   }
   if (status === 'success') {
-    const memberId = enrollResult?.fullEnrolleeId || enrollResult?.membershipNo || '';
+    const memberId = enrollResult?.enrolleeId || enrollResult?.membershipNo || '';
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F8FC', padding: 24 }}>
         <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
@@ -159,9 +154,6 @@ export default function EnrollPage() {
             <div style={{ background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 20, padding: '28px 32px', marginBottom: 24, boxShadow: '0 4px 24px rgba(16,185,129,0.10)' }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Your Member ID</p>
               <p style={{ fontSize: 36, fontWeight: 900, color: '#131C4E', letterSpacing: '0.04em', fontFamily: 'monospace', marginBottom: 12 }}>{memberId}</p>
-              {enrollResult?.membershipNo && enrollResult.membershipNo !== memberId && (
-                <p style={{ fontSize: 13, color: '#9CA3B8' }}>Membership No: <strong style={{ color: '#131C4E' }}>{enrollResult.membershipNo}</strong></p>
-              )}
               <button
                 onClick={() => navigator.clipboard.writeText(memberId)}
                 style={{ marginTop: 16, height: 38, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#059669', border: '1.5px solid #BBF7D0', borderRadius: 10, background: '#ECFDF5', cursor: 'pointer' }}>
@@ -235,14 +227,6 @@ export default function EnrollPage() {
               <SelectField label="Marital Status" value={maritalStatus} onChange={setMarital2}>
                 <option value="">Select status</option>
                 {maritalStatuses.map((m) => <option key={m.value} value={m.value}>{m.text}</option>)}
-              </SelectField>
-              <SelectField label="Blood Group" value={bloodGroup} onChange={setBloodGroup}>
-                <option value="">Select blood group</option>
-                {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-              </SelectField>
-              <SelectField label="Genotype" value={genotype} onChange={setGenotype}>
-                <option value="">Select genotype</option>
-                {GENOTYPES.map((g) => <option key={g} value={g}>{g}</option>)}
               </SelectField>
             </div>
           </div>

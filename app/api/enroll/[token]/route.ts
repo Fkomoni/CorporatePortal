@@ -153,12 +153,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     });
 
     const r = raw as Record<string, unknown>;
+    const membershipNo = String(r?.MembershipNo ?? r?.membershipNo ?? '');
+    const suffix       = String(r?.Suffix ?? r?.suffix ?? '0');
+    const enrolleeId   = membershipNo ? `${membershipNo}/${suffix}` : '';
     return NextResponse.json({
       success: true,
-      cifNumber: r?.cifNumber ?? r?.CifNumber ?? null,
-      membershipNo: String(r?.membershipNo ?? r?.MembershipNo ?? ''),
-      suffix: String(r?.suffix ?? r?.Suffix ?? '0'),
-      fullEnrolleeId: String(r?.fullEnrolleeId ?? r?.FullEnrolleeId ?? ''),
+      cifNumber: r?.Cif_Number ?? r?.cifNumber ?? r?.CifNumber ?? null,
+      membershipNo,
+      suffix,
+      enrolleeId,
     });
   } catch (err) {
     console.error('[enroll/token] Error:', err);
