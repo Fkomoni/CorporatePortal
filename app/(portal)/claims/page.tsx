@@ -64,7 +64,7 @@ export default function ClaimsPage() {
 
   const filtered = claims.filter((c) => {
     const q = search.toLowerCase();
-    return (!q || c.memberName.toLowerCase().includes(q) || c.claimRef.toLowerCase().includes(q) || c.provider.toLowerCase().includes(q) || c.diagnosis.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q))
+    return (!q || c.memberName.toLowerCase().includes(q) || c.claimRef.toLowerCase().includes(q) || c.provider.toLowerCase().includes(q) || c.diagnosis.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q) || (c.principalName ?? '').toLowerCase().includes(q) || (c.icdCode ?? '').toLowerCase().includes(q) || (c.icdDescription ?? '').toLowerCase().includes(q))
       && (!catFilter    || c.category === catFilter)
       && (!statusFilter || c.status   === statusFilter);
   });
@@ -202,6 +202,9 @@ export default function ClaimsPage() {
                   <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-[#131C4E] truncate">{initials}</p>
                     {c.memberName && <p className="text-[10px] text-[#9CA3B8] truncate mt-0.5">{c.memberName}</p>}
+                    {c.principalName && c.principalName !== c.memberName && (
+                      <p className="text-[10px] text-[#B0B7C9] truncate">via {c.principalName}</p>
+                    )}
                   </div>
                   <span className="text-[11px] text-[#9CA3B8] font-mono">{c.employeeId || '—'}</span>
                   <div className="min-w-0">
@@ -209,6 +212,7 @@ export default function ClaimsPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-[#131C4E] truncate font-medium" title={c.diagnosis || ''}>{c.diagnosis || '—'}</p>
+                    {c.icdCode && <p className="text-[10px] text-[#9CA3B8] truncate font-mono mt-0.5">{c.icdCode}</p>}
                   </div>
                   <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
                   <span className="text-[13px] font-bold text-[#131C4E] text-right">{vis.showAmounts ? fmt(c.amount) : '—'}</span>

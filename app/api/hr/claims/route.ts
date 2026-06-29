@@ -112,11 +112,15 @@ export interface LiveClaim {
   id: string;
   claimRef: string;
   memberName: string;
+  principalName: string;
   employeeId: string;
   plan: string;
   provider: string;
+  providerState: string;
   category: 'Outpatient' | 'Inpatient' | 'Dental' | 'Optical' | 'Maternity' | 'Emergency';
   diagnosis: string;
+  icdCode: string;
+  icdDescription: string;
   amount: number;
   amtClaimed: number;
   rejectedAmount: number;
@@ -205,11 +209,14 @@ export async function GET(req: Request) {
       const cifNumber  = r['cif_number'] != null ? String(r['cif_number']) : '';
       const employeeId = enrolleeId || cifNumber;
 
-      const provider   = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
-      // ProcedureName is the most specific diagnosis; FilterType is the care category
-      const diagnosis  = str(r, 'ProcedureName', 'Diagnosis', 'DiagnosisDesc');
-      const catRaw     = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
-      const dateStr    = str(r, 'claim_date', 'TreatmentDate', 'DateOfService', 'ClaimDate');
+      const provider      = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
+      const providerState = str(r, 'ProviderState', 'HospitalState', 'State');
+      const icdCode       = str(r, 'ICDCode', 'ICD_Code', 'icd_code', 'DiagnosisCode');
+      const icdDescription = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'DiagnosisDesc');
+      // ProcedureName is the procedure; fall back to ICD description if blank
+      const diagnosis     = str(r, 'ProcedureName', 'Diagnosis') || icdDescription;
+      const catRaw        = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
+      const dateStr       = str(r, 'TreatmentDate', 'claim_date', 'DateOfService', 'ClaimDate');
 
       const amtClaimed = num(r, 'AmtClaimed', 'BilledAmount', 'ClaimedAmount');
       const amtPaid    = num(r, 'AmtPaid', 'PaidAmount', 'AmountPaid');
@@ -217,15 +224,21 @@ export async function GET(req: Request) {
       const displayAmount  = status === 'Paid' ? (amtPaid > 0 ? amtPaid : amtClaimed) : amtClaimed;
       const rejectedAmount = status === 'Rejected' ? Math.max(amtClaimed - amtPaid, 0) : 0;
 
+      const principalName = str(r, 'PrincipalName', 'SubscriberName');
+
       claims.push({
         id: key,
         claimRef,
         memberName,
+        principalName,
         employeeId,
         plan: 'Plus Plan',
         provider,
+        providerState,
         category: mapCategory(catRaw || diagnosis),
         diagnosis,
+        icdCode,
+        icdDescription,
         amount: displayAmount,
         amtClaimed,
         rejectedAmount,
