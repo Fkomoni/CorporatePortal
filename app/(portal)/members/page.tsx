@@ -252,8 +252,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           setFormError('Please search and select the staff member this dependent link is for.'); return;
         }
         const isDepLink = memberType === 'existing';
-        const depScheme = isDepLink && selectedPrincipal ? schemes.find((s) => s.schemeName === selectedPrincipal.plan) : null;
-        if (isDepLink && selectedPrincipal && !depScheme) {
+        const depScheme = isDepLink && selectedPrincipal
+          ? (schemes.find((s) => s.schemeId === selectedPrincipal.schemeId) ?? schemes.find((s) => s.schemeName === selectedPrincipal.plan))
+          : null;
+        if (isDepLink && selectedPrincipal && !depScheme && !selectedPrincipal.schemeId) {
           setFormError(`Cannot find scheme matching "${selectedPrincipal.plan}". Please refresh the page and try again.`); return;
         }
         const res = await fetch('/api/hr/members/invite', {
@@ -262,8 +264,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           body: JSON.stringify({
             email: linkEmail,
             employeeCode: isDepLink && selectedPrincipal ? selectedPrincipal.employeeId : linkEmpCode,
-            schemeId: isDepLink && depScheme ? depScheme.schemeId : selectedSchemeId,
-            schemeName: isDepLink && depScheme ? depScheme.schemeName : (selectedScheme?.schemeName ?? ''),
+            schemeId: isDepLink && selectedPrincipal ? (depScheme?.schemeId ?? selectedPrincipal.schemeId ?? selectedSchemeId) : selectedSchemeId,
+            schemeName: isDepLink && selectedPrincipal ? (depScheme?.schemeName ?? selectedPrincipal.plan) : (selectedScheme?.schemeName ?? ''),
             scope: linkScope,
             ...(isDepLink && selectedPrincipal ? {
               inviteType: 'dependent',
@@ -286,14 +288,16 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender, State and Relationship.'); return;
         }
         if (!selectedPrincipal.cifNumber) { setFormError('The selected principal has no CIF number on record. Please refresh the member list and try again.'); return; }
-        const depScheme = schemes.find((s) => s.schemeName === selectedPrincipal.plan);
-        if (!depScheme) { setFormError(`Cannot find scheme matching "${selectedPrincipal.plan}". Please refresh the page and try again.`); return; }
+        const depScheme = schemes.find((s) => s.schemeId === selectedPrincipal.schemeId) ?? schemes.find((s) => s.schemeName === selectedPrincipal.plan);
+        const resolvedSchemeId   = depScheme?.schemeId   ?? selectedPrincipal.schemeId ?? '';
+        const resolvedSchemeName = depScheme?.schemeName ?? selectedPrincipal.plan;
+        if (!resolvedSchemeId) { setFormError(`Cannot resolve scheme for "${selectedPrincipal.plan}". Please refresh the page and try again.`); return; }
         const res = await fetch('/api/hr/members/add-dependents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             parentCif: Number(selectedPrincipal.cifNumber) || selectedPrincipal.cifNumber,
-            schemeId: depScheme.schemeId, schemeName: depScheme.schemeName,
+            schemeId: resolvedSchemeId, schemeName: resolvedSchemeName,
             employeeCode: selectedPrincipal.employeeId,
             dependents: [{
               firstName, surname, otherNames, dateOfBirth: dob,
