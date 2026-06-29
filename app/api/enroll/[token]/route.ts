@@ -108,11 +108,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
   const invitation = await prisma.memberInvitation.findUnique({ where: { token } });
   if (!invitation) return NextResponse.json({ error: 'Invalid or expired enrolment link.' }, { status: 404 });
-  if (invitation.used) return NextResponse.json({ error: 'This enrolment link has already been used.' }, { status: 410 });
-  if (invitation.inviteType === 'dependent' && invitation.usedCount >= invitation.maxDependents) {
-    return NextResponse.json({ error: 'This dependent link has reached its maximum number of enrolments.' }, { status: 410 });
-  }
-  if (invitation.expiresAt < new Date()) return NextResponse.json({ error: 'This enrolment link has expired.' }, { status: 410 });
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch {
@@ -120,6 +115,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   }
 
   const isDependent = invitation.inviteType === 'dependent';
+
+  // Principal invite with scope='self-dependent': after principal enrols (token marked used),
+  // the member can still add dependants by passing parentCif in the body.
+  const isSelfDepAdd = !isDependent
+    && invitation.scope === 'self-dependent'
+    && !!(body.parentCif as string | number | undefined);
+
+  if (!isSelfDepAdd) {
+    if (invitation.used) return NextResponse.json({ error: 'This enrolment link has already been used.' }, { status: 410 });
+    if (invitation.inviteType === 'dependent' && invitation.usedCount >= invitation.maxDependents) {
+      return NextResponse.json({ error: 'This dependent link has reached its maximum number of enrolments.' }, { status: 410 });
+    }
+  }
+  if (invitation.expiresAt < new Date()) return NextResponse.json({ error: 'This enrolment link has expired.' }, { status: 410 });
 
   // For principal invites: validate email + employeeCode match
   if (!isDependent) {
@@ -137,8 +146,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     let apiUrl: string;
     let apiBody: unknown;
 
-    if (isDependent) {
-      if (!invitation.parentCif) {
+    if (isDependent || isSelfDepAdd) {
+      const resolvedParentCif = isDependent ? invitation.parentCif : String(body.parentCif ?? '');
+      if (!resolvedParentCif) {
         return NextResponse.json({ error: 'This dependent link is missing the principal reference. Please contact HR.' }, { status: 422 });
       }
       const depPayload = {
@@ -146,7 +156,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         schemeid: Number(invitation.schemeId) || invitation.schemeId,
         Scheme: invitation.schemeName,
         regionid: 1,
-        Parent_Cif: Number(invitation.parentCif),
+        Parent_Cif: Number(resolvedParentCif),
         FirstName: body.firstName,
         Surname: body.surname,
         othernames: body.otherNames ?? '',
@@ -224,15 +234,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       return NextResponse.json({ error: String(msg) }, { status: res.status });
     }
 
-    // For dependent links: increment usedCount; only mark fully used when limit reached
+    // For dependent links: increment usedCount; only mark fully used when limit reached.
+    // For self-dep-add (principal token used for adding deps): only increment usedCount.
     const newUsedCount = (invitation.usedCount ?? 0) + 1;
-    const fullyUsed = invitation.inviteType !== 'dependent' || newUsedCount >= invitation.maxDependents;
+    const fullyUsed = !isSelfDepAdd && (invitation.inviteType !== 'dependent' || newUsedCount >= invitation.maxDependents);
     await prisma.memberInvitation.update({
       where: { token },
       data: {
         usedCount: newUsedCount,
-        used: fullyUsed,
-        usedAt: fullyUsed ? new Date() : undefined,
+        ...(fullyUsed ? { used: true, usedAt: new Date() } : {}),
       },
     });
 

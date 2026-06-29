@@ -154,7 +154,20 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState('');
-  const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string } | null>(null);
+  const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string; cifNumber?: string | null; isNewWithDeps?: boolean; schemeId?: string; schemeName?: string; empCode?: string } | null>(null);
+  // Dep state for "new staff + dependants" success screen
+  const [enrolledDeps, setEnrolledDeps] = useState<Array<{ name: string; memberId: string }>>([]);
+  const [depFormOpen, setDepFormOpen]   = useState(false);
+  const [depFN, setDepFN]               = useState('');
+  const [depLN, setDepLN]               = useState('');
+  const [depDob2, setDepDob2]           = useState('');
+  const [depSex, setDepSex]             = useState('');
+  const [depRel, setDepRel]             = useState('');
+  const [depSt, setDepSt]               = useState('');
+  const [depMob, setDepMob]             = useState('');
+  const [depEm, setDepEm]               = useState('');
+  const [depErr, setDepErr]             = useState('');
+  const [depSub, setDepSub]             = useState(false);
   const { toast } = useToast();
 
   // List values
@@ -389,6 +402,13 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add dependent'); return; }
         const enrolled = data.enrolled?.[0];
         const memberId = enrolled?.enrolleeId || enrolled?.membershipNo || '';
+        // Fire email to dependent (non-blocking)
+        if (email && memberId) {
+          fetch('/api/hr/members/send-enrolee-id', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedPrincipal?.plan }),
+          }).catch(() => {});
+        }
         setEnrollResult({ name: `${firstName} ${surname}`, memberId });
         return;
       }
@@ -412,7 +432,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add member'); return; }
         const memberId = data.enrolleeId || data.membershipNo || data.fullEnrolleeId || '';
-        setEnrollResult({ name: `${firstName} ${surname}`, memberId });
+        // Fire email to new member (non-blocking)
+        if (email && memberId) {
+          fetch('/api/hr/members/send-enrolee-id', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedScheme?.schemeName }),
+          }).catch(() => {});
+        }
+        setEnrollResult({ name: `${firstName} ${surname}`, memberId, cifNumber: data.cifNumber ?? null, isNewWithDeps: linkScope === 'self-dependent', schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', empCode });
         return;
       }
 
@@ -436,16 +463,57 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     : bulkAction === 'csv' ? 'Upload & Enrol'
     : 'Send Invitations';
 
+  // ── Add-dependent handler for "new staff + dependants" success screen ───
+  async function handleAddDep() {
+    if (depSub || !enrollResult?.cifNumber) return;
+    setDepErr('');
+    if (!depFN || !depLN || !depDob2 || !depSex || !depRel || !depSt) {
+      setDepErr('Please fill all required fields: First Name, Last Name, Date of Birth, Gender, Relationship and State.'); return;
+    }
+    setDepSub(true);
+    try {
+      const res = await fetch('/api/hr/members/add-dependents', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentCif: Number(enrollResult.cifNumber) || enrollResult.cifNumber,
+          schemeId: enrollResult.schemeId, schemeName: enrollResult.schemeName,
+          employeeCode: enrollResult.empCode,
+          dependents: [{ firstName: depFN, surname: depLN, dateOfBirth: depDob2, sexId: depSex, relationshipId: depRel, postalTownId: depSt, mobile: depMob, email: depEm }],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setDepErr(data.error ?? 'Failed to add dependent'); return; }
+      const enrolled2 = data.enrolled?.[0];
+      const depMemberId = enrolled2?.enrolleeId || enrolled2?.membershipNo || '';
+      if (depEm && depMemberId) {
+        fetch('/api/hr/members/send-enrolee-id', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: depEm, enroleeId: depMemberId, memberName: `${depFN} ${depLN}`, schemeName: enrollResult.schemeName }),
+        }).catch(() => {});
+      }
+      setEnrolledDeps((prev) => [...prev, { name: `${depFN} ${depLN}`, memberId: depMemberId }]);
+      setDepFN(''); setDepLN(''); setDepDob2(''); setDepSex(''); setDepRel(''); setDepSt(''); setDepMob(''); setDepEm('');
+      setDepFormOpen(false);
+      toast(`${depFN} ${depLN} added as dependent!`, 'success');
+    } catch (err) {
+      setDepErr(err instanceof Error ? err.message : 'Failed to add dependent');
+    } finally {
+      setDepSub(false);
+    }
+  }
+
   // ── Enrolment success screen ──────────────────────────────────────────
   if (enrollResult) {
-    const { name, memberId } = enrollResult;
+    const { name, memberId, isNewWithDeps } = enrollResult;
+    const depInputStyle: React.CSSProperties = { width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
     return (
       <>
         <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
         <div style={{
           position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-          width: 520, background: '#fff', borderRadius: 28, zIndex: 50,
-          boxShadow: '0 32px 100px rgba(0,0,0,0.22)', overflow: 'hidden',
+          width: isNewWithDeps ? 580 : 520, maxHeight: '90vh',
+          background: '#fff', borderRadius: 28, zIndex: 50,
+          boxShadow: '0 32px 100px rgba(0,0,0,0.22)', overflowY: 'auto',
           textAlign: 'center',
         }}>
           {/* Big green success banner */}
@@ -460,7 +528,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           </div>
 
           {/* Member ID section */}
-          <div style={{ padding: '32px 36px' }}>
+          <div style={{ padding: '32px 36px', overflowY: 'auto' }}>
             {memberId ? (
               <div style={{ background: '#F0FDF4', border: '2px solid #6EE7B7', borderRadius: 18, padding: '24px 28px', marginBottom: 28 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Enrolee ID</p>
@@ -474,6 +542,90 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             ) : (
               <div style={{ marginBottom: 28 }}>
                 <p style={{ fontSize: 13, color: '#9CA3B8' }}>The member has been enrolled. Their enrolee ID will be generated by Leadway Health shortly.</p>
+              </div>
+            )}
+
+            {/* ── "New staff + dependants" dep section ── */}
+            {isNewWithDeps && (
+              <div style={{ textAlign: 'left', marginBottom: 28 }}>
+                <div style={{ height: 1, background: '#F0F1F5', marginBottom: 20 }} />
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 12 }}>Add Dependants</p>
+
+                {/* Enrolled deps list */}
+                {enrolledDeps.length > 0 && (
+                  <div style={{ background: '#F7FFFE', border: '1px solid #BBF7D0', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
+                    {enrolledDeps.map((d, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: i > 0 ? '8px 0 0' : 0 }}>
+                        <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>{d.name}</span>
+                        <span style={{ fontSize: 12, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.memberId || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Dep error */}
+                {depErr && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#DC2626' }}>{depErr}</div>
+                )}
+
+                {/* Dep form */}
+                {depFormOpen ? (
+                  <div style={{ border: '1.5px solid #E5E7F1', borderRadius: 16, padding: '18px 20px', background: '#FAFBFF' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                      {([
+                        { label: 'First Name *', value: depFN, set: setDepFN, ph: '' },
+                        { label: 'Last Name *',  value: depLN, set: setDepLN, ph: '' },
+                        { label: 'Email',        value: depEm, set: setDepEm, ph: 'optional', type: 'email' },
+                        { label: 'Mobile',       value: depMob, set: setDepMob, ph: 'optional', type: 'tel' },
+                      ] as Array<{label:string;value:string;set:(v:string)=>void;ph:string;type?:string}>).map((f) => (
+                        <div key={f.label}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{f.label}</p>
+                          <input type={f.type ?? 'text'} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph} style={depInputStyle} />
+                        </div>
+                      ))}
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Date of Birth *</p>
+                        <input type="date" value={depDob2} onChange={(e) => setDepDob2(e.target.value)} style={depInputStyle} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Gender *</p>
+                        <select value={depSex} onChange={(e) => setDepSex(e.target.value)} style={{ ...depInputStyle, appearance: 'none', cursor: 'pointer' }}>
+                          <option value="">Select</option>
+                          {genders.map((g) => <option key={g.value} value={g.value}>{g.text}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Relationship *</p>
+                        <select value={depRel} onChange={(e) => setDepRel(e.target.value)} style={{ ...depInputStyle, appearance: 'none', cursor: 'pointer' }}>
+                          <option value="">Select</option>
+                          {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>State *</p>
+                        <select value={depSt} onChange={(e) => setDepSt(e.target.value)} style={{ ...depInputStyle, appearance: 'none', cursor: 'pointer' }}>
+                          <option value="">Select</option>
+                          {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button onClick={() => { setDepFormOpen(false); setDepErr(''); }}
+                        style={{ flex: 1, height: 38, fontSize: 13, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 10, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                      <button onClick={handleAddDep} disabled={depSub}
+                        style={{ flex: 2, height: 38, fontSize: 13, fontWeight: 700, color: '#fff', background: depSub ? '#E5E7F1' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 10, cursor: depSub ? 'not-allowed' : 'pointer' }}>
+                        {depSub ? 'Adding…' : 'Add Dependant'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setDepFormOpen(true)}
+                    style={{ width: '100%', height: 42, fontSize: 13, fontWeight: 700, color: '#10B981', border: '1.5px dashed #BBF7D0', borderRadius: 12, background: '#F0FDF4', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <UserPlus style={{ width: 14, height: 14 }} /> + Add a Dependant
+                  </button>
+                )}
               </div>
             )}
 
