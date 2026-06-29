@@ -15,6 +15,7 @@ export interface Member {
   dependants?: number;
   premium?: number;
   cifNumber?: string;
+  schemeId?: string;
 }
 
 export interface Invoice {

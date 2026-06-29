@@ -174,6 +174,7 @@ function mapRow(
   const premium = premiumRaw > 0 ? premiumRaw : undefined;
 
   const cifNumber = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber', 'MemberCifNo', 'CIF_No');
+  const schemeId  = str(row, 'SchemeId', 'Scheme_Id', 'SchemId', 'schemeid', 'SchemeID', 'Schemeid', 'ProductId', 'Product_Id', 'PlanId', 'Plan_Id');
 
   return {
     id: enrolleeId || String(index),
@@ -192,6 +193,7 @@ function mapRow(
     dependants,
     premium,
     cifNumber: cifNumber || undefined,
+    schemeId: schemeId || undefined,
   };
 }
 
