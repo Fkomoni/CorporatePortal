@@ -17,6 +17,7 @@ model User {
   companyName   String?
   policyNumber  String?
   active        Boolean   @default(true)
+  lastLogin     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
