@@ -15,8 +15,6 @@ interface InvitationMeta {
   expiresAt: string;
 }
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const GENOTYPES    = ['AA', 'AS', 'SS', 'AC'];
 
 const inputStyle: React.CSSProperties = {
   width: '100%', height: 42, padding: '0 14px', fontSize: 14,
@@ -46,8 +44,6 @@ export default function EnrollPage() {
   const [mobile2, setMobile2]             = useState('');
   const [postalTownId, setStateId]        = useState('');
   const [address, setAddress]             = useState('');
-  const [bloodGroup, setBloodGroup]       = useState('');
-  const [genotype, setGenotype]           = useState('');
   const [preExisting, setPreExisting]     = useState('');
   const [photoBase64, setPhoto]           = useState('');
   const [photoType, setPhotoType]         = useState('');
@@ -99,7 +95,6 @@ export default function EnrollPage() {
           employeeCode: invitation.employeeCode,
           firstName, surname, otherNames, dateOfBirth, sexId,
           maritalStatus, mobile, mobile2, postalTownId, address,
-          bloodGroup, genotype,
           preExistingCondition: preExisting || 'None',
           enrolleePicture: photoBase64,
           enrolleePictureType: photoType,
@@ -235,14 +230,6 @@ export default function EnrollPage() {
               <SelectField label="Marital Status" value={maritalStatus} onChange={setMarital2}>
                 <option value="">Select status</option>
                 {maritalStatuses.map((m) => <option key={m.value} value={m.value}>{m.text}</option>)}
-              </SelectField>
-              <SelectField label="Blood Group" value={bloodGroup} onChange={setBloodGroup}>
-                <option value="">Select blood group</option>
-                {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-              </SelectField>
-              <SelectField label="Genotype" value={genotype} onChange={setGenotype}>
-                <option value="">Select genotype</option>
-                {GENOTYPES.map((g) => <option key={g} value={g}>{g}</option>)}
               </SelectField>
             </div>
           </div>

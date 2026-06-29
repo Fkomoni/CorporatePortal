@@ -208,6 +208,24 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
 
   const selectedScheme = schemes.find((s) => s.schemeId === selectedSchemeId) ?? schemes[0];
 
+  function copyText(text: string, label = 'Copied!') {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => toast(label, 'success')).catch(() => fallbackCopy(text, label));
+    } else {
+      fallbackCopy(text, label);
+    }
+  }
+  function fallbackCopy(text: string, label: string) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast(label, 'success');
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%', height: 40, padding: '0 14px', fontSize: 13,
     border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC',
@@ -304,7 +322,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
               <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Member ID / Enrolee ID</p>
               <p style={{ fontSize: 28, fontWeight: 900, color: '#131C4E', fontFamily: 'monospace', letterSpacing: '0.04em', marginBottom: 12 }}>{memberId}</p>
               <button
-                onClick={() => { navigator.clipboard.writeText(memberId); toast('Member ID copied!', 'success'); }}
+                onClick={() => copyText(memberId, 'Member ID copied!')}
                 style={{ height: 36, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#059669', background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 10, cursor: 'pointer' }}>
                 Copy Member ID
               </button>
@@ -602,7 +620,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link generated — copy and send to the staff member:</p>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                         <input readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
-                        <button onClick={() => { navigator.clipboard.writeText(generatedUrl); toast('Copied!', 'success'); }}
+                        <button onClick={() => copyText(generatedUrl, 'Link copied!')}
                           style={{ height: 40, padding: '0 14px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 10, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Copy
                         </button>
