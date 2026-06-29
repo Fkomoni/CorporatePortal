@@ -60,7 +60,6 @@ function normalise(row: unknown, type: string): Provider | null {
   const r = row as Record<string, unknown>;
 
   const name = s(r,
-    // PascalCase / API variants
     'ProviderName', 'Provider_Name', 'Name', 'provider',
     'HospitalName', 'Hospital_Name',
     'EyeClinicName', 'Eye_Clinic_Name',
