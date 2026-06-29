@@ -213,8 +213,28 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
   const selectedScheme = schemes.find((s) => s.schemeId === selectedSchemeId) ?? schemes[0];
 
+  // Map an actual Prognosis scheme name to the UI plan label (mirrors server-side mapPlan)
+  function mapPlanName(raw: string): string {
+    const s = raw.toLowerCase();
+    if (s.includes('magnum') || s.includes('blackcard') || s.includes('black card')) return 'Magnum Plan';
+    if (s.includes('promax') || s.includes('pro max')) return 'Promax Plan';
+    if (s.includes('max')) return 'Max Plan';
+    if (s.includes('pro')) return 'Pro Plan';
+    return 'Plus Plan';
+  }
+
   function resolveScheme(p: Member) {
-    return schemes.find((s) => s.schemeId === p.schemeId) ?? schemes.find((s) => s.schemeName === p.plan) ?? null;
+    // 1. Exact schemeId match (most reliable)
+    if (p.schemeId) {
+      const byId = schemes.find((s) => s.schemeId === p.schemeId);
+      if (byId) return byId;
+    }
+    // 2. Fuzzy-match scheme name → UI plan label
+    const byName = schemes.find((s) => mapPlanName(s.schemeName) === p.plan);
+    if (byName) return byName;
+    // 3. If company only has one scheme, use it
+    if (schemes.length === 1) return schemes[0];
+    return null;
   }
 
   function selectPrincipal(p: Member) {
@@ -267,7 +287,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         }
         const isDepLink = memberType === 'existing';
         const depScheme = isDepLink && selectedPrincipal
-          ? (schemes.find((s) => s.schemeId === selectedPrincipal.schemeId) ?? schemes.find((s) => s.schemeName === selectedPrincipal.plan))
+          ? resolveScheme(selectedPrincipal)
           : null;
         if (isDepLink && selectedPrincipal && !depScheme && !selectedPrincipal.schemeId) {
           setFormError(`Cannot find scheme matching "${selectedPrincipal.plan}". Please refresh the page and try again.`); return;
@@ -302,10 +322,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender, State and Relationship.'); return;
         }
         if (!selectedPrincipal.cifNumber) { setFormError('The selected principal has no CIF number on record. Please refresh the member list and try again.'); return; }
-        const depScheme = schemes.find((s) => s.schemeId === selectedPrincipal.schemeId) ?? schemes.find((s) => s.schemeName === selectedPrincipal.plan);
+        const depScheme = resolveScheme(selectedPrincipal);
         const resolvedSchemeId   = depScheme?.schemeId   ?? selectedPrincipal.schemeId ?? '';
         const resolvedSchemeName = depScheme?.schemeName ?? selectedPrincipal.plan;
-        if (!resolvedSchemeId) { setFormError(`Cannot resolve scheme for "${selectedPrincipal.plan}". Please refresh the page and try again.`); return; }
+        if (!resolvedSchemeId) { setFormError(`Cannot resolve scheme for "${selectedPrincipal.plan}". Please contact support.`); return; }
         const res = await fetch('/api/hr/members/add-dependents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
