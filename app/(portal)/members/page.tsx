@@ -176,6 +176,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   // Link form fields
   const [linkEmail, setLinkEmail]     = useState('');
   const [linkEmpCode, setLinkEmpCode] = useState('');
+  const [linkMaxDeps, setLinkMaxDeps] = useState(1);
   const [generatedUrl, setGeneratedUrl] = useState('');
 
   // Principal picker (for "Existing staff's dependent" flow)
@@ -338,8 +339,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             scope: linkScope,
             ...(isDepLink && selectedPrincipal ? {
               inviteType: 'dependent',
-              parentCif: String(selectedPrincipal.cifNumber ?? ''),
-              maxDependents: 1,
+              parentCif: String(selectedPrincipal.cifNumber ?? principalProfile?.cifNumber ?? ''),
+              maxDependents: linkMaxDeps,
             } : {}),
           }),
         });
@@ -797,6 +798,33 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     </div>
                   )}
 
+                  {/* Dependent count picker — only for dep links */}
+                  {memberType === 'existing' && (() => {
+                    const depScheme = selectedPrincipal ? resolveScheme(selectedPrincipal) : null;
+                    const depSchemeMaxFamily = depScheme?.maxFamilySize ?? 8;
+                    const principalCurrentDeps = selectedPrincipal?.dependants ?? 0;
+                    const depSlotsLeft = Math.max(0, depSchemeMaxFamily - 1 - principalCurrentDeps);
+                    return (
+                      <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', padding: '12px 16px', marginBottom: 14 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>How many dependants can this link register?</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <button onClick={() => setLinkMaxDeps((n) => Math.max(1, n - 1))}
+                            style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#131C4E' }}>−</button>
+                          <div style={{ flex: 1, textAlign: 'center' }}>
+                            <p style={{ fontSize: 22, fontWeight: 900, color: '#131C4E', lineHeight: 1 }}>{linkMaxDeps}</p>
+                            <p style={{ fontSize: 10, color: '#9CA3B8', marginTop: 2 }}>dependant{linkMaxDeps !== 1 ? 's' : ''} allowed</p>
+                          </div>
+                          <button onClick={() => setLinkMaxDeps((n) => Math.min(depSlotsLeft, n + 1))}
+                            disabled={linkMaxDeps >= depSlotsLeft}
+                            style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 16, cursor: linkMaxDeps >= depSlotsLeft ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: linkMaxDeps >= depSlotsLeft ? '#D1D5DB' : '#131C4E' }}>+</button>
+                        </div>
+                        <p style={{ fontSize: 11, color: '#9CA3B8', textAlign: 'center', marginTop: 8 }}>
+                          Plan limit: {depSchemeMaxFamily - 1} dependant{depSchemeMaxFamily - 1 !== 1 ? 's' : ''} total · {principalCurrentDeps} registered · <strong style={{ color: depSlotsLeft > 0 ? '#059669' : '#DC2626' }}>{depSlotsLeft} slot{depSlotsLeft !== 1 ? 's' : ''} remaining</strong>
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
@@ -1054,7 +1082,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats, maxFamilySize }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number }) {
+function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats, maxFamilySize, schemes }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[] }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -1114,7 +1142,12 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
     }
   }
 
-  const remainingSlots = Math.max(0, maxFamilySize - 1 - depCount);
+  // Use the member's own scheme family size if available, otherwise fall back to prop
+  const memberScheme = schemes.find((s) => s.schemeId === member.schemeId);
+  const memberMaxFamily = memberScheme?.maxFamilySize ?? maxFamilySize;
+  const remainingSlots = Math.max(0, memberMaxFamily - 1 - depCount);
+  // Resolved schemeId for API calls — member.id is NOT the schemeId
+  const resolvedSchemeId = member.schemeId ?? memberScheme?.schemeId ?? '';
 
   async function handleDepSubmit() {
     if (depSubmitting) return;
@@ -1131,8 +1164,8 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             parentCif: Number(member.cifNumber) || member.cifNumber,
-            schemeId: member.id,
-            schemeName: member.plan,
+            schemeId: resolvedSchemeId,
+            schemeName: memberScheme?.schemeName ?? member.plan,
             employeeCode: member.employeeId,
             dependents: [{
               firstName: depFirstName,
@@ -1160,8 +1193,8 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           body: JSON.stringify({
             email: depLinkEmail,
             employeeCode: member.employeeId,
-            schemeId: member.id,
-            schemeName: member.plan,
+            schemeId: resolvedSchemeId,
+            schemeName: memberScheme?.schemeName ?? member.plan,
             inviteType: 'dependent',
             parentCif: String(member.cifNumber ?? ''),
             maxDependents: depMaxCount,
@@ -1479,9 +1512,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                   }}>
                     {depCount} existing dependant{depCount !== 1 ? 's' : ''}
                   </span>
-                  {depCount >= maxFamilySize && (
+                  {depCount >= memberMaxFamily - 1 && (
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#DC2626' }}>
-                      Max {maxFamilySize} dependants
+                      Max {memberMaxFamily - 1} dependant{memberMaxFamily - 1 !== 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
@@ -1613,11 +1646,13 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                           dependant{depMaxCount !== 1 ? 's' : ''} allowed
                         </p>
                       </div>
-                      <button onClick={() => setDepMaxCount((n) => Math.min(remainingSlots || 10, n + 1))}
-                        style={{ width: 36, height: 36, borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#131C4E' }}>+</button>
+                      <button
+                        onClick={() => setDepMaxCount((n) => Math.min(remainingSlots, n + 1))}
+                        disabled={depMaxCount >= remainingSlots}
+                        style={{ width: 36, height: 36, borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 18, cursor: depMaxCount >= remainingSlots ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: depMaxCount >= remainingSlots ? '#D1D5DB' : '#131C4E' }}>+</button>
                     </div>
                     <p style={{ fontSize: 11, color: '#9CA3B8', textAlign: 'center', marginTop: 8 }}>
-                      Plan limit: {maxFamilySize - 1} dependant{maxFamilySize - 1 !== 1 ? 's' : ''} total · {depCount} already registered · <strong style={{ color: remainingSlots > 0 ? '#059669' : '#DC2626' }}>{remainingSlots} slot{remainingSlots !== 1 ? 's' : ''} remaining</strong>
+                      Plan limit: {memberMaxFamily - 1} dependant{memberMaxFamily - 1 !== 1 ? 's' : ''} total · {depCount} already registered · <strong style={{ color: remainingSlots > 0 ? '#059669' : '#DC2626' }}>{remainingSlots} slot{remainingSlots !== 1 ? 's' : ''} remaining</strong>
                     </p>
                   </div>
 
@@ -2034,6 +2069,7 @@ export default function MembersPage() {
           relationshipOptions={relationshipOptions}
           stats={memberStatsMap[activeMember.member.employeeId]}
           maxFamilySize={maxFamilySize}
+          schemes={schemes}
         />
       )}
 
