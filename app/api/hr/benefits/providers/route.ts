@@ -1,6 +1,5 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
-import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? process.env.PROGNOSIS_API_BASE ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -61,6 +60,7 @@ function normalise(row: unknown, type: string): Provider | null {
   const r = row as Record<string, unknown>;
 
   const name = s(r,
+    // PascalCase / API variants
     'ProviderName', 'Provider_Name', 'Name', 'provider',
     'HospitalName', 'Hospital_Name',
     'EyeClinicName', 'Eye_Clinic_Name',
@@ -95,9 +95,10 @@ function extractArray(raw: unknown): unknown[] {
   return [];
 }
 
-async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string, paramOverrides?: Record<string, string>): Promise<{ providers: Provider[]; error?: string }> {
-  const base = { schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' };
-  const params = new URLSearchParams({ ...base, ...paramOverrides });
+// All ListValues endpoints share the same lowercase schemeid param and pagination shape.
+// No NoOfRecords/pageSize limit — pass a very large value so all records come back.
+async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string): Promise<{ providers: Provider[]; error?: string }> {
+  const params = new URLSearchParams({ schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' });
   const url = `${BASE}${endpoint}?${params}`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
@@ -132,13 +133,6 @@ export async function GET(req: Request) {
   const schemeId = searchParams.get('schemeId');
   if (!schemeId) return NextResponse.json({ error: 'schemeId is required' }, { status: 400 });
 
-  const fresh = searchParams.get('fresh') === '1';
-  const cacheKey = `providers-${schemeId}`;
-  if (fresh) cacheBust(cacheKey);
-
-  const cached = cacheGet<object>(cacheKey);
-  if (cached) return NextResponse.json({ ...cached, cached: true });
-
   try {
     const token = await getServiceToken();
 
@@ -146,7 +140,7 @@ export async function GET(req: Request) {
       fetchListValues(token, '/api/ListValues/GetGeneralHospitalByPlanCode', schemeId, 'Hospital'),
       fetchListValues(token, '/api/ListValues/GetEyeClinicByPlanCode',       schemeId, 'Optical'),
       fetchListValues(token, '/api/ListValues/GetDentalClinicByPlanCode',    schemeId, 'Dental'),
-      fetchListValues(token, '/api/ListValues/GetGeneralGymandSpaByPlanCode', schemeId, 'Spa/Gym', { SchemeID: schemeId, schemeid: schemeId, MinimumID: '0', NoOfRecords: '9999', pageSize: '0' }),
+      fetchListValues(token, '/api/ListValues/GetSpaAndGymClinicByPlanCode', schemeId, 'Spa/Gym'),
     ]);
 
     const hospitals     = hospResult.providers;
@@ -165,7 +159,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const body = {
+    return NextResponse.json({
       providers,
       counts: {
         hospitals: hospitals.length,
@@ -174,9 +168,7 @@ export async function GET(req: Request) {
         spaGyms: spaGyms.length,
       },
       total: providers.length,
-    };
-    cacheSet(cacheKey, body);
-    return NextResponse.json(body);
+    });
   } catch (err) {
     console.error('[hr/benefits/providers] Error:', err);
     return NextResponse.json(
