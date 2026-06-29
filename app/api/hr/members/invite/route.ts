@@ -2,6 +2,61 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
+  .replace(/\/api$/, '')
+  .replace(/\/$/, '');
+
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+
+async function getServiceToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+  const res = await fetch(`${BASE}/api/ApiUsers/Login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ Username: process.env.PROGNOSIS_USERNAME, Password: process.env.PROGNOSIS_PASSWORD }),
+  });
+  const text = await res.text();
+  let data: Record<string, unknown>;
+  try { data = JSON.parse(text); } catch {
+    throw new Error(`Service login non-JSON (${res.status}): ${text.slice(0, 200)}`);
+  }
+  const payload = (data?.data ?? data?.Data ?? data?.result ?? data?.Result ?? data) as Record<string, unknown>;
+  const token = String(
+    payload?.accessToken ?? payload?.token ?? payload?.AccessToken ?? payload?.Token ??
+    payload?.bearer ?? payload?.Bearer ?? payload?.bearerToken ?? payload?.BearerToken ?? ''
+  );
+  if (!token) throw new Error('No token from ApiUsers/Login');
+  cachedToken = token;
+  tokenExpiry = Date.now() + 6 * 60 * 60 * 1000;
+  return token;
+}
+
+async function sendPrognosisEmail(token: string, to: string, subject: string, html: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      EmailAddress: to,
+      CC: '',
+      BCC: '',
+      Subject: subject,
+      MessageBody: html,
+      Attachments: null,
+      Category: '',
+      UserId: 0,
+      ProviderId: 0,
+      ServiceId: 0,
+      Reference: '',
+      TransactionType: '',
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`SendEmailAlert HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,7 +95,6 @@ export async function POST(req: Request) {
 
   const groupId = session.user.companyId ?? '';
 
-  // For dependent invites, don't block on "already enrolled" — a principal can get multiple dep links
   if (inviteType === 'principal') {
     const existing = await prisma.memberInvitation.findFirst({
       where: { email, employeeCode, groupId, inviteType: 'principal', used: false, expiresAt: { gt: new Date() } },
@@ -57,7 +111,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   const invitation = await prisma.memberInvitation.create({
     data: {
@@ -78,19 +132,15 @@ export async function POST(req: Request) {
   const base = process.env.NEXTAUTH_URL ?? 'https://corporateportal.onrender.com';
   const url = `${base}/enroll/${invitation.token}`;
 
-  // Send enrolment link email to the staff member
   let emailSent = false;
   let emailError: string | null = null;
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.EMAIL_FROM ?? 'noreply@leadwayhealth.com';
 
-  if (apiKey) {
-    const isDependent = inviteType === 'dependent';
-    const subject = isDependent
-      ? 'Leadway Health — Add Your Dependants'
-      : 'Leadway Health — Complete Your Health Insurance Enrolment';
+  const isDependent = inviteType === 'dependent';
+  const subject = isDependent
+    ? 'Leadway Health — Add Your Dependants'
+    : 'Leadway Health — Complete Your Health Insurance Enrolment';
 
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F7F8FC;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
@@ -115,37 +165,24 @@ export async function POST(req: Request) {
         <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3B8;">Or copy this link</p>
         <p style="margin:0;font-size:12px;color:#131C4E;font-family:'Courier New',monospace;word-break:break-all;">${url}</p>
       </div>
-      <p style="margin:0 0 8px;font-size:12px;color:#9CA3B8;line-height:1.6;">⏰ This link expires in <strong>7 days</strong>. If it expires, please contact your HR team for a new one.</p>
-      ${!isDependent ? `<p style="margin:0;font-size:12px;color:#9CA3B8;line-height:1.6;">🔒 You will need your <strong>email address</strong> and <strong>employee code (${employeeCode})</strong> to verify your identity.</p>` : ''}
+      <p style="margin:0 0 8px;font-size:12px;color:#9CA3B8;line-height:1.6;">&#x23F0; This link expires in <strong>7 days</strong>. If it expires, please contact your HR team for a new one.</p>
+      ${!isDependent ? `<p style="margin:0;font-size:12px;color:#9CA3B8;line-height:1.6;">&#x1F512; You will need your <strong>email address</strong> and <strong>employee code (${employeeCode})</strong> to verify your identity.</p>` : ''}
     </div>
     <div style="border-top:1px solid #F0F1F5;padding:20px 40px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#C4C9D9;">© ${new Date().getFullYear()} Leadway Health. All rights reserved.</p>
+      <p style="margin:0;font-size:11px;color:#C4C9D9;">&copy; Leadway Health. All rights reserved.</p>
     </div>
   </div>
 </body>
 </html>`;
 
-    try {
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: `Leadway Health <${fromEmail}>`, to: [email], subject, html }),
-      });
-      const emailData = await emailRes.json() as Record<string, unknown>;
-      if (emailRes.ok) {
-        emailSent = true;
-        console.log(`[invite] Email sent to ${email}, id=${emailData.id}`);
-      } else {
-        emailError = String(emailData?.message ?? 'Email send failed');
-        console.error('[invite] Email error:', emailData);
-      }
-    } catch (err) {
-      emailError = err instanceof Error ? err.message : 'Email send failed';
-      console.error('[invite] Email exception:', err);
-    }
-  } else {
-    emailError = 'RESEND_API_KEY not configured';
-    console.warn('[invite] Email skipped: RESEND_API_KEY not set');
+  try {
+    const token = await getServiceToken();
+    await sendPrognosisEmail(token, email, subject, html);
+    emailSent = true;
+    console.log(`[invite] Email sent via Prognosis to ${email}`);
+  } catch (err) {
+    emailError = err instanceof Error ? err.message : 'Email send failed';
+    console.error('[invite] Email error:', err);
   }
 
   return NextResponse.json({ token: invitation.token, url, reused: false, emailSent, emailError });
