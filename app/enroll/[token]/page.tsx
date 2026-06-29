@@ -29,7 +29,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function EnrollPage() {
   const { token } = useParams<{ token: string }>();
-  const [status, setStatus]           = useState<'loading' | 'ready' | 'invalid' | 'expired' | 'used' | 'success' | 'error'>('loading');
+  const [status, setStatus]           = useState<'loading' | 'ready' | 'invalid' | 'expired' | 'used' | 'success' | 'add-deps' | 'error'>('loading');
   const [errorMsg, setErrorMsg]       = useState('');
   const [invitation, setInvitation]   = useState<InvitationMeta | null>(null);
   const [genders, setGenders]         = useState<ListItem[]>([]);
@@ -40,6 +40,7 @@ export default function EnrollPage() {
   const [enrollResult, setEnrollResult] = useState<{ enrolleeId: string; membershipNo: string } | null>(null);
   const [depEnrolled, setDepEnrolled] = useState<Array<{ enrolleeId: string; name: string }>>([]);
   const [remainingSlots, setRemainingSlots] = useState(1);
+  const [principalCifNumber, setPrincipalCifNumber] = useState<string | null>(null);
 
   // Form fields
   const [firstName, setFirstName]         = useState('');
@@ -104,24 +105,30 @@ export default function EnrollPage() {
     setErrorMsg(''); setStatus('ready');
   }
 
+  const isSelfDepScope = invitation?.scope === 'self-dependent' && !isDependent;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!invitation) return;
     setSubmitting(true);
     try {
+      const bodyPayload: Record<string, unknown> = {
+        email: (isDependent || principalCifNumber) ? (depEmail || invitation.email) : invitation.email,
+        employeeCode: invitation.employeeCode,
+        firstName, surname, otherNames, dateOfBirth, sexId,
+        maritalStatus, mobile, mobile2, postalTownId, address,
+        relationshipId,
+        preExistingCondition: preExisting || 'None',
+        enrolleePicture: photoBase64,
+        enrolleePictureType: photoType,
+      };
+      // For self-dep scope adding a dependent after principal enrolment
+      if (principalCifNumber) bodyPayload.parentCif = principalCifNumber;
+
       const res = await fetch(`/api/enroll/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: isDependent ? (depEmail || invitation.email) : invitation.email,
-          employeeCode: invitation.employeeCode,
-          firstName, surname, otherNames, dateOfBirth, sexId,
-          maritalStatus, mobile, mobile2, postalTownId, address,
-          relationshipId,
-          preExistingCondition: preExisting || 'None',
-          enrolleePicture: photoBase64,
-          enrolleePictureType: photoType,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -130,11 +137,18 @@ export default function EnrollPage() {
       } else {
         const enrolleeId = data.enrolleeId ?? '';
         const name = `${firstName} ${surname}`.trim();
-        if (isDependent) {
+        if (isDependent || principalCifNumber) {
+          // Dependent enrolment (or self-dep add after principal)
           setDepEnrolled(prev => [...prev, { enrolleeId, name }]);
           setRemainingSlots(prev => Math.max(0, prev - 1));
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
           setStatus('success');
+        } else if (isSelfDepScope && data.cifNumber) {
+          // Principal enrolled for self+dep scope — transition to dependent form
+          setPrincipalCifNumber(String(data.cifNumber));
+          setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
+          resetForm();
+          setStatus('add-deps');
         } else {
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
           setStatus('success');
@@ -225,10 +239,120 @@ export default function EnrollPage() {
           )}
 
           <p style={{ fontSize: 13, color: '#9CA3B8' }}>
-            {isDependent
+            {(isDependent || principalCifNumber)
               ? 'The HR team will be notified of this enrolment.'
               : 'Your HR team will follow up with your physical member card and further details.'}
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── "Add Dependants" phase for scope='self-dependent' ──────────────────
+  if (status === 'add-deps') {
+    const principalId = enrollResult?.enrolleeId || enrollResult?.membershipNo || '';
+    return (
+      <div style={{ minHeight: '100vh', background: '#F7F8FC', padding: '40px 16px' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+
+          {/* Principal enrolled banner */}
+          <div style={{ background: 'linear-gradient(135deg,#059669,#10B981)', borderRadius: 20, padding: '24px 32px', marginBottom: 24, color: '#fff', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <CheckCircle style={{ width: 24, height: 24 }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>You&apos;re Enrolled!</p>
+              <p style={{ fontSize: 13, opacity: 0.9 }}>Member ID: <strong style={{ fontFamily: 'monospace' }}>{principalId || '—'}</strong></p>
+              <p style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>Now add your dependants below.</p>
+            </div>
+          </div>
+
+          {/* Previously enrolled deps */}
+          {depEnrolled.length > 0 && (
+            <div style={{ background: '#fff', border: '1px solid #BBF7D0', borderRadius: 16, padding: '16px 20px', marginBottom: 20 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Dependants Added</p>
+              {depEnrolled.map((d, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none' }}>
+                  <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>{d.name || `Dependent ${i + 1}`}</span>
+                  <span style={{ fontSize: 13, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId || '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error */}
+          {status === 'add-deps' && errorMsg && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
+              <AlertCircle style={{ width: 16, height: 16, color: '#DC2626', flexShrink: 0, marginTop: 2 }} />
+              <span style={{ fontSize: 13, color: '#DC2626', lineHeight: 1.5 }}>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Dep form header */}
+          <div style={{ background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', borderRadius: 20, padding: '24px 32px', marginBottom: 24, color: '#fff' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 4 }}>Add Dependant</p>
+            <p style={{ fontSize: 18, fontWeight: 800 }}>{invitation?.schemeName}</p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div style={{ background: '#fff', borderRadius: 20, padding: '28px 32px', marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {[
+                  { label: 'First Name *', value: firstName, set: setFirstName, ph: '' },
+                  { label: 'Last Name *',  value: surname,   set: setSurname,   ph: '' },
+                ].map((f) => (
+                  <div key={f.label}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
+                    <input value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph} required style={inputStyle} />
+                  </div>
+                ))}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Date of Birth *</p>
+                  <input type="date" value={dateOfBirth} onChange={(e) => setDob(e.target.value)} required style={inputStyle} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Gender *</p>
+                  <select value={sexId} onChange={(e) => setSexId(e.target.value)} required style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+                    <option value="">Select</option>
+                    {genders.map((g) => <option key={g.value} value={g.value}>{g.text}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship *</p>
+                  <select value={relationshipId} onChange={(e) => setRelationship(e.target.value)} required style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+                    <option value="">Select</option>
+                    {relationships.filter((r) => r.text !== 'Main member' && r.text !== 'Principal').map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
+                  <select value={postalTownId} onChange={(e) => setStateId(e.target.value)} required style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+                    <option value="">Select state</option>
+                    {states.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Mobile</p>
+                  <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="e.g. 08012345678" style={inputStyle} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setStatus('success'); }}
+                style={{ flex: 1, height: 52, borderRadius: 14, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                Done — No More Dependants
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{ flex: 2, height: 52, borderRadius: 14, border: 'none', background: submitting ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: submitting ? '#9CA3B8' : '#fff', fontSize: 15, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,107,34,0.35)' }}>
+                {submitting ? 'Adding…' : 'Add Dependant'}
+              </button>
+            </div>
+          </form>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
     );

@@ -61,10 +61,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       fetchJson(`${BASE}/api/ListValues/GetRelationship`),
     ]);
 
-    const genders = (genderRaw?.result ?? genderRaw ?? []).map((r: Record<string,unknown>) => ({ text: String(r.Sex ?? ''), value: String(r.Sex_id ?? '') })).filter((g: {text:string;value:string}) => g.text);
-    const maritalStatuses = (maritalRaw?.result ?? maritalRaw ?? []).map((r: Record<string,unknown>) => ({ text: String(r.MaritalStatus ?? ''), value: String(r.Marital_statusid ?? '') })).filter((m: {text:string;value:string}) => m.text);
-    const states = (Array.isArray(statesRaw) ? statesRaw : []).map((r: Record<string,unknown>) => ({ text: String(r.Text ?? ''), value: String(r.Value ?? '') })).filter((s: {text:string;value:string}) => s.text);
-    const relationships = (relRaw?.result ?? relRaw ?? []).map((r: Record<string,unknown>) => ({ text: String(r.Relationship ?? r.relationship ?? ''), value: String(r.Relationship_ID ?? r.relationship_id ?? r.RelationshipID ?? '') })).filter((r: {text:string;value:string}) => r.text && r.value);
+    // Safely extract an array from any API response shape
+    const toArr = (v: unknown): Record<string, unknown>[] => {
+      if (Array.isArray(v)) return v as Record<string, unknown>[];
+      if (v && typeof v === 'object') {
+        const o = v as Record<string, unknown>;
+        for (const key of ['result', 'data', 'Data', 'Result', 'items', 'Items']) {
+          if (Array.isArray(o[key])) return o[key] as Record<string, unknown>[];
+        }
+      }
+      return [];
+    };
+
+    const genders = toArr(genderRaw).map((r) => ({ text: String(r.Sex ?? r.GenderName ?? r.gender ?? ''), value: String(r.Sex_id ?? r.GenderId ?? r.gender_id ?? '') })).filter((g) => g.text);
+    const maritalStatuses = toArr(maritalRaw).map((r) => ({ text: String(r.MaritalStatus ?? r.maritalStatus ?? r.Name ?? ''), value: String(r.Marital_statusid ?? r.maritalStatusId ?? r.Id ?? '') })).filter((m) => m.text);
+    const states = toArr(statesRaw).map((r) => ({ text: String(r.Text ?? r.StateName ?? r.state ?? r.Name ?? ''), value: String(r.Value ?? r.StateId ?? r.state_id ?? r.Id ?? '') })).filter((s) => s.text);
+    const relationships = toArr(relRaw).map((r) => ({ text: String(r.Relationship ?? r.relationship ?? r.Name ?? ''), value: String(r.Relationship_ID ?? r.relationship_id ?? r.RelationshipID ?? r.Id ?? '') })).filter((r) => r.text && r.value);
 
     return NextResponse.json({
       invitation: {
@@ -96,11 +108,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
   const invitation = await prisma.memberInvitation.findUnique({ where: { token } });
   if (!invitation) return NextResponse.json({ error: 'Invalid or expired enrolment link.' }, { status: 404 });
-  if (invitation.used) return NextResponse.json({ error: 'This enrolment link has already been used.' }, { status: 410 });
-  if (invitation.inviteType === 'dependent' && invitation.usedCount >= invitation.maxDependents) {
-    return NextResponse.json({ error: 'This dependent link has reached its maximum number of enrolments.' }, { status: 410 });
-  }
-  if (invitation.expiresAt < new Date()) return NextResponse.json({ error: 'This enrolment link has expired.' }, { status: 410 });
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch {
@@ -108,6 +115,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   }
 
   const isDependent = invitation.inviteType === 'dependent';
+
+  // Principal invite with scope='self-dependent': after principal enrols (token marked used),
+  // the member can still add dependants by passing parentCif in the body.
+  const isSelfDepAdd = !isDependent
+    && invitation.scope === 'self-dependent'
+    && !!(body.parentCif as string | number | undefined);
+
+  if (!isSelfDepAdd) {
+    if (invitation.used) return NextResponse.json({ error: 'This enrolment link has already been used.' }, { status: 410 });
+    if (invitation.inviteType === 'dependent' && invitation.usedCount >= invitation.maxDependents) {
+      return NextResponse.json({ error: 'This dependent link has reached its maximum number of enrolments.' }, { status: 410 });
+    }
+  }
+  if (invitation.expiresAt < new Date()) return NextResponse.json({ error: 'This enrolment link has expired.' }, { status: 410 });
 
   // For principal invites: validate email + employeeCode match
   if (!isDependent) {
@@ -125,8 +146,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     let apiUrl: string;
     let apiBody: unknown;
 
-    if (isDependent) {
-      if (!invitation.parentCif) {
+    if (isDependent || isSelfDepAdd) {
+      const resolvedParentCif = isDependent ? invitation.parentCif : String(body.parentCif ?? '');
+      if (!resolvedParentCif) {
         return NextResponse.json({ error: 'This dependent link is missing the principal reference. Please contact HR.' }, { status: 422 });
       }
       const depPayload = {
@@ -134,7 +156,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         schemeid: Number(invitation.schemeId) || invitation.schemeId,
         Scheme: invitation.schemeName,
         regionid: 1,
-        Parent_Cif: Number(invitation.parentCif),
+        Parent_Cif: Number(resolvedParentCif),
         FirstName: body.firstName,
         Surname: body.surname,
         othernames: body.otherNames ?? '',
@@ -212,15 +234,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       return NextResponse.json({ error: String(msg) }, { status: res.status });
     }
 
-    // For dependent links: increment usedCount; only mark fully used when limit reached
+    // For dependent links: increment usedCount; only mark fully used when limit reached.
+    // For self-dep-add (principal token used for adding deps): only increment usedCount.
     const newUsedCount = (invitation.usedCount ?? 0) + 1;
-    const fullyUsed = invitation.inviteType !== 'dependent' || newUsedCount >= invitation.maxDependents;
+    const fullyUsed = !isSelfDepAdd && (invitation.inviteType !== 'dependent' || newUsedCount >= invitation.maxDependents);
     await prisma.memberInvitation.update({
       where: { token },
       data: {
         usedCount: newUsedCount,
-        used: fullyUsed,
-        usedAt: fullyUsed ? new Date() : undefined,
+        ...(fullyUsed ? { used: true, usedAt: new Date() } : {}),
       },
     });
 

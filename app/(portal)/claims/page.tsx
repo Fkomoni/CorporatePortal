@@ -203,9 +203,6 @@ export default function ClaimsPage() {
                   <span className="text-[12px] font-bold text-[#F56B22] font-mono truncate">{c.claimRef}</span>
                   <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-[#131C4E] truncate">{c.memberName || initials}</p>
-                    {c.principalName && c.principalName !== c.memberName && (
-                      <p className="text-[10px] text-[#B0B7C9] truncate">via {c.principalName}</p>
-                    )}
                   </div>
                   <span className="text-[11px] text-[#9CA3B8] font-mono truncate">{c.employeeId || '—'}</span>
                   <span className="text-[12px] font-mono font-bold text-[#F56B22] truncate">{c.icdCode || '—'}</span>
