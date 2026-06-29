@@ -346,7 +346,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to generate link'); return; }
         setGeneratedUrl(data.url);
-        toast('Enrolment link generated! Copy it below.', 'success');
+        if (data.emailSent) {
+          toast(`Enrolment link sent to ${linkEmail}!`, 'success');
+        } else {
+          toast('Link generated — email could not be sent, copy and share manually.', 'success');
+        }
         return;
       }
 
@@ -806,7 +810,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
                   {generatedUrl && (
                     <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 16px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link generated — copy and send to the staff member:</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 4 }}>✓ Enrolment link sent to {linkEmail}</p>
+                      <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 10 }}>The staff member will receive an email with the link. You can also copy it below as a backup:</p>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                         <input readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
                         <button onClick={() => copyText(generatedUrl, 'Link copied!')}
