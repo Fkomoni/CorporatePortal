@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { cacheGet, cacheSet } from '@/lib/server-cache';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -42,9 +43,18 @@ export interface GenderOption       { text: string; value: string; }
 export interface MaritalOption      { text: string; value: string; }
 export interface StateOption        { text: string; value: string; }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const fresh = searchParams.get('fresh') === '1';
+  const CACHE_KEY = 'list-values';
+
+  if (!fresh) {
+    const cached = cacheGet<object>(CACHE_KEY);
+    if (cached) return NextResponse.json({ ...cached, cached: true });
+  }
 
   try {
     const token = await getServiceToken();
@@ -89,7 +99,9 @@ export async function GET() {
       return { text: String(r.Text ?? r.text ?? '').trim(), value: String(r.Value ?? r.value ?? '') };
     }).filter((s) => s.text && s.value);
 
-    return NextResponse.json({ relationships, genders, maritalStatuses, states });
+    const payload = { relationships, genders, maritalStatuses, states };
+    cacheSet(CACHE_KEY, payload);
+    return NextResponse.json(payload);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err), relationships: [], genders: [], maritalStatuses: [], states: [] },
