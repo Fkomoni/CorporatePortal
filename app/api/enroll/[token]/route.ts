@@ -61,10 +61,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       fetchJson(`${BASE}/api/ListValues/GetRelationship`),
     ]);
 
-    const genders = (genderRaw?.result ?? genderRaw ?? []).map((r: Record<string,unknown>) => ({ text: String(r.Sex ?? ''), value: String(r.Sex_id ?? '') })).filter((g: {text:string;value:string}) => g.text);
-    const maritalStatuses = (maritalRaw?.result ?? maritalRaw ?? []).map((r: Record<string,unknown>) => ({ text: String(r.MaritalStatus ?? ''), value: String(r.Marital_statusid ?? '') })).filter((m: {text:string;value:string}) => m.text);
-    const states = (Array.isArray(statesRaw) ? statesRaw : []).map((r: Record<string,unknown>) => ({ text: String(r.Text ?? ''), value: String(r.Value ?? '') })).filter((s: {text:string;value:string}) => s.text);
-    const relationships = (relRaw?.result ?? relRaw ?? []).map((r: Record<string,unknown>) => ({ text: String(r.Relationship ?? r.relationship ?? ''), value: String(r.Relationship_ID ?? r.relationship_id ?? r.RelationshipID ?? '') })).filter((r: {text:string;value:string}) => r.text && r.value);
+    // Safely extract an array from any API response shape
+    const toArr = (v: unknown): Record<string, unknown>[] => {
+      if (Array.isArray(v)) return v as Record<string, unknown>[];
+      if (v && typeof v === 'object') {
+        const o = v as Record<string, unknown>;
+        for (const key of ['result', 'data', 'Data', 'Result', 'items', 'Items']) {
+          if (Array.isArray(o[key])) return o[key] as Record<string, unknown>[];
+        }
+      }
+      return [];
+    };
+
+    const genders = toArr(genderRaw).map((r) => ({ text: String(r.Sex ?? r.GenderName ?? r.gender ?? ''), value: String(r.Sex_id ?? r.GenderId ?? r.gender_id ?? '') })).filter((g) => g.text);
+    const maritalStatuses = toArr(maritalRaw).map((r) => ({ text: String(r.MaritalStatus ?? r.maritalStatus ?? r.Name ?? ''), value: String(r.Marital_statusid ?? r.maritalStatusId ?? r.Id ?? '') })).filter((m) => m.text);
+    const states = toArr(statesRaw).map((r) => ({ text: String(r.Text ?? r.StateName ?? r.state ?? r.Name ?? ''), value: String(r.Value ?? r.StateId ?? r.state_id ?? r.Id ?? '') })).filter((s) => s.text);
+    const relationships = toArr(relRaw).map((r) => ({ text: String(r.Relationship ?? r.relationship ?? r.Name ?? ''), value: String(r.Relationship_ID ?? r.relationship_id ?? r.RelationshipID ?? r.Id ?? '') })).filter((r) => r.text && r.value);
 
     return NextResponse.json({
       invitation: {
