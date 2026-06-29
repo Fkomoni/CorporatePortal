@@ -175,7 +175,7 @@ export default function ClaimsPage() {
               <span>Member</span>
               <span>Enrolee ID</span>
               <span>Provider</span>
-              <span>Diagnosis / Procedure</span>
+              <span>ICD Code / Diagnosis</span>
               <span>Category</span>
               <span className="text-right">Amount</span>
               <span>Status</span>
@@ -211,8 +211,10 @@ export default function ClaimsPage() {
                     <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '—'}</p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] text-[#131C4E] truncate font-medium" title={c.diagnosis || ''}>{c.diagnosis || '—'}</p>
-                    {c.icdCode && <p className="text-[10px] text-[#9CA3B8] truncate font-mono mt-0.5">{c.icdCode}</p>}
+                    <p className="text-[11px] text-[#131C4E] truncate font-medium" title={c.icdDescription || c.diagnosis || ''}>
+                      {c.icdCode ? <span className="font-mono text-[#F56B22] mr-1">{c.icdCode}</span> : null}
+                      {c.icdDescription || c.diagnosis || '—'}
+                    </p>
                   </div>
                   <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
                   <span className="text-[13px] font-bold text-[#131C4E] text-right">{vis.showAmounts ? fmt(c.amount) : '—'}</span>
