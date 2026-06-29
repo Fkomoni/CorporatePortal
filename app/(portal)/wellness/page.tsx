@@ -9,6 +9,155 @@ import {
 import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
 
+// ── Health Talk Topics ────────────────────────────────────────────────────────
+
+const HEALTH_TALK_CATEGORIES: { category: string; color: string; topics: string[] }[] = [
+  {
+    category: 'Human Behaviour',
+    color: '#F56B22',
+    topics: [
+      'Alcohol and Substance Abuse',
+      'Accident Preparedness and First Aid',
+      'Benefits of Physical Exercise',
+      'Benefits of Yoga, Meditation and Mindfulness',
+      'Blood Donation and Voluntary Service',
+      'Causes and Prevention of Road Traffic Accidents',
+      'Challenges of Sedentary Lifestyle',
+      'Dangers of Drug Abuse',
+      'Dangers of Smoking',
+      'Employee Wellness and Productivity',
+      'Ergonomics in the Workplace',
+      'Food Poisoning and Hygiene',
+      'Healthy Ageing',
+      'How to Identify Quality Health Care',
+      'Nutrition and Balanced Diet',
+      'Occupational Health and Safety',
+      'Personal Hygiene and Health',
+      'Prevention of Workplace Injuries',
+      'Stress Management in the Workplace',
+      'The Importance of Regular Medical Checkups',
+      'Understanding Health Insurance',
+    ],
+  },
+  {
+    category: 'Health and Wellbeing',
+    color: '#059669',
+    topics: [
+      'Antenatal and Postnatal Care',
+      'Benefits of Breastfeeding',
+      'Bone Health and Osteoporosis Prevention',
+      'Child Health and Immunisation',
+      'Contraception and Family Planning',
+      'Dental Health and Oral Hygiene',
+      'Eye Health and Vision Care',
+      'Fibroids: Causes, Symptoms and Treatment',
+      'Healthy Eating During Pregnancy',
+      'Healthy Weight Management',
+      'Importance of Vaccination for Adults',
+      'Management of Chronic Pain',
+      'Managing Allergies and Asthma',
+      'Menopause: Symptoms and Management',
+      "Men's Health Awareness",
+      'Nutrition for the Elderly',
+      'Preventing Back Pain',
+      'Sexual and Reproductive Health',
+      'Skin Care and Dermatology',
+      'Understanding Anaemia',
+      "Women's Health Awareness",
+    ],
+  },
+  {
+    category: 'Fatigue',
+    color: '#D97706',
+    topics: [
+      'Causes and Effects of Workplace Fatigue',
+      'Compassion Fatigue in Caregivers',
+      'Fatigue and Occupational Safety',
+      'Managing Chronic Fatigue Syndrome',
+      'Mental Fatigue and Cognitive Performance',
+      'Nutrition Strategies to Combat Fatigue',
+      'Physical Fatigue vs Mental Fatigue',
+      'Recognising and Preventing Burnout',
+      'Shift Work and Fatigue Management',
+      'The Role of Hydration in Energy Levels',
+    ],
+  },
+  {
+    category: 'Healthy Sleep',
+    color: '#7C3AED',
+    topics: [
+      'Building a Healthy Sleep Routine',
+      'Effects of Sleep Deprivation on Health',
+      'How Screen Time Affects Sleep Quality',
+      'Managing Insomnia Naturally',
+      'Shift Work and Sleep Disorders',
+      'Sleep Apnoea: Awareness and Treatment',
+      'Sleep and Mental Health',
+      'Sleep and Weight Management',
+      'The Science of Sleep Cycles',
+      'Tips for Better Sleep Hygiene',
+    ],
+  },
+  {
+    category: 'Communicable Diseases',
+    color: '#DC2626',
+    topics: [
+      'Cholera: Prevention and Control',
+      'COVID-19: Prevention and Management',
+      'Hepatitis B and C Awareness',
+      'HIV/AIDS: Prevention, Treatment and Living with HIV',
+      'Lassa Fever Awareness',
+      'Malaria Prevention and Treatment',
+      'Monkeypox Awareness',
+      'Prevention of Sexually Transmitted Infections (STIs)',
+      'Tuberculosis (TB) Awareness',
+      'Typhoid Fever Prevention',
+      'Understanding Meningitis',
+      'Yellow Fever and Vaccination',
+    ],
+  },
+  {
+    category: 'Non-Communicable Diseases',
+    color: '#2563EB',
+    topics: [
+      'Arthritis: Types, Symptoms and Management',
+      'Cancer Awareness and Early Detection',
+      'Cervical Cancer and HPV Prevention',
+      'Colorectal Cancer Awareness',
+      'Diabetes: Prevention, Management and Complications',
+      'Epilepsy Awareness and Management',
+      'Heart Disease Prevention',
+      'Hypertension: Causes, Risks and Management',
+      'Kidney Disease Awareness',
+      'Liver Disease and Prevention',
+      'Lung Health and COPD',
+      'Obesity and Metabolic Syndrome',
+      'Prostate Cancer Awareness',
+      'Stroke: Prevention, Recognition and Response',
+      'Thyroid Disorders Awareness',
+      'Understanding Sickle Cell Disease',
+    ],
+  },
+  {
+    category: 'Mental Wellness',
+    color: '#0891B2',
+    topics: [
+      'Anxiety Disorders: Recognising and Managing Anxiety',
+      'Building Emotional Resilience',
+      'Burnout: Causes, Symptoms and Recovery',
+      'Dealing with Grief and Loss',
+      'Depression: Awareness and Support',
+      'Managing Work-Life Balance',
+      'Mental Health First Aid in the Workplace',
+      'Post-Traumatic Stress Disorder (PTSD) Awareness',
+      'Stress and Coping Strategies',
+      'Suicide Prevention Awareness',
+      'Understanding and Reducing Stigma around Mental Illness',
+      'Well-being and Self-Care Strategies',
+    ],
+  },
+];
+
 // ── Mock data ─────────────────────────────────────────────────────────────────
 
 const SCREENING_STATS = {
@@ -69,6 +218,8 @@ export default function WellnessPage() {
 
   // Health talks form
   const [talkType, setTalkType]       = useState<'onsite' | 'virtual'>('onsite');
+  const [talkCategory, setTalkCategory] = useState('');
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [talkTopic, setTalkTopic]     = useState('');
   const [talkDate, setTalkDate]       = useState('');
   const [talkDuration, setTalkDuration] = useState('60');
@@ -190,9 +341,34 @@ export default function WellnessPage() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={labelStyle}>Talk Topic / Title</label>
-                  <input value={talkTopic} onChange={(e) => setTalkTopic(e.target.value)} placeholder="e.g. Stress Management & Mental Wellness" style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
+                <div>
+                  <label style={labelStyle}>Topic Category</label>
+                  <select
+                    value={talkCategory}
+                    onChange={(e) => { setTalkCategory(e.target.value); setTalkTopic(''); }}
+                    style={{ ...inputStyle, appearance: 'none' }}
+                    onFocus={focusIn} onBlur={focusOut}
+                  >
+                    <option value="">Select a category…</option>
+                    {HEALTH_TALK_CATEGORIES.map((c) => (
+                      <option key={c.category} value={c.category}>{c.category}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Talk Topic</label>
+                  <select
+                    value={talkTopic}
+                    onChange={(e) => setTalkTopic(e.target.value)}
+                    disabled={!talkCategory}
+                    style={{ ...inputStyle, appearance: 'none', opacity: talkCategory ? 1 : 0.5, cursor: talkCategory ? 'pointer' : 'not-allowed' }}
+                    onFocus={focusIn} onBlur={focusOut}
+                  >
+                    <option value="">{talkCategory ? 'Select a topic…' : 'Choose a category first'}</option>
+                    {(HEALTH_TALK_CATEGORIES.find((c) => c.category === talkCategory)?.topics ?? []).map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={labelStyle}>Preferred Date</label>
@@ -215,7 +391,7 @@ export default function WellnessPage() {
               </div>
 
               <button
-                onClick={() => { if (talkTopic && talkDate && talkAttendees) { setTalkSent(true); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes(''); } }}
+                onClick={() => { if (talkTopic && talkDate && talkAttendees) { setTalkSent(true); setTalkCategory(''); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes(''); } }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
                 <Send style={{ width: 14, height: 14 }} /> Send Request to Client Services
               </button>
@@ -223,31 +399,55 @@ export default function WellnessPage() {
               {talkSent && <SuccessBanner message="Request sent! Leadway Health client services will reach out within 1 business day to confirm." />}
             </div>
 
-            {/* Info panel */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ ...card, padding: '22px 24px' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 14 }}>Available Talk Topics</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    'Stress & Mental Wellness',
-                    'Hypertension & Heart Health',
-                    'Diabetes Awareness',
-                    'Nutrition & Healthy Eating',
-                    "Women's Health & Fertility",
-                    'Cancer Screening Awareness',
-                    'Physical Activity & Exercise',
-                    'Eye & Dental Health',
-                  ].map((t) => (
-                    <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F56B22', flexShrink: 0 }} />
-                      <p style={{ fontSize: 12, color: '#374151' }}>{t}</p>
-                    </div>
-                  ))}
-                </div>
+            {/* Topic browser sidebar — accordion */}
+            <div style={{ ...card, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #F0F1F5' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Leadway HMO Topic Library</p>
+                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>Click a category to browse topics</p>
               </div>
-              <div style={{ borderRadius: 16, padding: '20px 22px', background: 'linear-gradient(135deg,#131C4E,#3A4382)', color: '#fff' }}>
-                <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Need a custom topic?</p>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Describe your preferred health topic in the notes field and the client services team will advise on availability.</p>
+              <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                {HEALTH_TALK_CATEGORIES.map((cat) => {
+                  const isOpen = expandedCats.has(cat.category);
+                  return (
+                    <div key={cat.category} style={{ borderBottom: '1px solid #F7F8FA' }}>
+                      {/* Category header */}
+                      <button
+                        onClick={() => {
+                          const next = new Set(expandedCats);
+                          if (isOpen) next.delete(cat.category); else next.add(cat.category);
+                          setExpandedCats(next);
+                        }}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>{cat.category}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#9CA3B8', background: '#F0F1F5', borderRadius: 99, padding: '1px 7px' }}>{cat.topics.length}</span>
+                        </div>
+                        <span style={{ fontSize: 14, color: '#9CA3B8', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
+                      </button>
+
+                      {/* Topics */}
+                      {isOpen && (
+                        <div style={{ padding: '4px 20px 12px 20px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {cat.topics.map((t) => {
+                            const sel = talkTopic === t && talkCategory === cat.category;
+                            return (
+                              <button
+                                key={t}
+                                onClick={() => { setTalkCategory(cat.category); setTalkTopic(t); }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, background: sel ? `${cat.color}12` : 'transparent', border: sel ? `1px solid ${cat.color}40` : '1px solid transparent', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.1s' }}
+                              >
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: sel ? cat.color : '#D1D5DB', flexShrink: 0 }} />
+                                <span style={{ fontSize: 11.5, color: sel ? cat.color : '#374151', fontWeight: sel ? 600 : 400 }}>{t}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
