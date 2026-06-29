@@ -297,20 +297,20 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   }
 
   function copyText(text: string, label = 'Copied!') {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(() => toast(label, 'success')).catch(() => fallbackCopy(text, label));
-    } else {
-      fallbackCopy(text, label);
-    }
-  }
-  function fallbackCopy(text: string, label: string) {
+    // Always do the textarea trick first (works inside modals/dialogs where
+    // navigator.clipboard requires a top-level browsing context focus).
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
+    ta.setSelectionRange(0, 99999);
+    try { document.execCommand('copy'); } catch { /* ignore */ }
     document.body.removeChild(ta);
+    // Also try the modern API in case execCommand is deprecated in the browser.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { /* already copied via execCommand */ });
+    }
     toast(label, 'success');
   }
 
@@ -1004,19 +1004,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 4 }}>✓ Enrolment link sent to {linkEmail}</p>
                       <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 10 }}>The staff member will receive an email with the link. You can also copy it below as a backup:</p>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <input id="generated-url-input" readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
-                        <button onClick={() => {
-                          const inp = document.getElementById('generated-url-input') as HTMLInputElement | null;
-                          if (inp) { inp.select(); inp.setSelectionRange(0, 99999); }
-                          if (navigator.clipboard?.writeText) {
-                            navigator.clipboard.writeText(generatedUrl)
-                              .then(() => toast('Link copied!', 'success'))
-                              .catch(() => { document.execCommand('copy'); toast('Link copied!', 'success'); });
-                          } else {
-                            document.execCommand('copy');
-                            toast('Link copied!', 'success');
-                          }
-                        }}
+                        <input readOnly value={generatedUrl} style={{ ...inputStyle, flex: 1, background: '#fff', fontSize: 12 }} />
+                        <button onClick={() => copyText(generatedUrl, 'Link copied!')}
                           style={{ height: 40, padding: '0 14px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 10, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Copy
                         </button>
@@ -1864,9 +1853,15 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input readOnly value={depGeneratedUrl} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
                         <button onClick={() => {
-                          if (navigator.clipboard?.writeText) {
-                            navigator.clipboard.writeText(depGeneratedUrl).then(() => toast('Link copied!', 'success')).catch(() => { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Link copied!', 'success'); });
-                          } else { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Link copied!', 'success'); }
+                          const ta = document.createElement('textarea');
+                          ta.value = depGeneratedUrl;
+                          ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+                          document.body.appendChild(ta);
+                          ta.select(); ta.setSelectionRange(0, 99999);
+                          try { document.execCommand('copy'); } catch { /* ignore */ }
+                          document.body.removeChild(ta);
+                          if (navigator.clipboard?.writeText) navigator.clipboard.writeText(depGeneratedUrl).catch(() => {});
+                          toast('Link copied!', 'success');
                         }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
                       </div>
                     </div>
