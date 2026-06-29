@@ -771,6 +771,24 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
   const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
   const [sendingId, setSendingId]           = useState(false);
+  const [depSubmitting, setDepSubmitting]   = useState(false);
+  const [depError, setDepError]             = useState('');
+  const [depGeneratedUrl, setDepGeneratedUrl] = useState('');
+
+  // Dependent form state
+  const [depFirstName, setDepFirstName]     = useState('');
+  const [depLastName, setDepLastName]       = useState('');
+  const [depDob, setDepDob]                 = useState('');
+  const [depSexId, setDepSexId]             = useState('');
+  const [depEmail, setDepEmail]             = useState('');
+  const [depMobile, setDepMobile]           = useState('');
+  const [depStateId, setDepStateId]         = useState('');
+  const [depRelId, setDepRelId]             = useState('');
+  const [depMarital, setDepMarital]         = useState('');
+
+  // Link tab state
+  const [depMaxCount, setDepMaxCount]       = useState(1);
+  const [depLinkEmail, setDepLinkEmail]     = useState(member.email ?? '');
   const avatarInputRef                      = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
@@ -804,6 +822,72 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       toast('Failed to send email. Please try again.', 'error');
     } finally {
       setSendingId(false);
+    }
+  }
+
+  const remainingSlots = Math.max(0, maxFamilySize - 1 - depCount);
+
+  async function handleDepSubmit() {
+    if (depSubmitting) return;
+    setDepError('');
+    setDepSubmitting(true);
+    try {
+      if (depAction === 'form') {
+        if (!depFirstName || !depLastName || !depDob || !depSexId || !depStateId || !depRelId) {
+          setDepError('Please fill all required fields: First Name, Last Name, Date of Birth, Gender, State and Relationship.');
+          return;
+        }
+        const res = await fetch('/api/hr/members/add-dependents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parentCif: Number(member.cifNumber) || member.cifNumber,
+            schemeId: member.id,
+            schemeName: member.plan,
+            employeeCode: member.employeeId,
+            dependents: [{
+              firstName: depFirstName,
+              surname: depLastName,
+              dateOfBirth: depDob,
+              sexId: depSexId,
+              maritalStatus: depMarital,
+              email: depEmail,
+              mobile: depMobile,
+              postalTownId: depStateId,
+              relationshipId: depRelId,
+            }],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { setDepError(data.error ?? 'Failed to add dependent'); return; }
+        toast(`Dependent added successfully!`, 'success');
+        setShowAddDep(false);
+      } else {
+        // Send link
+        if (!depLinkEmail) { setDepError('Member email is required to send the link.'); return; }
+        const res = await fetch('/api/hr/members/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: depLinkEmail,
+            employeeCode: member.employeeId,
+            schemeId: member.id,
+            schemeName: member.plan,
+            inviteType: 'dependent',
+            parentCif: String(member.cifNumber ?? ''),
+            maxDependents: depMaxCount,
+            scope: 'self-dependent',
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { setDepError(data.error ?? 'Failed to generate link'); return; }
+        setDepGeneratedUrl(data.url);
+        toast('Dependent enrolment link generated!', 'success');
+      }
+    } catch (err) {
+      setDepError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+    } finally {
+      setDepSubmitting(false);
     }
   }
 
@@ -1145,65 +1229,142 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
             {/* scrollable form */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '4px 24px 8px' }}>
 
-              {depAction === 'form' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 2px' }}>
-                    <PhotoUpload size={72} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {[
-                      { label: 'First Name',    placeholder: 'e.g. Chidi' },
-                      { label: 'Last Name',     placeholder: member.lastName },
-                      { label: 'Date of Birth', placeholder: 'DD MMM YYYY' },
-                      { label: 'Phone',         placeholder: 'Optional' },
-                    ].map((f) => (
-                      <div key={f.label}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
-                        <input placeholder={f.placeholder}
-                          style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Gender</p>
-                      <select style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
-                        {['Female', 'Male'].map((o) => <option key={o}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship</p>
-                      <select style={{ width: '100%', height: 40, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
-                        <option value="">Select relationship</option>
-                        {relationshipOptions
-                          .filter((r) => r.text !== 'Main member')
-                          .map((r) => (
-                            <option key={r.value} value={r.value}>{r.text}</option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
+              {/* Error banner */}
+              {depError && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
+                  <AlertCircle style={{ width: 14, height: 14, color: '#DC2626', flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 12, color: '#DC2626', lineHeight: 1.5 }}>{depError}</span>
                 </div>
               )}
 
+              {/* ── HR fills form ── */}
+              {depAction === 'form' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {([
+                      { label: 'First Name *',    value: depFirstName, set: setDepFirstName, ph: 'e.g. Chidi'   },
+                      { label: 'Last Name *',     value: depLastName,  set: setDepLastName,  ph: member.lastName },
+                      { label: 'Email',           value: depEmail,     set: setDepEmail,     ph: 'optional', type: 'email' },
+                      { label: 'Mobile',          value: depMobile,    set: setDepMobile,    ph: 'optional', type: 'tel'   },
+                      { label: 'Date of Birth *', value: depDob,       set: setDepDob,       ph: '',         type: 'date'  },
+                    ] as Array<{label:string;value:string;set:(v:string)=>void;ph:string;type?:string}>).map((f) => (
+                      <div key={f.label}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
+                        <input type={f.type ?? 'text'} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph}
+                          style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                          onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
+                      </div>
+                    ))}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Gender *</p>
+                      <select value={depSexId} onChange={(e) => setDepSexId(e.target.value)}
+                        style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: depSexId ? '#131C4E' : '#9CA3B8', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                        <option value="">Select</option>
+                        <option value="1">Male</option>
+                        <option value="2">Female</option>
+                      </select>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Marital Status</p>
+                      <select value={depMarital} onChange={(e) => setDepMarital(e.target.value)}
+                        style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: depMarital ? '#131C4E' : '#9CA3B8', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                        <option value="">Select</option>
+                        <option value="1">Single</option>
+                        <option value="2">Married</option>
+                        <option value="3">Divorced</option>
+                        <option value="4">Widowed</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
+                      <select value={depStateId} onChange={(e) => setDepStateId(e.target.value)}
+                        style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: depStateId ? '#131C4E' : '#9CA3B8', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                        <option value="">Select state</option>
+                        {/* populated from parent via relationshipOptions — states passed as prop elsewhere; use hardcoded common ones */}
+                        {[{v:'1',t:'Abia'},{v:'2',t:'Adamawa'},{v:'3',t:'Akwa Ibom'},{v:'4',t:'Anambra'},{v:'5',t:'Bauchi'},{v:'6',t:'Bayelsa'},{v:'7',t:'Benue'},{v:'8',t:'Borno'},{v:'9',t:'Cross River'},{v:'10',t:'Delta'},{v:'11',t:'Ebonyi'},{v:'12',t:'Edo'},{v:'13',t:'Ekiti'},{v:'14',t:'Enugu'},{v:'15',t:'FCT'},{v:'16',t:'Gombe'},{v:'17',t:'Imo'},{v:'18',t:'Jigawa'},{v:'19',t:'Kaduna'},{v:'20',t:'Kano'},{v:'21',t:'Katsina'},{v:'22',t:'Kebbi'},{v:'23',t:'Kogi'},{v:'24',t:'Kwara'},{v:'25',t:'Lagos'},{v:'26',t:'Nasarawa'},{v:'27',t:'Niger'},{v:'28',t:'Ogun'},{v:'29',t:'Ondo'},{v:'30',t:'Osun'},{v:'31',t:'Oyo'},{v:'32',t:'Plateau'},{v:'33',t:'Rivers'},{v:'34',t:'Sokoto'},{v:'35',t:'Taraba'},{v:'36',t:'Yobe'},{v:'37',t:'Zamfara'}].map((s) => <option key={s.v} value={s.v}>{s.t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship *</p>
+                      <select value={depRelId} onChange={(e) => setDepRelId(e.target.value)}
+                        style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: depRelId ? '#131C4E' : '#9CA3B8', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                        <option value="">Select relationship</option>
+                        {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => (
+                          <option key={r.value} value={r.value}>{r.text}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {!member.cifNumber && (
+                    <div style={{ padding: '10px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FDE68A' }}>
+                      <p style={{ fontSize: 11, color: '#D97706' }}>⚠ Principal CIF not available — dependent may fail. Try refreshing the member list.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Send link to member ── */}
               {depAction === 'link' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ padding: '14px 16px', background: '#F7F8FC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Link will be sent to</p>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>{member.email}</p>
-                  </div>
-                  <div style={{ padding: '14px 16px', background: '#ECFDF5', borderRadius: 14, border: '1px solid #BBF7D0' }}>
-                    <p style={{ fontSize: 12, color: '#059669', lineHeight: 1.6 }}>
-                      {member.firstName} will receive a secure link to register their additional dependent — they fill in the details and upload any required documents themselves.
+
+                  {/* Max dependents selector */}
+                  <div style={{ background: '#F7F8FC', borderRadius: 14, border: '1px solid #EDEEF2', padding: '14px 16px' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+                      How many dependants can this link register?
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button onClick={() => setDepMaxCount((n) => Math.max(1, n - 1))}
+                        style={{ width: 36, height: 36, borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#131C4E' }}>−</button>
+                      <div style={{ flex: 1, textAlign: 'center' }}>
+                        <p style={{ fontSize: 28, fontWeight: 900, color: '#131C4E', lineHeight: 1 }}>{depMaxCount}</p>
+                        <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>
+                          dependant{depMaxCount !== 1 ? 's' : ''} allowed
+                        </p>
+                      </div>
+                      <button onClick={() => setDepMaxCount((n) => Math.min(remainingSlots || 10, n + 1))}
+                        style={{ width: 36, height: 36, borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#131C4E' }}>+</button>
+                    </div>
+                    <p style={{ fontSize: 11, color: '#9CA3B8', textAlign: 'center', marginTop: 8 }}>
+                      Plan limit: {maxFamilySize - 1} dependant{maxFamilySize - 1 !== 1 ? 's' : ''} total · {depCount} already registered · <strong style={{ color: remainingSlots > 0 ? '#059669' : '#DC2626' }}>{remainingSlots} slot{remainingSlots !== 1 ? 's' : ''} remaining</strong>
                     </p>
                   </div>
-                  {depCount >= maxFamilySize && (
-                    <div style={{ padding: '12px 16px', background: '#FFFBEB', borderRadius: 14, border: '1px solid #FDE68A' }}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#D97706' }}>
-                        ⚠ This member already has {depCount} dependant{depCount !== 1 ? 's' : ''} — the plan limit is {maxFamilySize}. Adding more may be rejected by Prognosis.
-                      </p>
+
+                  {/* Email */}
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Send Link To</p>
+                    <input type="email" value={depLinkEmail} onChange={(e) => setDepLinkEmail(e.target.value)}
+                      placeholder="member@company.com"
+                      style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
+                  </div>
+
+                  <div style={{ padding: '12px 14px', background: '#ECFDF5', borderRadius: 12, border: '1px solid #BBF7D0' }}>
+                    <p style={{ fontSize: 12, color: '#059669', lineHeight: 1.6 }}>
+                      {member.firstName} will receive a secure link to register up to <strong>{depMaxCount}</strong> dependant{depMaxCount !== 1 ? 's' : ''} themselves.
+                    </p>
+                  </div>
+
+                  {remainingSlots === 0 && (
+                    <div style={{ padding: '10px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FDE68A' }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#D97706' }}>⚠ This member has used all dependant slots on their plan. Adding more may be rejected.</p>
+                    </div>
+                  )}
+
+                  {/* Generated link */}
+                  {depGeneratedUrl && (
+                    <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 12, padding: '12px 14px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link ready — copy and share:</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input readOnly value={depGeneratedUrl} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
+                        <button onClick={() => {
+                          if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(depGeneratedUrl); } else { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+                          toast('Copied!', 'success');
+                        }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1212,22 +1373,16 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
 
             {/* sheet footer */}
             <div style={{ padding: '12px 24px 20px', borderTop: '1px solid #F0F1F5', display: 'flex', gap: 10, flexShrink: 0 }}>
-              <button onClick={() => setShowAddDep(false)}
+              <button onClick={() => { setShowAddDep(false); setDepError(''); setDepGeneratedUrl(''); }}
                 style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
-                Cancel
+                {depGeneratedUrl ? 'Done' : 'Cancel'}
               </button>
-              <button
-                onClick={() => {
-                  if (depAction === 'form') {
-                    toast(`Dependent added to ${member.firstName} ${member.lastName}'s policy.`, 'info');
-                  } else {
-                    toast(`Add-dependent link sent to ${member.email}.`, 'info');
-                  }
-                  setShowAddDep(false);
-                }}
-                style={{ flex: 2, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.28)' }}>
-                {depAction === 'form' ? 'Add Dependent' : 'Send Link'}
-              </button>
+              {!depGeneratedUrl && (
+                <button onClick={handleDepSubmit} disabled={depSubmitting}
+                  style={{ flex: 2, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', background: depSubmitting ? '#F0F1F5' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 14, cursor: depSubmitting ? 'not-allowed' : 'pointer', boxShadow: depSubmitting ? 'none' : '0 2px 8px rgba(16,185,129,0.28)' }}>
+                  {depSubmitting ? 'Please wait…' : depAction === 'form' ? 'Add Dependent' : 'Generate & Send Link'}
+                </button>
+              )}
             </div>
           </div>
         )}

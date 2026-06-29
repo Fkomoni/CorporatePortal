@@ -173,6 +173,8 @@ function mapRow(
   );
   const premium = premiumRaw > 0 ? premiumRaw : undefined;
 
+  const cifNumber = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber', 'MemberCifNo', 'CIF_No');
+
   return {
     id: enrolleeId || String(index),
     employeeId: enrolleeId || `EMP${String(index + 1).padStart(4, '0')}`,
@@ -189,6 +191,7 @@ function mapRow(
     enrollmentDate: enrollDate || '',
     dependants,
     premium,
+    cifNumber: cifNumber || undefined,
   };
 }
 

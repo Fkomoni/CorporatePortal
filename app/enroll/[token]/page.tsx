@@ -12,6 +12,11 @@ interface InvitationMeta {
   schemeId: string;
   schemeName: string;
   scope: string;
+  inviteType: string;
+  parentCif?: string;
+  maxDependents: number;
+  usedCount: number;
+  remainingSlots: number;
   expiresAt: string;
 }
 
@@ -30,8 +35,11 @@ export default function EnrollPage() {
   const [genders, setGenders]         = useState<ListItem[]>([]);
   const [maritalStatuses, setMarital] = useState<ListItem[]>([]);
   const [states, setStates]           = useState<ListItem[]>([]);
+  const [relationships, setRelationships] = useState<ListItem[]>([]);
   const [submitting, setSubmitting]   = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ enrolleeId: string; membershipNo: string } | null>(null);
+  const [depEnrolled, setDepEnrolled] = useState<Array<{ enrolleeId: string; name: string }>>([]);
+  const [remainingSlots, setRemainingSlots] = useState(1);
 
   // Form fields
   const [firstName, setFirstName]         = useState('');
@@ -45,6 +53,8 @@ export default function EnrollPage() {
   const [postalTownId, setStateId]        = useState('');
   const [address, setAddress]             = useState('');
   const [preExisting, setPreExisting]     = useState('');
+  const [relationshipId, setRelationship] = useState('');
+  const [depEmail, setDepEmail]           = useState('');
   const [photoBase64, setPhoto]           = useState('');
   const [photoType, setPhotoType]         = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -63,10 +73,14 @@ export default function EnrollPage() {
         setGenders(d.genders ?? []);
         setMarital(d.maritalStatuses ?? []);
         setStates(d.states ?? []);
+        setRelationships(d.relationships ?? []);
+        setRemainingSlots(d.invitation?.remainingSlots ?? 1);
         setStatus('ready');
       })
       .catch(() => { setStatus('invalid'); setErrorMsg('Failed to load enrolment form. Please try again.'); });
   }, [token]);
+
+  const isDependent = invitation?.inviteType === 'dependent';
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -82,6 +96,14 @@ export default function EnrollPage() {
     reader.readAsDataURL(file);
   }
 
+  function resetForm() {
+    setFirstName(''); setSurname(''); setOtherNames(''); setDob('');
+    setSexId(''); setMarital2(''); setMobile(''); setMobile2('');
+    setStateId(''); setAddress(''); setPreExisting(''); setRelationship('');
+    setDepEmail(''); setPhoto(''); setPhotoType('');
+    setErrorMsg(''); setStatus('ready');
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!invitation) return;
@@ -91,10 +113,11 @@ export default function EnrollPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: invitation.email,
+          email: isDependent ? (depEmail || invitation.email) : invitation.email,
           employeeCode: invitation.employeeCode,
           firstName, surname, otherNames, dateOfBirth, sexId,
           maritalStatus, mobile, mobile2, postalTownId, address,
+          relationshipId,
           preExistingCondition: preExisting || 'None',
           enrolleePicture: photoBase64,
           enrolleePictureType: photoType,
@@ -105,8 +128,17 @@ export default function EnrollPage() {
         setErrorMsg(data.error ?? 'Enrolment failed. Please try again.');
         setStatus('error');
       } else {
-        setEnrollResult({ enrolleeId: data.enrolleeId ?? '', membershipNo: data.membershipNo ?? '' });
-        setStatus('success');
+        const enrolleeId = data.enrolleeId ?? '';
+        const name = `${firstName} ${surname}`.trim();
+        if (isDependent) {
+          setDepEnrolled(prev => [...prev, { enrolleeId, name }]);
+          setRemainingSlots(prev => Math.max(0, prev - 1));
+          setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
+          setStatus('success');
+        } else {
+          setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
+          setStatus('success');
+        }
       }
     } catch {
       setErrorMsg('Network error. Please check your connection and try again.');
@@ -139,31 +171,63 @@ export default function EnrollPage() {
   }
   if (status === 'success') {
     const memberId = enrollResult?.enrolleeId || enrollResult?.membershipNo || '';
+    const canAddMore = isDependent && remainingSlots > 0;
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F8FC', padding: 24 }}>
         <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
           <div style={{ width: 72, height: 72, borderRadius: 20, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
             <CheckCircle style={{ width: 36, height: 36, color: '#059669' }} />
           </div>
-          <p style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 10 }}>Enrolment Successful!</p>
-          <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, marginBottom: 28 }}>
-            You have been successfully enrolled on <strong>{invitation?.schemeName ?? 'your health plan'}</strong>. Keep your member ID safe — you will need it when visiting any Leadway Health provider.
+          <p style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 10 }}>
+            {isDependent ? 'Dependent Enrolled!' : 'Enrolment Successful!'}
           </p>
+          <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, marginBottom: 28 }}>
+            {isDependent
+              ? `${enrollResult ? `${firstName} ${surname}`.trim() || 'Dependent' : 'Dependent'} has been successfully enrolled on `
+              : 'You have been successfully enrolled on '}
+            <strong>{invitation?.schemeName ?? 'your health plan'}</strong>.
+            {!isDependent && ' Keep your member ID safe — you will need it when visiting any Leadway Health provider.'}
+          </p>
+
+          {/* Previously enrolled dependents */}
+          {isDependent && depEnrolled.length > 1 && (
+            <div style={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 16, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Enrolled Dependents</p>
+              {depEnrolled.map((d, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none' }}>
+                  <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>{d.name || `Dependent ${i + 1}`}</span>
+                  <span style={{ fontSize: 13, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {memberId && (
             <div style={{ background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 20, padding: '28px 32px', marginBottom: 24, boxShadow: '0 4px 24px rgba(16,185,129,0.10)' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Your Member ID</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+                {isDependent ? 'Enrolee ID' : 'Your Member ID'}
+              </p>
               <p style={{ fontSize: 36, fontWeight: 900, color: '#131C4E', letterSpacing: '0.04em', fontFamily: 'monospace', marginBottom: 12 }}>{memberId}</p>
               <button
-                onClick={() => navigator.clipboard.writeText(memberId)}
+                onClick={() => { try { navigator.clipboard.writeText(memberId); } catch { const t = document.createElement('textarea'); t.value = memberId; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } }}
                 style={{ marginTop: 16, height: 38, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#059669', border: '1.5px solid #BBF7D0', borderRadius: 10, background: '#ECFDF5', cursor: 'pointer' }}>
-                Copy Member ID
+                Copy ID
               </button>
             </div>
           )}
 
+          {canAddMore && (
+            <button
+              onClick={resetForm}
+              style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12, boxShadow: '0 4px 16px rgba(245,107,34,0.35)' }}>
+              Enrol Another Dependent
+            </button>
+          )}
+
           <p style={{ fontSize: 13, color: '#9CA3B8' }}>
-            Your HR team will follow up with your physical member card and further details.
+            {isDependent
+              ? 'The HR team will be notified of this enrolment.'
+              : 'Your HR team will follow up with your physical member card and further details.'}
           </p>
         </div>
       </div>
@@ -176,12 +240,28 @@ export default function EnrollPage() {
 
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', borderRadius: 20, padding: '28px 32px', marginBottom: 28, color: '#fff' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 6 }}>Health Insurance Enrolment</p>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 6 }}>
+            {isDependent ? 'Dependent Enrolment' : 'Health Insurance Enrolment'}
+          </p>
           <p style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{invitation?.schemeName}</p>
           <p style={{ fontSize: 13, opacity: 0.85 }}>
-            Complete the form below to enrol. Your email ({invitation?.email}) and employee code are pre-verified.
+            {isDependent
+              ? 'Complete the form below to enrol a dependent on this health plan.'
+              : `Complete the form below to enrol. Your email (${invitation?.email}) and employee code are pre-verified.`}
           </p>
         </div>
+
+        {/* Previously enrolled list for dependent flow */}
+        {isDependent && depEnrolled.length > 0 && (
+          <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Already enrolled in this session:</p>
+            {depEnrolled.map((d, i) => (
+              <p key={i} style={{ fontSize: 13, color: '#065F46', margin: '2px 0' }}>
+                {d.name || `Dependent ${i + 1}`} — <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId}</span>
+              </p>
+            ))}
+          </div>
+        )}
 
         {status === 'error' && (
           <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 18px', marginBottom: 20, color: '#DC2626', fontSize: 13, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -228,6 +308,15 @@ export default function EnrollPage() {
                 <option value="">Select status</option>
                 {maritalStatuses.map((m) => <option key={m.value} value={m.value}>{m.text}</option>)}
               </SelectField>
+              {isDependent && (
+                <SelectField label="Relationship to Principal *" value={relationshipId} onChange={setRelationship} required>
+                  <option value="">Select relationship</option>
+                  {relationships.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                </SelectField>
+              )}
+              {isDependent && (
+                <Field label="Dependent's Email" value={depEmail} onChange={setDepEmail} type="email" placeholder="e.g. amaka@gmail.com" />
+              )}
             </div>
           </div>
 

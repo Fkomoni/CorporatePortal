@@ -14,6 +14,7 @@ export interface Member {
   enrollmentDate: string;
   dependants?: number;
   premium?: number;
+  cifNumber?: string;
 }
 
 export interface Invoice {
