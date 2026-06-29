@@ -153,6 +153,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(() => schemes[0]?.schemeId ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState('');
+  const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string } | null>(null);
   const { toast } = useToast();
 
   // List values
@@ -254,8 +255,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add member'); return; }
         const memberId = data.fullEnrolleeId || data.membershipNo || '';
-        toast(`${firstName} ${surname} enrolled!${memberId ? ` Member ID: ${memberId}` : ''}`, 'success');
-        onClose();
+        setEnrollResult({ name: `${firstName} ${surname}`, memberId });
         return;
       }
 
@@ -278,6 +278,46 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
     : mode === 'individual' ? 'Add Member'
     : bulkAction === 'csv' ? 'Upload & Enrol'
     : 'Send Invitations';
+
+  // ── Enrolment success screen ──────────────────────────────────────────
+  if (enrollResult) {
+    const { name, memberId } = enrollResult;
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
+        <div style={{
+          position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          width: 480, background: '#fff', borderRadius: 24, zIndex: 50,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.18)', overflow: 'hidden', padding: '40px 36px',
+          textAlign: 'center',
+        }}>
+          {/* Success icon */}
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg,#10B981,#059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M8 18L14 24L28 10" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+          <p style={{ fontSize: 22, fontWeight: 900, color: '#131C4E', marginBottom: 6 }}>Enrolment Successful!</p>
+          <p style={{ fontSize: 14, color: '#9CA3B8', marginBottom: 28 }}>{name} has been added to the plan.</p>
+
+          {memberId && (
+            <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Member ID / Enrolee ID</p>
+              <p style={{ fontSize: 28, fontWeight: 900, color: '#131C4E', fontFamily: 'monospace', letterSpacing: '0.04em', marginBottom: 12 }}>{memberId}</p>
+              <button
+                onClick={() => { navigator.clipboard.writeText(memberId); toast('Member ID copied!', 'success'); }}
+                style={{ height: 36, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#059669', background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 10, cursor: 'pointer' }}>
+                Copy Member ID
+              </button>
+            </div>
+          )}
+
+          <button onClick={onClose}
+            style={{ width: '100%', height: 48, fontSize: 15, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(245,107,34,0.35)' }}>
+            Done
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
