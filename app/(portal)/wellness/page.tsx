@@ -9,6 +9,120 @@ import {
 import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
 
+// ── Health Talk Topics ────────────────────────────────────────────────────────
+
+const HEALTH_TALK_CATEGORIES: { category: string; topics: string[] }[] = [
+  {
+    category: 'Human Behaviour',
+    topics: [
+      'Alcohol and Substance Abuse',
+      'Causes and Effects of HIV',
+      'Accident Preparedness and First Aid',
+      'Benefits of Physical Exercise',
+      'Benefits of Yoga, Meditation and Mindfulness',
+      'Blood Donation and Voluntary Service',
+      'Causes and Prevention of Road Traffic Accidents',
+      'Challenges of Sedentary Lifestyle',
+      'Dangers of Drug Abuse',
+      'Dangers of Smoking',
+      'Effects of Sleep Deprivation',
+      'Employee Wellness and Productivity',
+      'Ergonomics in the Workplace',
+      'Food Poisoning and Hygiene',
+      'Healthy Ageing',
+      'How to Identify Quality Health Care',
+      'Nutrition and Balanced Diet',
+      'Occupational Health and Safety',
+      'Personal Hygiene and Health',
+      'Prevention of Workplace Injuries',
+      'Stress Management in the Workplace',
+      'The Importance of Regular Medical Checkups',
+      'Understanding Health Insurance',
+    ],
+  },
+  {
+    category: 'Health and Wellbeing',
+    topics: [
+      'Antenatal and Postnatal Care',
+      'Benefits of Breastfeeding',
+      'Bone Health and Osteoporosis Prevention',
+      'Child Health and Immunisation',
+      'Contraception and Family Planning',
+      'Dental Health and Oral Hygiene',
+      'Eye Health and Vision Care',
+      'Fibroids: Causes, Symptoms and Treatment',
+      'Healthy Eating During Pregnancy',
+      'Healthy Weight Management',
+      'Importance of Vaccination for Adults',
+      'Management of Chronic Pain',
+      'Managing Allergies and Asthma',
+      'Menopause: Symptoms and Management',
+      'Men\'s Health Awareness',
+      'Nutrition for the Elderly',
+      'Preventing Back Pain',
+      'Sexual and Reproductive Health',
+      'Skin Care and Dermatology',
+      'Understanding Anaemia',
+      'Women\'s Health Awareness',
+    ],
+  },
+  {
+    category: 'Communicable Diseases',
+    topics: [
+      'COVID-19: Prevention and Management',
+      'Cholera: Prevention and Control',
+      'Hepatitis B and C Awareness',
+      'HIV/AIDS: Prevention, Treatment and Living with HIV',
+      'Lassa Fever Awareness',
+      'Malaria Prevention and Treatment',
+      'Monkeypox Awareness',
+      'Prevention of Sexually Transmitted Infections (STIs)',
+      'Tuberculosis (TB) Awareness',
+      'Typhoid Fever Prevention',
+      'Understanding Meningitis',
+      'Yellow Fever and Vaccination',
+    ],
+  },
+  {
+    category: 'Non-Communicable Diseases',
+    topics: [
+      'Arthritis: Types, Symptoms and Management',
+      'Cancer Awareness and Early Detection',
+      'Cervical Cancer and HPV Prevention',
+      'Colorectal Cancer Awareness',
+      'Diabetes: Prevention, Management and Complications',
+      'Epilepsy Awareness and Management',
+      'Heart Disease Prevention',
+      'Hypertension: Causes, Risks and Management',
+      'Kidney Disease Awareness',
+      'Liver Disease and Prevention',
+      'Lung Health and COPD',
+      'Obesity and Metabolic Syndrome',
+      'Prostate Cancer Awareness',
+      'Stroke: Prevention, Recognition and Response',
+      'Thyroid Disorders Awareness',
+      'Understanding Sickle Cell Disease',
+    ],
+  },
+  {
+    category: 'Mental Wellness',
+    topics: [
+      'Anxiety Disorders: Recognising and Managing Anxiety',
+      'Burnout: Causes, Symptoms and Recovery',
+      'Building Emotional Resilience',
+      'Dealing with Grief and Loss',
+      'Depression: Awareness and Support',
+      'Managing Work-Life Balance',
+      'Mental Health First Aid in the Workplace',
+      'Post-Traumatic Stress Disorder (PTSD) Awareness',
+      'Stress and Coping Strategies',
+      'Suicide Prevention Awareness',
+      'Understanding and Reducing Stigma around Mental Illness',
+      'Well-being and Self-Care Strategies',
+    ],
+  },
+];
+
 // ── Mock data ─────────────────────────────────────────────────────────────────
 
 const SCREENING_STATS = {
@@ -69,6 +183,7 @@ export default function WellnessPage() {
 
   // Health talks form
   const [talkType, setTalkType]       = useState<'onsite' | 'virtual'>('onsite');
+  const [talkCategory, setTalkCategory] = useState('');
   const [talkTopic, setTalkTopic]     = useState('');
   const [talkDate, setTalkDate]       = useState('');
   const [talkDuration, setTalkDuration] = useState('60');
@@ -190,9 +305,34 @@ export default function WellnessPage() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={labelStyle}>Talk Topic / Title</label>
-                  <input value={talkTopic} onChange={(e) => setTalkTopic(e.target.value)} placeholder="e.g. Stress Management & Mental Wellness" style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
+                <div>
+                  <label style={labelStyle}>Topic Category</label>
+                  <select
+                    value={talkCategory}
+                    onChange={(e) => { setTalkCategory(e.target.value); setTalkTopic(''); }}
+                    style={{ ...inputStyle, appearance: 'none' }}
+                    onFocus={focusIn} onBlur={focusOut}
+                  >
+                    <option value="">Select a category…</option>
+                    {HEALTH_TALK_CATEGORIES.map((c) => (
+                      <option key={c.category} value={c.category}>{c.category}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Talk Topic</label>
+                  <select
+                    value={talkTopic}
+                    onChange={(e) => setTalkTopic(e.target.value)}
+                    disabled={!talkCategory}
+                    style={{ ...inputStyle, appearance: 'none', opacity: talkCategory ? 1 : 0.5, cursor: talkCategory ? 'pointer' : 'not-allowed' }}
+                    onFocus={focusIn} onBlur={focusOut}
+                  >
+                    <option value="">{talkCategory ? 'Select a topic…' : 'Choose a category first'}</option>
+                    {(HEALTH_TALK_CATEGORIES.find((c) => c.category === talkCategory)?.topics ?? []).map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={labelStyle}>Preferred Date</label>
@@ -215,7 +355,7 @@ export default function WellnessPage() {
               </div>
 
               <button
-                onClick={() => { if (talkTopic && talkDate && talkAttendees) { setTalkSent(true); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes(''); } }}
+                onClick={() => { if (talkTopic && talkDate && talkAttendees) { setTalkSent(true); setTalkCategory(''); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes(''); } }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
                 <Send style={{ width: 14, height: 14 }} /> Send Request to Client Services
               </button>
@@ -223,31 +363,27 @@ export default function WellnessPage() {
               {talkSent && <SuccessBanner message="Request sent! Leadway Health client services will reach out within 1 business day to confirm." />}
             </div>
 
-            {/* Info panel */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ ...card, padding: '22px 24px' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 14 }}>Available Talk Topics</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    'Stress & Mental Wellness',
-                    'Hypertension & Heart Health',
-                    'Diabetes Awareness',
-                    'Nutrition & Healthy Eating',
-                    "Women's Health & Fertility",
-                    'Cancer Screening Awareness',
-                    'Physical Activity & Exercise',
-                    'Eye & Dental Health',
-                  ].map((t) => (
-                    <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F56B22', flexShrink: 0 }} />
-                      <p style={{ fontSize: 12, color: '#374151' }}>{t}</p>
+            {/* Topic browser sidebar */}
+            <div style={{ ...card, padding: '22px 24px', maxHeight: 520, overflowY: 'auto' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Leadway HMO Topic Library</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {HEALTH_TALK_CATEGORIES.map((cat) => (
+                  <div key={cat.category}>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F56B22', marginBottom: 8 }}>{cat.category}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {cat.topics.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => { setTalkCategory(cat.category); setTalkTopic(t); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, background: talkTopic === t ? '#FFF5EF' : 'transparent', border: talkTopic === t ? '1px solid #FFCFB0' : '1px solid transparent', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.12s' }}
+                        >
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: talkTopic === t ? '#F56B22' : '#D1D5DB', flexShrink: 0, transition: 'background 0.12s' }} />
+                          <p style={{ fontSize: 11.5, color: talkTopic === t ? '#F56B22' : '#374151', fontWeight: talkTopic === t ? 600 : 400 }}>{t}</p>
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{ borderRadius: 16, padding: '20px 22px', background: 'linear-gradient(135deg,#131C4E,#3A4382)', color: '#fff' }}>
-                <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Need a custom topic?</p>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Describe your preferred health topic in the notes field and the client services team will advise on availability.</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
