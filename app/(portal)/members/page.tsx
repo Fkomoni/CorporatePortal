@@ -1836,10 +1836,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link ready — copy and share:</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input readOnly value={depGeneratedUrl} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
-                        <button onClick={() => {
-                          if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(depGeneratedUrl); } else { const ta = document.createElement('textarea'); ta.value = depGeneratedUrl; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-                          toast('Copied!', 'success');
-                        }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
+                        <button onClick={() => copyText(depGeneratedUrl, 'Link copied!')} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
                       </div>
                     </div>
                   )}
