@@ -1003,7 +1003,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         body: JSON.stringify({
           email: member.email,
           enroleeId,
-          memberName: member.name,
+          memberName: `${member.firstName} ${member.lastName}`,
           schemeName: member.plan,
         }),
       });
