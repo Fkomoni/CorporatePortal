@@ -123,8 +123,11 @@ export async function POST(req: Request) {
     const membershipNo = String(r?.MembershipNo ?? r?.membershipNo ?? '');
     const suffix       = String(r?.Suffix ?? r?.suffix ?? '0');
 
-    // Success requires at least a MembershipNo or Cif_Number
-    if (!membershipNo && !cifNumber) {
+    // Full Enrolee ID = MembershipNo/Suffix  e.g. "26307209/0"
+    const enrolleeId = membershipNo ? `${membershipNo}/${suffix}` : '';
+
+    // Success requires at least an enrolleeId or Cif_Number
+    if (!enrolleeId && !cifNumber) {
       console.error('[hr/members/add] No member ID in response:', text.slice(0, 500));
       return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID returned. Please check with Leadway Health.' }, { status: 422 });
     }
@@ -132,8 +135,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       cifNumber,
-      membershipNo,
-      suffix,
+      enrolleeId,  // MembershipNo/Suffix e.g. "26307209/0"
     });
   } catch (err) {
     console.error('[hr/members/add] Error:', err);
