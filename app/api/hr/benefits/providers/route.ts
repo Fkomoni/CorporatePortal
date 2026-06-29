@@ -60,19 +60,21 @@ function normalise(row: unknown, type: string): Provider | null {
   const r = row as Record<string, unknown>;
 
   const name = s(r,
-    'ProviderName', 'Provider_Name', 'Name', 'HospitalName', 'Hospital_Name',
-    'EyeClinicName', 'Eye_Clinic_Name', 'DentalClinicName', 'Dental_Clinic_Name',
+    'ProviderName', 'Provider_Name', 'Name', 'provider',
+    'HospitalName', 'Hospital_Name',
+    'EyeClinicName', 'Eye_Clinic_Name',
+    'DentalClinicName', 'Dental_Clinic_Name',
     'SpaName', 'Spa_Name', 'GymName', 'Gym_Name', 'SpaAndGymName',
     'ClinicName', 'Clinic_Name', 'FacilityName',
   );
   if (!name) return null;
 
-  const id = s(r, 'ProviderID', 'Provider_ID', 'ID', 'Id', 'ProviderCode', 'Code');
-  const address = s(r, 'Address', 'Address1', 'Address2', 'Street', 'StreetAddress');
-  const city    = s(r, 'Town', 'City', 'CityName', 'TownName', 'LGA');
-  const state   = s(r, 'State', 'StateName', 'State_Name', 'StateOfResidence');
-  const phone   = s(r, 'PhoneNumber', 'Phone', 'Phone1', 'TelephoneNo', 'Telephone', 'Mobile', 'ContactPhone');
-  const rawStatus = s(r, 'ProviderStatus', 'Status', 'IsActive', 'Active', 'AccreditationStatus');
+  const id      = s(r, 'ProviderID', 'Provider_ID', 'ID', 'Id', 'ProviderCode', 'Code', 'providercode', 'provider_id');
+  const address = s(r, 'ProviderAddress', 'Address', 'Address1', 'Address2', 'Street', 'StreetAddress');
+  const city    = s(r, 'CityOfOrigin', 'Town', 'City', 'CityName', 'TownName', 'LGA', 'region', 'Region');
+  const state   = s(r, 'StateOfOrigin', 'State', 'StateName', 'State_Name', 'StateOfResidence');
+  const phone   = s(r, 'PhoneNumber', 'Phone', 'phone1', 'Phone1', 'phone2', 'Phone2', 'TelephoneNo', 'Telephone', 'Mobile', 'ContactPhone');
+  const rawStatus = s(r, 'status_id', 'ProviderStatus', 'Status', 'IsActive', 'Active', 'AccreditationStatus');
   const status  = ['true', '1', 'active', 'accredited', 'yes'].includes(rawStatus.toLowerCase())
     ? 'Active'
     : rawStatus || 'Active';
@@ -92,40 +94,29 @@ function extractArray(raw: unknown): unknown[] {
   return [];
 }
 
-async function fetchProviders(token: string, endpoint: string, schemeId: string, type: string): Promise<Provider[]> {
-  const params = new URLSearchParams({ SchemeID: schemeId, MinimumID: '0', NoOfRecords: '500', pageSize: '500' });
+async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string, paramOverrides?: Record<string, string>): Promise<{ providers: Provider[]; error?: string }> {
+  const base = { schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' };
+  const params = new URLSearchParams({ ...base, ...paramOverrides });
   const url = `${BASE}${endpoint}?${params}`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
     const text = await res.text();
     let raw: unknown;
     try { raw = JSON.parse(text); } catch {
-      console.warn(`[providers] Non-JSON from ${endpoint} (${res.status})`);
-      return [];
+      console.warn(`[providers] Non-JSON from ${endpoint} (${res.status}):`, text.slice(0, 200));
+      return { providers: [], error: `${endpoint} returned non-JSON (HTTP ${res.status})` };
     }
-    return extractArray(raw).map((r) => normalise(r, type)).filter((p): p is Provider => p !== null);
+    if (!res.ok) {
+      const msg = (raw as Record<string,unknown>)?.message ?? (raw as Record<string,unknown>)?.Message ?? text.slice(0, 200);
+      console.warn(`[providers] HTTP ${res.status} from ${endpoint}:`, msg);
+      return { providers: [], error: `${endpoint} HTTP ${res.status}: ${String(msg)}` };
+    }
+    const providers = extractArray(raw).map((r) => normalise(r, type)).filter((p): p is Provider => p !== null);
+    console.log(`[providers] ${endpoint} schemeId=${schemeId} → ${providers.length} ${type} providers`);
+    return { providers };
   } catch (e) {
     console.warn(`[providers] Error fetching ${endpoint}:`, e);
-    return [];
-  }
-}
-
-async function fetchSpaGym(token: string, schemeId: string): Promise<Provider[]> {
-  // Spa/Gym uses a different param casing and starts MinimumID at 1
-  const params = new URLSearchParams({ schemeid: schemeId, MinimumID: '1', NoOfRecords: '500', pageSize: '500' });
-  const url = `${BASE}/api/ListValues/GetSpaAndGymClinicByPlanCode?${params}`;
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
-    const text = await res.text();
-    let raw: unknown;
-    try { raw = JSON.parse(text); } catch {
-      console.warn(`[providers] Non-JSON from GetSpaAndGymClinicByPlanCode (${res.status})`);
-      return [];
-    }
-    return extractArray(raw).map((r) => normalise(r, 'Spa/Gym')).filter((p): p is Provider => p !== null);
-  } catch (e) {
-    console.warn('[providers] Error fetching GetSpaAndGymClinicByPlanCode:', e);
-    return [];
+    return { providers: [], error: String(e) };
   }
 }
 
@@ -143,14 +134,28 @@ export async function GET(req: Request) {
   try {
     const token = await getServiceToken();
 
-    const [hospitals, eyeClinics, dentalClinics, spaGyms] = await Promise.all([
-      fetchProviders(token, '/api/Provider/GetProvidersByPlanCode',    schemeId, 'Hospital'),
-      fetchProviders(token, '/api/Provider/GetEyeClinicByPlanCode',    schemeId, 'Optical'),
-      fetchProviders(token, '/api/Provider/GetDentalClinicByPlanCode', schemeId, 'Dental'),
-      fetchSpaGym(token, schemeId),
+    const [hospResult, eyeResult, dentalResult, spaResult] = await Promise.all([
+      fetchListValues(token, '/api/ListValues/GetGeneralHospitalByPlanCode', schemeId, 'Hospital'),
+      fetchListValues(token, '/api/ListValues/GetEyeClinicByPlanCode',       schemeId, 'Optical'),
+      fetchListValues(token, '/api/ListValues/GetDentalClinicByPlanCode',    schemeId, 'Dental'),
+      fetchListValues(token, '/api/ListValues/GetGeneralGymandSpaByPlanCode', schemeId, 'Spa/Gym', { SchemeID: schemeId, schemeid: schemeId, MinimumID: '0', NoOfRecords: '9999', pageSize: '0' }),
     ]);
 
-    const providers = [...hospitals, ...eyeClinics, ...dentalClinics, ...spaGyms];
+    const hospitals     = hospResult.providers;
+    const eyeClinics    = eyeResult.providers;
+    const dentalClinics = dentalResult.providers;
+    const spaGyms       = spaResult.providers;
+    const providers     = [...hospitals, ...eyeClinics, ...dentalClinics, ...spaGyms];
+
+    // Surface the first error if everything came back empty
+    const errors = [hospResult.error, eyeResult.error, dentalResult.error, spaResult.error].filter(Boolean);
+    if (providers.length === 0 && errors.length > 0) {
+      console.error('[hr/benefits/providers] All endpoints failed for schemeId', schemeId, errors);
+      return NextResponse.json(
+        { error: `Provider data unavailable: ${errors[0]}`, providers: [], counts: { hospitals: 0, eyeClinics: 0, dentalClinics: 0, spaGyms: 0 }, total: 0 },
+        { status: 502 },
+      );
+    }
 
     return NextResponse.json({
       providers,
