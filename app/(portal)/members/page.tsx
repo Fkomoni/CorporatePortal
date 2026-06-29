@@ -146,6 +146,7 @@ interface ListItem { text: string; value: string; }
 /* ── Add Member Modal ────────────────────────────────────────────────── */
 function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[] }) {
   const [mode, setMode]             = useState<'individual' | 'bulk'>(initialMode ?? 'individual');
+  const [step, setStep]             = useState<1 | 2 | 3>(1);
   const [memberType, setMemberType] = useState<'new' | 'existing'>('new');
   const [actionType, setActionType] = useState<'link' | 'form'>('link');
   const [linkScope, setLinkScope]   = useState<'self' | 'self-dependent'>('self');
@@ -319,39 +320,92 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
     );
   }
 
+  // Step labels for individual mode wizard
+  const STEP_LABELS = ['How to Enrol', 'Enrolment Type', 'Member Details'];
+
+  // Step 1 choice handler
+  function chooseMethod(method: 'link' | 'form') {
+    setActionType(method);
+    setStep(2);
+  }
+
+  // Step 2 choice handler — maps enrolment type to internal state
+  function chooseType(type: 'principal' | 'dependent' | 'new-with-deps') {
+    if (type === 'principal') {
+      setMemberType('new');
+      setLinkScope('self');
+    } else if (type === 'dependent') {
+      setMemberType('existing');
+      setLinkScope('self');
+    } else {
+      setMemberType('new');
+      setLinkScope('self-dependent');
+    }
+    setStep(3);
+  }
+
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        width: 600, maxHeight: '90vh', background: '#fff', borderRadius: 20, zIndex: 50,
+        width: 560, maxHeight: '92vh', background: '#fff', borderRadius: 20, zIndex: 50,
         display: 'flex', flexDirection: 'column',
         boxShadow: '0 24px 80px rgba(0,0,0,0.18)', overflow: 'hidden',
       }}>
 
         {/* Header */}
-        <div style={{ padding: '22px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div>
-            <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E' }}>Add Members</p>
-            <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Enrol individually, bulk upload, or send self-enrolment links</p>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Back button (steps 2 & 3, individual mode) */}
+            {mode === 'individual' && step > 1 && (
+              <button onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+                style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#F7F8FA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+            )}
+            <div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E' }}>Add Member</p>
+              {mode === 'individual' && (
+                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 1 }}>
+                  Step {step} of 3 — {STEP_LABELS[step - 1]}
+                </p>
+              )}
+            </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#F7F8FA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3B8' }}>
-            <X style={{ width: 16, height: 16 }} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Mode toggle — only on step 1 */}
+            {step === 1 && (
+              <div style={{ display: 'flex', background: '#F7F8FA', borderRadius: 10, padding: 3, gap: 2 }}>
+                {(['individual', 'bulk'] as const).map((m) => (
+                  <button key={m} onClick={() => { setMode(m); setStep(1); }}
+                    style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 600, border: 'none', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
+                      background: mode === m ? '#fff' : 'transparent',
+                      color: mode === m ? '#131C4E' : '#9CA3B8',
+                      boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.08)' : 'none' }}>
+                    {m === 'individual' ? 'Single' : 'Bulk'}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#F7F8FA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3B8' }}>
+              <X style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
         </div>
 
-        {/* Mode tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #F0F1F5', padding: '0 28px', flexShrink: 0 }}>
-          {(['individual', 'bulk'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)}
-              style={{ padding: '13px 0', marginRight: 28, fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: mode === m ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${mode === m ? '#F56B22' : 'transparent'}` }}>
-              {m === 'individual' ? 'Single Member' : 'Bulk Upload'}
-            </button>
-          ))}
-        </div>
+        {/* Step indicator bar (individual only) */}
+        {mode === 'individual' && (
+          <div style={{ display: 'flex', padding: '0 24px', gap: 6, flexShrink: 0, paddingTop: 14, paddingBottom: 2 }}>
+            {[1, 2, 3].map((s) => (
+              <div key={s} style={{ flex: 1, height: 3, borderRadius: 4, transition: 'background 0.3s',
+                background: s <= step ? '#F56B22' : '#F0F1F5' }} />
+            ))}
+          </div>
+        )}
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
 
           {/* Inline error banner */}
           {formError && (
@@ -361,61 +415,156 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
             </div>
           )}
 
-          {/* ── Individual mode ── */}
-          {mode === 'individual' && (
+          {/* ── BULK mode ── */}
+          {mode === 'bulk' && (
             <>
-              {/* Member type */}
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Member Status</p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Bulk Action</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
                 {([
-                  { key: 'new',      label: 'New Member',      desc: 'Not yet on the plan' },
-                  { key: 'existing', label: 'Existing Member', desc: 'Already on plan — add a dependent' },
+                  { key: 'csv',    label: 'Upload Census CSV',      desc: 'HR adds multiple members at once via spreadsheet' },
+                  { key: 'invite', label: 'Bulk Send Invite Links', desc: 'Email self-enrolment links to a list of staff' },
                 ] as const).map((t) => (
-                  <div key={t.key} onClick={() => setMemberType(t.key)}
-                    style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${memberType === t.key ? '#F56B22' : '#E5E7F1'}`, background: memberType === t.key ? '#FFF8F5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: memberType === t.key ? '#F56B22' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
+                  <div key={t.key} onClick={() => setBulkAction(t.key)}
+                    style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${bulkAction === t.key ? '#F56B22' : '#E5E7F1'}`, background: bulkAction === t.key ? '#FFF8F5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: bulkAction === t.key ? '#F56B22' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
                     <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
                   </div>
                 ))}
               </div>
-
-              {/* How to enrol */}
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>How to Enrol</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
-                {([
-                  { key: 'link', label: 'Send Self-Enrolment Link', desc: 'Staff fills in their own details via a secure link' },
-                  { key: 'form', label: 'HR Adds Directly',         desc: 'HR fills the form on the staff member\'s behalf' },
-                ] as const).map((t) => (
-                  <div key={t.key} onClick={() => setActionType(t.key)}
-                    style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${actionType === t.key ? '#3A4382' : '#E5E7F1'}`, background: actionType === t.key ? '#EEF2FF' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: actionType === t.key ? '#3A4382' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                    <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
+              {bulkAction === 'csv' && (
+                <div style={{ border: '2px dashed #E5E7F1', borderRadius: 16, padding: '36px 24px', textAlign: 'center' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                    <Upload style={{ width: 22, height: 22, color: '#F56B22' }} />
                   </div>
-                ))}
-              </div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Census CSV here</p>
+                  <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One member per row</p>
+                  <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 12, background: '#EEF2FF', cursor: 'pointer' }}>Browse File</button>
+                </div>
+              )}
+              {bulkAction === 'invite' && (
+                <>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Scope</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                    {([
+                      { key: 'self',           label: 'Principal Only',        desc: 'Each staff enrols themselves' },
+                      { key: 'self-dependent', label: 'Principal + Dependent', desc: 'Self-enrol with dependent option' },
+                    ] as const).map((t) => (
+                      <div key={t.key} onClick={() => setLinkScope(t.key)}
+                        style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${linkScope === t.key ? '#10B981' : '#E5E7F1'}`, background: linkScope === t.key ? '#ECFDF5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: linkScope === t.key ? '#059669' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
+                        <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ border: '2px dashed #BBFEF0', borderRadius: 16, padding: '36px 24px', textAlign: 'center', background: '#F0FFF9' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 14, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                      <Upload style={{ width: 22, height: 22, color: '#10B981' }} />
+                    </div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Upload staff email list (CSV)</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>One email per row · We&apos;ll send a unique link to each</p>
+                    <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 12, background: '#ECFDF5', cursor: 'pointer' }}>Browse File</button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
 
+          {/* ── INDIVIDUAL — Step 1: How will this enrolment happen? ── */}
+          {mode === 'individual' && step === 1 && (
+            <>
+              <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>
+                Choose how this member will be enrolled onto the plan.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div onClick={() => chooseMethod('link')}
+                  style={{ padding: '20px 22px', borderRadius: 16, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 18 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#FFF8F5'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#fff'; }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F56B22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>Member self-enrols</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Send the staff member a secure link — they fill in their own details</p>
+                  </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+
+                <div onClick={() => chooseMethod('form')}
+                  style={{ padding: '20px 22px', borderRadius: 16, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 18 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3A4382'; e.currentTarget.style.background = '#EEF2FF'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#fff'; }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A4382" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>HR adds directly</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>HR fills in the member&apos;s details and submits on their behalf</p>
+                  </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── INDIVIDUAL — Step 2: What type of enrolment? ── */}
+          {mode === 'individual' && step === 2 && (
+            <>
+              <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>
+                {actionType === 'link' ? 'What link should be generated for this enrolment?' : 'What type of member is being added?'}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div onClick={() => chooseType('principal')}
+                  style={{ padding: '20px 22px', borderRadius: 16, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 18 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#FFF8F5'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#fff'; }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F56B22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>Principal only</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Enrol a staff member — no dependants at this time</p>
+                  </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+
+                <div onClick={() => chooseType('dependent')}
+                  style={{ padding: '20px 22px', borderRadius: 16, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 18 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.background = '#F5F3FF'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#fff'; }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>Existing staff&apos;s dependent</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Add a dependant to a staff member already on the plan</p>
+                  </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+
+                <div onClick={() => chooseType('new-with-deps')}
+                  style={{ padding: '20px 22px', borderRadius: 16, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 18 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#10B981'; e.currentTarget.style.background = '#ECFDF5'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#fff'; }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>New staff + dependants</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Enrol a new staff member together with their dependants</p>
+                  </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── INDIVIDUAL — Step 3: Details ── */}
+          {mode === 'individual' && step === 3 && (
+            <>
               {/* ── LINK flow ── */}
               {actionType === 'link' && (
                 <>
-                  {/* Scope */}
-                  {memberType === 'new' && (
-                    <>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Enrolment Scope</p>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
-                        {([
-                          { key: 'self',           label: 'Principal Only',        desc: 'Staff member enrols themselves only' },
-                          { key: 'self-dependent', label: 'Principal + Dependent', desc: 'Staff + one or more dependants' },
-                        ] as const).map((t) => (
-                          <div key={t.key} onClick={() => setLinkScope(t.key)}
-                            style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${linkScope === t.key ? '#10B981' : '#E5E7F1'}`, background: linkScope === t.key ? '#ECFDF5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: linkScope === t.key ? '#059669' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                            <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-
                   {/* Plan */}
                   <div style={{ marginBottom: 16 }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Select Plan *</p>
@@ -432,7 +581,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                     </div>
                   </div>
 
-                  {/* Email + Employee Code */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Staff Email *</p>
@@ -446,10 +594,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                     </div>
                   </div>
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 16 }}>
-                    The link is tied to this email + employee code. Staff must verify both to enrol — preventing the link from being shared or reused.
+                    The link is tied to this email + employee code. Staff must verify both to enrol — preventing misuse.
                   </p>
 
-                  {/* Generated link */}
                   {generatedUrl && (
                     <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 16px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link generated — copy and send to the staff member:</p>
@@ -465,15 +612,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                 </>
               )}
 
-              {/* ── DIRECT FORM flow ── */}
+              {/* ── FORM flow ── */}
               {actionType === 'form' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   {/* Photo */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div onClick={() => photoRef.current?.click()} style={{ width: 72, height: 72, borderRadius: '50%', border: '2px dashed #D1D5DB', background: '#F7F8FC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                    <div onClick={() => photoRef.current?.click()} style={{ width: 68, height: 68, borderRadius: '50%', border: '2px dashed #D1D5DB', background: '#F7F8FC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                       {photoBase64
                         ? <img src={`data:${photoType};base64,${photoBase64}`} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : <Camera style={{ width: 24, height: 24, color: '#C4C9D9' }} />}
+                        : <Camera style={{ width: 22, height: 22, color: '#C4C9D9' }} />}
                     </div>
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Passport Photo <span style={{ color: '#B0B7C9', fontWeight: 400 }}>(optional)</span></p>
@@ -501,17 +648,16 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                     </div>
                   </div>
 
-                  {/* Personal */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     {[
-                      { label: 'First Name *',  value: firstName,  set: setFirstName,  ph: 'e.g. Amaka'     },
-                      { label: 'Surname *',     value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
-                      { label: 'Other Names',   value: otherNames, set: setOtherNames, ph: 'Middle name(s)' },
-                      { label: 'Employee Code *', value: empCode,  set: setEmpCode,    ph: 'e.g. EMP-9988'  },
-                      { label: 'Email *',       value: email,      set: setEmail,      ph: 'amaka@company.com', type: 'email' },
-                      { label: 'Mobile *',      value: mobile,     set: setMobile,     ph: '08012345678', type: 'tel' },
-                      { label: 'Alt. Mobile',   value: mobile2,    set: setMobile2,    ph: '07012345678', type: 'tel' },
-                      { label: 'Date of Birth *', value: dob,      set: setDob,        ph: '', type: 'date' },
+                      { label: 'First Name *',    value: firstName,  set: setFirstName,  ph: 'e.g. Amaka'     },
+                      { label: 'Surname *',       value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
+                      { label: 'Other Names',     value: otherNames, set: setOtherNames, ph: 'Middle name(s)' },
+                      { label: 'Employee Code *', value: empCode,    set: setEmpCode,    ph: 'e.g. EMP-9988'  },
+                      { label: 'Email *',         value: email,      set: setEmail,      ph: 'amaka@company.com', type: 'email' },
+                      { label: 'Mobile *',        value: mobile,     set: setMobile,     ph: '08012345678',   type: 'tel' },
+                      { label: 'Alt. Mobile',     value: mobile2,    set: setMobile2,    ph: '07012345678',   type: 'tel' },
+                      { label: 'Date of Birth *', value: dob,        set: setDob,        ph: '',              type: 'date' },
                     ].map((f) => (
                       <div key={f.label}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
@@ -520,7 +666,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       </div>
                     ))}
 
-                    {/* Gender */}
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Gender *</p>
                       <select value={sexId} onChange={(e) => setSexId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
@@ -529,7 +674,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       </select>
                     </div>
 
-                    {/* Marital Status */}
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Marital Status</p>
                       <select value={maritalStatus} onChange={(e) => setMarStatus(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
@@ -538,7 +682,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       </select>
                     </div>
 
-                    {/* State */}
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
                       <select value={stateId} onChange={(e) => setStateId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
@@ -546,10 +689,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                         {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
                       </select>
                     </div>
-
                   </div>
 
-                  {/* Address */}
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Home Address</p>
                     <input value={address} onChange={(e) => setAddress(e.target.value)}
@@ -557,7 +698,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
                       style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                   </div>
 
-                  {/* Pre-existing */}
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Pre-existing Conditions</p>
                     <textarea value={preExisting} onChange={(e) => setPreExist(e.target.value)}
@@ -569,7 +709,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
 
                   {memberType === 'existing' && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship</p>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship to Principal</p>
                       <select style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
                         <option value="">Select relationship</option>
                         {relationshipOptions.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
@@ -580,85 +720,27 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
               )}
             </>
           )}
-
-          {/* ── Bulk mode ── */}
-          {mode === 'bulk' && (
-            <>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Bulk Action Type</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
-                {([
-                  { key: 'csv',    label: 'Upload Census CSV',      desc: 'HR adds multiple members at once via spreadsheet' },
-                  { key: 'invite', label: 'Bulk Send Invite Links', desc: 'Email self-enrolment links to a list of staff' },
-                ] as const).map((t) => (
-                  <div key={t.key} onClick={() => setBulkAction(t.key)}
-                    style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${bulkAction === t.key ? '#F56B22' : '#E5E7F1'}`, background: bulkAction === t.key ? '#FFF8F5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: bulkAction === t.key ? '#F56B22' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                    <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
-                  </div>
-                ))}
-              </div>
-
-              {bulkAction === 'csv' && (
-                <div style={{ border: '2px dashed #E5E7F1', borderRadius: 16, padding: '36px 24px', textAlign: 'center' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                    <Upload style={{ width: 22, height: 22, color: '#F56B22' }} />
-                  </div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Census CSV here</p>
-                  <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One member per row</p>
-                  <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 12, background: '#EEF2FF', cursor: 'pointer' }}>
-                    Browse File
-                  </button>
-                </div>
-              )}
-
-              {bulkAction === 'invite' && (
-                <>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Enrolment Scope for Links</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-                    {([
-                      { key: 'self',           label: 'Principal Only',        desc: 'Each staff enrols themselves' },
-                      { key: 'self-dependent', label: 'Principal + Dependent', desc: 'Self-enrol with dependent option' },
-                    ] as const).map((t) => (
-                      <div key={t.key} onClick={() => setLinkScope(t.key)}
-                        style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${linkScope === t.key ? '#10B981' : '#E5E7F1'}`, background: linkScope === t.key ? '#ECFDF5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: linkScope === t.key ? '#059669' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                        <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ border: '2px dashed #BBFEF0', borderRadius: 16, padding: '36px 24px', textAlign: 'center', background: '#F0FFF9' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 14, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                      <Upload style={{ width: 22, height: 22, color: '#10B981' }} />
-                    </div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Upload staff email list (CSV)</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>One email per row · We&apos;ll send a unique link to each</p>
-                    <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 12, background: '#ECFDF5', cursor: 'pointer' }}>
-                      Browse File
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '16px 28px', borderTop: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, flexShrink: 0 }}>
-          <button onClick={onClose} style={{ height: 44, padding: '0 22px', fontSize: 14, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          {!(mode === 'individual' && actionType === 'link' && generatedUrl) && (
-            <button onClick={handleSubmit} disabled={submitting}
-              style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: submitting ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 3px 12px rgba(245,107,34,0.35)' }}>
-              {submitLabel}
+        {/* Footer — only shown on step 3 (or bulk mode) */}
+        {(mode === 'bulk' || (mode === 'individual' && step === 3)) && (
+          <div style={{ padding: '16px 24px', borderTop: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, flexShrink: 0 }}>
+            <button onClick={onClose} style={{ height: 44, padding: '0 22px', fontSize: 14, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
+              Cancel
             </button>
-          )}
-          {mode === 'individual' && actionType === 'link' && generatedUrl && (
-            <button onClick={onClose} style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#059669,#10B981)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 3px 12px rgba(16,185,129,0.3)' }}>
-              Done
-            </button>
-          )}
-        </div>
+            {!(mode === 'individual' && actionType === 'link' && generatedUrl) && (
+              <button onClick={handleSubmit} disabled={submitting}
+                style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: submitting ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 3px 12px rgba(245,107,34,0.35)' }}>
+                {submitLabel}
+              </button>
+            )}
+            {mode === 'individual' && actionType === 'link' && generatedUrl && (
+              <button onClick={onClose} style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#059669,#10B981)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 3px 12px rgba(16,185,129,0.3)' }}>
+                Done
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
