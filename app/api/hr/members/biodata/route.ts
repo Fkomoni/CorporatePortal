@@ -77,12 +77,12 @@ export async function GET(req: Request) {
     if (!row) return NextResponse.json({ error: 'No data found' }, { status: 404 });
 
     const phone = s(row,
-      'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM',
+      'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM',
       'Tel', 'TelNo', 'CellPhone', 'MobilePhone', 'HomePhone', 'WorkPhone',
       'ContactPhone', 'Telephone',
     );
     const staffId = s(row,
-      'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID',
+      'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID',
       'EmployeeNo', 'EmpNo', 'StaffCode', 'HR_EmployeeID', 'Employee_Code', 'StaffNo',
     );
     const email = s(row, 'EmailAddress', 'Email', 'email', 'EmailAddr');

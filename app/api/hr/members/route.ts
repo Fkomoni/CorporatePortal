@@ -156,9 +156,9 @@ function mapRow(
     type = fromApi ?? mapType(relRaw);
   }
 
-  const phone      = str(row, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone', 'HomePhone', 'WorkPhone');
+  const phone      = str(row, 'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'ContactPhone', 'Telephone', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone', 'HomePhone', 'WorkPhone');
   const email      = str(row, 'EmailAddress', 'Email', 'email', 'ContactEmail', 'EmailAddr');
-  const staffId    = str(row, 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'EmpNo', 'StaffCode', 'HR_EmployeeID', 'HREmployeeID', 'Employee_Code', 'StaffNo');
+  const staffId    = str(row, 'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'EmpNo', 'StaffCode', 'HR_EmployeeID', 'HREmployeeID', 'Employee_Code', 'StaffNo');
   const dob        = str(row, 'Member_DateOfBirth', 'DateOfBirth', 'DOB', 'BirthDate', 'MemberDOB', 'Date_Of_Birth');
   const plan       = mapPlan(str(row, 'Member_Plan', 'Product_SchemeType', 'PlanName', 'Plan', 'BenefitPlan', 'ProductName', 'PackageName', 'SchemeName', 'PlanDesc'));
   const loc        = str(row, 'Member_CountryState', 'State', 'Location', 'Region', 'Branch', 'Address', 'City', 'StateOfResidence');
@@ -399,9 +399,9 @@ export async function GET(req: Request) {
       const basePrefix = base.employeeId.includes('/') ? base.employeeId.split('/')[0] : null;
       const mRow = memberByEnrollee.get(base.employeeId) ?? (basePrefix ? memberByEnrollee.get(basePrefix) : undefined);
       if (mRow) {
-        if (!base.phone) base.phone = str(mRow, 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone');
+        if (!base.phone) base.phone = str(mRow, 'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone');
         if (!base.email) base.email = str(mRow, 'EmailAddress', 'Email', 'email');
-        if (!base.staffId) base.staffId = str(mRow, 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'StaffCode') || undefined;
+        if (!base.staffId) base.staffId = str(mRow, 'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'StaffCode') || undefined;
       }
       return base;
     });
