@@ -42,6 +42,19 @@ export interface RelationshipOption { text: string; value: string; }
 export interface GenderOption       { text: string; value: string; }
 export interface MaritalOption      { text: string; value: string; }
 export interface StateOption        { text: string; value: string; }
+export interface RegionOption       { text: string; value: string; }
+export interface TownOption         { text: string; value: string; regionId: string; }
+
+function toArr(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    for (const v of Object.values(r)) {
+      if (Array.isArray(v) && v.length > 0) return v as Record<string, unknown>[];
+    }
+  }
+  return [];
+}
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -49,7 +62,31 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const fresh = searchParams.get('fresh') === '1';
-  const CACHE_KEY = 'list-values';
+  const type = searchParams.get('type');
+  const regionId = searchParams.get('regionId');
+
+  // Fetch towns for a specific region (dynamic, not cached)
+  if (type === 'towns') {
+    try {
+      const token = await getServiceToken();
+      const url = regionId
+        ? `${BASE}/api/CorporatePortal/GetTowns?regionId=${regionId}`
+        : `${BASE}/api/CorporatePortal/GetTowns`;
+      const raw = await fetchJson(token, url);
+      console.log('[list-values/towns]', JSON.stringify(raw)?.slice(0, 300));
+      const rows = toArr((raw as Record<string,unknown>)?.result ?? (raw as Record<string,unknown>)?.data ?? raw ?? []);
+      const towns: TownOption[] = rows.map((r) => ({
+        value:    String(r.TownID ?? r.townid ?? r.Town_ID ?? r.PostalTownID ?? r.Id ?? r.id ?? ''),
+        text:     String(r.TownName ?? r.townname ?? r.Town_Name ?? r.Name ?? r.name ?? ''),
+        regionId: String(r.RegionID ?? r.regionid ?? r.Region_ID ?? ''),
+      })).filter((t) => t.value && t.text);
+      return NextResponse.json({ towns });
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch towns', towns: [] }, { status: 500 });
+    }
+  }
+
+  const CACHE_KEY = 'list-values-v2';
 
   if (!fresh) {
     const cached = cacheGet<object>(CACHE_KEY);
@@ -59,12 +96,14 @@ export async function GET(req: Request) {
   try {
     const token = await getServiceToken();
 
-    const [relRaw, genderRaw, maritalRaw, statesRaw] = await Promise.all([
+    const [relRaw, genderRaw, maritalRaw, statesRaw, regionsRaw] = await Promise.all([
       fetchJson(token, `${BASE}/api/ListValues/GetBeneficiaryRelationship`),
       fetchJson(token, `${BASE}/api/ListValues/GetGender`),
       fetchJson(token, `${BASE}/api/ListValues/GetMaritalStatus`),
       fetchJson(token, `${BASE}/api/ListValues/GetStates`),
+      fetchJson(token, `${BASE}/api/CorporatePortal/GetRegion`),
     ]);
+    console.log('[list-values/regions raw]', JSON.stringify(regionsRaw)?.slice(0, 300));
 
     // Relationships → {Text, Value}[]
     const relationships: RelationshipOption[] = Array.isArray(relRaw)
@@ -99,7 +138,14 @@ export async function GET(req: Request) {
       return { text: String(r.Text ?? r.text ?? '').trim(), value: String(r.Value ?? r.value ?? '') };
     }).filter((s) => s.text && s.value);
 
-    const payload = { relationships, genders, maritalStatuses, states };
+    // Regions → [{RegionID, RegionName}] (try several key patterns)
+    const regionRows = toArr((regionsRaw as Record<string,unknown>)?.result ?? (regionsRaw as Record<string,unknown>)?.data ?? regionsRaw ?? []);
+    const regions: RegionOption[] = regionRows.map((r) => ({
+      value: String(r.RegionID ?? r.regionid ?? r.Region_ID ?? r.Id ?? r.id ?? ''),
+      text:  String(r.RegionName ?? r.regionname ?? r.Region_Name ?? r.Name ?? r.name ?? ''),
+    })).filter((r) => r.value && r.text);
+
+    const payload = { relationships, genders, maritalStatuses, states, regions };
     cacheSet(CACHE_KEY, payload);
     return NextResponse.json(payload);
   } catch (err) {
