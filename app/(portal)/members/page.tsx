@@ -254,7 +254,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes }: 
         });
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add member'); return; }
-        const memberId = data.fullEnrolleeId || data.membershipNo || '';
+        const memberId = data.enrolleeId || data.membershipNo || data.fullEnrolleeId || '';
         setEnrollResult({ name: `${firstName} ${surname}`, memberId });
         return;
       }
