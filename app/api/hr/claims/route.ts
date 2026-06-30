@@ -89,6 +89,32 @@ function mapStatus(raw: string): 'Paid' | 'Processing' | 'Queried' | 'Rejected' 
   return 'Processing';
 }
 
+const DRUG_INFERENCE: [RegExp, string][] = [
+  [/ursodiol|ursodeoxycholic|udca/i, 'Hepatobiliary condition'],
+  [/antacid|gascol|omeprazol|pantoprazol|esomeprazol|ranitidine|lansoprazol|famotidine|gaviscon|maalox/i, 'Gastric acid disorder'],
+  [/amlodipine|lisinopril|losartan|valsartan|atenolol|nifedipine|antihypertensiv|ramipril|telmisartan|hydrochlorothiazide|perindopril|bisoprolol/i, 'Hypertension'],
+  [/metformin|glibenclamide|glimepiride|insulin|gliclazide|sitagliptin|diabetic|antidiabetic|glucophage/i, 'Diabetes mellitus'],
+  [/artemether|artesunate|coartem|lumefantrine|chloroquine|quinine|antimalarial|malaria/i, 'Malaria'],
+  [/amoxicillin|azithromycin|ciprofloxacin|metronidazole|augmentin|doxycycline|cotrimoxazole|ampicillin|erythromycin|clindamycin|ceftriaxone|levofloxacin|antibiotic/i, 'Bacterial infection'],
+  [/ibuprofen|diclofenac|naproxen|piroxicam|celecoxib|tramadol|paracetamol|acetaminophen|pain|analgesic|anti.?inflamm/i, 'Pain / Inflammation'],
+  [/dental|tooth|extraction|filling|scaling|root canal|orthodon|denture|crown|incisor|molar|caries/i, 'Dental condition'],
+  [/refraction|cycloplegic|ophthalmoscop|lens|glasses|spectac|optic|vision|glaucoma|cataract|eye drop/i, 'Eye condition'],
+  [/antenatal|prenatal|obstet|matern|delivery|labour|postnatal|ante.?natal/i, 'Maternity / Obstetric care'],
+  [/physiother|rehabilit|exercise therapy|musculoskeletal/i, 'Musculoskeletal condition'],
+  [/antihistamine|loratadine|cetirizine|fexofenadine|chlorpheniramine|allerg/i, 'Allergic condition'],
+  [/salbutamol|budesonide|fluticasone|montelukast|asthma|bronchodilat|inhaler/i, 'Respiratory condition'],
+  [/multivitamin|vitamin|supplement|mineral|iron|calcium|folic acid|zinc/i, 'Nutritional supplement'],
+  [/dispatch|delivery/i, ''],
+];
+
+function inferDiagnosisFromProcedure(procedure: string): string {
+  if (!procedure) return '';
+  for (const [pattern, label] of DRUG_INFERENCE) {
+    if (pattern.test(procedure)) return label;
+  }
+  return '';
+}
+
 function mapCategory(raw: string): 'Outpatient' | 'Inpatient' | 'Dental' | 'Optical' | 'Maternity' | 'Emergency' {
   const s = raw.toLowerCase();
   if (s.includes('inpat') || s.includes('admit') || s.includes('ward') || s.includes('hospital')) return 'Inpatient';
