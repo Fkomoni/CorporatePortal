@@ -607,8 +607,9 @@ export async function GET() {
     );
     const uniqueClaimsCount = uniqueClaimNos.size > 0 ? uniqueClaimNos.size : null;
 
+    // ClaimsHeaderEnquiry has no enrollee ID; use nem (name) deduplicated by claim_id count instead
     const utilizedMemberIds = new Set(
-      claimRows.map((r) => String(r.nem ?? r.claimant ?? r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim()).filter(Boolean)
+      claimRows.map((r) => String(r.MemberShipNo ?? r.MembershipNo ?? r.EnrolleeID ?? r.nem ?? r.claimant ?? '').trim()).filter(Boolean)
     );
     const membersUtilized = utilizedMemberIds.size > 0 ? utilizedMemberIds.size : null;
 
