@@ -258,10 +258,15 @@ export async function GET(req: Request) {
       const providerState = str(r, 'ProviderState', 'HospitalState', 'State');
       const icdDescRaw     = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'IcdDescription', 'icdDescription', 'DiagnosisDesc', 'DiagnosisDescription', 'diagnosis_desc', 'DiagnosisName', 'Diagnosis');
       const procedureName  = str(r, 'ProcedureName', 'ServiceName');
-      // Fall back chain: ICDDescription → ClaimDiagnosis → inferred from drug/procedure name
-      const icdDescription = icdDescRaw || diagByClaimId.get(claimRef) || inferDiagnosisFromProcedure(procedureName) || '';
+      const catRaw         = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
+      const isPharmacy     = /pharma/i.test(catRaw);
+      // Fall back chain: ICDDescription → ClaimDiagnosis → inferred from drug name → category fallback
+      const icdDescription = icdDescRaw
+        || diagByClaimId.get(claimRef)
+        || inferDiagnosisFromProcedure(procedureName)
+        || inferDiagnosisFromProcedure(catRaw)
+        || (isPharmacy ? 'Pharmacy benefit' : '');
       const diagnosis      = procedureName || icdDescription || str(r, 'Diagnosis');
-      const catRaw        = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
       const dateStr       = str(r, 'TreatmentDate', 'claim_date', 'DateOfService', 'ClaimDate');
 
       const amtClaimed = num(r, 'AmtClaimed', 'BilledAmount', 'ClaimedAmount');
