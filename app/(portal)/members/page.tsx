@@ -153,6 +153,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [linkScope, setLinkScope]   = useState<'self' | 'self-dependent'>('self');
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>('');
+  // Bulk CSV state
+  interface BulkRow { idx: number; firstName: string; surname: string; otherNames: string; dob: string; gender: string; email: string; mobile: string; employeeCode: string; errors: string[]; }
+  const [bulkStep, setBulkStep]       = useState<'upload' | 'review' | 'done'>('upload');
+  const [bulkRows, setBulkRows]       = useState<BulkRow[]>([]);
+  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
+  const [bulkProgress, setBulkProgress] = useState<Map<number, { status: 'pending' | 'ok' | 'error'; msg?: string }>>(new Map());
+  const [bulkSchemeId, setBulkSchemeId] = useState('');
+  const [bulkDragOver, setBulkDragOver] = useState(false);
+  const bulkFileRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState('');
   const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string; cifNumber?: string | null; isNewWithDeps?: boolean; schemeId?: string; schemeName?: string; empCode?: string } | null>(null);
@@ -219,6 +228,91 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [photoBase64, setPhotoB64]  = useState('');
   const [photoType, setPhotoType]   = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
+
+  // ── Bulk helpers ─────────────────────────────────────────────────────────
+  function parseBulkFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const XLSX = await import('xlsx');
+      const data = new Uint8Array(e.target!.result as ArrayBuffer);
+      const wb   = XLSX.read(data, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const raw  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+      const rows: BulkRow[] = raw.map((r, idx) => {
+        const get = (...keys: string[]) => {
+          for (const k of keys) { const v = r[k]; if (v != null && String(v).trim()) return String(v).trim(); }
+          return '';
+        };
+        const firstName    = get('First Name','FirstName','first_name','firstname');
+        const surname      = get('Last Name','LastName','Surname','surname','last_name');
+        const otherNames   = get('Other Names','OtherNames','other_names');
+        const dob          = get('Date of Birth','DOB','DateOfBirth','date_of_birth','dob');
+        const gender       = get('Gender','Sex','gender','sex');
+        const email        = get('Email','email','Email Address');
+        const mobile       = get('Mobile','Phone','mobile','phone','Mobile Number');
+        const employeeCode = get('Employee Code','Staff ID','EmployeeCode','employee_code','staff_id','StaffID');
+        const errors: string[] = [];
+        if (!firstName)    errors.push('First Name required');
+        if (!surname)      errors.push('Last Name required');
+        if (!dob)          errors.push('Date of Birth required');
+        if (!gender)       errors.push('Gender required');
+        if (!email)        errors.push('Email required');
+        if (!mobile)       errors.push('Mobile required');
+        if (!employeeCode) errors.push('Employee Code required');
+        if (dob && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$|^\d{4}-\d{2}-\d{2}$/.test(dob)) errors.push('DOB must be DD/MM/YYYY');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Invalid email');
+        return { idx, firstName, surname, otherNames, dob, gender, email, mobile, employeeCode, errors };
+      });
+      setBulkRows(rows);
+      setBulkSelected(new Set(rows.filter(r => r.errors.length === 0).map(r => r.idx)));
+      setBulkStep('review');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function downloadBulkTemplate() {
+    import('xlsx').then((XLSX) => {
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['First Name','Last Name','Other Names','Date of Birth','Gender','Email','Mobile','Employee Code'],
+        ['John','Doe','','01/01/1990','Male','john.doe@company.com','08012345678','EMP001'],
+      ]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Census');
+      XLSX.writeFile(wb, 'bulk-enrolment-template.xlsx');
+    });
+  }
+
+  async function submitBulkRows() {
+    if (!bulkSchemeId) { toast('Please select a plan/scheme first.', 'error'); return; }
+    const scheme = schemes.find(s => s.schemeId === bulkSchemeId);
+    if (!scheme) { toast('Invalid scheme selected.', 'error'); return; }
+    const toSubmit = bulkRows.filter(r => bulkSelected.has(r.idx) && r.errors.length === 0);
+    if (!toSubmit.length) { toast('No valid rows selected.', 'error'); return; }
+    const initial = new Map(toSubmit.map(r => [r.idx, { status: 'pending' as const }]));
+    setBulkProgress(initial);
+    setBulkStep('done');
+    for (const row of toSubmit) {
+      // Normalise DOB to YYYY-MM-DD
+      let dob = row.dob;
+      const dmy = dob.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmy) dob = `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+      const sexId = /^f/i.test(row.gender) ? '2' : '1';
+      try {
+        const res = await fetch('/api/hr/members/add', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schemeId: bulkSchemeId, schemeName: scheme.schemeName, firstName: row.firstName, surname: row.surname, otherNames: row.otherNames, dateOfBirth: dob, sexId, email: row.email, mobile: row.mobile, postalTownId: '1', employeeCode: row.employeeCode }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setBulkProgress(prev => new Map(prev).set(row.idx, { status: 'error', msg: data.error ?? 'Failed' }));
+        } else {
+          setBulkProgress(prev => new Map(prev).set(row.idx, { status: 'ok', msg: data.enrolleeId ?? '' }));
+        }
+      } catch {
+        setBulkProgress(prev => new Map(prev).set(row.idx, { status: 'error', msg: 'Network error' }));
+      }
+    }
+  }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -445,11 +539,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       }
 
       if (mode === 'bulk' && bulkAction === 'csv') {
-        toast('Census CSV uploaded. Members will be activated shortly.', 'info');
-        onClose();
-      } else if (mode === 'bulk') {
-        toast('Bulk invitation links sent.', 'info');
-        onClose();
+        await submitBulkRows();
+        return;
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
@@ -461,8 +552,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const submitLabel = submitting ? 'Please wait…'
     : mode === 'individual' && actionType === 'link' ? 'Generate Link'
     : mode === 'individual' ? 'Add Member'
-    : bulkAction === 'csv' ? 'Upload & Enrol'
-    : 'Send Invitations';
+    : bulkStep === 'review' ? `Enrol ${bulkSelected.size} Member${bulkSelected.size !== 1 ? 's' : ''}`
+    : bulkStep === 'done' ? 'Close'
+    : 'Upload & Enrol';
 
   // ── Add-dependent handler for "new staff + dependants" success screen ───
   async function handleAddDep() {
@@ -736,57 +828,115 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           )}
 
           {/* ── BULK mode ── */}
-          {mode === 'bulk' && (
+          {mode === 'bulk' && bulkStep === 'upload' && (
             <>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Bulk Action</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
-                {([
-                  { key: 'csv',    label: 'Upload Census CSV',      desc: 'HR adds multiple members at once via spreadsheet' },
-                  { key: 'invite', label: 'Bulk Send Invite Links', desc: 'Email self-enrolment links to a list of staff' },
-                ] as const).map((t) => (
-                  <div key={t.key} onClick={() => setBulkAction(t.key)}
-                    style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${bulkAction === t.key ? '#F56B22' : '#E5E7F1'}`, background: bulkAction === t.key ? '#FFF8F5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: bulkAction === t.key ? '#F56B22' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                    <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
-                  </div>
-                ))}
+              {/* Scheme picker */}
+              <div style={{ marginBottom: 18 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan / Scheme</p>
+                <select value={bulkSchemeId} onChange={e => setBulkSchemeId(e.target.value)}
+                  style={{ width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: bulkSchemeId ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
+                  <option value=''>Select a plan…</option>
+                  {schemes.map(s => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                </select>
               </div>
-              {bulkAction === 'csv' && (
-                <div style={{ border: '2px dashed #E5E7F1', borderRadius: 16, padding: '36px 24px', textAlign: 'center' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                    <Upload style={{ width: 22, height: 22, color: '#F56B22' }} />
-                  </div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Census CSV here</p>
-                  <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One member per row</p>
-                  <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 12, background: '#EEF2FF', cursor: 'pointer' }}>Browse File</button>
+              {/* Dropzone */}
+              <div
+                onDragOver={e => { e.preventDefault(); setBulkDragOver(true); }}
+                onDragLeave={() => setBulkDragOver(false)}
+                onDrop={e => { e.preventDefault(); setBulkDragOver(false); const f = e.dataTransfer.files[0]; if (f) parseBulkFile(f); }}
+                style={{ border: `2px dashed ${bulkDragOver ? '#F56B22' : '#E5E7F1'}`, borderRadius: 16, padding: '36px 24px', textAlign: 'center', background: bulkDragOver ? '#FFF8F5' : '#FAFBFC', transition: 'all 0.15s' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                  <Upload style={{ width: 22, height: 22, color: '#F56B22' }} />
                 </div>
-              )}
-              {bulkAction === 'invite' && (
-                <>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Scope</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-                    {([
-                      { key: 'self',           label: 'Principal Only',        desc: 'Each staff enrols themselves' },
-                      { key: 'self-dependent', label: 'Principal + Dependent', desc: 'Self-enrol with dependent option' },
-                    ] as const).map((t) => (
-                      <div key={t.key} onClick={() => setLinkScope(t.key)}
-                        style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${linkScope === t.key ? '#10B981' : '#E5E7F1'}`, background: linkScope === t.key ? '#ECFDF5' : '#fff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: linkScope === t.key ? '#059669' : '#131C4E', marginBottom: 3 }}>{t.label}</p>
-                        <p style={{ fontSize: 11, color: '#9CA3B8' }}>{t.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ border: '2px dashed #BBFEF0', borderRadius: 16, padding: '36px 24px', textAlign: 'center', background: '#F0FFF9' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 14, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                      <Upload style={{ width: 22, height: 22, color: '#10B981' }} />
-                    </div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Upload staff email list (CSV)</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>One email per row · We&apos;ll send a unique link to each</p>
-                    <button style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 12, background: '#ECFDF5', cursor: 'pointer' }}>Browse File</button>
-                  </div>
-                </>
-              )}
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Census file here</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One member per row</p>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  <button onClick={() => bulkFileRef.current?.click()}
+                    style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 12, background: '#EEF2FF', cursor: 'pointer' }}>Browse File</button>
+                  <button onClick={downloadBulkTemplate}
+                    style={{ height: 38, padding: '0 16px', fontSize: 13, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <ArrowDownToLine style={{ width: 13, height: 13 }} /> Template
+                  </button>
+                </div>
+                <input ref={bulkFileRef} type='file' accept='.csv,.xlsx,.xls' style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) parseBulkFile(f); }} />
+              </div>
             </>
+          )}
+
+          {/* ── BULK — Review table ── */}
+          {mode === 'bulk' && bulkStep === 'review' && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{bulkRows.length} rows found · {bulkRows.filter(r => r.errors.length === 0).length} valid</p>
+                <button onClick={() => { setBulkStep('upload'); setBulkRows([]); setBulkSelected(new Set()); }}
+                  style={{ fontSize: 12, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>← Re-upload</button>
+              </div>
+              {/* Scheme picker */}
+              <div style={{ marginBottom: 12 }}>
+                <select value={bulkSchemeId} onChange={e => setBulkSchemeId(e.target.value)}
+                  style={{ width: '100%', height: 38, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: bulkSchemeId ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
+                  <option value=''>Select a plan…</option>
+                  {schemes.map(s => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
+                </select>
+              </div>
+              {/* Select all */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #F3F4F6' }}>
+                <input type='checkbox'
+                  checked={bulkSelected.size === bulkRows.filter(r => r.errors.length === 0).length && bulkRows.filter(r => r.errors.length === 0).length > 0}
+                  onChange={e => {
+                    if (e.target.checked) setBulkSelected(new Set(bulkRows.filter(r => r.errors.length === 0).map(r => r.idx)));
+                    else setBulkSelected(new Set());
+                  }} style={{ width: 15, height: 15, cursor: 'pointer' }} />
+                <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Select all valid ({bulkRows.filter(r => r.errors.length === 0).length})</span>
+              </div>
+              {/* Rows */}
+              <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {bulkRows.map(row => {
+                  const hasErr = row.errors.length > 0;
+                  const checked = bulkSelected.has(row.idx);
+                  return (
+                    <div key={row.idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 12, border: `1px solid ${hasErr ? '#FEE2E2' : checked ? '#BBF7D0' : '#E5E7F1'}`, background: hasErr ? '#FFF5F5' : checked ? '#F0FFF4' : '#fff' }}>
+                      <input type='checkbox' disabled={hasErr} checked={!hasErr && checked}
+                        onChange={e => {
+                          const s = new Set(bulkSelected);
+                          if (e.target.checked) s.add(row.idx); else s.delete(row.idx);
+                          setBulkSelected(s);
+                        }} style={{ marginTop: 2, width: 14, height: 14, cursor: hasErr ? 'not-allowed' : 'pointer' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{row.firstName} {row.surname} {row.otherNames ? `(${row.otherNames})` : ''}</p>
+                        <p style={{ fontSize: 11, color: '#9CA3B8' }}>{row.employeeCode} · {row.email} · {row.mobile} · {row.dob} · {row.gender}</p>
+                        {hasErr && <p style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>{row.errors.join(', ')}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ── BULK — Results ── */}
+          {mode === 'bulk' && bulkStep === 'done' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>
+                Enrolment Results — {[...bulkProgress.values()].filter(v => v.status === 'ok').length} succeeded · {[...bulkProgress.values()].filter(v => v.status === 'error').length} failed · {[...bulkProgress.values()].filter(v => v.status === 'pending').length} pending
+              </p>
+              {bulkRows.filter(r => bulkProgress.has(r.idx)).map(row => {
+                const prog = bulkProgress.get(row.idx);
+                const icon = prog?.status === 'ok' ? '✓' : prog?.status === 'error' ? '✗' : '⏳';
+                const color = prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : '#D97706';
+                return (
+                  <div key={row.idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#FAFBFC' }}>
+                    <span style={{ fontSize: 16, color, flexShrink: 0 }}>{icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{row.firstName} {row.surname}</p>
+                      <p style={{ fontSize: 11, color: prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : '#9CA3B8' }}>
+                        {prog?.status === 'ok' ? `Enrolled · ${prog.msg}` : prog?.status === 'error' ? prog.msg : 'Processing…'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* ── INDIVIDUAL — Step 1: How will this enrolment happen? ── */}
@@ -1227,10 +1377,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             <button onClick={onClose} style={{ height: 44, padding: '0 22px', fontSize: 14, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
               Cancel
             </button>
-            {!(mode === 'individual' && actionType === 'link' && generatedUrl) && (
-              <button onClick={handleSubmit} disabled={submitting}
-                style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: submitting ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 3px 12px rgba(245,107,34,0.35)' }}>
+            {!(mode === 'individual' && actionType === 'link' && generatedUrl) && !(mode === 'bulk' && bulkStep === 'done') && (
+              <button onClick={mode === 'bulk' && bulkStep === 'review' ? submitBulkRows : handleSubmit} disabled={submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)}
+                style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: (submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)) ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: (submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)) ? 'not-allowed' : 'pointer', boxShadow: (submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)) ? 'none' : '0 3px 12px rgba(245,107,34,0.35)' }}>
                 {submitLabel}
+              </button>
+            )}
+            {mode === 'bulk' && bulkStep === 'done' && (
+              <button onClick={onClose} style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#059669,#10B981)', border: 'none', borderRadius: 14, cursor: 'pointer', boxShadow: '0 3px 12px rgba(16,185,129,0.3)' }}>
+                Done
               </button>
             )}
             {mode === 'individual' && actionType === 'link' && generatedUrl && (
