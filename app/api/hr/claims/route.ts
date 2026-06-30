@@ -159,6 +159,7 @@ export interface LiveClaim {
 export interface ClaimsStats {
   totalPaidAmount: number;
   paidCount: number;
+  totalBilledAmount: number;
   processingAmount: number;
   processingCount: number;
   queriedCount: number;
@@ -323,14 +324,17 @@ export async function GET(req: Request) {
     // Sort: most recent first
     const filtered = [...seen.values()].sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
 
+    const totalBilledAmount = filtered.reduce((s, c) => s + c.amtClaimed, 0);
+    const totalPaidAmount   = filtered.filter((c) => c.status === 'Paid').reduce((s, c) => s + c.amount, 0);
     const stats: ClaimsStats = {
-      totalPaidAmount:  filtered.filter((c) => c.status === 'Paid').reduce((s, c) => s + c.amount, 0),
+      totalPaidAmount,
       paidCount:        filtered.filter((c) => c.status === 'Paid').length,
+      totalBilledAmount,
       processingAmount: filtered.filter((c) => c.status === 'Processing').reduce((s, c) => s + c.amtClaimed, 0),
       processingCount:  filtered.filter((c) => c.status === 'Processing').length,
       queriedCount:     filtered.filter((c) => c.status === 'Queried').length,
       rejectedCount:    filtered.filter((c) => c.status === 'Rejected').length,
-      rejectedAmount:   filtered.reduce((s, c) => s + c.rejectedAmount, 0),
+      rejectedAmount:   Math.max(totalBilledAmount - totalPaidAmount, 0),
       totalClaims:      filtered.length,
       policyStart: policyStart ? policyStart.toISOString().slice(0, 10) : null,
       policyEnd:   policyEnd   ? policyEnd.toISOString().slice(0, 10)   : null,

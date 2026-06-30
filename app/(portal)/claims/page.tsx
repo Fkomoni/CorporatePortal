@@ -84,6 +84,12 @@ export default function ClaimsPage() {
 
   const summaryCards = stats ? [
     {
+      label: 'Total Billed',
+      value: fmt(stats.totalBilledAmount),
+      sub: `${stats.totalClaims} claim${stats.totalClaims !== 1 ? 's' : ''} submitted`,
+      color: '#6366F1', bg: '#EEF2FF', Icon: Filter,
+    },
+    {
       label: 'Total Paid YTD',
       value: fmt(stats.totalPaidAmount),
       sub: `${stats.paidCount} claim${stats.paidCount !== 1 ? 's' : ''} settled`,
@@ -96,15 +102,9 @@ export default function ClaimsPage() {
       color: '#F59E0B', bg: '#FFFBEB', Icon: Clock,
     },
     {
-      label: 'Claims Queried',
-      value: String(stats.queriedCount),
-      sub: 'Awaiting additional info',
-      color: '#3B82F6', bg: '#EFF6FF', Icon: Filter,
-    },
-    {
-      label: 'Claims Rejected',
-      value: String(stats.rejectedCount),
-      sub: 'Declined for payment',
+      label: 'Amount Not Paid',
+      value: fmt(stats.rejectedAmount),
+      sub: 'Billed minus paid',
       color: '#EF4444', bg: '#FEF2F2', Icon: XCircle,
     },
   ] : null;
@@ -119,10 +119,10 @@ export default function ClaimsPage() {
         {vis.showSummaryCards && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
             {(summaryCards ?? [
-              { label: 'Total Paid YTD',  value: '…', sub: '',                       color: '#10B981', bg: '#ECFDF5', Icon: TrendingUp },
-              { label: 'Processing',      value: '…', sub: '',                       color: '#F59E0B', bg: '#FFFBEB', Icon: Clock      },
-              { label: 'Claims Queried',  value: '…', sub: 'Awaiting additional info', color: '#3B82F6', bg: '#EFF6FF', Icon: Filter   },
-              { label: 'Claims Rejected', value: '…', sub: 'Declined for payment',    color: '#EF4444', bg: '#FEF2F2', Icon: XCircle  },
+              { label: 'Total Billed',    value: '…', sub: '',                  color: '#6366F1', bg: '#EEF2FF', Icon: Filter    },
+              { label: 'Total Paid YTD', value: '…', sub: '',                  color: '#10B981', bg: '#ECFDF5', Icon: TrendingUp },
+              { label: 'Processing',     value: '…', sub: '',                  color: '#F59E0B', bg: '#FFFBEB', Icon: Clock      },
+              { label: 'Amount Not Paid',value: '…', sub: 'Billed minus paid', color: '#EF4444', bg: '#FEF2F2', Icon: XCircle   },
             ]).map((s) => (
               <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
                 <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>
