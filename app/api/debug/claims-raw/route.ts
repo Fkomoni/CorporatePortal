@@ -64,7 +64,9 @@ export async function GET(req: Request) {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID in session' }, { status: 400 });
 
-  const year = new URL(req.url).searchParams.get('year') ?? new Date().getFullYear().toString();
+  const params   = new URL(req.url).searchParams;
+  const year     = params.get('year') ?? new Date().getFullYear().toString();
+  const claimId  = params.get('claimId') ?? null;
   const fromDate = `${year}-01-01`;
   const toDate   = `${year}-12-31`;
 
@@ -115,6 +117,25 @@ export async function GET(req: Request) {
       const missingDiag = rows.filter((r) => !hasIcd(r)).slice(0, 5);
 
       return { totalRows: rows.length, allFieldNames, icdFieldsFound, sampleWithDiag: withDiag, sampleMissingDiag: missingDiag };
+    }
+
+    // If claimId filter supplied, return only matching rows from both endpoints
+    if (claimId) {
+      const match = (rows: Record<string, unknown>[]) =>
+        rows.filter((r) => String(r['claim_id'] ?? r['ClaimID'] ?? r['ClaimId'] ?? '') === claimId);
+      return NextResponse.json({
+        groupId,
+        claimId,
+        dateRange: { fromDate, toDate },
+        GetPaidClaimsWithDiagnosis: {
+          httpStatus: diagRes.status,
+          rows: match(diagRows),
+        },
+        ClaimsHeaderEnquiry: {
+          httpStatus: headerRes.status,
+          rows: match(headerRows),
+        },
+      });
     }
 
     return NextResponse.json({
