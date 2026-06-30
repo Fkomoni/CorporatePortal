@@ -229,13 +229,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
 
+    const r = raw as Record<string, unknown>;
+
     if (!res.ok) {
-      const msg = (raw as Record<string,unknown>)?.Message ?? (raw as Record<string,unknown>)?.message ?? text.slice(0, 200);
+      const msg = r?.Message ?? r?.message ?? r?.error ?? r?.Error ?? text.slice(0, 200);
       return NextResponse.json({ error: String(msg) }, { status: res.status });
     }
 
-    // For dependent links: increment usedCount; only mark fully used when limit reached.
-    // For self-dep-add (principal token used for adding deps): only increment usedCount.
+    // Check for Prognosis-level error in body (HTTP 200 but status≠success)
+    const apiStatus  = String(r?.status ?? r?.Status ?? r?.statusCode ?? '').toLowerCase();
+    const apiMessage = String(r?.message ?? r?.Message ?? r?.error ?? r?.Error ?? '');
+    const isApiError = apiStatus && !['success','200','ok','true'].includes(apiStatus);
+    if (isApiError && apiMessage) {
+      return NextResponse.json({ error: apiMessage }, { status: 422 });
+    }
+
+    // Mark the invitation used BEFORE returning — so re-submits are blocked
     const newUsedCount = (invitation.usedCount ?? 0) + 1;
     const fullyUsed = !isSelfDepAdd && (invitation.inviteType !== 'dependent' || newUsedCount >= invitation.maxDependents);
     await prisma.memberInvitation.update({
@@ -246,15 +255,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     });
 
-    const r = raw as Record<string, unknown>;
-    // For dependent enrolment, result may be wrapped in data[]
+    // Extract IDs — Prognosis wraps result in data[] for dependent calls
     const dataItem = Array.isArray(r?.data) ? (r.data as Record<string,unknown>[])[0] : r;
+    const cifNumber    = dataItem?.Cif_Number ?? dataItem?.cifNumber ?? dataItem?.CifNumber ?? r?.Cif_Number ?? r?.cifNumber ?? null;
     const membershipNo = String(dataItem?.MembershipNo ?? dataItem?.membershipNo ?? r?.MembershipNo ?? r?.membershipNo ?? '');
     const suffix       = String(dataItem?.Suffix ?? dataItem?.suffix ?? r?.Suffix ?? r?.suffix ?? '0');
     const enrolleeId   = membershipNo ? `${membershipNo}/${suffix}` : '';
+
+    // If Prognosis returned HTTP 200 with no error status, treat as success regardless of ID presence
     return NextResponse.json({
       success: true,
-      cifNumber: dataItem?.Cif_Number ?? dataItem?.cifNumber ?? r?.Cif_Number ?? r?.cifNumber ?? null,
+      cifNumber,
       membershipNo,
       suffix,
       enrolleeId,

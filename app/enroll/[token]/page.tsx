@@ -41,6 +41,7 @@ export default function EnrollPage() {
   const [depEnrolled, setDepEnrolled] = useState<Array<{ enrolleeId: string; name: string }>>([]);
   const [remainingSlots, setRemainingSlots] = useState(1);
   const [principalCifNumber, setPrincipalCifNumber] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   // Form fields
   const [firstName, setFirstName]         = useState('');
@@ -134,6 +135,7 @@ export default function EnrollPage() {
       if (!res.ok || data.error) {
         setErrorMsg(data.error ?? 'Enrolment failed. Please try again.');
         setStatus('error');
+        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       } else {
         const enrolleeId = data.enrolleeId ?? '';
         const name = `${firstName} ${surname}`.trim();
@@ -388,9 +390,12 @@ export default function EnrollPage() {
         )}
 
         {status === 'error' && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 18px', marginBottom: 20, color: '#DC2626', fontSize: 13, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <AlertCircle style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
-            {errorMsg}
+          <div ref={errorRef} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '16px 18px', marginBottom: 20, color: '#DC2626', fontSize: 13, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <AlertCircle style={{ width: 18, height: 18, flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <p style={{ fontWeight: 700, marginBottom: 2 }}>Submission failed</p>
+              <p>{errorMsg || 'An error occurred. Please try again or contact HR.'}</p>
+            </div>
           </div>
         )}
 
