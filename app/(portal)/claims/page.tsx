@@ -39,12 +39,11 @@ function memberInitials(fullName: string, enrolleeId: string): string {
   return '—';
 }
 
-// Format as "F. LASTNAME" for confidentiality
+// Format as "F.L" (initials only) for confidentiality
 function maskName(fullName: string): string {
   if (!fullName) return '—';
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0];
-  return `${parts[0][0]}. ${parts.slice(1).join(' ')}`;
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return parts.map((p) => p[0].toUpperCase()).join('.');
 }
 
 export default function ClaimsPage() {
