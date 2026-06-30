@@ -220,7 +220,7 @@ interface LossRatioResult {
 }
 
 function computeLossRatio({
-  premiumRows, claimRows, claimsOk, policyStart, policyEnd, brokerage = 0, today = new Date(),
+  premiumRows, claimRows, claimsOk, policyStart, policyEnd, brokerage = 0, today = new Date(), paidClaimsOverride,
 }: {
   premiumRows: Record<string, unknown>[];
   claimRows: Record<string, unknown>[];
@@ -229,6 +229,7 @@ function computeLossRatio({
   policyEnd: string;
   brokerage?: number;
   today?: Date;
+  paidClaimsOverride?: number;
 }): LossRatioResult {
   const ps = parseDate(policyStart);
   const pe = parseDate(policyEnd);
@@ -318,6 +319,9 @@ function computeLossRatio({
     ibnr = paid * 0.075;
     ibnrMethod = 'Fallback (7.5%)';
   }
+
+  // Use canonical figure from GetPaidClaimsWithDiagnosis when available
+  if (paidClaimsOverride !== undefined && paidClaimsOverride > 0) paid = paidClaimsOverride;
 
   const totalIncurred = paid + outstanding + ibnr;
   const lossRatio = (claimsOk && hasPolicy && earnedPremium > 0)
@@ -470,7 +474,7 @@ export interface DashboardStats {
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
-  topConditions: { name: string; visits: number }[];
+  topConditions: { name: string; visits: number; amtPaid?: number }[];
   // Scheme Health Score
   schemeHealthScore: number | null;
   schemeHealthLabel: string | null;
@@ -598,9 +602,21 @@ export async function GET() {
     };
     const claimsFromDate = toISO(policyFromDate) ?? `${cy}-01-01`;
     const claimsToDate   = toISO(policyToDate)   ?? `${cy}-12-31`;
-    const claimsResult = await fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`);
+    const [claimsResult, paidClaimsResult] = await Promise.all([
+      fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`),
+      fetchJson(token, `/api/EnrolleeClaims/GetPaidClaimsWithDiagnosis?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`),
+    ]);
     const claimsRaw  = claimsResult.data;
     const claimsOk   = claimsResult.ok && claimsResult.data !== null;
+
+    // Canonical paid claims figure from GetPaidClaimsWithDiagnosis, status=Paid only
+    const paidClaimRows = toRows(paidClaimsResult.data);
+    const canonicalClaimsPaid = paidClaimRows
+      .filter((r) => {
+        const st = String(r.CLAIM_STATUS ?? r.ClaimStatus ?? r.Status ?? '').toLowerCase();
+        return st.includes('paid') || st.includes('settled') || st.includes('approved');
+      })
+      .reduce((sum, r) => sum + (toNumber(r.AmtPaid ?? r.PaidAmount ?? r.AmountPaid) ?? 0), 0);
 
     // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
     const claimRows = toRows(claimsRaw);
@@ -612,6 +628,7 @@ export async function GET() {
       policyStart: policyFromDate ?? '',
       policyEnd:   policyToDate   ?? '',
       brokerage,
+      paidClaimsOverride: paidClaimsResult.ok && canonicalClaimsPaid > 0 ? canonicalClaimsPaid : undefined,
     });
 
     // ── Utilization metrics ───────────────────────────────────────────────────
@@ -708,15 +725,19 @@ export async function GET() {
       }
       return null;
     }
-    const conditionCount = new Map<string, number>();
+    const conditionMap = new Map<string, { visits: number; amtPaid: number }>();
     for (const r of claimRows) {
       const diag = String(r.ClaimDiagnosis ?? r.diagnosis ?? r.Diagnosis ?? '').trim();
       const bucket = classifyCondition(diag);
-      if (bucket) conditionCount.set(bucket, (conditionCount.get(bucket) ?? 0) + 1);
+      if (!bucket) continue;
+      const paid = toNumber(r.gross_paid ?? r.AmtPaid ?? r.AmountPaid) ?? 0;
+      const existing = conditionMap.get(bucket);
+      if (existing) { existing.visits += 1; existing.amtPaid += paid; }
+      else conditionMap.set(bucket, { visits: 1, amtPaid: paid });
     }
-    const topConditions = [...conditionCount.entries()]
-      .map(([name, visits]) => ({ name, visits }))
-      .sort((a, b) => b.visits - a.visits)
+    const topConditions = [...conditionMap.entries()]
+      .map(([name, d]) => ({ name, visits: d.visits, amtPaid: d.amtPaid }))
+      .sort((a, b) => b.amtPaid - a.amtPaid)
       .slice(0, 8);
 
     const amtClaimed = claimRows.length > 0

@@ -90,7 +90,7 @@ interface DashboardStats {
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
-  topConditions: { name: string; visits: number }[];
+  topConditions: { name: string; visits: number; amtPaid?: number }[];
   policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
@@ -390,19 +390,25 @@ export default function DashboardPage() {
 
           {vis.showTopConditions && <div style={{ ...card, padding: '26px 28px' }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Top Conditions</p>
-            <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 24 }}>By number of visits · 2026</p>
+            <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 24 }}>By claims spend · {stats?.policyYear ?? new Date().getFullYear()}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {(stats?.topConditions && stats.topConditions.length > 0 ? stats.topConditions : []).map((item, i, arr) => (
+              {(stats?.topConditions && stats.topConditions.length > 0 ? stats.topConditions : []).map((item, i, arr) => {
+                const maxSpend = arr[0]?.amtPaid ?? arr[0]?.visits ?? 1;
+                const itemSpend = item.amtPaid ?? item.visits;
+                const barPct = (itemSpend / (maxSpend || 1)) * 100;
+                const fmt = (v: number) => v >= 1_000_000 ? `₦${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `₦${(v / 1_000).toFixed(0)}K` : `₦${v}`;
+                return (
                 <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 12, color: '#6B7480', fontWeight: 500, width: 140, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.name}
                   </span>
                   <div style={{ flex: 1, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ width: `${(item.visits / (arr[0]?.visits || 1)) * 100}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
+                    <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
                   </div>
-                  <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, width: 30, textAlign: 'right', flexShrink: 0 }}>{item.visits}</span>
+                  <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, width: 48, textAlign: 'right', flexShrink: 0 }}>{item.amtPaid != null ? fmt(item.amtPaid) : item.visits}</span>
                 </div>
-              ))}
+                );
+              })}
               {(!stats?.topConditions || stats.topConditions.length === 0) && (
                 <p style={{ fontSize: 12, color: '#9CA3B8', textAlign: 'center', padding: '12px 0' }}>Loading condition data...</p>
               )}
