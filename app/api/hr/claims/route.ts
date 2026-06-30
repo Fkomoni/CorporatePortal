@@ -180,11 +180,31 @@ export async function GET(req: Request) {
       ? policyEnd.toISOString().slice(0, 10)
       : `${now.getFullYear()}-12-31`;
 
-    const claimsRes = await fetch(
-      `${BASE}/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${fromDate}&toDate=${toDate}`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
-    );
-    const claimsRaw = await claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } });
+    // Fetch both APIs in parallel:
+    // - GetPaidClaimsWithDiagnosis: has EnrolleeID, ICDCode, ProcedureName, FilterType
+    // - ClaimsHeaderEnquiry: has ClaimDiagnosis (full text diagnosis), provider, service
+    const [claimsRes, headerRes] = await Promise.all([
+      fetch(`${BASE}/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${fromDate}&toDate=${toDate}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }),
+      fetch(`${BASE}/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${fromDate}&todate=${toDate}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }),
+    ]);
+
+    const [claimsRaw, headerRaw] = await Promise.all([
+      claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
+      headerRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
+    ]);
+
+    // Build claim_id → ClaimDiagnosis lookup from ClaimsHeaderEnquiry
+    const headerRows: Record<string, unknown>[] = Array.isArray(headerRaw?.result)
+      ? (headerRaw.result as Record<string, unknown>[])
+      : toRows(headerRaw);
+    const diagByClaimId = new Map<string, string>();
+    for (const h of headerRows) {
+      const id   = h['claim_id'] != null ? String(h['claim_id']) : '';
+      const diag = h['ClaimDiagnosis'] != null ? String(h['ClaimDiagnosis']).trim() : '';
+      if (id && diag) diagByClaimId.set(id, diag);
+    }
 
     // New response shape: { status: "success", data: [...] }
     const rows: Record<string, unknown>[] = Array.isArray(claimsRaw?.data)
@@ -211,9 +231,11 @@ export async function GET(req: Request) {
 
       const provider      = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
       const providerState = str(r, 'ProviderState', 'HospitalState', 'State');
-      const icdCode       = str(r, 'ICDCode', 'ICD_Code', 'icd_code', 'Icdcode', 'icdCode', 'DiagnosisCode', 'diagnosis_code', 'ICD');
-      const icdDescription = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'IcdDescription', 'icdDescription', 'DiagnosisDesc', 'DiagnosisDescription', 'diagnosis_desc', 'DiagnosisName', 'Diagnosis');
-      const diagnosis     = str(r, 'ProcedureName', 'ServiceName') || icdDescription || str(r, 'Diagnosis');
+      const icdCode        = str(r, 'ICDCode', 'ICD_Code', 'icd_code', 'Icdcode', 'icdCode', 'DiagnosisCode', 'diagnosis_code', 'ICD');
+      const icdDescRaw     = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'IcdDescription', 'icdDescription', 'DiagnosisDesc', 'DiagnosisDescription', 'diagnosis_desc', 'DiagnosisName', 'Diagnosis');
+      // Fall back to ClaimsHeaderEnquiry ClaimDiagnosis when ICDDescription is empty
+      const icdDescription = icdDescRaw || diagByClaimId.get(claimRef) || '';
+      const diagnosis      = str(r, 'ProcedureName', 'ServiceName') || icdDescription || str(r, 'Diagnosis');
       const catRaw        = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
       const dateStr       = str(r, 'TreatmentDate', 'claim_date', 'DateOfService', 'ClaimDate');
 
