@@ -169,8 +169,8 @@ const PREMIUM_KEYS = [
   'AnnualPremium','Annual_Premium','MemberPremium','MemberContribution','Contribution',
   'PolicyPremium','Policy_Premium','PremiumDue',
 ];
-const PAID_AMOUNT_KEYS  = ['AmtPaid','PaidAmount','AmountPaid','Paid_Amount','paid_amount','ClaimPaidAmount','NetPaid','Amount_Paid','TotalPaidAmount','TotalPaid'];
-const BILLED_AMOUNT_KEYS = ['AmtClaimed','BilledAmount','ClaimedAmount','Amount_Billed','billed_amount','AmountBilled','ClaimAmount','Claim_Amount','GrossAmount','TotalBilled','amount_claimed'];
+const PAID_AMOUNT_KEYS  = ['AmtPaid','PaidAmount','AmountPaid','Paid_Amount','paid_amount','ClaimPaidAmount','NetPaid','Amount_Paid','TotalPaidAmount','TotalPaid','gross_paid'];
+const BILLED_AMOUNT_KEYS = ['AmtClaimed','BilledAmount','ClaimedAmount','Amount_Billed','billed_amount','AmountBilled','ClaimAmount','Claim_Amount','GrossAmount','TotalBilled','amount_claimed','gross_claimedamt'];
 const STATUS_KEYS       = ['CLAIM_STATUS','ClaimStatus','Status','claim_status','PaymentStatus','Claim_Status'];
 const PAYMENT_DATE_KEYS = ['PaymentDate','Payment_Date','DatePaid','PaidDate','DateSettled','SettlementDate'];
 const CLAIM_DATE_KEYS   = ['TreatmentDate','DateOfService','ServiceDate','ClaimDate','Claim_Date','Treatment_Date'];
@@ -603,12 +603,12 @@ export async function GET() {
 
     // ── Utilization metrics ───────────────────────────────────────────────────
     const uniqueClaimNos = new Set(
-      claimRows.map((r) => String(r.ClaimNumber ?? r.Claim_Number ?? '').trim()).filter(Boolean)
+      claimRows.map((r) => String(r.claim_id ?? r.ClaimNumber ?? r.Claim_Number ?? '').trim()).filter(Boolean)
     );
     const uniqueClaimsCount = uniqueClaimNos.size > 0 ? uniqueClaimNos.size : null;
 
     const utilizedMemberIds = new Set(
-      claimRows.map((r) => String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim()).filter(Boolean)
+      claimRows.map((r) => String(r.nem ?? r.claimant ?? r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim()).filter(Boolean)
     );
     const membersUtilized = utilizedMemberIds.size > 0 ? utilizedMemberIds.size : null;
 
@@ -620,14 +620,13 @@ export async function GET() {
     // ── Top 5 providers ───────────────────────────────────────────────────────
     const providerMap = new Map<string, { location: string; visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
-      const name     = String(r.Provider ?? r.ProviderName ?? '').trim();
+      const name     = String(r.provider ?? r.Provider ?? r.ProviderName ?? '').trim();
       const location = String(r.ProviderLocation ?? r.Location ?? r.State ?? '').trim();
-      const claimNo  = String(r.ClaimNumber ?? r.Claim_Number ?? '').trim();
-      const memberId = String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim();
-      const txDate   = String(r.TreatmentDate ?? r.DateOfService ?? '').trim().slice(0, 10);
-      // Unique visit key: prefer ClaimNumber; fall back to member+date to avoid missing rows
+      const claimNo  = String(r.claim_id ?? r.ClaimNumber ?? r.Claim_Number ?? '').trim();
+      const memberId = String(r.nem ?? r.claimant ?? r.MemberShipNo ?? r.MembershipNo ?? '').trim();
+      const txDate   = String(r.claim_date ?? r.TreatmentDate ?? r.DateOfService ?? '').trim().slice(0, 10);
       const visitKey = claimNo || (memberId && txDate ? `${memberId}|${txDate}` : '');
-      const paid     = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
+      const paid     = toNumber(r.gross_paid ?? r.AmtPaid ?? r.AmountPaid) ?? 0;
       if (!name) continue;
       const existing = providerMap.get(name);
       if (existing) {
@@ -647,12 +646,12 @@ export async function GET() {
     // ── Top 5 service types ───────────────────────────────────────────────────
     const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
-      const svc      = String(r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
-      const claimNo  = String(r.ClaimNumber ?? r.Claim_Number ?? '').trim();
-      const memberId = String(r.MemberShipNo ?? r.MembershipNo ?? r.MemberNo ?? '').trim();
-      const txDate   = String(r.TreatmentDate ?? r.DateOfService ?? '').trim().slice(0, 10);
+      const svc      = String(r.service ?? r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
+      const claimNo  = String(r.claim_id ?? r.ClaimNumber ?? r.Claim_Number ?? '').trim();
+      const memberId = String(r.nem ?? r.claimant ?? r.MemberShipNo ?? r.MembershipNo ?? '').trim();
+      const txDate   = String(r.claim_date ?? r.TreatmentDate ?? r.DateOfService ?? '').trim().slice(0, 10);
       const visitKey = claimNo || (memberId && txDate ? `${memberId}|${txDate}` : '');
-      const paid     = toNumber(r.AmtPaid ?? r.AmountPaid) ?? 0;
+      const paid     = toNumber(r.gross_paid ?? r.AmtPaid ?? r.AmountPaid) ?? 0;
       if (!svc) continue;
       const existing = serviceMap.get(svc);
       if (existing) {
