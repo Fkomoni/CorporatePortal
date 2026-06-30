@@ -590,8 +590,14 @@ export async function GET() {
 
     // ── Fetch claims using actual policy dates (not calendar year) ────────────
     const cy = new Date().getFullYear();
-    const claimsFromDate = policyFromDate ?? `${cy}-01-01`;
-    const claimsToDate   = policyToDate   ?? `${cy}-12-31`;
+    const toISO = (raw: string | null) => {
+      if (!raw) return null;
+      const d = parseDate(raw);
+      if (!d) return null;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    };
+    const claimsFromDate = toISO(policyFromDate) ?? `${cy}-01-01`;
+    const claimsToDate   = toISO(policyToDate)   ?? `${cy}-12-31`;
     const claimsResult = await fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`);
     const claimsRaw  = claimsResult.data;
     const claimsOk   = claimsResult.ok && claimsResult.data !== null;
