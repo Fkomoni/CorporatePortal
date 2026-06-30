@@ -494,15 +494,13 @@ export async function GET() {
   try {
     const token = await getServiceToken();
 
-    const [premiumResult, claimsResult, allPolicies] = await Promise.all([
+    // Fetch premium + policies first so we can use the real policy dates for claims
+    const [premiumResult, allPolicies] = await Promise.all([
       fetchJson(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
-      fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${new Date().getFullYear()}-01-01&todate=${new Date().getFullYear()}-12-31`),
       getAllPolicies(token),
     ]);
 
     const premiumRaw = premiumResult.data;
-    const claimsRaw  = claimsResult.data;
-    const claimsOk   = claimsResult.ok && claimsResult.data !== null;
 
     // ── Policy period + brokerage from GetAllPolicies ────────────────────────
     const policy = findPolicy(allPolicies, groupId, policyNumber);
@@ -588,6 +586,14 @@ export async function GET() {
     }
     const newThisMonth = newThisMonthIds.size > 0 ? newThisMonthIds.size : 0;
     const newThisMonthLabel = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+
+    // ── Fetch claims using actual policy dates (not calendar year) ────────────
+    const cy = new Date().getFullYear();
+    const claimsFromDate = policyFromDate ?? `${cy}-01-01`;
+    const claimsToDate   = policyToDate   ?? `${cy}-12-31`;
+    const claimsResult = await fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`);
+    const claimsRaw  = claimsResult.data;
+    const claimsOk   = claimsResult.ok && claimsResult.data !== null;
 
     // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
     const claimRows = toRows(claimsRaw);
