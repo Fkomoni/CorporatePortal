@@ -102,9 +102,9 @@ export default function ClaimsPage() {
       color: '#F59E0B', bg: '#FFFBEB', Icon: Clock,
     },
     {
-      label: 'Amount Not Paid',
+      label: 'Rejected Amount',
       value: fmt(stats.rejectedAmount),
-      sub: 'Billed minus paid',
+      sub: 'Portion of paid claims not reimbursed',
       color: '#EF4444', bg: '#FEF2F2', Icon: XCircle,
     },
   ] : null;
@@ -122,7 +122,7 @@ export default function ClaimsPage() {
               { label: 'Total Billed',    value: '…', sub: '',                  color: '#6366F1', bg: '#EEF2FF', Icon: Filter    },
               { label: 'Total Paid YTD', value: '…', sub: '',                  color: '#10B981', bg: '#ECFDF5', Icon: TrendingUp },
               { label: 'Processing',     value: '…', sub: '',                  color: '#F59E0B', bg: '#FFFBEB', Icon: Clock      },
-              { label: 'Amount Not Paid',value: '…', sub: 'Billed minus paid', color: '#EF4444', bg: '#FEF2F2', Icon: XCircle   },
+              { label: 'Rejected Amount', value: '…', sub: 'Portion of paid claims not reimbursed', color: '#EF4444', bg: '#FEF2F2', Icon: XCircle },
             ]).map((s) => (
               <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
                 <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>

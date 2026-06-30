@@ -334,7 +334,7 @@ export async function GET(req: Request) {
       processingCount:  filtered.filter((c) => c.status === 'Processing').length,
       queriedCount:     filtered.filter((c) => c.status === 'Queried').length,
       rejectedCount:    filtered.filter((c) => c.status === 'Rejected').length,
-      rejectedAmount:   Math.max(totalBilledAmount - totalPaidAmount, 0),
+      rejectedAmount:   filtered.filter((c) => c.status === 'Paid').reduce((s, c) => s + Math.max(c.amtClaimed - c.amount, 0), 0),
       totalClaims:      filtered.length,
       policyStart: policyStart ? policyStart.toISOString().slice(0, 10) : null,
       policyEnd:   policyEnd   ? policyEnd.toISOString().slice(0, 10)   : null,
