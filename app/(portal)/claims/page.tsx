@@ -219,6 +219,7 @@ export default function ClaimsPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '—'}</p>
+                    {c.caseId && <p className="text-[10px] text-[#9CA3B8] truncate">{c.caseId}</p>}
                   </div>
                   <span className="text-[11px] text-[#9CA3B8] truncate">{c.providerState || '—'}</span>
                   <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>

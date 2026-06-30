@@ -153,6 +153,7 @@ export interface LiveClaim {
   submittedDate: string;
   settledDate?: string;
   rawStatus: string;
+  caseId?: string;
 }
 
 export interface ClaimsStats {
@@ -226,12 +227,15 @@ export async function GET(req: Request) {
       : toRows(headerRaw);
     const diagByClaimId = new Map<string, string>();
     const isReimbursementById = new Map<string, boolean>();
+    const caseIdByClaimId = new Map<string, string>();
     for (const h of headerRows) {
       const id   = h['claim_id'] != null ? String(h['claim_id']) : '';
       const diag = h['ClaimDiagnosis'] != null ? String(h['ClaimDiagnosis']).trim() : '';
       if (id && diag) diagByClaimId.set(id, diag);
       // claimcode "D" = direct reimbursement (member paid out-of-pocket)
       if (id && String(h['claimcode'] ?? '').toUpperCase() === 'D') isReimbursementById.set(id, true);
+      const caseRef = h['account_ref_no'] != null ? String(h['account_ref_no']).trim() : '';
+      if (id && caseRef) caseIdByClaimId.set(id, caseRef);
     }
 
     // New response shape: { status: "success", data: [...] }
@@ -299,6 +303,7 @@ export async function GET(req: Request) {
         status,
         rawStatus,
         submittedDate: fmtDateStr(dateStr),
+        caseId: caseIdByClaimId.get(claimRef),
       });
     }
 
