@@ -145,7 +145,6 @@ export interface LiveClaim {
   providerState: string;
   category: 'Outpatient' | 'Inpatient' | 'Dental' | 'Optical' | 'Maternity' | 'Emergency';
   diagnosis: string;
-  icdCode: string;
   icdDescription: string;
   amount: number;
   amtClaimed: number;
@@ -257,11 +256,11 @@ export async function GET(req: Request) {
 
       const provider      = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
       const providerState = str(r, 'ProviderState', 'HospitalState', 'State');
-      const icdCode        = str(r, 'ICDCode', 'ICD_Code', 'icd_code', 'Icdcode', 'icdCode', 'DiagnosisCode', 'diagnosis_code', 'ICD');
       const icdDescRaw     = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'IcdDescription', 'icdDescription', 'DiagnosisDesc', 'DiagnosisDescription', 'diagnosis_desc', 'DiagnosisName', 'Diagnosis');
-      // Fall back to ClaimsHeaderEnquiry ClaimDiagnosis when ICDDescription is empty
-      const icdDescription = icdDescRaw || diagByClaimId.get(claimRef) || '';
-      const diagnosis      = str(r, 'ProcedureName', 'ServiceName') || icdDescription || str(r, 'Diagnosis');
+      const procedureName  = str(r, 'ProcedureName', 'ServiceName');
+      // Fall back chain: ICDDescription → ClaimDiagnosis → inferred from drug/procedure name
+      const icdDescription = icdDescRaw || diagByClaimId.get(claimRef) || inferDiagnosisFromProcedure(procedureName) || '';
+      const diagnosis      = procedureName || icdDescription || str(r, 'Diagnosis');
       const catRaw        = str(r, 'FilterType', 'ServiceType', 'ClaimType', 'Category');
       const dateStr       = str(r, 'TreatmentDate', 'claim_date', 'DateOfService', 'ClaimDate');
 
@@ -284,7 +283,6 @@ export async function GET(req: Request) {
         providerState,
         category: mapCategory(catRaw || diagnosis),
         diagnosis,
-        icdCode,
         icdDescription,
         amount: displayAmount,
         amtClaimed,
@@ -296,17 +294,15 @@ export async function GET(req: Request) {
     }
 
     // Deduplicate by claim_id — API returns one row per procedure;
-    // keep the row that has the most data (ICD code preferred)
+    // keep the row that has the most data (description preferred)
     const seen = new Map<string, LiveClaim>();
     for (const c of claims) {
       const existing = seen.get(c.claimRef);
       if (!existing) {
         seen.set(c.claimRef, c);
       } else {
-        // Replace if current row adds ICD code the existing row was missing
-        const gainIcd = !existing.icdCode && c.icdCode;
         const gainDesc = !existing.icdDescription && c.icdDescription;
-        if (gainIcd || gainDesc) seen.set(c.claimRef, { ...existing, icdCode: c.icdCode || existing.icdCode, icdDescription: c.icdDescription || existing.icdDescription, diagnosis: c.diagnosis || existing.diagnosis });
+        if (gainDesc) seen.set(c.claimRef, { ...existing, icdDescription: c.icdDescription || existing.icdDescription, diagnosis: c.diagnosis || existing.diagnosis });
       }
     }
 

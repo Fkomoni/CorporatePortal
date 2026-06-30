@@ -39,6 +39,14 @@ function memberInitials(fullName: string, enrolleeId: string): string {
   return '—';
 }
 
+// Format as "F. LASTNAME" for confidentiality
+function maskName(fullName: string): string {
+  if (!fullName) return '—';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0][0]}. ${parts.slice(1).join(' ')}`;
+}
+
 export default function ClaimsPage() {
   const [search, setSearch]       = useState('');
   const [catFilter, setCat]       = useState('');
@@ -64,7 +72,7 @@ export default function ClaimsPage() {
 
   const filtered = claims.filter((c) => {
     const q = search.toLowerCase();
-    return (!q || c.memberName.toLowerCase().includes(q) || c.claimRef.toLowerCase().includes(q) || c.provider.toLowerCase().includes(q) || c.diagnosis.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q) || (c.principalName ?? '').toLowerCase().includes(q) || (c.icdCode ?? '').toLowerCase().includes(q) || (c.icdDescription ?? '').toLowerCase().includes(q))
+    return (!q || c.memberName.toLowerCase().includes(q) || c.claimRef.toLowerCase().includes(q) || c.provider.toLowerCase().includes(q) || c.diagnosis.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q) || (c.principalName ?? '').toLowerCase().includes(q) || (c.icdDescription ?? '').toLowerCase().includes(q))
       && (!catFilter    || c.category === catFilter)
       && (!statusFilter || c.status   === statusFilter);
   });
@@ -170,12 +178,11 @@ export default function ClaimsPage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflowX: 'auto' }}>
             <div
               className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '110px 140px 110px 70px 160px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1400 }}>
+              style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1280 }}>
               <span>Claim ID</span>
               <span>Member</span>
               <span>Enrolee ID</span>
-              <span>ICD Code</span>
-              <span>ICD Description</span>
+              <span>Diagnosis</span>
               <span>Provider</span>
               <span>State</span>
               <span>Category</span>
@@ -199,15 +206,14 @@ export default function ClaimsPage() {
                 <div
                   key={c.id || i}
                   className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                  style={{ gridTemplateColumns: '110px 140px 110px 70px 160px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '14px 24px', minWidth: 1400 }}>
+                  style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '14px 24px', minWidth: 1280 }}>
                   <span className="text-[12px] font-bold text-[#F56B22] font-mono truncate">{c.claimRef}</span>
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-[#131C4E] truncate">{c.memberName || initials}</p>
+                    <p className="text-[12px] font-semibold text-[#131C4E] truncate">{maskName(c.memberName) || initials}</p>
                   </div>
                   <span className="text-[11px] text-[#9CA3B8] font-mono truncate">{c.employeeId || '—'}</span>
-                  <span className="text-[12px] font-mono font-bold text-[#F56B22] truncate">{c.icdCode || '—'}</span>
                   <div className="min-w-0">
-                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || ''}>{c.icdDescription || '—'}</p>
+                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || c.diagnosis || ''}>{c.icdDescription || c.diagnosis || '—'}</p>
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '—'}</p>
