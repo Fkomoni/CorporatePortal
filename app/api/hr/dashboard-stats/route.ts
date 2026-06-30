@@ -604,19 +604,35 @@ export async function GET() {
     const claimsToDate   = toISO(policyToDate)   ?? `${cy}-12-31`;
     const [claimsResult, paidClaimsResult] = await Promise.all([
       fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`),
-      fetchJson(token, `/api/EnrolleeClaims/GetPaidClaimsWithDiagnosis?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`),
+      // Exact same endpoint + param casing as the Claims page route
+      fetchJson(token, `/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${claimsFromDate}&toDate=${claimsToDate}`),
     ]);
     const claimsRaw  = claimsResult.data;
     const claimsOk   = claimsResult.ok && claimsResult.data !== null;
 
-    // Canonical paid claims figure from GetPaidClaimsWithDiagnosis, status=Paid only
-    const paidClaimRows = toRows(paidClaimsResult.data);
-    const canonicalClaimsPaid = paidClaimRows
-      .filter((r) => {
-        const st = String(r.CLAIM_STATUS ?? r.ClaimStatus ?? r.Status ?? '').toLowerCase();
-        return st.includes('paid') || st.includes('settled') || st.includes('approved');
-      })
-      .reduce((sum, r) => sum + (toNumber(r.AmtPaid ?? r.PaidAmount ?? r.AmountPaid) ?? 0), 0);
+    // Mirror the Claims page: parse rows, deduplicate by claim_id, sum AmtPaid for Paid status
+    const rawPaidRows: Record<string, unknown>[] = Array.isArray((paidClaimsResult.data as Record<string, unknown>)?.data)
+      ? ((paidClaimsResult.data as Record<string, unknown>).data as Record<string, unknown>[])
+      : toRows(paidClaimsResult.data);
+
+    function mapStatusSimple(raw: string): string {
+      const s = raw.toLowerCase();
+      if (s.includes('paid') || s.includes('settled') || s.includes('approved') || s.includes('complete') || s.includes('reimburse')) return 'Paid';
+      return 'Other';
+    }
+    // Deduplicate by claim_id (same as claims route) then sum
+    const paidSeen = new Map<string, number>();
+    for (const r of rawPaidRows) {
+      const claimId  = r['claim_id'] != null ? String(r['claim_id']) : '';
+      const rawSt    = String(r['claim_status'] ?? r['ClaimStatus'] ?? r['Status'] ?? r['CLAIM_STATUS'] ?? '');
+      const status   = mapStatusSimple(rawSt);
+      if (status !== 'Paid') continue;
+      const amtPaid  = (() => { const v = r['AmtPaid'] ?? r['PaidAmount'] ?? r['AmountPaid']; if (v == null) return 0; const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; })();
+      const amtBilled = (() => { const v = r['AmtClaimed'] ?? r['BilledAmount'] ?? r['ClaimedAmount']; if (v == null) return 0; const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; })();
+      const effectiveAmt = amtPaid > 0 ? amtPaid : amtBilled;
+      if (claimId && !paidSeen.has(claimId)) paidSeen.set(claimId, effectiveAmt);
+    }
+    const canonicalClaimsPaid = [...paidSeen.values()].reduce((s, v) => s + v, 0);
 
     // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
     const claimRows = toRows(claimsRaw);
