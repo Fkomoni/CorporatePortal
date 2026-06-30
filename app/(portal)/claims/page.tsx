@@ -5,6 +5,7 @@ import { Search, ArrowDownToLine, Filter, TrendingUp, Clock, XCircle } from 'luc
 import { TopBar } from '@/components/layout/TopBar';
 import { ClaimsVisibility, DEFAULT_CLAIMS_VISIBILITY, getClaimsVisibility } from '@/lib/claims-visibility';
 import type { LiveClaim, ClaimsStats } from '@/app/api/hr/claims/route';
+import { exportToXls } from '@/lib/exportXls';
 
 const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
   'Paid':       { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
@@ -163,7 +164,7 @@ export default function ClaimsPage() {
               )}
               {vis.showExports && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                  <button onClick={() => exportToXls(filtered.map((c) => ({ 'Claim ID': c.claimRef, 'Member': c.memberName, 'Enrolee ID': c.employeeId, 'Diagnosis': c.icdDescription, 'Provider': c.provider, 'State': c.providerState, 'Category': c.category, 'Amt Claimed (₦)': c.amtClaimed, 'Amt Paid (₦)': c.amount, 'Status': c.status, 'Date': c.submittedDate, 'Case ID': c.caseId ?? '' })), 'claims-export')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
                     <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
                   </button>
                   <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>

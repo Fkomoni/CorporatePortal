@@ -303,7 +303,7 @@ export async function GET(req: Request) {
         status,
         rawStatus,
         submittedDate: fmtDateStr(dateStr),
-        caseId: caseIdByClaimId.get(claimRef),
+        caseId: isReimbursementById.get(claimRef) ? caseIdByClaimId.get(claimRef) : undefined,
       });
     }
 

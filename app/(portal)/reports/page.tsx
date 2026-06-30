@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowDownToLine, Users, Activity, Search, Building2, CreditCard } from 'lucide-react';
+import { exportToXls } from '@/lib/exportXls';
 import { TopBar } from '@/components/layout/TopBar';
 import { ReportsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 
@@ -23,6 +24,24 @@ export default function ReportsPage() {
   useEffect(() => { setVis(getVis('reports')); }, []);
 
   const visibleReports = ALL_REPORTS.filter((r) => vis[r.visKey]);
+
+  const downloadReport = useCallback(async (id: number) => {
+    if (id === 1) {
+      // Membership report → members list
+      const res = await fetch('/api/hr/members');
+      if (!res.ok) return;
+      const { members } = await res.json();
+      exportToXls((members ?? []).map((m: Record<string, unknown>) => ({ 'Enrolee ID': m.employeeId, 'Staff ID': m.staffId ?? '', 'First Name': m.firstName, 'Last Name': m.lastName, 'Gender': m.gender, 'DOB': m.dateOfBirth, 'Phone': m.phone, 'Email': m.email, 'Plan': m.plan, 'Type': m.type, 'Status': m.status, 'Location': m.location })), 'membership-report');
+    } else if (id === 2 || id === 3 || id === 4) {
+      // Utilization / Claims Analysis / Provider → claims list
+      const res = await fetch('/api/hr/claims');
+      if (!res.ok) return;
+      const { claims } = await res.json();
+      exportToXls((claims ?? []).map((c: Record<string, unknown>) => ({ 'Claim ID': c.claimRef, 'Member': c.memberName, 'Enrolee ID': c.employeeId, 'Diagnosis': c.icdDescription, 'Provider': c.provider, 'State': c.providerState, 'Category': c.category, 'Amt Claimed': c.amtClaimed, 'Amt Paid': c.amount, 'Status': c.status, 'Date': c.submittedDate })), `${ALL_REPORTS.find(r => r.id === id)?.title.replace(/\s+/g, '-').toLowerCase()}-report`);
+    } else {
+      alert('This report is not yet available for download.');
+    }
+  }, []);
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -97,7 +116,7 @@ export default function ReportsPage() {
                 <p style={{ fontSize: 11, color: '#C4C9D9', flexShrink: 0 }} className="hidden md:block">Last generated: <span style={{ color: '#9CA3B8', fontWeight: 600 }}>{lastGenMap[r.id]}</span></p>
                 {vis.showExports && (
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                    <button onClick={() => downloadReport(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
                       <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
                     </button>
                     <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>

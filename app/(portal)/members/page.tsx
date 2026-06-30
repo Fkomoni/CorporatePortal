@@ -12,6 +12,7 @@ import type { Member } from '@/lib/types';
 import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
+import { exportToXls } from '@/lib/exportXls';
 
 
 const planColors: Record<string, { bg: string; text: string }> = {
@@ -2087,7 +2088,7 @@ export default function MembersPage() {
               </svg>
               {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
-            <button onClick={() => toast('Member list exported to Excel.')}
+            <button onClick={() => exportToXls(filtered.map((m) => ({ 'Enrolee ID': m.employeeId, 'Staff ID': m.staffId ?? '', 'First Name': m.firstName, 'Last Name': m.lastName, 'Gender': m.gender, 'DOB': m.dateOfBirth, 'Phone': m.phone, 'Email': m.email, 'Plan': m.plan, 'Type': m.type, 'Status': m.status, 'Location': m.location })), 'members-export')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <ArrowDownToLine style={{ width: 15, height: 15 }} /> Export XLS
             </button>
