@@ -56,9 +56,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'No group ID: account has no companyId and no ?groupId param provided' }, { status: 400 });
   }
 
-  const cifno = searchParams.get('cifno') ?? groupId;
+  const cifno      = searchParams.get('cifno') ?? groupId;
+  const enrolleeId = searchParams.get('enrolleeId');
 
   const token = await getServiceToken();
+
+  // If ?enrolleeId= supplied, just return enrollee bio data
+  if (enrolleeId) {
+    const result = await hit(token, `/api/EnrolleeProfile/GetEnrolleeBioDataByEnrolleeID?enrolleeid=${encodeURIComponent(enrolleeId)}`);
+    return NextResponse.json({ enrolleeId, ...result }, { status: 200 });
+  }
 
   const [groupPremium, groupClaims, memberPremium, allPolicies] = await Promise.all([
     hit(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
