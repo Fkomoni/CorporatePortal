@@ -39,11 +39,12 @@ function memberInitials(fullName: string, enrolleeId: string): string {
   return '—';
 }
 
-// Format as "F.L" (initials only) for confidentiality
+// Format as "F.L" (first initial + last initial) for confidentiality
 function maskName(fullName: string): string {
   if (!fullName) return '—';
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  return parts.map((p) => p[0].toUpperCase()).join('.');
+  if (parts.length === 1) return parts[0][0].toUpperCase() + '.';
+  return `${parts[0][0].toUpperCase()}.${parts[parts.length - 1][0].toUpperCase()}`;
 }
 
 export default function ClaimsPage() {
@@ -212,7 +213,7 @@ export default function ClaimsPage() {
                   </div>
                   <span className="text-[11px] text-[#9CA3B8] font-mono truncate">{c.employeeId || '—'}</span>
                   <div className="min-w-0">
-                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || c.diagnosis || ''}>{c.icdDescription || c.diagnosis || '—'}</p>
+                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || ''}>{c.icdDescription || '—'}</p>
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '—'}</p>

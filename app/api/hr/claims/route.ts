@@ -92,7 +92,7 @@ function mapStatus(raw: string): 'Paid' | 'Processing' | 'Queried' | 'Rejected' 
 const DRUG_INFERENCE: [RegExp, string][] = [
   [/ursodiol|ursodeoxycholic|udca/i, 'Hepatobiliary condition'],
   [/antacid|gascol|omeprazol|pantoprazol|esomeprazol|ranitidine|lansoprazol|famotidine|gaviscon|maalox/i, 'Gastric acid disorder'],
-  [/amlodipine|lisinopril|losartan|valsartan|atenolol|nifedipine|antihypertensiv|ramipril|telmisartan|hydrochlorothiazide|perindopril|bisoprolol/i, 'Hypertension'],
+  [/amlodipine|lisinopril|losartan|valsartan|atenolol|nifedipine|antihypertensiv|ramipril|telmisartan|hydrochlorothiazide|perindopril|bisoprolol|exforge|cardiotan|norvasc|amlong|cozaar|diovan|concor|tenormin|felodipine|carvedilol|nebivolol/i, 'Hypertension'],
   [/metformin|glibenclamide|glimepiride|insulin|gliclazide|sitagliptin|diabetic|antidiabetic|glucophage/i, 'Diabetes mellitus'],
   [/artemether|artesunate|coartem|lumefantrine|chloroquine|quinine|antimalarial|malaria/i, 'Malaria'],
   [/amoxicillin|azithromycin|ciprofloxacin|metronidazole|augmentin|doxycycline|cotrimoxazole|ampicillin|erythromycin|clindamycin|ceftriaxone|levofloxacin|antibiotic/i, 'Bacterial infection'],
