@@ -18,13 +18,6 @@ const monthlySpend = [
   { month: 'Jun', amount: 9.8 },
 ];
 
-const topConditions = [
-  { name: 'Malaria',           visits: 284 },
-  { name: 'Hypertension',      visits: 198 },
-  { name: 'URTI',              visits: 167 },
-  { name: 'Pregnancy Related', visits: 143 },
-  { name: 'Diabetes',          visits: 89  },
-];
 
 const PROVIDER_GRADS = [
   'linear-gradient(135deg,#131C4E,#3A4382)',
@@ -48,7 +41,6 @@ const insights = [
   { dot: '#EF4444', text: 'At current trajectory, loss ratio is projected to reach 84% by year-end. Renewal pricing may need review.' },
 ];
 
-const maxConditions = topConditions[0].visits;
 
 const card: React.CSSProperties = {
   background: '#fff',
@@ -98,6 +90,7 @@ interface DashboardStats {
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
+  topConditions: { name: string; visits: number }[];
   policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
@@ -399,17 +392,20 @@ export default function DashboardPage() {
             <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Top Conditions</p>
             <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 24 }}>By number of visits · 2026</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {topConditions.map((item) => (
+              {(stats?.topConditions && stats.topConditions.length > 0 ? stats.topConditions : []).map((item, i, arr) => (
                 <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 12, color: '#6B7480', fontWeight: 500, width: 126, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 12, color: '#6B7480', fontWeight: 500, width: 140, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.name}
                   </span>
                   <div style={{ flex: 1, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ width: `${(item.visits / maxConditions) * 100}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
+                    <div style={{ width: `${(item.visits / (arr[0]?.visits || 1)) * 100}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
                   </div>
                   <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, width: 30, textAlign: 'right', flexShrink: 0 }}>{item.visits}</span>
                 </div>
               ))}
+              {(!stats?.topConditions || stats.topConditions.length === 0) && (
+                <p style={{ fontSize: 12, color: '#9CA3B8', textAlign: 'center', padding: '12px 0' }}>Loading condition data...</p>
+              )}
             </div>
           </div>}
         </div>

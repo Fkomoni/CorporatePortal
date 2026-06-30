@@ -470,6 +470,7 @@ export interface DashboardStats {
   topProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
+  topConditions: { name: string; visits: number }[];
   // Scheme Health Score
   schemeHealthScore: number | null;
   schemeHealthLabel: string | null;
@@ -675,6 +676,43 @@ export async function GET() {
       .sort((a, b) => b.visits - a.visits)
       .slice(0, 5);
 
+    // ── Top Conditions from real diagnosis data ───────────────────────────────
+    const CONDITION_BUCKETS: [RegExp, string][] = [
+      [/malaria|artemether|artesunate|coartem|lumefantrine|chloroquine|quinine/i, 'Malaria'],
+      [/hypertension|antihypertens|amlodipine|lisinopril|losartan|valsartan|atenolol|nifedipine|ramipril|telmisartan|bisoprolol|exforge|cardiotan|perindopril/i, 'Hypertension'],
+      [/upper respir|urti|rhinitis|sinusitis|pharyngit|tonsil|cough|common cold|influenza/i, 'URTI'],
+      [/diabetes|metformin|glibenclamide|glimepiride|insulin|gliclazide|sitagliptin|glucophage/i, 'Diabetes'],
+      [/pregnan|antenatal|obstet|matern|delivery|labour|postnatal|ante.?natal/i, 'Pregnancy Related'],
+      [/gastro|peptic|ulcer|antacid|omeprazol|pantoprazol|gastritis|dyspeps|gerd|acid reflux|gascol/i, 'Gastroenteritis / GI'],
+      [/typhoid|salmonella/i, 'Typhoid'],
+      [/dental|tooth|extraction|filling|scaling|root canal|orthodon|gingivit|caries/i, 'Dental Condition'],
+      [/eye|optic|presbyop|myopia|refraction|glaucoma|cataract|vision|spectac/i, 'Eye Condition'],
+      [/pain|analges|ibuprofen|diclofenac|naproxen|tramadol|musculoskeletal|arthrit|back pain|joint/i, 'Pain / Musculoskeletal'],
+      [/urinar|uti|cystitis|kidney|renal|nephro/i, 'Urinary Tract Infection'],
+      [/skin|dermat|rash|eczema|fungal|tinea|candida|ringworm/i, 'Skin Condition'],
+      [/asthma|bronchit|pneumonia|respir|pulmon|salbutamol|budesonide/i, 'Respiratory'],
+      [/anaemia|anaemia|iron defic|folic|haematol/i, 'Anaemia'],
+      [/mental|depress|anxiety|psychiat|psychos/i, 'Mental Health'],
+      [/pharmacy benefit/i, 'Pharmacy Benefit'],
+    ];
+    function classifyCondition(diag: string): string | null {
+      if (!diag) return null;
+      for (const [pat, label] of CONDITION_BUCKETS) {
+        if (pat.test(diag)) return label;
+      }
+      return null;
+    }
+    const conditionCount = new Map<string, number>();
+    for (const r of claimRows) {
+      const diag = String(r.ClaimDiagnosis ?? r.diagnosis ?? r.Diagnosis ?? '').trim();
+      const bucket = classifyCondition(diag);
+      if (bucket) conditionCount.set(bucket, (conditionCount.get(bucket) ?? 0) + 1);
+    }
+    const topConditions = [...conditionCount.entries()]
+      .map(([name, visits]) => ({ name, visits }))
+      .sort((a, b) => b.visits - a.visits)
+      .slice(0, 8);
+
     const amtClaimed = claimRows.length > 0
       ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
       : null;
@@ -741,6 +779,7 @@ export async function GET() {
       topProviders,
       allProviders: allProvidersSorted,
       topServices,
+      topConditions,
       policyPeriod,
       policyYear,
       policyFromDate,
