@@ -26,7 +26,9 @@ const fmt    = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
 const fmtDate = (d: string) => {
   if (!d) return '—';
   try {
-    return new Date(d).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Append T00:00:00 to ISO date strings to avoid UTC-shift off-by-one
+    const s = /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d;
+    return new Date(s).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch { return d; }
 };
 
