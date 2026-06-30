@@ -61,7 +61,7 @@ export async function GET() {
 
     const [groupPremium, groupClaims, groupMembers, groupDetails] = await Promise.all([
       hit(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
-      hit(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
+      hit(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${new Date().getFullYear()}-01-01&todate=${new Date().getFullYear()}-12-31`),
       hit(token, `/api/EnrolleeProfile/GetGroupMembers?groupid=${groupId}`),
       hit(token, `/api/CorporateProfile/GetGroupDetails?groupid=${groupId}`),
     ]);

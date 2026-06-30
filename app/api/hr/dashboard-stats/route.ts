@@ -496,7 +496,7 @@ export async function GET() {
 
     const [premiumResult, claimsResult, allPolicies] = await Promise.all([
       fetchJson(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
-      fetchJson(token, `/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`),
+      fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${new Date().getFullYear()}-01-01&todate=${new Date().getFullYear()}-12-31`),
       getAllPolicies(token),
     ]);
 
