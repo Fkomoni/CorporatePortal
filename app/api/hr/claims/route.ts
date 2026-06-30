@@ -225,10 +225,13 @@ export async function GET(req: Request) {
       ? (headerRaw.result as Record<string, unknown>[])
       : toRows(headerRaw);
     const diagByClaimId = new Map<string, string>();
+    const isReimbursementById = new Map<string, boolean>();
     for (const h of headerRows) {
       const id   = h['claim_id'] != null ? String(h['claim_id']) : '';
       const diag = h['ClaimDiagnosis'] != null ? String(h['ClaimDiagnosis']).trim() : '';
       if (id && diag) diagByClaimId.set(id, diag);
+      // claimcode "D" = direct reimbursement (member paid out-of-pocket)
+      if (id && String(h['claimcode'] ?? '').toUpperCase() === 'D') isReimbursementById.set(id, true);
     }
 
     // New response shape: { status: "success", data: [...] }
@@ -254,7 +257,8 @@ export async function GET(req: Request) {
       const cifNumber  = r['cif_number'] != null ? String(r['cif_number']) : '';
       const employeeId = enrolleeId || cifNumber;
 
-      const provider      = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
+      const rawProvider   = str(r, 'HospitalName', 'ProviderName', 'Provider', 'FacilityName');
+      const provider      = rawProvider || (isReimbursementById.get(claimRef) ? 'Reimbursement Claim' : '');
       const providerState = str(r, 'ProviderState', 'HospitalState', 'State');
       const icdDescRaw     = str(r, 'ICDDescription', 'ICD_Description', 'icd_description', 'IcdDescription', 'icdDescription', 'DiagnosisDesc', 'DiagnosisDescription', 'diagnosis_desc', 'DiagnosisName', 'Diagnosis');
       const procedureName  = str(r, 'ProcedureName', 'ServiceName');
