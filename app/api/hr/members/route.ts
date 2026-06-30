@@ -264,7 +264,7 @@ export async function GET(req: Request) {
       }),
       skipClaims
         ? Promise.resolve(null)
-        : fetch(`${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`, {
+        : fetch(`${BASE}/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${new Date().getFullYear()}-01-01&todate=${new Date().getFullYear()}-12-31`, {
             headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           }),
       fetch(`${BASE}/api/ListValues/GetBeneficiaryRelationship`, {

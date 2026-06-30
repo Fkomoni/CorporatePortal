@@ -44,7 +44,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const url = `${BASE}/api/CorporateProfile/GetGroupClaims?groupid=${groupId}`;
+  const url = `${BASE}/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${new Date().getFullYear()}-01-01&todate=${new Date().getFullYear()}-12-31`;
 
   try {
     const token = await getServiceToken();
