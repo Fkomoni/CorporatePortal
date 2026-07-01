@@ -58,7 +58,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       fetchJson(`${BASE}/api/ListValues/GetGender`),
       fetchJson(`${BASE}/api/ListValues/GetMaritalStatus`),
       fetchJson(`${BASE}/api/ListValues/GetStates`),
-      fetchJson(`${BASE}/api/ListValues/GetRelationship`),
+      fetchJson(`${BASE}/api/ListValues/GetBeneficiaryRelationship`),
     ]);
 
     // Safely extract an array from any API response shape
@@ -76,7 +76,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     const genders = toArr(genderRaw).map((r) => ({ text: String(r.Sex ?? r.GenderName ?? r.gender ?? ''), value: String(r.Sex_id ?? r.GenderId ?? r.gender_id ?? '') })).filter((g) => g.text);
     const maritalStatuses = toArr(maritalRaw).map((r) => ({ text: String(r.MaritalStatus ?? r.maritalStatus ?? r.Name ?? ''), value: String(r.Marital_statusid ?? r.maritalStatusId ?? r.Id ?? '') })).filter((m) => m.text);
     const states = toArr(statesRaw).map((r) => ({ text: String(r.Text ?? r.StateName ?? r.state ?? r.Name ?? ''), value: String(r.Value ?? r.StateId ?? r.state_id ?? r.Id ?? '') })).filter((s) => s.text);
-    const relationships = toArr(relRaw).map((r) => ({ text: String(r.Relationship ?? r.relationship ?? r.Name ?? ''), value: String(r.Relationship_ID ?? r.relationship_id ?? r.RelationshipID ?? r.Id ?? '') })).filter((r) => r.text && r.value);
+    const relationships = toArr(relRaw).map((r) => ({
+      text:  String(r.Text ?? r.text ?? r.Relationship ?? r.RelationshipName ?? r.Name ?? '').trim(),
+      value: String(r.Value ?? r.value ?? r.Relationship_ID ?? r.RelationshipID ?? r.Id ?? '').trim(),
+    })).filter((r) => r.text && r.value && r.text !== 'undefined' && r.value !== 'undefined');
 
     return NextResponse.json({
       invitation: {
