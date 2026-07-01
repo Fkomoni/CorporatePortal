@@ -54,11 +54,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const r = await fetch(url, { headers: { Authorization: `Bearer ${svcToken}`, Accept: 'application/json' } });
       try { return await r.json(); } catch { return null; }
     };
-    const [genderRaw, maritalRaw, statesRaw, relRaw] = await Promise.all([
+    const parentCif = invitation.parentCif ?? '';
+    const [genderRaw, maritalRaw, statesRaw, relRaw, familyRaw] = await Promise.all([
       fetchJson(`${BASE}/api/ListValues/GetGender`),
       fetchJson(`${BASE}/api/ListValues/GetMaritalStatus`),
       fetchJson(`${BASE}/api/ListValues/GetStates`),
       fetchJson(`${BASE}/api/ListValues/GetBeneficiaryRelationship`),
+      // Fetch existing family members for this principal so we can warn about duplicates
+      parentCif ? fetchJson(`${BASE}/api/EnrolleeProfile/GetMemberPremium?cifno=${parentCif}`) : Promise.resolve(null),
     ]);
 
     // Safely extract an array from any API response shape
@@ -81,6 +84,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       value: String(r.Value ?? r.value ?? r.Relationship_ID ?? r.RelationshipID ?? r.Id ?? '').trim(),
     })).filter((r) => r.text && r.value && r.text !== 'undefined' && r.value !== 'undefined');
 
+    // Extract existing dependants (excluding the principal themselves)
+    const familyRows = toArr(familyRaw);
+    const existingDependants = familyRows
+      .filter((r) => {
+        const rel = String(r.Relationship ?? r.relationship ?? r.Relationship_Desc ?? '').toLowerCase();
+        return rel && rel !== 'main member' && rel !== 'principal' && rel !== 'self';
+      })
+      .map((r) => ({
+        name: String(r.Client_Name ?? r.ClientName ?? r.FullName ?? r.Name ?? `${r.FirstName ?? ''} ${r.Surname ?? ''}`.trim() ?? '').trim(),
+        relationship: String(r.Relationship ?? r.relationship ?? r.Relationship_Desc ?? '').trim(),
+        status: String(r.MemberStatus_Desc ?? r.MemberStatusDesc ?? r.Status ?? 'Portal Registered').trim(),
+        dob: String(r.Date_Of_Birth ?? r.DateOfBirth ?? r.DOB ?? '').trim(),
+      }))
+      .filter((r) => r.name);
+
     return NextResponse.json({
       invitation: {
         email: invitation.email,
@@ -99,6 +117,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       maritalStatuses,
       states,
       relationships,
+      existingDependants,
     });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to load form data' }, { status: 500 });
