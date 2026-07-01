@@ -141,10 +141,21 @@ export default function EnrollPage() {
         const name = `${firstName} ${surname}`.trim();
         if (isDependent || principalCifNumber) {
           // Dependent enrolment (or self-dep add after principal)
+          const newRemaining = Math.max(0, remainingSlots - 1);
           setDepEnrolled(prev => [...prev, { enrolleeId, name }]);
-          setRemainingSlots(prev => Math.max(0, prev - 1));
+          setRemainingSlots(newRemaining);
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
-          setStatus('success');
+          if (newRemaining > 0) {
+            // More slots — reset form and stay on page so member can add next dependent
+            setFirstName(''); setSurname(''); setOtherNames(''); setDob('');
+            setSexId(''); setMarital2(''); setMobile(''); setMobile2('');
+            setStateId(''); setAddress(''); setPreExisting(''); setRelationship('');
+            setDepEmail(''); setPhoto(''); setPhotoType('');
+            setErrorMsg('');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } else {
+            setStatus('success');
+          }
         } else if (isSelfDepScope && data.cifNumber) {
           // Principal enrolled for self+dep scope — transition to dependent form
           setPrincipalCifNumber(String(data.cifNumber));
@@ -379,13 +390,20 @@ export default function EnrollPage() {
 
         {/* Previously enrolled list for dependent flow */}
         {isDependent && depEnrolled.length > 0 && (
-          <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Already enrolled in this session:</p>
+          <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 18px', marginBottom: 16 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 8 }}>✓ Already enrolled this session:</p>
             {depEnrolled.map((d, i) => (
               <p key={i} style={{ fontSize: 13, color: '#065F46', margin: '2px 0' }}>
-                {d.name || `Dependent ${i + 1}`} — <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId}</span>
+                {d.name || `Dependent ${i + 1}`}{d.enrolleeId ? ` — ${d.enrolleeId}` : ''}
               </p>
             ))}
+          </div>
+        )}
+        {isDependent && remainingSlots > 0 && (
+          <div style={{ background: '#FFF8F0', border: '1px solid #FDBA74', borderRadius: 14, padding: '12px 18px', marginBottom: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#C2410C' }}>
+              {depEnrolled.length > 0 ? `Dependent added! You can add ${remainingSlots} more.` : `You have ${remainingSlots} dependent slot${remainingSlots > 1 ? 's' : ''} to fill.`} Fill in the form below.
+            </p>
           </div>
         )}
 
