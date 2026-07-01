@@ -1331,33 +1331,13 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       </select>
                     </div>
 
-                    {regionOpts.length > 0 ? (
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Region</p>
-                        <select value={regionId} onChange={(e) => handleRegionChange(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
-                          <option value="">Select region</option>
-                          {regionOpts.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
-                        </select>
-                      </div>
-                    ) : (
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State</p>
+                    <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
                         <select value={stateId} onChange={(e) => setStateId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
                           <option value="">Select state</option>
                           {stateOpts.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
                         </select>
                       </div>
-                    )}
-
-                    {regionId && (
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Town</p>
-                        <select value={townId} onChange={(e) => setTownId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff} disabled={townsLoading}>
-                          <option value="">{townsLoading ? 'Loading towns…' : 'Select town'}</option>
-                          {townOpts.map((t) => <option key={t.value} value={t.value}>{t.text}</option>)}
-                        </select>
-                      </div>
-                    )}
 
                     {memberType === 'existing' && (
                       <div style={{ gridColumn: '1 / -1' }}>

@@ -119,7 +119,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: apiMessage || `Enrolment failed (${apiStatus})` }, { status: 422 });
     }
 
-    const cifNumber    = r?.Cif_Number  ?? r?.cifNumber  ?? r?.CifNumber  ?? r?.CifNo ?? r?.cifno ?? r?.cif_no ?? null;
+    let cifNumber: unknown = r?.Cif_Number ?? r?.cifNumber ?? r?.CifNumber ?? r?.CifNo ?? r?.cifno ?? r?.cif_no ?? null;
     const membershipNo = String(r?.MembershipNo ?? r?.membershipNo ?? '');
     const suffix       = String(r?.Suffix ?? r?.suffix ?? '0');
 
@@ -130,6 +130,23 @@ export async function POST(req: Request) {
     if (!enrolleeId && !cifNumber) {
       console.error('[hr/members/add] No member ID in response:', text.slice(0, 500));
       return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID returned. Please check with Leadway Health.' }, { status: 422 });
+    }
+
+    // If CIF wasn't in the AddPrincipalOnly response, look it up via enrollee profile
+    if (!cifNumber && enrolleeId) {
+      try {
+        const profileRes = await fetch(
+          `${BASE}/api/EnrolleeProfile/GetEnrolleeBioDataByEnrolleeID?enrolleeid=${encodeURIComponent(enrolleeId)}`,
+          { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+        );
+        const profileText = await profileRes.text();
+        const profileRaw = JSON.parse(profileText) as Record<string, unknown>;
+        const row = (profileRaw?.result ?? profileRaw?.Result ?? profileRaw?.data ?? profileRaw?.Data ?? profileRaw) as Record<string, unknown>;
+        cifNumber = row?.Cif_Number ?? row?.CIF_Number ?? row?.CifNo ?? row?.Cif ?? row?.cifNumber ?? row?.MemberCifNo ?? row?.CIF_No ?? null;
+        console.log(`[hr/members/add] CIF lookup for ${enrolleeId}: ${cifNumber}`);
+      } catch (e) {
+        console.warn('[hr/members/add] CIF lookup failed:', e);
+      }
     }
 
     return NextResponse.json({
