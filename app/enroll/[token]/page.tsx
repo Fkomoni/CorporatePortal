@@ -38,6 +38,7 @@ export default function EnrollPage() {
   const [relationships, setRelationships] = useState<ListItem[]>([]);
   const [submitting, setSubmitting]   = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ enrolleeId: string; membershipNo: string } | null>(null);
+  const [principalRecord, setPrincipalRecord] = useState<{ enrolleeId: string; name: string } | null>(null);
   const [depEnrolled, setDepEnrolled] = useState<Array<{ enrolleeId: string; name: string }>>([]);
   const [remainingSlots, setRemainingSlots] = useState(1);
   const [principalCifNumber, setPrincipalCifNumber] = useState<string | null>(null);
@@ -180,6 +181,7 @@ export default function EnrollPage() {
           // Principal enrolled for self+dep scope — transition to dependent form
           setPrincipalCifNumber(String(data.cifNumber));
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
+          setPrincipalRecord({ enrolleeId, name });
           resetForm();
           setStatus('add-deps');
         } else {
@@ -217,51 +219,60 @@ export default function EnrollPage() {
     return <StatusScreen icon="alert" color="#DC2626" bg="#FEF2F2" title="Invalid Link" message={errorMsg || 'This enrolment link is not valid. Please contact your HR team.'} />;
   }
   if (status === 'success') {
-    const memberId = enrollResult?.enrolleeId || enrollResult?.membershipNo || '';
     const canAddMore = isDependent && remainingSlots > 0;
+
+    // Build the full list of enrolled members to display
+    const allEnrolled: Array<{ name: string; enrolleeId: string; role: string }> = [];
+    if (principalRecord) {
+      allEnrolled.push({ ...principalRecord, role: 'Staff Member' });
+    }
+    depEnrolled.forEach((d, i) => allEnrolled.push({ ...d, role: `Dependant ${i + 1}` }));
+    // Fallback: if no list built (principal-only enrolment), use enrollResult
+    if (allEnrolled.length === 0 && enrollResult) {
+      allEnrolled.push({ enrolleeId: enrollResult.enrolleeId || enrollResult.membershipNo || '', name: '', role: isDependent ? 'Dependant' : 'Staff Member' });
+    }
+
+    const copyText = (t: string) => { try { navigator.clipboard.writeText(t); } catch { const el = document.createElement('textarea'); el.value = t; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); } };
+
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F8FC', padding: 24 }}>
-        <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
-          <div style={{ width: 72, height: 72, borderRadius: 20, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-            <CheckCircle style={{ width: 36, height: 36, color: '#059669' }} />
+      <div style={{ minHeight: '100vh', background: '#F7F8FC', padding: '40px 16px' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto' }}>
+
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <CheckCircle style={{ width: 36, height: 36, color: '#059669' }} />
+            </div>
+            <p style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Enrolment Complete!</p>
+            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+              Successfully enrolled on <strong>{invitation?.schemeName ?? 'your health plan'}</strong>.<br />
+              Keep your member ID(s) safe — you will need them at any Leadway Health provider.
+            </p>
           </div>
-          <p style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 10 }}>
-            {isDependent ? 'Dependent Enrolled!' : 'Enrolment Successful!'}
-          </p>
-          <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, marginBottom: 28 }}>
-            {isDependent
-              ? `${enrollResult ? `${firstName} ${surname}`.trim() || 'Dependent' : 'Dependent'} has been successfully enrolled on `
-              : 'You have been successfully enrolled on '}
-            <strong>{invitation?.schemeName ?? 'your health plan'}</strong>.
-            {!isDependent && ' Keep your member ID safe — you will need it when visiting any Leadway Health provider.'}
-          </p>
 
-          {/* Previously enrolled dependents */}
-          {isDependent && depEnrolled.length > 1 && (
-            <div style={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 16, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Enrolled Dependents</p>
-              {depEnrolled.map((d, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none' }}>
-                  <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>{d.name || `Dependent ${i + 1}`}</span>
-                  <span style={{ fontSize: 13, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {memberId && (
-            <div style={{ background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 20, padding: '28px 32px', marginBottom: 24, boxShadow: '0 4px 24px rgba(16,185,129,0.10)' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
-                {isDependent ? 'Enrolee ID' : 'Your Member ID'}
+          {/* Enrolled members list */}
+          <div style={{ background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 20, overflow: 'hidden', marginBottom: 24, boxShadow: '0 4px 24px rgba(16,185,129,0.10)' }}>
+            <div style={{ background: 'linear-gradient(135deg,#059669,#10B981)', padding: '14px 20px' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Enrolled Member{allEnrolled.length > 1 ? 's' : ''} — {allEnrolled.length} total
               </p>
-              <p style={{ fontSize: 36, fontWeight: 900, color: '#131C4E', letterSpacing: '0.04em', fontFamily: 'monospace', marginBottom: 12 }}>{memberId}</p>
-              <button
-                onClick={() => { try { navigator.clipboard.writeText(memberId); } catch { const t = document.createElement('textarea'); t.value = memberId; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } }}
-                style={{ marginTop: 16, height: 38, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#059669', border: '1.5px solid #BBF7D0', borderRadius: 10, background: '#ECFDF5', cursor: 'pointer' }}>
-                Copy ID
-              </button>
             </div>
-          )}
+            {allEnrolled.map((m, i) => (
+              <div key={i} style={{ padding: '16px 20px', borderTop: i > 0 ? '1px solid #F0FDF4' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{m.role}</p>
+                  {m.name && <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 2 }}>{m.name}</p>}
+                  <p style={{ fontSize: 18, fontWeight: 900, color: '#065F46', fontFamily: 'monospace', letterSpacing: '0.04em' }}>{m.enrolleeId || '—'}</p>
+                </div>
+                {m.enrolleeId && (
+                  <button onClick={() => copyText(m.enrolleeId)}
+                    style={{ height: 34, padding: '0 14px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1.5px solid #BBF7D0', borderRadius: 8, background: '#ECFDF5', cursor: 'pointer', flexShrink: 0 }}>
+                    Copy
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
 
           {canAddMore && (
             <button
