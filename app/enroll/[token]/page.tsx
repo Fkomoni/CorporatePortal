@@ -41,6 +41,7 @@ export default function EnrollPage() {
   const [depEnrolled, setDepEnrolled] = useState<Array<{ enrolleeId: string; name: string }>>([]);
   const [remainingSlots, setRemainingSlots] = useState(1);
   const [principalCifNumber, setPrincipalCifNumber] = useState<string | null>(null);
+  const [existingDependants, setExistingDeps] = useState<{ name: string; relationship: string; status: string; dob: string }[]>([]);
   const errorRef = useRef<HTMLDivElement>(null);
 
   // Form fields
@@ -77,6 +78,7 @@ export default function EnrollPage() {
         setStates(d.states ?? []);
         setRelationships(d.relationships ?? []);
         setRemainingSlots(d.invitation?.remainingSlots ?? 1);
+        setExistingDeps(d.existingDependants ?? []);
         setStatus('ready');
       })
       .catch(() => { setStatus('invalid'); setErrorMsg('Failed to load enrolment form. Please try again.'); });
@@ -111,6 +113,24 @@ export default function EnrollPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!invitation) return;
+
+    // Warn if this name already exists as a dependant on the policy
+    if (isDependent || principalCifNumber) {
+      const fullName = `${firstName} ${surname}`.trim().toLowerCase();
+      const duplicate = existingDependants.find(
+        (d) => d.name.toLowerCase() === fullName,
+      );
+      if (duplicate) {
+        setErrorMsg(
+          `${firstName} ${surname} appears to already be registered as a dependant (${duplicate.relationship}). ` +
+          'If this is a different person, please contact HR to proceed.',
+        );
+        setStatus('error');
+        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const bodyPayload: Record<string, unknown> = {
@@ -293,9 +313,29 @@ export default function EnrollPage() {
             </div>
           )}
 
+          {/* Already-registered dependants warning */}
+          {existingDependants.length > 0 && (
+            <div style={{ background: '#FFFBEB', border: '1.5px solid #FCD34D', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>
+                ⚠ Dependants already registered on this policy
+              </p>
+              {existingDependants.map((d, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px solid #FDE68A' : 'none' }}>
+                  <span style={{ fontSize: 13, color: '#78350F', fontWeight: 600 }}>{d.name} <span style={{ fontWeight: 400, color: '#92400E' }}>({d.relationship})</span></span>
+                  <span style={{ fontSize: 11, background: '#FEF3C7', color: '#B45309', borderRadius: 6, padding: '2px 8px', fontWeight: 700 }}>
+                    {d.status || 'Awaiting Approval'}
+                  </span>
+                </div>
+              ))}
+              <p style={{ fontSize: 11, color: '#92400E', marginTop: 10 }}>
+                Please check this list before adding a new dependant to avoid duplicate registration.
+              </p>
+            </div>
+          )}
+
           {/* Error */}
           {status === 'add-deps' && errorMsg && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
+            <div ref={errorRef} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
               <AlertCircle style={{ width: 16, height: 16, color: '#DC2626', flexShrink: 0, marginTop: 2 }} />
               <span style={{ fontSize: 13, color: '#DC2626', lineHeight: 1.5 }}>{errorMsg}</span>
             </div>
@@ -403,6 +443,26 @@ export default function EnrollPage() {
           <div style={{ background: '#FFF8F0', border: '1px solid #FDBA74', borderRadius: 14, padding: '12px 18px', marginBottom: 20 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#C2410C' }}>
               {depEnrolled.length > 0 ? `Dependent added! You can add ${remainingSlots} more.` : `You have ${remainingSlots} dependent slot${remainingSlots > 1 ? 's' : ''} to fill.`} Fill in the form below.
+            </p>
+          </div>
+        )}
+
+        {/* Already-registered dependants warning */}
+        {isDependent && existingDependants.length > 0 && (
+          <div style={{ background: '#FFFBEB', border: '1.5px solid #FCD34D', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>
+              ⚠ Dependants already registered on this policy
+            </p>
+            {existingDependants.map((d, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px solid #FDE68A' : 'none' }}>
+                <span style={{ fontSize: 13, color: '#78350F', fontWeight: 600 }}>{d.name} <span style={{ fontWeight: 400, color: '#92400E' }}>({d.relationship})</span></span>
+                <span style={{ fontSize: 11, background: '#FEF3C7', color: '#B45309', borderRadius: 6, padding: '2px 8px', fontWeight: 700 }}>
+                  {d.status || 'Awaiting Approval'}
+                </span>
+              </div>
+            ))}
+            <p style={{ fontSize: 11, color: '#92400E', marginTop: 10 }}>
+              Please check this list before adding a new dependant to avoid duplicate registration.
             </p>
           </div>
         )}
