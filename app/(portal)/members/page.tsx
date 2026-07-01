@@ -449,6 +449,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               inviteType: 'dependent',
               parentCif: String(selectedPrincipal.cifNumber ?? principalProfile?.cifNumber ?? ''),
               maxDependents: linkMaxDeps,
+            } : linkScope === 'self-dependent' ? {
+              maxDependents: linkMaxDeps,
             } : {}),
           }),
         });
@@ -1101,11 +1103,13 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     </div>
                   )}
 
-                  {/* Dependent count picker — only for dep links */}
-                  {memberType === 'existing' && (() => {
-                    const depScheme = selectedPrincipal ? resolveScheme(selectedPrincipal) : null;
+                  {/* Dependent count picker — for dep links and new-staff-with-deps links */}
+                  {(memberType === 'existing' || linkScope === 'self-dependent') && (() => {
+                    const depScheme = memberType === 'existing' && selectedPrincipal
+                      ? resolveScheme(selectedPrincipal)
+                      : selectedScheme ?? null;
                     const depSchemeMaxFamily = depScheme?.maxFamilySize ?? 8;
-                    const principalCurrentDeps = selectedPrincipal?.dependants ?? 0;
+                    const principalCurrentDeps = memberType === 'existing' ? (selectedPrincipal?.dependants ?? 0) : 0;
                     const depSlotsLeft = Math.max(0, depSchemeMaxFamily - 1 - principalCurrentDeps);
                     return (
                       <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', padding: '12px 16px', marginBottom: 14 }}>
@@ -1122,7 +1126,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                             style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #E5E7F1', background: '#fff', fontSize: 16, cursor: linkMaxDeps >= depSlotsLeft ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: linkMaxDeps >= depSlotsLeft ? '#D1D5DB' : '#131C4E' }}>+</button>
                         </div>
                         <p style={{ fontSize: 11, color: '#9CA3B8', textAlign: 'center', marginTop: 8 }}>
-                          Plan limit: {depSchemeMaxFamily - 1} dependant{depSchemeMaxFamily - 1 !== 1 ? 's' : ''} total · {principalCurrentDeps} registered · <strong style={{ color: depSlotsLeft > 0 ? '#059669' : '#DC2626' }}>{depSlotsLeft} slot{depSlotsLeft !== 1 ? 's' : ''} remaining</strong>
+                          Plan limit: {depSchemeMaxFamily - 1} dependant{depSchemeMaxFamily - 1 !== 1 ? 's' : ''} max
+                          {memberType === 'existing' && <> · {principalCurrentDeps} registered · <strong style={{ color: depSlotsLeft > 0 ? '#059669' : '#DC2626' }}>{depSlotsLeft} slot{depSlotsLeft !== 1 ? 's' : ''} remaining</strong></>}
                         </p>
                       </div>
                     );
