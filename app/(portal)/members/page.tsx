@@ -560,8 +560,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
   // ── Add-dependent handler for "new staff + dependants" success screen ───
   async function handleAddDep() {
-    if (depSub || !enrollResult?.cifNumber) return;
+    if (depSub) return;
     setDepErr('');
+    if (!enrollResult?.cifNumber) {
+      setDepErr('Cannot add dependant: no CIF number was returned for this member. Please use the "Existing staff\'s dependent" flow to add dependants by searching for this member by name.');
+      return;
+    }
     if (!depFN || !depLN || !depDob2 || !depSex || !depRel || !depSt) {
       setDepErr('Please fill all required fields: First Name, Last Name, Date of Birth, Gender, Relationship and State.'); return;
     }
@@ -645,6 +649,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               <div style={{ textAlign: 'left', marginBottom: 28 }}>
                 <div style={{ height: 1, background: '#F0F1F5', marginBottom: 20 }} />
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 12 }}>Add Dependants</p>
+                {!enrollResult?.cifNumber && (
+                  <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400E' }}>
+                    ⚠ No CIF number was returned for this member. To add dependants, please close this and use <strong>Add Member → Existing staff&apos;s dependent</strong> to search for them by name.
+                  </div>
+                )}
 
                 {/* Enrolled deps list */}
                 {enrolledDeps.length > 0 && (
@@ -715,12 +724,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : enrollResult?.cifNumber ? (
                   <button onClick={() => setDepFormOpen(true)}
                     style={{ width: '100%', height: 42, fontSize: 13, fontWeight: 700, color: '#10B981', border: '1.5px dashed #BBF7D0', borderRadius: 12, background: '#F0FDF4', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <UserPlus style={{ width: 14, height: 14 }} /> + Add a Dependant
                   </button>
-                )}
+                ) : null}
               </div>
             )}
 

@@ -119,7 +119,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: apiMessage || `Enrolment failed (${apiStatus})` }, { status: 422 });
     }
 
-    const cifNumber    = r?.Cif_Number  ?? r?.cifNumber  ?? r?.CifNumber  ?? null;
+    const cifNumber    = r?.Cif_Number  ?? r?.cifNumber  ?? r?.CifNumber  ?? r?.CifNo ?? r?.cifno ?? r?.cif_no ?? null;
     const membershipNo = String(r?.MembershipNo ?? r?.membershipNo ?? '');
     const suffix       = String(r?.Suffix ?? r?.suffix ?? '0');
 
