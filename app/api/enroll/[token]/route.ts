@@ -45,7 +45,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const remainingSlots = invitation.inviteType === 'dependent'
     ? invitation.maxDependents - invitation.usedCount
-    : 1;
+    : invitation.scope === 'self-dependent'
+      ? invitation.maxDependents   // principal link that allows dependants — slots = how many deps HR configured
+      : 1;
 
   // Fetch list values in parallel
   try {

@@ -386,7 +386,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     setTownsLoading(true);
     fetch(`/api/hr/list-values?type=towns&regionId=${rid}`)
       .then((r) => r.json())
-      .then((d) => { if (d.towns?.length) setTowns(d.towns); })
+      .then((d) => {
+        const all: { value: string; text: string; regionId: string }[] = d.towns ?? [];
+        // Filter client-side by regionId in case Prognosis ignores the query param
+        const filtered = all.filter((t) => !t.regionId || t.regionId === rid);
+        setTowns(filtered.length > 0 ? filtered : all);
+      })
       .catch(() => {})
       .finally(() => setTownsLoading(false));
   }
@@ -511,8 +516,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       }
 
       if (mode === 'individual' && actionType === 'form') {
-        if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !stateId) {
-          setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State.'); return;
+        const postalId = townId || stateId;
+        if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !postalId) {
+          setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State/Town.'); return;
         }
         const res = await fetch('/api/hr/members/add', {
           method: 'POST',
@@ -521,7 +527,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '',
             firstName, surname, otherNames, dateOfBirth: dob,
             sexId, maritalStatus, email, mobile, mobile2,
-            postalTownId: stateId, address,
+            postalTownId: postalId, address,
             employeeCode: empCode, preExistingCondition: preExisting || 'None',
             enrolleePicture: photoBase64, enrolleePictureType: photoType,
           }),
@@ -724,12 +730,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       </button>
                     </div>
                   </div>
-                ) : enrollResult?.cifNumber ? (
+                ) : (
                   <button onClick={() => setDepFormOpen(true)}
                     style={{ width: '100%', height: 42, fontSize: 13, fontWeight: 700, color: '#10B981', border: '1.5px dashed #BBF7D0', borderRadius: 12, background: '#F0FDF4', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <UserPlus style={{ width: 14, height: 14 }} /> + Add a Dependant
                   </button>
-                ) : null}
+                )}
               </div>
             )}
 
