@@ -38,6 +38,10 @@ const categoryMeta: Record<string, { Icon: React.ElementType; color: string; bg:
   'Health Check Basic':        { Icon: Activity,      color: '#D97706', bg: '#FFFBEB' },
   'Immunization Vaccines':     { Icon: Syringe,       color: '#0891B2', bg: '#ECFEFF' },
   'SPA Treatment (Voucher PA )': { Icon: Sparkles,    color: '#7C3AED', bg: '#F5F3FF' },
+  'External Devices':            { Icon: Activity,     color: '#0891B2', bg: '#ECFEFF' },
+  'Chronic Medications':         { Icon: Syringe,      color: '#BE123C', bg: '#FFF1F2' },
+  'Annual Screening':            { Icon: Activity,     color: '#D97706', bg: '#FFFBEB' },
+  'Annuals Screening':           { Icon: Activity,     color: '#D97706', bg: '#FFFBEB' },
 };
 
 const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
@@ -225,21 +229,38 @@ export default function BenefitsPage() {
             )}
             {!bensLoading && categories.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                {categories.filter((b) => b.category !== 'Additional Benefits').map((b) => {
+                {categories.filter((b) => {
+                  const c = b.category.toLowerCase();
+                  return (
+                    c.includes('optical') || c.includes('lens') ||
+                    c.includes('dental') || c.includes('dentistry') ||
+                    c.includes('surgery') ||
+                    c.includes('immunization') || c.includes('vaccine') ||
+                    c.includes('advanced investigation') ||
+                    c.includes('gym') || c.includes('spa') ||
+                    c.includes('major disease') ||
+                    c.includes('external device') ||
+                    c.includes('chronic') ||
+                    c.includes('annual') || c.includes('screening') || c.includes('health check')
+                  );
+                }).map((b) => {
                   const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
                   const Icon = meta.Icon;
                   const totalItems = b.covered.length + b.excluded.length;
+                  const isMajorDisease = b.category.toLowerCase().includes('major disease');
                   return (
                     <div key={b.category} style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 28px', borderBottom: '1px solid #F0F1F5' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 28px', borderBottom: isMajorDisease ? 'none' : '1px solid #F0F1F5' }}>
                         <div style={{ width: 52, height: 52, borderRadius: 14, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <Icon style={{ width: 24, height: 24, color: meta.color }} strokeWidth={1.75} />
                         </div>
                         <div style={{ flex: 1 }}>
                           <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{b.category}</p>
                           <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
-                            {totalItems > 0 ? <>{totalItems} benefit{totalItems !== 1 ? 's' : ''} covered</> : <>Covered</>}
-                            {b.limit ? <> · Limit: <span style={{ fontWeight: 600, color: '#131C4E' }}>{b.limit}</span></> : null}
+                            {isMajorDisease
+                              ? (b.limit ? <>Benefit Amount: <span style={{ fontWeight: 700, color: '#131C4E' }}>{b.limit}</span></> : <>Covered</>)
+                              : <>{totalItems > 0 ? <>{totalItems} benefit{totalItems !== 1 ? 's' : ''} covered</> : <>Covered</>}{b.limit ? <> · Limit: <span style={{ fontWeight: 600, color: '#131C4E' }}>{b.limit}</span></> : null}</>
+                            }
                           </p>
                         </div>
                         {b.waitingPeriod && (
@@ -248,7 +269,7 @@ export default function BenefitsPage() {
                           </span>
                         )}
                       </div>
-                      {b.covered.length > 0 && (
+                      {!isMajorDisease && b.covered.length > 0 && (
                         <div style={{ padding: '0 28px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderLeft: '3px solid #F56B22', paddingLeft: 12, marginLeft: -12 }}>
                             <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>What&apos;s Covered</span>
@@ -262,7 +283,7 @@ export default function BenefitsPage() {
                           ))}
                         </div>
                       )}
-                      {b.excluded.length > 0 && (
+                      {!isMajorDisease && b.excluded.length > 0 && (
                         <div style={{ padding: '0 28px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 12px', borderTop: b.covered.length > 0 ? '1px solid #F0F1F5' : 'none', borderLeft: '3px solid #EF4444', paddingLeft: 12, marginLeft: -12 }}>
                             <span style={{ fontSize: 11, fontWeight: 800, color: '#131C4E', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Not Covered</span>
