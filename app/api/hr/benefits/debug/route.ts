@@ -31,7 +31,18 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-export async function GET() {
+function toArr(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    for (const key of ['result', 'data', 'Data', 'Result', 'items', 'Items']) {
+      if (Array.isArray(r[key])) return r[key] as Record<string, unknown>[];
+    }
+  }
+  return [];
+}
+
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
@@ -41,40 +52,51 @@ export async function GET() {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID in session' }, { status: 400 });
 
+  const { searchParams } = new URL(req.url);
+  const schemeId = searchParams.get('schemeId');
+
   try {
     const token = await getServiceToken();
 
-    const schemesUrl = `${BASE}/api/CorporatePortal/GetPolicySchemes?groupId=${groupId}`;
-    const schemesRes = await fetch(schemesUrl, {
+    // Fetch schemes
+    const schemesRes = await fetch(`${BASE}/api/CorporatePortal/GetPolicySchemes?groupId=${groupId}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
-    const schemesText = await schemesRes.text();
-    let schemesRaw: unknown;
-    try { schemesRaw = JSON.parse(schemesText); } catch { schemesRaw = schemesText; }
+    const schemesRaw = await schemesRes.json().catch(() => null);
+    const schemes = toArr(schemesRaw).map((r) => ({
+      schemeId: String(r.SchemeId ?? r.schemeid ?? r.Schemeid ?? r.SchemeID ?? ''),
+      schemeName: String(r.SchemeName ?? r.Scheme_Name ?? r.schemename ?? ''),
+    })).filter((s) => s.schemeId);
 
-    const topLevelKeys = schemesRaw && typeof schemesRaw === 'object' && !Array.isArray(schemesRaw)
-      ? Object.keys(schemesRaw as object)
-      : [];
+    // If a schemeId was requested, return raw benefit rows for it
+    if (schemeId) {
+      const benefitsRes = await fetch(
+        `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+      );
+      const benefitsRaw = await benefitsRes.json().catch(() => null);
+      const rows = toArr(benefitsRaw);
+      // Extract unique SERVICE (category) names and all unique field names
+      const uniqueCategories = [...new Set(rows.map((r) =>
+        String(r['SERVICE'] ?? r['Service'] ?? r['Category'] ?? r['BenefitCategory'] ?? r['ServiceType'] ?? '').trim()
+      ).filter(Boolean))].sort();
+      const allFields = [...new Set(rows.flatMap((r) => Object.keys(r)))].sort();
 
-    const arr: unknown[] = Array.isArray(schemesRaw) ? schemesRaw
-      : Array.isArray((schemesRaw as Record<string,unknown>)?.data) ? (schemesRaw as Record<string,unknown>).data as unknown[]
-      : Array.isArray((schemesRaw as Record<string,unknown>)?.Data) ? (schemesRaw as Record<string,unknown>).Data as unknown[]
-      : Array.isArray((schemesRaw as Record<string,unknown>)?.result) ? (schemesRaw as Record<string,unknown>).result as unknown[]
-      : [];
+      return NextResponse.json({
+        schemeId,
+        totalRows: rows.length,
+        uniqueCategories,
+        allFieldNames: allFields,
+        sampleRows: rows.slice(0, 5),
+        rawResponse: benefitsRaw,
+      });
+    }
 
-    const allKeys = new Set<string>();
-    arr.forEach((r) => { if (r && typeof r === 'object') Object.keys(r as object).forEach((k) => allKeys.add(k)); });
-
+    // Default: return schemes list + instructions
     return NextResponse.json({
-      debug: true,
       groupId,
-      schemesEndpoint: schemesUrl,
-      httpStatus: schemesRes.status,
-      isArray: Array.isArray(schemesRaw),
-      topLevelKeys,
-      detectedArrayLength: arr.length,
-      allFieldNamesInRows: [...allKeys],
-      rawResponse: schemesRaw,
+      schemes,
+      usage: 'Add ?schemeId=<id> to see raw benefit rows for a specific scheme',
     });
   } catch (err) {
     return NextResponse.json(
