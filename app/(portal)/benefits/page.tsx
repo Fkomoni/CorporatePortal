@@ -225,7 +225,7 @@ export default function BenefitsPage() {
             )}
             {!bensLoading && categories.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                {categories.map((b) => {
+                {categories.filter((b) => b.category !== 'Additional Benefits').map((b) => {
                   const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
                   const Icon = meta.Icon;
                   const totalItems = b.covered.length + b.excluded.length;
