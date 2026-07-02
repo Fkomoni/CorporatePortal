@@ -230,18 +230,15 @@ export default function BenefitsPage() {
             {!bensLoading && categories.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
                 {categories.filter((b) => {
-                  const c = b.category.toLowerCase();
+                  const c = b.category.toLowerCase().trim();
                   return (
-                    c.includes('optical') || c.includes('lens') ||
+                    c.includes('lens') || c.includes('optical') ||
                     c.includes('dental') || c.includes('dentistry') ||
-                    c.includes('surgery') ||
                     c.includes('immunization') || c.includes('vaccine') ||
                     c.includes('advanced investigation') ||
                     c.includes('gym') || c.includes('spa') ||
                     c.includes('major disease') ||
-                    c.includes('external device') ||
-                    c.includes('chronic') ||
-                    c.includes('annual') || c.includes('screening') || c.includes('health check')
+                    c.includes('health check') || c.includes('screening') || c.includes('annual')
                   );
                 }).map((b) => {
                   const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
