@@ -238,7 +238,10 @@ export default function BenefitsPage() {
                     c.includes('advanced investigation') ||
                     c.includes('gym') || c.includes('spa') ||
                     c.includes('major disease') ||
-                    c.includes('health check') || c.includes('screening') || c.includes('annual')
+                    c.includes('health check') || c.includes('screening') || c.includes('annual') ||
+                    c.includes('surgery') ||
+                    c.includes('external device') ||
+                    c.includes('chronic')
                   );
                 }).map((b) => {
                   const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };

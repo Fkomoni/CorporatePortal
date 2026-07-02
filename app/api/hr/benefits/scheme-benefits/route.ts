@@ -85,6 +85,15 @@ export async function GET(req: Request) {
     // Track seen (category, benefitName) pairs to deduplicate across member-type/age-band rows
     const seenItems = new Set<string>();
 
+    // Synthetic categories extracted from specific DEPARTMENT names within Inpatient/Outpatient.
+    // Maps a display name → keywords that match the DEPARTMENT field.
+    const SYNTHETIC: Record<string, { keywords: string[]; codes: string[] }> = {
+      'Surgery':            { keywords: ['surg'],                    codes: ['SURG'] },
+      'External Devices':   { keywords: ['device', 'appliance'],     codes: ['EXTDEV'] },
+      'Chronic Medications':{ keywords: ['chronic'],                 codes: ['CHRNM', 'CHRONIC'] },
+    };
+    const syntheticMap = new Map<string, BenefitCategory>();
+
     for (const r of arr) {
       if (!r || typeof r !== 'object') continue;
       const row = r as Record<string, unknown>;
@@ -94,9 +103,11 @@ export async function GET(req: Request) {
         String(row['SERVICE'] ?? row['Service'] ?? row['Category'] ?? row['BenefitCategory'] ?? row['ServiceType'] ?? '').trim()
       ) || 'General';
 
-      const benefitName = (
+      const department = (
         String(row['DEPARTMENT'] ?? row['Department'] ?? row['BenefitName'] ?? row['Name'] ?? row['Description'] ?? '').trim()
       );
+
+      const deptCode = String(row['DepartmentCode'] ?? row['DEPARTMENTCODE'] ?? row['Dept_Code'] ?? '').trim().toUpperCase();
 
       const limitStr = formatLimit(row['LIMIT'] ?? row['Limit'] ?? row['BenefitLimit'] ?? row['Amount']);
       const waitStr  = formatWaitingPeriod(row['WaitingPeriod'] ?? row['waiting_period'] ?? row['WaitPeriod']);
@@ -110,16 +121,45 @@ export async function GET(req: Request) {
       if (!cat.waitingPeriod && waitStr) cat.waitingPeriod = waitStr;
 
       // Deduplicate benefit items across member-type / age-band rows (M+1, M+2, age bands, etc.)
-      if (benefitName) {
-        const key = `${category}||${benefitName}`;
+      if (department) {
+        const key = `${category}||${department}`;
         if (!seenItems.has(key)) {
           seenItems.add(key);
-          cat.covered.push(benefitName);
+          cat.covered.push(department);
+        }
+      }
+
+      // Check if this DEPARTMENT row matches any synthetic category
+      const deptLower = department.toLowerCase();
+      for (const [synthName, { keywords, codes }] of Object.entries(SYNTHETIC)) {
+        const matches = codes.includes(deptCode) || keywords.some((kw) => deptLower.includes(kw));
+        if (!matches) continue;
+
+        if (!syntheticMap.has(synthName)) {
+          syntheticMap.set(synthName, { category: synthName, limit: '', waitingPeriod: null, covered: [], excluded: [] });
+        }
+        const synthCat = syntheticMap.get(synthName)!;
+        if (!synthCat.limit && limitStr) synthCat.limit = limitStr;
+        if (!synthCat.waitingPeriod && waitStr) synthCat.waitingPeriod = waitStr;
+
+        // Try to find a sub-item field within this department row
+        const subItem = String(
+          row['BENEFIT'] ?? row['Benefit'] ?? row['BenefitItem'] ?? row['BenefitDescription'] ??
+          row['Item'] ?? row['Coverage'] ?? row['ITEM'] ?? row['SUB_DEPARTMENT'] ?? ''
+        ).trim();
+
+        if (subItem) {
+          const synthKey = `${synthName}||${subItem}`;
+          if (!seenItems.has(synthKey)) {
+            seenItems.add(synthKey);
+            synthCat.covered.push(subItem);
+          }
         }
       }
     }
 
-    const categories = [...categoryMap.values()];
+    // Merge synthetic categories into the main list (append at end)
+    const categories = [...categoryMap.values(), ...syntheticMap.values()];
 
     return NextResponse.json({ categories, rawSample: arr.slice(0, 3), totalRows: arr.length });
   } catch (err) {
