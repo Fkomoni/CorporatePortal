@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -232,11 +232,73 @@ export default function AdministrationPage() {
     finally { setTwoFaBusy(false); }
   }
 
-  // Custom roles state
-  const [customRoles, setCustomRoles] = useState<Array<{ id: string; role: string; desc: string; colorKey: string }>>([]);
+  // Custom roles state — persisted to localStorage so they survive refresh
+  type CustomRole = { id: string; role: string; desc: string; colorKey: string; modules?: Record<string, boolean> };
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const [showRoleForm, setShowRoleForm] = useState(false);
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState('');
   const blankRoleForm = { name: '', desc: '', colorKey: 'purple', modules: { dashboard: true, members: true, benefits: false, finance: false, claims: false, reports: false, serviceDesk: false } };
   const [roleForm, setRoleForm] = useState(blankRoleForm);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('lw_custom_roles');
+      if (stored) setCustomRoles(JSON.parse(stored));
+    } catch { /* corrupt storage — start fresh */ }
+    setRolesLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (rolesLoaded) localStorage.setItem('lw_custom_roles', JSON.stringify(customRoles));
+  }, [customRoles, rolesLoaded]);
+
+  function openEditRole(r: CustomRole) {
+    setRoleForm({
+      name: r.role,
+      desc: r.desc,
+      colorKey: r.colorKey,
+      modules: { ...blankRoleForm.modules, ...(r.modules ?? {}) },
+    });
+    setEditingRoleId(r.id);
+    setShowRoleForm(true);
+    setRoleError('');
+  }
+
+  function deleteRole(r: CustomRole) {
+    const assigned = portalUsers.filter((u) => u.role === r.role).length;
+    if (assigned > 0) {
+      setRoleError(`Cannot delete "${r.role}" — ${assigned} user${assigned !== 1 ? 's are' : ' is'} assigned to it. Reassign ${assigned !== 1 ? 'them' : 'the user'} first, or edit the role instead.`);
+      return;
+    }
+    setRoleError('');
+    setCustomRoles(customRoles.filter((cr) => cr.id !== r.id));
+    if (editingRoleId === r.id) { setEditingRoleId(null); setShowRoleForm(false); setRoleForm(blankRoleForm); }
+  }
+
+  function saveRole() {
+    if (!roleForm.name.trim()) return;
+    const name = roleForm.name.trim();
+    // Prevent duplicate role names (built-in or custom, excluding the one being edited)
+    const clash = roleCards.some((rc) => rc.role.toLowerCase() === name.toLowerCase())
+      || customRoles.some((cr) => cr.id !== editingRoleId && cr.role.toLowerCase() === name.toLowerCase());
+    if (clash) { setRoleError(`A role named "${name}" already exists.`); return; }
+    setRoleError('');
+
+    const enabledMods = MODULE_LIST.filter(({ key }) => roleForm.modules[key as keyof typeof roleForm.modules]).map(({ label }) => label);
+    const desc = roleForm.desc.trim() || (enabledMods.length ? enabledMods.join(' · ') : 'No module access');
+
+    if (editingRoleId) {
+      setCustomRoles(customRoles.map((cr) => cr.id === editingRoleId
+        ? { ...cr, role: name, desc, colorKey: roleForm.colorKey, modules: { ...roleForm.modules } }
+        : cr));
+    } else {
+      setCustomRoles([...customRoles, { id: String(Date.now()), role: name, desc, colorKey: roleForm.colorKey, modules: { ...roleForm.modules } }]);
+    }
+    setRoleForm(blankRoleForm);
+    setEditingRoleId(null);
+    setShowRoleForm(false);
+  }
 
   // Profile form — initialised from API data
   const [profile, setProfile] = useState({ displayName: '', jobTitle: '', email: '', phone: '' });
@@ -345,7 +407,7 @@ export default function AdministrationPage() {
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Access Roles</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Define what each user can see and do in the portal</p>
                 </div>
-                <button onClick={() => { setShowRoleForm(!showRoleForm); setRoleForm(blankRoleForm); }}
+                <button onClick={() => { setShowRoleForm(!showRoleForm); setRoleForm(blankRoleForm); setEditingRoleId(null); setRoleError(''); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 7, height: 38, padding: '0 18px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 20, cursor: 'pointer', background: showRoleForm ? '#6B7280' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: showRoleForm ? 'none' : '0 2px 8px rgba(245,107,34,0.28)' }}>
                   {showRoleForm ? <X style={{ width: 13, height: 13 }} /> : <Plus style={{ width: 13, height: 13 }} />}
                   {showRoleForm ? 'Cancel' : 'Define Role'}
@@ -365,23 +427,39 @@ export default function AdministrationPage() {
                 })}
                 {customRoles.map((r) => {
                   const c = ROLE_COLORS[r.colorKey] ?? ROLE_COLORS['slate'];
+                  const assignedCount = portalUsers.filter((u) => u.role === r.role).length;
                   return (
                     <div key={r.id} style={{ padding: '18px 18px 14px 16px', borderRadius: 12, border: `1.5px solid ${c.border}`, borderLeft: `3px solid ${c.text}`, background: '#fff', position: 'relative' }}>
-                      <button onClick={() => setCustomRoles(customRoles.filter((cr) => cr.id !== r.id))}
-                        style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#D1D5DB', padding: 0, lineHeight: 0 }}>
-                        <X style={{ width: 13, height: 13 }} />
-                      </button>
+                      <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 8 }}>
+                        <button onClick={() => openEditRole(r)} title="Edit role"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, lineHeight: 0 }}>
+                          <Pencil style={{ width: 13, height: 13 }} />
+                        </button>
+                        <button onClick={() => deleteRole(r)} title={assignedCount > 0 ? 'Reassign users before deleting' : 'Delete role'}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: assignedCount > 0 ? '#E8CFCF' : '#D1D5DB', padding: 0, lineHeight: 0 }}>
+                          <X style={{ width: 13, height: 13 }} />
+                        </button>
+                      </div>
                       <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 5 }}>{r.role}</p>
                       <p style={{ fontSize: 11, color: '#9CA3B8', lineHeight: 1.6, marginBottom: 10 }}>{r.desc || '—'}</p>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: c.bg, color: c.text }}>Custom</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: c.bg, color: c.text }}>Custom</span>
+                        {assignedCount > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#9CA3B8' }}>{assignedCount} user{assignedCount !== 1 ? 's' : ''}</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
 
+              {roleError && (
+                <div style={{ marginTop: 14, fontSize: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{roleError}</div>
+              )}
+
               {showRoleForm && (
                 <div style={{ marginTop: 20, padding: '20px', background: '#FAFBFC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>New Role</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>{editingRoleId ? 'Edit Role' : 'New Role'}</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                     <div>
                       <label style={labelStyle}>Role Name</label>
@@ -423,18 +501,11 @@ export default function AdministrationPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button
-                      onClick={() => {
-                        if (!roleForm.name.trim()) return;
-                        const enabledMods = MODULE_LIST.filter(({ key }) => roleForm.modules[key as keyof typeof roleForm.modules]).map(({ label }) => label);
-                        const desc = roleForm.desc.trim() || (enabledMods.length ? enabledMods.join(' · ') : 'No module access');
-                        setCustomRoles([...customRoles, { id: String(Date.now()), role: roleForm.name.trim(), desc, colorKey: roleForm.colorKey }]);
-                        setRoleForm(blankRoleForm);
-                        setShowRoleForm(false);
-                      }}
+                      onClick={saveRole}
                       style={{ height: 38, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 20, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>
-                      Save Role
+                      {editingRoleId ? 'Save Changes' : 'Save Role'}
                     </button>
-                    <button onClick={() => { setShowRoleForm(false); setRoleForm(blankRoleForm); }}
+                    <button onClick={() => { setShowRoleForm(false); setRoleForm(blankRoleForm); setEditingRoleId(null); setRoleError(''); }}
                       style={{ height: 38, padding: '0 18px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 20, cursor: 'pointer' }}>
                       Cancel
                     </button>
