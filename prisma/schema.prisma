@@ -128,6 +128,17 @@ model CorporateSyncState {
   @@map("corporate_sync_state")
 }
 
+// Per-company branding (logo stored as a data URL, capped at ~400 KB)
+model CompanyBranding {
+  id          String   @id @default(cuid())
+  groupId     String   @unique
+  logoDataUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("company_branding")
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())

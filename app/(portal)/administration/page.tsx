@@ -127,8 +127,47 @@ export default function AdministrationPage() {
   const [activeTab, setActiveTab]   = useState<Tab>('users');
   const [openFaq, setOpenFaq]       = useState<number | null>(null);
   const [logoUrl, setLogoUrl]       = useState<string | null>(null);
+  const [logoSavedUrl, setLogoSavedUrl] = useState<string | null>(null); // what's persisted server-side
   const [logoDrag, setLogoDrag]     = useState(false);
+  const [logoBusy, setLogoBusy]     = useState(false);
+  const [logoMsg, setLogoMsg]       = useState('');
+  const [logoErr, setLogoErr]       = useState('');
   const fileRef                     = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch('/api/hr/company-logo').then((r) => r.json()).then((d) => {
+      if (d.logoUrl) { setLogoUrl(d.logoUrl); setLogoSavedUrl(d.logoUrl); }
+    }).catch(() => {});
+  }, []);
+
+  async function saveLogo() {
+    if (!logoUrl) return;
+    setLogoBusy(true); setLogoMsg(''); setLogoErr('');
+    try {
+      const res = await fetch('/api/hr/company-logo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoDataUrl: logoUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setLogoErr(json.error ?? 'Failed to save logo.'); return; }
+      setLogoSavedUrl(logoUrl);
+      setLogoMsg('Logo saved');
+      setTimeout(() => setLogoMsg(''), 2500);
+    } catch { setLogoErr('Network error. Please try again.'); }
+    finally { setLogoBusy(false); }
+  }
+
+  async function removeLogo() {
+    setLogoBusy(true); setLogoMsg(''); setLogoErr('');
+    try {
+      if (logoSavedUrl) {
+        const res = await fetch('/api/hr/company-logo', { method: 'DELETE' });
+        if (!res.ok) { setLogoErr('Failed to remove logo.'); return; }
+      }
+      setLogoUrl(null); setLogoSavedUrl(null);
+    } catch { setLogoErr('Network error. Please try again.'); }
+    finally { setLogoBusy(false); }
+  }
 
   // Live data state
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
@@ -381,6 +420,11 @@ export default function AdministrationPage() {
   }
 
   function handleLogoFile(file: File) {
+    setLogoErr(''); setLogoMsg('');
+    if (file.size > 300 * 1024) {
+      setLogoErr('Logo is too large — please use an image under 300 KB.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => setLogoUrl(e.target?.result as string);
     reader.readAsDataURL(file);
@@ -674,12 +718,19 @@ export default function AdministrationPage() {
                     <p style={{ fontSize: 13, fontWeight: 600, color: logoDrag ? '#F56B22' : '#131C4E' }}>Drop logo here or <span style={{ color: '#F56B22' }}>click to browse</span></p>
                     <p style={{ fontSize: 11, color: '#9CA3B8' }}>PNG, JPG or SVG · Max 300 KB</p>
                   </div>
-                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); }} />
+                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }} />
                 </div>
+                {!logoUrl && logoErr && <p style={{ marginTop: 12, fontSize: 12, color: '#DC2626' }}>{logoErr}</p>}
                 {logoUrl && (
-                  <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-                    <button style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', boxShadow: '0 2px 8px rgba(245,107,34,0.28)' }}>Save Logo</button>
-                    <button onClick={() => setLogoUrl(null)} style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 10, cursor: 'pointer' }}>Remove</button>
+                  <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button onClick={saveLogo} disabled={logoBusy || logoUrl === logoSavedUrl}
+                      style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700, background: logoUrl === logoSavedUrl ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: logoUrl === logoSavedUrl ? '#9CA3B8' : '#fff', border: 'none', borderRadius: 10, cursor: logoBusy ? 'wait' : logoUrl === logoSavedUrl ? 'default' : 'pointer', boxShadow: logoUrl === logoSavedUrl ? 'none' : '0 2px 8px rgba(245,107,34,0.28)', opacity: logoBusy ? 0.6 : 1 }}>
+                      {logoBusy ? 'Saving…' : logoUrl === logoSavedUrl ? 'Saved' : 'Save Logo'}
+                    </button>
+                    <button onClick={removeLogo} disabled={logoBusy}
+                      style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 10, cursor: logoBusy ? 'wait' : 'pointer' }}>Remove</button>
+                    {logoMsg && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ {logoMsg}</span>}
+                    {logoErr && <span style={{ fontSize: 12, color: '#DC2626' }}>{logoErr}</span>}
                   </div>
                 )}
               </div>
