@@ -300,6 +300,34 @@ export default function AdministrationPage() {
     setShowRoleForm(false);
   }
 
+  // Invite user state
+  const [showInvite, setShowInvite]   = useState(false);
+  const [inviteForm, setInviteForm]   = useState({ name: '', email: '', role: 'Viewer' });
+  const [inviteBusy, setInviteBusy]   = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSent, setInviteSent]   = useState('');
+
+  async function sendInvite() {
+    setInviteError(''); setInviteSent('');
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) { setInviteError('Name and email are required.'); return; }
+    setInviteBusy(true);
+    try {
+      const res = await fetch('/api/hr/portal-users/invite', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inviteForm),
+      });
+      const json = await res.json();
+      if (!res.ok) { setInviteError(json.error ?? 'Failed to send invitation.'); return; }
+      setInviteSent(json.emailSent
+        ? `Invitation sent to ${inviteForm.email}.`
+        : `Account created for ${inviteForm.email}, but the email could not be sent — try again or contact support.`);
+      setInviteForm({ name: '', email: '', role: 'Viewer' });
+      // Refresh the users table so the pending account appears
+      fetch('/api/hr/portal-users').then((r) => r.json()).then((d) => { if (d.users) setPortalUsers(d.users); }).catch(() => {});
+    } catch { setInviteError('Network error. Please try again.'); }
+    finally { setInviteBusy(false); }
+  }
+
   // Profile form — initialised from API data
   const [profile, setProfile] = useState({ displayName: '', jobTitle: '', email: '', phone: '' });
 
@@ -523,10 +551,44 @@ export default function AdministrationPage() {
                     {loading ? 'Loading…' : `${portalUsers.length} user${portalUsers.length !== 1 ? 's' : ''}`}
                   </p>
                 </div>
-                <button style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
-                  <Plus style={{ width: 15, height: 15 }} /> Invite User
+                <button onClick={() => { setShowInvite(!showInvite); setInviteError(''); setInviteSent(''); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: showInvite ? '#6B7280' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: showInvite ? 'none' : '0 2px 10px rgba(245,107,34,0.32)' }}>
+                  {showInvite ? <X style={{ width: 15, height: 15 }} /> : <Plus style={{ width: 15, height: 15 }} />}
+                  {showInvite ? 'Close' : 'Invite User'}
                 </button>
               </div>
+
+              {showInvite && (
+                <div style={{ padding: '20px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 200px auto', gap: 12, alignItems: 'end' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Full Name</label>
+                      <input value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} placeholder="e.g. Ada Obi"
+                        style={{ width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Email Address</label>
+                      <input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="colleague@company.com"
+                        style={{ width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Role</label>
+                      <select value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                        style={{ width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+                        {roleCards.map((r) => <option key={r.role} value={r.role}>{r.role}</option>)}
+                        {customRoles.map((r) => <option key={r.id} value={r.role}>{r.role} (Custom)</option>)}
+                      </select>
+                    </div>
+                    <button onClick={sendInvite} disabled={inviteBusy}
+                      style={{ height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: inviteBusy ? 'wait' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.28)', opacity: inviteBusy ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                      {inviteBusy ? 'Sending…' : 'Send Invitation'}
+                    </button>
+                  </div>
+                  {inviteError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{inviteError}</p>}
+                  {inviteSent && <p style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ {inviteSent}</p>}
+                  <p style={{ marginTop: 10, fontSize: 11, color: '#B0B7C9' }}>The invitee receives an email link to set their password. Their account stays inactive until they do. Invitation links expire after 7 days.</p>
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['User', 'Role', 'Last Activity', 'Status', ''].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>

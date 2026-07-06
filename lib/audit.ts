@@ -10,6 +10,7 @@ export type AuditAction =
   | 'CHANGE_PASSWORD'
   | 'CHANGE_PASSWORD_FAILED'
   | 'ENABLE_2FA'
+  | 'INVITE_USER'
   | 'DISABLE_2FA'
   | 'VIEW_PORTAL_USERS'
   | 'TOGGLE_USER_STATUS'

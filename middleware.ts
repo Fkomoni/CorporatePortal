@@ -12,7 +12,7 @@ export default auth((req) => {
 
   const isAdminRoute  = pathname === '/admin' || pathname.startsWith('/admin/');
   // /verify-registration and /enroll/* are public — unauthenticated users must reach them freely
-  const isPublicPage  = pathname === '/verify-registration' || pathname === '/enroll' || pathname.startsWith('/enroll/');
+  const isPublicPage  = pathname === '/verify-registration' || pathname === '/accept-invite' || pathname === '/enroll' || pathname.startsWith('/enroll/');
   const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login') && !isPublicPage;
   const isStaffLogin  = pathname === '/admin/login';
   const isHrLogin     = pathname === '/login';
