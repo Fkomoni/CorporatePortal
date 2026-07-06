@@ -11,26 +11,82 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]       = useState('');
+  // 2FA step: shown when the account requires an emailed OTP
+  const [otpStep, setOtpStep]   = useState(false);
+  const [otp, setOtp]           = useState('');
+  const [resending, setResending] = useState(false);
   const router = useRouter();
+
+  const completeSignIn = async (otpCode?: string) => {
+    const result = await signIn('hr-credentials', {
+      email,
+      password,
+      ...(otpCode ? { otp: otpCode } : {}),
+      redirect: false,
+    });
+    if (result?.error) {
+      setError(otpCode ? 'Incorrect or expired code. Please try again.' : 'Invalid email or password. Please try again.');
+    } else {
+      router.push('/dashboard');
+      router.refresh();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    const result = await signIn('hr-credentials', {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      if (otpStep) {
+        await completeSignIn(otp.trim());
+        return;
+      }
 
-    setIsLoading(false);
+      // Step 1: validate credentials + find out if this account needs 2FA
+      const pre = await fetch('/api/hr/pre-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const preJson = await pre.json().catch(() => ({}));
 
-    if (result?.error) {
-      setError('Invalid email or password. Please try again.');
-    } else {
-      router.push('/dashboard');
-      router.refresh();
+      if (!pre.ok) {
+        setError(preJson.error ?? 'Invalid email or password. Please try again.');
+        return;
+      }
+
+      if (preJson.twoFaRequired) {
+        setOtpStep(true);
+        setOtp('');
+        if (!preJson.otpSent) setError('We could not send the verification code. Use Resend to try again.');
+        return;
+      }
+
+      await completeSignIn();
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    setError('');
+    try {
+      const res = await fetch('/api/hr/pre-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) setError(json.error ?? 'Could not resend the code.');
+      else if (!json.otpSent) setError('We could not send the verification code. Please try again.');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -119,11 +175,16 @@ export default function LoginPage() {
             <span style={{ fontSize: 11, fontWeight: 700, color: '#F56B22', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Secure HR Sign-In</span>
           </div>
 
-          <h2 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>Welcome back</h2>
-          <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 32 }}>Sign in to manage your corporate health scheme.</p>
+          <h2 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>{otpStep ? 'Two-factor verification' : 'Welcome back'}</h2>
+          <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 32 }}>
+            {otpStep
+              ? <>Enter the 6-digit code we sent to <strong style={{ color: '#131C4E' }}>{email}</strong>.</>
+              : 'Sign in to manage your corporate health scheme.'}
+          </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+            {!otpStep && (
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
                 Email Address
@@ -135,7 +196,9 @@ export default function LoginPage() {
                 onFocus={fi} onBlur={fo}
               />
             </div>
+            )}
 
+            {!otpStep && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -159,6 +222,32 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            )}
+
+            {otpStep && (
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                One-Time Passcode
+              </label>
+              <input
+                type="text" inputMode="numeric" value={otp} autoFocus
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000" required
+                style={{ width: '100%', height: 52, padding: '0 14px', fontSize: 24, fontWeight: 700, letterSpacing: '0.35em', textAlign: 'center', border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' }}
+                onFocus={fi} onBlur={fo}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                <button type="button" onClick={() => { setOtpStep(false); setOtp(''); setError(''); }}
+                  style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  ← Back
+                </button>
+                <button type="button" onClick={handleResend} disabled={resending}
+                  style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: resending ? 'wait' : 'pointer', padding: 0 }}>
+                  {resending ? 'Sending…' : 'Resend code'}
+                </button>
+              </div>
+            </div>
+            )}
 
             {error && (
               <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
@@ -166,7 +255,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button type="submit" disabled={isLoading}
+            <button type="submit" disabled={isLoading || (otpStep && otp.length < 6)}
               style={{
                 width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: isLoading ? 'not-allowed' : 'pointer',
                 background: 'linear-gradient(135deg, #F56B22 0%, #FF8C4B 100%)',
@@ -184,7 +273,7 @@ export default function LoginPage() {
                   </svg>
                   Signing in…
                 </>
-              ) : 'Sign in to Corporate Portal →'}
+              ) : otpStep ? 'Verify & Sign In →' : 'Sign in to Corporate Portal →'}
             </button>
           </form>
 

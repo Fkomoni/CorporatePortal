@@ -49,6 +49,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        otp: { label: 'OTP', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -64,6 +65,17 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           user.password
         );
         if (!valid) return null;
+
+        // 2FA: when enabled, a valid emailed OTP is required to get a session.
+        // Enforced here (not just in the UI) so it can't be bypassed by
+        // calling the sign-in endpoint directly.
+        if (user.twoFaEnabled) {
+          const otp = String(credentials.otp ?? '').trim();
+          if (!otp) return null;
+          const { verifyLoginOtp } = await import('@/lib/login-otp');
+          const check = await verifyLoginOtp(user.id, otp);
+          if (check !== 'ok') return null;
+        }
 
         await prisma.user.update({
           where: { id: user.id },

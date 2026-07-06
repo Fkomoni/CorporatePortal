@@ -173,12 +173,64 @@ export default function AdministrationPage() {
   }
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // 2FA state
-  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  // 2FA state — twoFaActive mirrors the persisted server-side setting
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false); // wizard open
   const [twoFaSetup, setTwoFaSetup]     = useState<'choose' | 'scan'>('choose');
   const [twoFaMethod, setTwoFaMethod]   = useState<'email' | 'sms'>('email');
   const [twoFaCode, setTwoFaCode]       = useState('');
   const [twoFaActive, setTwoFaActive]   = useState(false);
+  const [twoFaError, setTwoFaError]     = useState('');
+  const [twoFaBusy, setTwoFaBusy]       = useState(false);
+  const [disablePw, setDisablePw]       = useState('');
+  const [showDisable, setShowDisable]   = useState(false);
+
+  useEffect(() => {
+    fetch('/api/hr/2fa').then((r) => r.json()).then((d) => {
+      if (typeof d.enabled === 'boolean') setTwoFaActive(d.enabled);
+    }).catch(() => {});
+  }, []);
+
+  async function start2FaSetup() {
+    setTwoFaError(''); setTwoFaBusy(true);
+    try {
+      const res = await fetch('/api/hr/2fa', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setup' }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setTwoFaError(json.error ?? 'Could not send the code.'); return false; }
+      return true;
+    } catch { setTwoFaError('Network error. Please try again.'); return false; }
+    finally { setTwoFaBusy(false); }
+  }
+
+  async function verify2Fa() {
+    setTwoFaError(''); setTwoFaBusy(true);
+    try {
+      const res = await fetch('/api/hr/2fa', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', code: twoFaCode }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setTwoFaError(json.error ?? 'Incorrect code.'); return; }
+      setTwoFaActive(true); setTwoFaEnabled(false); setTwoFaCode('');
+    } catch { setTwoFaError('Network error. Please try again.'); }
+    finally { setTwoFaBusy(false); }
+  }
+
+  async function disable2Fa() {
+    setTwoFaError(''); setTwoFaBusy(true);
+    try {
+      const res = await fetch('/api/hr/2fa', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disable', password: disablePw }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setTwoFaError(json.error ?? 'Could not disable 2FA.'); return; }
+      setTwoFaActive(false); setShowDisable(false); setDisablePw('');
+    } catch { setTwoFaError('Network error. Please try again.'); }
+    finally { setTwoFaBusy(false); }
+  }
 
   // Custom roles state
   const [customRoles, setCustomRoles] = useState<Array<{ id: string; role: string; desc: string; colorKey: string }>>([]);
@@ -704,9 +756,10 @@ export default function AdministrationPage() {
                         {twoFaMethod === 'email' ? 'Email' : 'SMS'} · Active
                       </span>
                     )}
-                    <Toggle on={twoFaEnabled} onChange={() => {
-                      if (!twoFaEnabled) { setTwoFaEnabled(true); setTwoFaSetup('choose'); setTwoFaActive(false); setTwoFaCode(''); }
-                      else { setTwoFaEnabled(false); setTwoFaActive(false); setTwoFaCode(''); }
+                    <Toggle on={twoFaActive || twoFaEnabled} onChange={() => {
+                      if (twoFaActive) { setShowDisable(true); setTwoFaError(''); }
+                      else if (!twoFaEnabled) { setTwoFaEnabled(true); setTwoFaSetup('choose'); setTwoFaCode(''); setTwoFaError(''); }
+                      else { setTwoFaEnabled(false); setTwoFaCode(''); setTwoFaError(''); }
                     }} />
                   </div>
                 </div>
@@ -721,7 +774,14 @@ export default function AdministrationPage() {
                             { key: 'email' as const, Icon: Mail,  label: 'Email',            desc: `Send a one-time code to ${profile.email || 'your email'}` },
                             { key: 'sms'   as const, Icon: Phone, label: 'SMS Text Message', desc: 'Receive a one-time code on your registered phone' },
                           ]).map(({ key, Icon, label, desc }) => (
-                            <button key={key} onClick={() => { setTwoFaMethod(key); setTwoFaSetup('scan'); }}
+                            <button key={key} disabled={key === 'sms' || twoFaBusy}
+                              title={key === 'sms' ? 'SMS verification is coming soon' : undefined}
+                              onClick={async () => {
+                                if (key !== 'email') return;
+                                setTwoFaMethod(key);
+                                const ok = await start2FaSetup();
+                                if (ok) setTwoFaSetup('scan');
+                              }}
                               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${twoFaMethod === key ? '#F56B22' : '#E5E7F1'}`, background: twoFaMethod === key ? '#FFF5EF' : '#fff', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
                               <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 <Icon style={{ width: 16, height: 16, color: '#2563EB' }} />
@@ -733,6 +793,8 @@ export default function AdministrationPage() {
                             </button>
                           ))}
                         </div>
+                        {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
+                        {twoFaBusy && <p style={{ marginTop: 10, fontSize: 12, color: '#9CA3B8' }}>Sending verification code…</p>}
                       </div>
                     )}
 
@@ -753,13 +815,15 @@ export default function AdministrationPage() {
                             style={{ ...inputStyle, width: 150, letterSpacing: '0.25em', fontWeight: 700, fontSize: 17 }}
                             onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                             onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
-                          <button onClick={() => { if (twoFaCode.length === 6) { setTwoFaActive(true); setTwoFaCode(''); } }}
-                            style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
-                            Verify
+                          <button onClick={() => { if (twoFaCode.length === 6 && !twoFaBusy) verify2Fa(); }}
+                            style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 && !twoFaBusy ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 && !twoFaBusy ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 && !twoFaBusy ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+                            {twoFaBusy ? 'Verifying…' : 'Verify'}
                           </button>
                         </div>
-                        <button style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                          {twoFaMethod === 'email' ? 'Resend Code' : 'Send Code'}
+                        {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
+                        <button onClick={() => { if (!twoFaBusy) start2FaSetup(); }} disabled={twoFaBusy}
+                          style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: twoFaBusy ? 'wait' : 'pointer', padding: 0 }}>
+                          {twoFaBusy ? 'Sending…' : 'Resend Code'}
                         </button>
                       </div>
                     )}
@@ -770,8 +834,27 @@ export default function AdministrationPage() {
                   <div style={{ marginTop: 20, padding: '14px 16px', background: '#F0FDF4', borderRadius: 12, border: '1px solid #BBF7D0', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Check style={{ width: 16, height: 16, color: '#15803D', flexShrink: 0 }} />
                     <p style={{ fontSize: 12, color: '#166534', flex: 1 }}>Two-factor authentication is active. You&apos;ll be asked to verify each time you log in.</p>
-                    <button onClick={() => { setTwoFaEnabled(false); setTwoFaActive(false); }}
+                    <button onClick={() => { setShowDisable(true); setTwoFaError(''); }}
                       style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0, whiteSpace: 'nowrap' }}>Remove 2FA</button>
+                  </div>
+                )}
+
+                {showDisable && (
+                  <div style={{ marginTop: 14, padding: '16px', borderRadius: 12, border: '1px solid #FECACA', background: '#FFF8F8' }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', marginBottom: 10 }}>Confirm your password to turn off two-factor authentication</p>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <input type="password" value={disablePw} onChange={(e) => setDisablePw(e.target.value)} placeholder="Account password"
+                        style={{ ...inputStyle, maxWidth: 260 }}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                      <button onClick={() => { if (disablePw && !twoFaBusy) disable2Fa(); }} disabled={!disablePw || twoFaBusy}
+                        style={{ height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: disablePw && !twoFaBusy ? '#DC2626' : '#E5E7F1', color: disablePw && !twoFaBusy ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: disablePw && !twoFaBusy ? 'pointer' : 'not-allowed' }}>
+                        {twoFaBusy ? 'Disabling…' : 'Disable 2FA'}
+                      </button>
+                      <button onClick={() => { setShowDisable(false); setDisablePw(''); setTwoFaError(''); }}
+                        style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                    {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
                   </div>
                 )}
               </div>

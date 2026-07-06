@@ -18,6 +18,11 @@ model User {
   policyNumber  String?
   active        Boolean   @default(true)
   lastLogin     DateTime?
+  twoFaEnabled  Boolean   @default(false)
+  // Pending login/setup OTP (sha256 hash) — cleared once used
+  loginOtpHash      String?
+  loginOtpExpiresAt DateTime?
+  loginOtpAttempts  Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

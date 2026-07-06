@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN "twoFaEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "loginOtpHash" TEXT,
+ADD COLUMN "loginOtpExpiresAt" TIMESTAMP(3),
+ADD COLUMN "loginOtpAttempts" INTEGER NOT NULL DEFAULT 0;
