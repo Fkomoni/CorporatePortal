@@ -102,6 +102,19 @@ model MemberInvitation {
   @@map("member_invitations")
 }
 
+model NotificationPreferences {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  invoiceIssued    Boolean  @default(true)
+  invoiceDue       Boolean  @default(true)
+  claimUpdates     Boolean  @default(false)
+  enrolmentConfirm Boolean  @default(true)
+  bulkUpload       Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())

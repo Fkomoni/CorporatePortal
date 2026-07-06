@@ -165,7 +165,8 @@ export default function AdministrationPage() {
     Promise.all([
       fetch('/api/hr/company-profile').then((r) => r.json()),
       fetch('/api/hr/portal-users').then((r) => r.json()),
-    ]).then(([profileData, usersData]) => {
+      fetch('/api/hr/notifications').then((r) => r.json()),
+    ]).then(([profileData, usersData, notifData]) => {
       if (profileData && !profileData.error) {
         setCompanyProfile(profileData as CompanyProfile);
         setProfile((prev) => ({
@@ -176,6 +177,15 @@ export default function AdministrationPage() {
       }
       if (usersData?.users) {
         setPortalUsers(usersData.users as PortalUser[]);
+      }
+      if (notifData && !notifData.error) {
+        setNotifications({
+          invoiceIssued:    notifData.invoiceIssued    ?? true,
+          invoiceDue:       notifData.invoiceDue       ?? true,
+          claimUpdates:     notifData.claimUpdates     ?? false,
+          enrolmentConfirm: notifData.enrolmentConfirm ?? true,
+          bulkUpload:       notifData.bulkUpload       ?? true,
+        });
       }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -767,7 +777,11 @@ export default function AdministrationPage() {
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{label}</p>
                       <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 3 }}>{sub}</p>
                     </div>
-                    <Toggle on={notifications[key]} onChange={() => setNotifications({ ...notifications, [key]: !notifications[key] })} />
+                    <Toggle on={notifications[key]} onChange={() => {
+                      const updated = { ...notifications, [key]: !notifications[key] };
+                      setNotifications(updated);
+                      fetch('/api/hr/notifications', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }).catch(() => null);
+                    }} />
                   </div>
                 ))}
               </div>

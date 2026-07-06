@@ -153,12 +153,75 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     });
 
     const r = raw as Record<string, unknown>;
+    const membershipNo   = String(r?.membershipNo   ?? r?.MembershipNo   ?? '');
+    const fullEnrolleeId = String(r?.fullEnrolleeId ?? r?.FullEnrolleeId ?? '');
+
+    // Fire enrolment confirmation email to HR if they have the preference on
+    void (async () => {
+      try {
+        const hrUser = await prisma.user.findUnique({ where: { id: invitation.createdBy } });
+        if (!hrUser?.email) return;
+
+        const notifPrefs = await prisma.notificationPreferences.findUnique({ where: { userId: invitation.createdBy } });
+        // Default is true if no record exists yet
+        const shouldNotify = notifPrefs ? notifPrefs.enrolmentConfirm : true;
+        if (!shouldNotify) return;
+
+        const memberName = [String(body.firstName ?? ''), String(body.surname ?? '')].filter(Boolean).join(' ');
+        const emailBody = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
+    <p style="font-size:22px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em">LEADWAY <span style="color:#F56B22;">HEALTH</span></p>
+    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL</p>
+  </div>
+  <div style="background:#fff;padding:36px 32px;border:1px solid #E5E7F1;border-top:none;">
+    <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">New Member Enrolled</p>
+    <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 24px">
+      A staff member has successfully completed self-enrolment on the Leadway Health HMO Corporate Portal.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;color:#374151;">
+      <tr style="background:#F9FAFB;"><td style="padding:10px 14px;font-weight:600;width:40%">Name</td><td style="padding:10px 14px">${memberName}</td></tr>
+      <tr><td style="padding:10px 14px;font-weight:600">Email</td><td style="padding:10px 14px">${invitation.email}</td></tr>
+      <tr style="background:#F9FAFB;"><td style="padding:10px 14px;font-weight:600">Employee Code</td><td style="padding:10px 14px">${invitation.employeeCode}</td></tr>
+      <tr><td style="padding:10px 14px;font-weight:600">Scheme</td><td style="padding:10px 14px">${invitation.schemeName}</td></tr>
+      ${fullEnrolleeId ? `<tr style="background:#F9FAFB;"><td style="padding:10px 14px;font-weight:600">Member ID</td><td style="padding:10px 14px;font-weight:700;color:#131C4E">${fullEnrolleeId}</td></tr>` : ''}
+      ${membershipNo ? `<tr><td style="padding:10px 14px;font-weight:600">Membership No.</td><td style="padding:10px 14px">${membershipNo}</td></tr>` : ''}
+    </table>
+    <hr style="border:none;border-top:1px solid #F0F1F5;margin:28px 0"/>
+    <p style="font-size:11px;color:#B0B7C9;margin:0">To manage this member, log in to the Corporate Portal and go to the People section.</p>
+  </div>
+  <div style="background:#FAFBFC;padding:16px 32px;border:1px solid #E5E7F1;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+    <p style="font-size:11px;color:#B0B7C9;margin:0">© 2025 Leadway Health HMO. All rights reserved.</p>
+  </div>
+</div>`.trim();
+
+        const svcToken = await getServiceToken();
+        await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${svcToken}` },
+          body: JSON.stringify({
+            EmailAddress: hrUser.email,
+            CC: '', BCC: '',
+            Subject: `Enrolment Confirmed – ${memberName || invitation.email}`,
+            MessageBody: emailBody,
+            Attachments: null,
+            Category: 'Enrollment Notification',
+            UserId: 0, ProviderId: 0, ServiceId: 0,
+            Reference: fullEnrolleeId,
+            TransactionType: 'Enrollment',
+          }),
+        });
+      } catch (e) {
+        console.error('[enroll] HR notification email failed (non-fatal):', e instanceof Error ? e.message : e);
+      }
+    })();
+
     return NextResponse.json({
       success: true,
       cifNumber: r?.cifNumber ?? r?.CifNumber ?? null,
-      membershipNo: String(r?.membershipNo ?? r?.MembershipNo ?? ''),
+      membershipNo,
       suffix: String(r?.suffix ?? r?.Suffix ?? '0'),
-      fullEnrolleeId: String(r?.fullEnrolleeId ?? r?.FullEnrolleeId ?? ''),
+      fullEnrolleeId,
     });
   } catch (err) {
     console.error('[enroll/token] Error:', err);
