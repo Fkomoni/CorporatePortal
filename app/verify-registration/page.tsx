@@ -48,9 +48,11 @@ function VerifyForm() {
     setError('');
     if (!email.trim())                    { setError('Email address is required.'); return; }
     if (password !== confirm)             { setError('Passwords do not match.'); return; }
-    if (password.length < 8)             { setError('Password must be at least 8 characters.'); return; }
-    if (!/[0-9]/.test(password))         { setError('Password must include a number.'); return; }
-    if (!/[^A-Za-z0-9]/.test(password)) { setError('Password must include a special character.'); return; }
+    if (password.length < 8)             { setError('Password must be at least 8 characters long.'); return; }
+    if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A–Z).'); return; }
+    if (!/[a-z]/.test(password))         { setError('Password must include at least one lowercase letter (a–z).'); return; }
+    if (!/[0-9]/.test(password))         { setError('Password must include at least one number (0–9).'); return; }
+    if (!/[^A-Za-z0-9]/.test(password)) { setError('Password must include at least one special character.'); return; }
     setStage('otp');
   }
 
@@ -98,14 +100,15 @@ function VerifyForm() {
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7,
   };
 
-  // ── Password strength ────────────────────────────────────────────────────
+  // ── Password strength (5 criteria per Leadway policy) ───────────────────
   let strength = 0;
   if (password.length >= 8)            strength++;
   if (/[A-Z]/.test(password))          strength++;
+  if (/[a-z]/.test(password))          strength++;
   if (/[0-9]/.test(password))          strength++;
   if (/[^A-Za-z0-9]/.test(password))  strength++;
-  const strengthColours = ['#EF4444', '#F59E0B', '#3B82F6', '#10B981'];
-  const strengthLabels  = ['Weak', 'Fair', 'Good', 'Strong'];
+  const strengthColours = ['#EF4444', '#EF4444', '#F59E0B', '#3B82F6', '#10B981'];
+  const strengthLabels  = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'inherit' }}>
@@ -236,16 +239,16 @@ function VerifyForm() {
                       {showPass ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                     </button>
                   </div>
-                  <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>Min 8 characters, must include a number and a special character</p>
+                  <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>Min 8 characters · uppercase · lowercase · number · special character</p>
                 </div>
 
                 {/* Strength bar */}
                 {password.length > 0 && (
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: -12 }}>
-                    {[0,1,2,3].map((i) => (
+                    {[0,1,2,3,4].map((i) => (
                       <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < strength ? strengthColours[strength - 1] : '#E5E7F1', transition: 'background 0.2s' }} />
                     ))}
-                    <span style={{ fontSize: 11, fontWeight: 600, color: strengthColours[strength - 1], marginLeft: 6, minWidth: 44 }}>{strengthLabels[strength - 1]}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: strengthColours[strength - 1], marginLeft: 6, minWidth: 52 }}>{strengthLabels[strength - 1]}</span>
                   </div>
                 )}
 

@@ -53,6 +53,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Verification code and password are required' }, { status: 400 });
   }
 
+  // Leadway password complexity policy
+  if (password.length < 8)              return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 });
+  if (!/[A-Z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one uppercase letter (A–Z).' }, { status: 400 });
+  if (!/[a-z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one lowercase letter (a–z).' }, { status: 400 });
+  if (!/[0-9]/.test(password))          return NextResponse.json({ error: 'Password must include at least one number (0–9).' }, { status: 400 });
+  if (!/[^A-Za-z0-9]/.test(password))  return NextResponse.json({ error: 'Password must include at least one special character.' }, { status: 400 });
+
   try {
     let token = await getServiceToken();
 
