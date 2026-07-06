@@ -107,6 +107,22 @@ model MemberInvitation {
   @@map("member_invitations")
 }
 
+// Tracks which corporates have been sent the portal welcome email, and to
+// which HR email — lets the sync cron detect new groups and HR email changes.
+model CorporateSyncState {
+  id                String    @id @default(cuid())
+  groupId           String    @unique
+  companyName       String?
+  policyNumber      String?
+  adminEmail        String?   // HR email the last welcome was sent to
+  welcomeSentAt     DateTime? // null = baseline-seeded, never actually emailed
+  lastSyncedAt      DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("corporate_sync_state")
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())
