@@ -92,17 +92,18 @@ export async function sendOtpDelivery(
   if (p.mobile) {
     const smsText = `Leadway Health Corporate Portal: your registration OTP is ${p.otp}. Do not share this code.`;
     try {
-      const smsRes = await fetch(`${BASE}/api/EnrolleeProfile/SendSMSAlert`, {
+      const smsRes = await fetch(`${BASE}/api/Sms/SendSms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          MobileNumber: p.mobile,
-          PhoneNumber: p.mobile,
+          To: p.mobile,
           Message: smsText,
-          SMSMessage: smsText,
+          Source: 'Corporate Portal',
+          SourceId: 1,
+          TemplateId: 5,
+          PolicyNumber: '',
+          ReferenceNo: '',
           UserId: 0,
-          Reference: '',
-          TransactionType: '',
         }),
       });
       otpSmsResponse = await smsRes.json().catch(() => smsRes.status);
