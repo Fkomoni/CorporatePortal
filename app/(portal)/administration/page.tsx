@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -58,6 +58,62 @@ const planColors: Record<string, { bg: string; text: string }> = {
   'Promax Plan': { bg: '#EFF6FF', text: '#2563EB' },
   'Magnum Plan': { bg: '#F5F3FF', text: '#6D28D9' },
 };
+
+function ContactLeadwayCard({ card }: { card: React.CSSProperties }) {
+  const rows = [
+    {
+      Icon: Mail, label: 'Email', value: 'healthcare@leadway.com',
+      links: [{ text: 'healthcare@leadway.com', href: 'mailto:healthcare@leadway.com' }],
+    },
+    {
+      Icon: Phone, label: 'Phone Number', value: '',
+      links: [
+        { text: '07080627051', href: 'tel:07080627051' },
+        { text: '02012801051', href: 'tel:02012801051' },
+      ],
+    },
+    {
+      Icon: MessageCircle, label: 'WhatsApp', value: '',
+      links: [{ text: '09012372584', href: 'https://wa.me/2349012372584' }],
+    },
+  ];
+  return (
+    <div style={{ ...card, padding: '22px 24px' }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Contact Leadway Health</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {rows.map(({ Icon, label, links }) => (
+          <div key={label} style={{ display: 'flex', gap: 12 }}>
+            <a href={links[0].href}
+              target={links[0].href.startsWith('http') ? '_blank' : undefined}
+              rel={links[0].href.startsWith('http') ? 'noopener noreferrer' : undefined}
+              title={label}
+              style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, textDecoration: 'none', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#FFF5EF'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#F1F2F8'; }}>
+              <Icon style={{ width: 14, height: 14, color: '#3A4382' }} />
+            </a>
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>{label}</p>
+              <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>
+                {links.map((l, i) => (
+                  <span key={l.text}>
+                    {i > 0 && ' / '}
+                    <a href={l.href}
+                      target={l.href.startsWith('http') ? '_blank' : undefined}
+                      rel={l.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      style={{ color: '#F56B22', fontWeight: 600, textDecoration: 'none' }}>
+                      {l.text}
+                    </a>
+                  </span>
+                ))}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
@@ -804,29 +860,7 @@ export default function AdministrationPage() {
               </div>
 
               {/* CONTACT LEADWAY HEALTH */}
-              <div style={{ ...card, padding: '22px 24px' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Contact Leadway Health</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Phone style={{ width: 14, height: 14, color: '#3A4382' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>Customer Care</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>0800-LEADWAY</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Mail style={{ width: 14, height: 14, color: '#3A4382' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>Corporate Email</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>corporate@leadwayhealth.com</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ContactLeadwayCard card={card} />
             </div>
           </div>
         )}
@@ -1123,29 +1157,7 @@ export default function AdministrationPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ ...card, padding: '22px 24px' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Contact Leadway Health</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Phone style={{ width: 14, height: 14, color: '#3A4382' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>Customer Care</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>0800-LEADWAY</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F1F2F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Mail style={{ width: 14, height: 14, color: '#3A4382' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>Corporate Email</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>corporate@leadwayhealth.com</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ContactLeadwayCard card={card} />
             </div>
           </div>
         )}
