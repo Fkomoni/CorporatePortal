@@ -1,12 +1,16 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isAdminRole } from '@/lib/roles';
 
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
     return NextResponse.json({ error: 'Forbidden: HR accounts only' }, { status: 403 });
+  }
+  if (!isAdminRole(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
   const groupId = session.user.companyId;

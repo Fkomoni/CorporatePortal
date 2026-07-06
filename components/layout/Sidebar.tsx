@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
+import { isAdminRole } from '@/lib/roles';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -33,7 +34,7 @@ const mainNav = [
 ];
 
 const bottomNav = [
-  { href: '/audit-logs',     label: 'Audit Log',      icon: ClipboardList },
+  { href: '/audit-logs',     label: 'Audit Log',      icon: ClipboardList, adminOnly: true },
   { href: '/administration', label: 'Administration', icon: Settings },
 ];
 
@@ -188,7 +189,7 @@ export function Sidebar() {
         <div style={{ margin: '12px 16px', height: 1, background: '#F0F1F6' }} />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {bottomNav.map((item) => (
+          {bottomNav.filter((item) => !item.adminOnly || isAdminRole(userRole)).map(({ adminOnly: _adminOnly, ...item }) => (
             <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
           ))}
         </div>

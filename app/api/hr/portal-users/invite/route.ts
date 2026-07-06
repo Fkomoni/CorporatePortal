@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { logAudit } from '@/lib/audit';
+import { isAdminRole } from '@/lib/roles';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.loginType !== 'hr') {
     return NextResponse.json({ error: 'Forbidden: HR accounts only' }, { status: 403 });
+  }
+  if (!isAdminRole(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
   const groupId = session.user.companyId;

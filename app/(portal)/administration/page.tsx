@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { isAdminRole } from '@/lib/roles';
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
   'Admin':      { bg: '#FFF1E6', text: '#F56B22', border: '#FFD8C0' },
@@ -180,7 +182,17 @@ function formatRoleLabel(role: string): string {
 }
 
 export default function AdministrationPage() {
+  const { data: session, status: sessionStatus } = useSession();
+  const isAdmin = isAdminRole((session?.user as { role?: string })?.role);
+
   const [activeTab, setActiveTab]   = useState<Tab>('users');
+
+  // Non-admins only get My Account + Help — bounce them off restricted tabs
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && !isAdmin && (activeTab === 'users' || activeTab === 'profile' || activeTab === 'audit')) {
+      setActiveTab('account');
+    }
+  }, [sessionStatus, isAdmin, activeTab]);
   const [openFaq, setOpenFaq]       = useState<number | null>(null);
   const [logoUrl, setLogoUrl]       = useState<string | null>(null);
   const [logoSavedUrl, setLogoSavedUrl] = useState<string | null>(null); // what's persisted server-side
@@ -494,13 +506,14 @@ export default function AdministrationPage() {
 
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'users',   label: 'Users & Access' },
-    { key: 'profile', label: 'Company Profile' },
+  const allTabs: { key: Tab; label: string; adminOnly?: boolean }[] = [
+    { key: 'users',   label: 'Users & Access',   adminOnly: true },
+    { key: 'profile', label: 'Company Profile',  adminOnly: true },
     { key: 'account', label: 'My Account' },
     { key: 'help',    label: 'Help & Downloads' },
-    { key: 'audit',   label: 'Audit Trail' },
+    { key: 'audit',   label: 'Audit Trail',      adminOnly: true },
   ];
+  const tabs = allTabs.filter((t) => !t.adminOnly || isAdmin);
 
   const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
   const readonlyStyle: React.CSSProperties = { ...inputStyle, background: '#F7F8FC', color: '#6B7280', cursor: 'default' };
@@ -527,7 +540,7 @@ export default function AdministrationPage() {
         </div>
 
         {/* ── USERS & ACCESS ── */}
-        {activeTab === 'users' && (
+        {activeTab === 'users' && isAdmin && (
           <>
             <div style={{ ...card, padding: '20px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -741,7 +754,7 @@ export default function AdministrationPage() {
         )}
 
         {/* ── COMPANY PROFILE ── */}
-        {activeTab === 'profile' && (
+        {activeTab === 'profile' && isAdmin && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -1163,7 +1176,7 @@ export default function AdministrationPage() {
         )}
 
         {/* ── AUDIT TRAIL ── */}
-        {activeTab === 'audit' && (
+        {activeTab === 'audit' && isAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>

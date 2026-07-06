@@ -3,8 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { ClipboardList, RefreshCw, Search } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { isAdminRole } from '@/lib/roles';
 
 interface AuditLogEntry {
   id: string;
@@ -43,6 +45,9 @@ function actionLabel(action: string) {
 const PER_PAGE = 100;
 
 export default function HRAuditLogsPage() {
+  const { data: session, status: sessionStatus } = useSession();
+  const isAdmin = isAdminRole((session?.user as { role?: string })?.role);
+
   const [logs, setLogs]       = useState<AuditLogEntry[]>([]);
   const [total, setTotal]     = useState(0);
   const [loading, setLoading] = useState(true);
@@ -82,6 +87,25 @@ export default function HRAuditLogsPage() {
   const currentPage = Math.floor(offset / PER_PAGE) + 1;
 
   const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' };
+
+  if (sessionStatus === 'authenticated' && !isAdmin) {
+    return (
+      <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
+        <TopBar title="Audit Log" subtitle="Activity history for your company's portal account" />
+        <div style={{ padding: '28px 36px' }}>
+          <div style={{ ...card, padding: '48px 40px', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FFF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <ClipboardList style={{ width: 26, height: 26, color: '#F56B22' }} strokeWidth={1.5} />
+            </div>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Admins only</p>
+            <p style={{ fontSize: 13, color: '#9CA3B8', maxWidth: 420, margin: '0 auto', lineHeight: 1.65 }}>
+              The audit log is restricted to portal administrators. Contact your company&apos;s admin if you need access to this information.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>

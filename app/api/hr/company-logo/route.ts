@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { isAdminRole } from '@/lib/roles';
 
 // 300 KB file → ~400 KB base64 data URL
 const MAX_DATA_URL_LENGTH = 420_000;
@@ -26,6 +27,9 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session || session.user.loginType !== 'hr') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isAdminRole(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
@@ -57,6 +61,9 @@ export async function DELETE(req: Request) {
   const session = await auth();
   if (!session || session.user.loginType !== 'hr') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isAdminRole(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
