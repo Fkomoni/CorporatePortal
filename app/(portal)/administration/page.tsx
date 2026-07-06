@@ -143,6 +143,34 @@ export default function AdministrationPage() {
   const [passwords, setPasswords]   = useState({ current: '', next: '', confirm: '' });
   const [showPw, setShowPw]         = useState({ current: false, next: false, confirm: false });
   const [pwSaved, setPwSaved]       = useState(false);
+  const [pwError, setPwError]       = useState('');
+  const [pwSaving, setPwSaving]     = useState(false);
+
+  async function handleChangePassword() {
+    setPwError(''); setPwSaved(false);
+    if (!passwords.current || !passwords.next || !passwords.confirm) { setPwError('All password fields are required.'); return; }
+    if (passwords.next !== passwords.confirm) { setPwError('New passwords do not match.'); return; }
+    setPwSaving(true);
+    try {
+      const res = await fetch('/api/hr/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: passwords.current, newPassword: passwords.next, confirmPassword: passwords.confirm }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setPwError(json.error ?? 'Failed to change password.');
+      } else {
+        setPwSaved(true);
+        setPasswords({ current: '', next: '', confirm: '' });
+        setTimeout(() => setPwSaved(false), 2500);
+      }
+    } catch {
+      setPwError('Network error. Please try again.');
+    } finally {
+      setPwSaving(false);
+    }
+  }
   const [profileSaved, setProfileSaved] = useState(false);
 
   // 2FA state
@@ -647,11 +675,14 @@ export default function AdministrationPage() {
                     </div>
                   ))}
                 </div>
+                {pwError && (
+                  <div style={{ marginTop: 16, fontSize: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{pwError}</div>
+                )}
                 <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <button
-                    onClick={() => { setPwSaved(true); setPasswords({ current: '', next: '', confirm: '' }); setTimeout(() => setPwSaved(false), 2500); }}
-                    style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
-                    Update Password
+                    onClick={handleChangePassword} disabled={pwSaving}
+                    style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 24, cursor: pwSaving ? 'wait' : 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', opacity: pwSaving ? 0.6 : 1 }}>
+                    {pwSaving ? 'Updating…' : 'Update Password'}
                   </button>
                   {pwSaved && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ Password updated</span>}
                 </div>
