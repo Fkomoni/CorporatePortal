@@ -32,6 +32,90 @@ export async function getServiceToken(): Promise<string> {
   return token;
 }
 
+// Delivers the OTP to the HR contact in its own email and SMS — kept separate
+// from the registration-link email so the link alone can't complete signup.
+export async function sendOtpDelivery(
+  token: string,
+  p: { email: string; mobile?: string; otp: string; companyName: string },
+): Promise<{ otpEmailSent: boolean; otpSmsSent: boolean; otpSmsResponse?: unknown }> {
+  let otpEmailSent = false;
+  let otpSmsSent = false;
+  let otpSmsResponse: unknown;
+
+  const otpEmailBody = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
+    <p style="font-size:22px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em">LEADWAY <span style="color:#F56B22;">HEALTH</span></p>
+    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL</p>
+  </div>
+  <div style="background:#fff;padding:36px 32px;border:1px solid #E5E7F1;border-top:none;">
+    <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">Your One-Time Passcode</p>
+    <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 24px">
+      Use this code to complete your Corporate Portal registration for <strong>${p.companyName}</strong>:
+    </p>
+    <p style="font-size:34px;font-weight:900;letter-spacing:0.25em;color:#131C4E;background:#F7F8FC;border:1px dashed #C7CBE0;border-radius:12px;padding:18px 24px;text-align:center;margin:0 0 24px">${p.otp}</p>
+    <p style="font-size:12px;color:#9CA3B8;margin:0;line-height:1.7">
+      Enter this code on the registration page. Do not share it with anyone —
+      Leadway Health will never ask you for this code.
+    </p>
+  </div>
+  <div style="background:#FAFBFC;padding:16px 32px;border:1px solid #E5E7F1;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+    <p style="font-size:11px;color:#B0B7C9;margin:0">© 2026 Leadway Health HMO. All rights reserved.</p>
+  </div>
+</div>`.trim();
+
+  try {
+    const emailRes = await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        EmailAddress: p.email,
+        CC: '',
+        BCC: '',
+        Subject: 'Your OTP – Leadway Health Corporate Portal',
+        MessageBody: otpEmailBody,
+        Attachments: null,
+        Category: '',
+        UserId: 0,
+        ProviderId: 0,
+        ServiceId: 0,
+        Reference: '',
+        TransactionType: '',
+      }),
+    });
+    otpEmailSent = emailRes.ok;
+    console.log('[corporate-welcome] OTP email →', emailRes.status);
+  } catch (e) {
+    console.error('[corporate-welcome] OTP email failed:', e);
+  }
+
+  if (p.mobile) {
+    const smsText = `Leadway Health Corporate Portal: your registration OTP is ${p.otp}. Do not share this code.`;
+    try {
+      const smsRes = await fetch(`${BASE}/api/EnrolleeProfile/SendSMSAlert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          MobileNumber: p.mobile,
+          PhoneNumber: p.mobile,
+          Message: smsText,
+          SMSMessage: smsText,
+          UserId: 0,
+          Reference: '',
+          TransactionType: '',
+        }),
+      });
+      otpSmsResponse = await smsRes.json().catch(() => smsRes.status);
+      otpSmsSent = smsRes.ok;
+      console.log('[corporate-welcome] OTP SMS →', smsRes.status, JSON.stringify(otpSmsResponse).slice(0, 300));
+    } catch (e) {
+      console.error('[corporate-welcome] OTP SMS failed:', e);
+    }
+  }
+
+  return { otpEmailSent, otpSmsSent, otpSmsResponse };
+}
+
 export interface WelcomeParams {
   policyNumber: string;
   groupId: string;
@@ -181,6 +265,9 @@ export async function sendCorporateWelcome(p: WelcomeParams): Promise<WelcomeRes
     } catch (e) {
       emailError = e instanceof Error ? e.message : 'Email send failed';
     }
+
+    // Deliver the OTP separately (own email + SMS) — never inside the link email
+    await sendOtpDelivery(token, { email: p.email, mobile: p.mobile, otp: String(otp), companyName: p.companyName });
 
     return { success: true, emailSent, registrationLink, error: emailError };
   } catch (err) {

@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { sendOtpDelivery } from '@/lib/corporate-welcome';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -223,12 +224,22 @@ export async function POST(req: Request) {
       }
     }
 
+    // Deliver the OTP separately (own email + SMS) — never inside the link email
+    let otpDelivery: { otpEmailSent: boolean; otpSmsSent: boolean } | null = null;
+    if (otp) {
+      otpDelivery = await sendOtpDelivery(token, { email, mobile, otp: String(otp), companyName: companyName ?? '' });
+    }
+
     void logAudit({ session, action: 'SEND_SIGNUP_EMAIL', resource: 'corporates', request: req,
-      details: { PolicyNumber: body.PolicyNumber, email: body.email, emailSent } });
+      details: { PolicyNumber: body.PolicyNumber, email: body.email, emailSent, otpEmailSent: otpDelivery?.otpEmailSent, otpSmsSent: otpDelivery?.otpSmsSent } });
 
     // Never return the raw OTP (or the Prognosis response containing it) to the
     // browser — the OTP must only reach the HR contact via their own channel.
-    return NextResponse.json({ success: true, registrationLink, emailSent, emailError });
+    return NextResponse.json({
+      success: true, registrationLink, emailSent, emailError,
+      otpEmailSent: otpDelivery?.otpEmailSent ?? false,
+      otpSmsSent: otpDelivery?.otpSmsSent ?? false,
+    });
   } catch (err) {
     console.error('[send-signup] Error:', err);
     return NextResponse.json(
