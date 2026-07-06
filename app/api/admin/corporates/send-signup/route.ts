@@ -126,11 +126,11 @@ export async function POST(req: Request) {
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
-    // Build registration link with all scheme identifiers embedded
+    // Build registration link with scheme identifiers — the OTP is deliberately
+    // NOT embedded so the link alone can't complete registration (true 2FA:
+    // the code must be typed from the separate OTP message).
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
-    const registrationLink = otp
-      ? `${appBase}/verify-registration?email=${encodeURIComponent(email)}&code=${encodeURIComponent(String(otp))}&groupId=${encodeURIComponent(groupId ?? '')}&company=${encodeURIComponent(companyName ?? '')}&name=${encodeURIComponent(`${firstname ?? ''} ${surname ?? ''}`.trim())}`
-      : `${appBase}/verify-registration?email=${encodeURIComponent(email)}`;
+    const registrationLink = `${appBase}/verify-registration?email=${encodeURIComponent(email)}&groupId=${encodeURIComponent(groupId ?? '')}&company=${encodeURIComponent(companyName ?? '')}&name=${encodeURIComponent(`${firstname ?? ''} ${surname ?? ''}`.trim())}`;
 
     // Pre-register HR user in our DB so scheme/policy details are available at verify time.
     // active=false until they complete verify-registration.
@@ -226,7 +226,9 @@ export async function POST(req: Request) {
     void logAudit({ session, action: 'SEND_SIGNUP_EMAIL', resource: 'corporates', request: req,
       details: { PolicyNumber: body.PolicyNumber, email: body.email, emailSent } });
 
-    return NextResponse.json({ success: true, otp, registrationLink, emailSent, emailError, debug: { ...debug, emailResponse } });
+    // Never return the raw OTP (or the Prognosis response containing it) to the
+    // browser — the OTP must only reach the HR contact via their own channel.
+    return NextResponse.json({ success: true, registrationLink, emailSent, emailError });
   } catch (err) {
     console.error('[send-signup] Error:', err);
     return NextResponse.json(

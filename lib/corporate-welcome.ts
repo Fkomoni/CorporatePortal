@@ -95,10 +95,10 @@ export async function sendCorporateWelcome(p: WelcomeParams): Promise<WelcomeRes
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
+    // OTP deliberately NOT embedded in the link — it must be typed from the
+    // separate OTP message, otherwise the link alone completes registration.
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
-    const registrationLink = otp
-      ? `${appBase}/verify-registration?email=${encodeURIComponent(p.email)}&code=${encodeURIComponent(String(otp))}&groupId=${encodeURIComponent(p.groupId)}&company=${encodeURIComponent(p.companyName)}&name=${encodeURIComponent((p.contactName ?? '').trim())}`
-      : `${appBase}/verify-registration?email=${encodeURIComponent(p.email)}`;
+    const registrationLink = `${appBase}/verify-registration?email=${encodeURIComponent(p.email)}&groupId=${encodeURIComponent(p.groupId)}&company=${encodeURIComponent(p.companyName)}&name=${encodeURIComponent((p.contactName ?? '').trim())}`;
 
     // Pre-register HR user (inactive until they complete verify-registration)
     try {

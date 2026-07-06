@@ -13,7 +13,8 @@ function VerifyForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const urlToken        = searchParams?.get('code') ?? searchParams?.get('corporateId') ?? '';
+  // NOTE: the OTP is never read from the URL — it must be typed manually from
+  // the separate OTP message (2FA). Do not re-add a `code` param prefill.
   const urlEmail        = searchParams?.get('email') ?? '';
   const urlGroupId      = searchParams?.get('groupId') ?? '';
   const urlPolicyNumber = searchParams?.get('policyNumber') ?? searchParams?.get('PolicyNumber') ?? '';
@@ -26,12 +27,11 @@ function VerifyForm() {
   const [confirm, setConfirm]       = useState('');
   const [showPass, setShowPass]     = useState(false);
   const [showConf, setShowConf]     = useState(false);
-  const [otp, setOtp]               = useState(urlToken);
+  const [otp, setOtp]               = useState('');
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
 
   useEffect(() => { if (urlEmail) setEmail(urlEmail); }, [urlEmail]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (urlToken) setOtp(urlToken); }, [urlToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fi = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = '#F56B22';
