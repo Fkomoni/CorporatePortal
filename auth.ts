@@ -72,7 +72,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (user.twoFaEnabled) {
           const otp = String(credentials.otp ?? '').trim();
           if (!otp) return null;
-          const { verifyLoginOtp } = await import('@/lib/login-otp');
+          const { verifyLoginOtp } = await import('@/lib/login-otp-verify');
           const check = await verifyLoginOtp(user.id, otp);
           if (check !== 'ok') return null;
         }

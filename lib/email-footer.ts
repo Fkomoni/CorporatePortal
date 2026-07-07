@@ -1,6 +1,10 @@
 // Shared footer for all outbound portal emails.
 // Uses the NHEA award banner image when public/email-award-banner.png exists;
 // otherwise renders an email-safe styled text version of the same message.
+//
+// Node-only module: imported exclusively from API routes and email senders
+// (never from middleware/auth — OTP verification lives in login-otp-verify.ts
+// precisely to keep this out of the Edge bundle).
 import fs from 'fs';
 import path from 'path';
 

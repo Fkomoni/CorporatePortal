@@ -1,20 +1,19 @@
-// Login/setup OTP issuance and verification for HR 2FA.
+// Login/setup OTP issuance for HR 2FA (verification lives in
+// lib/login-otp-verify.ts so Edge middleware never imports this file).
 // Codes are 6 digits, sha256-hashed at rest, valid 10 minutes, max 5 attempts.
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { emailFooter } from '@/lib/email-footer';
+import { hashOtp } from '@/lib/login-otp-verify';
+
+export { verifyLoginOtp, type OtpCheck } from '@/lib/login-otp-verify';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
 const OTP_TTL_MS = 10 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-
-function hashOtp(code: string): string {
-  return crypto.createHash('sha256').update(code).digest('hex');
-}
 
 export async function issueLoginOtp(user: { id: string; email: string; name?: string | null }): Promise<boolean> {
   const code = crypto.randomInt(100000, 1000000).toString();
@@ -74,34 +73,4 @@ ${emailFooter()}
     console.error('[login-otp] email send failed:', e);
     return false;
   }
-}
-
-export type OtpCheck = 'ok' | 'invalid' | 'expired' | 'locked';
-
-// Verifies and consumes the pending OTP for a user. Increments the attempt
-// counter on failure and invalidates the code after MAX_ATTEMPTS.
-export async function verifyLoginOtp(userId: string, code: string): Promise<OtpCheck> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.loginOtpHash || !user.loginOtpExpiresAt) return 'invalid';
-
-  if (user.loginOtpAttempts >= MAX_ATTEMPTS) return 'locked';
-  if (user.loginOtpExpiresAt < new Date()) return 'expired';
-
-  if (hashOtp(code) !== user.loginOtpHash) {
-    const attempts = user.loginOtpAttempts + 1;
-    await prisma.user.update({
-      where: { id: userId },
-      data: attempts >= MAX_ATTEMPTS
-        ? { loginOtpAttempts: attempts, loginOtpHash: null, loginOtpExpiresAt: null }
-        : { loginOtpAttempts: attempts },
-    });
-    return attempts >= MAX_ATTEMPTS ? 'locked' : 'invalid';
-  }
-
-  // Success: consume the code
-  await prisma.user.update({
-    where: { id: userId },
-    data: { loginOtpHash: null, loginOtpExpiresAt: null, loginOtpAttempts: 0 },
-  });
-  return 'ok';
 }
