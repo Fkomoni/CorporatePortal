@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { emailFooter } from '@/lib/email-footer';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -76,9 +77,7 @@ export async function POST(req: Request) {
         If you have any questions, please contact your HR team or reach Leadway Health support.
       </p>
     </div>
-    <div style="border-top:1px solid #F0F1F5;padding:20px 40px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#C4C9D9;">&copy; Leadway Health. All rights reserved.</p>
-    </div>
+${emailFooter()}
   </div>
 </body>
 </html>`;

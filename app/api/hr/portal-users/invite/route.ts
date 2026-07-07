@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { logAudit } from '@/lib/audit';
 import { isAdminRole } from '@/lib/roles';
+import { emailFooter } from '@/lib/email-footer';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -102,9 +103,7 @@ export async function POST(req: Request) {
     <hr style="border:none;border-top:1px solid #F0F1F5;margin:28px 0"/>
     <p style="font-size:11px;color:#B0B7C9;margin:0">If you did not expect this email, you can safely ignore it.</p>
   </div>
-  <div style="background:#FAFBFC;padding:16px 32px;border:1px solid #E5E7F1;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
-    <p style="font-size:11px;color:#B0B7C9;margin:0">© 2026 Leadway Health HMO. All rights reserved.</p>
-  </div>
+${emailFooter()}
 </div>`.trim();
 
     let emailSent = false;
