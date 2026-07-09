@@ -19,11 +19,13 @@ import {
   Heart,
   UserCheck,
   ClipboardList,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const mainNav = [
   { href: '/dashboard',    label: 'Overview',            icon: LayoutDashboard },
   { href: '/members',      label: 'People',               icon: Users },
+  { href: '/pending-enrolees', label: 'Pending Enrolees',  icon: ClipboardCheck, adminOnly: true },
   { href: '/benefits',     label: 'Benefits',             icon: ShieldCheck },
   { href: '/finance',      label: 'Finance',              icon: CreditCard },
   { href: '/wellness',        label: 'Wellness',             icon: Heart },
@@ -180,7 +182,7 @@ export function Sidebar() {
       {/* Main nav */}
       <nav className="flex-1 overflow-y-auto" style={{ paddingTop: 6, paddingBottom: 4 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {mainNav.map((item) => (
+          {mainNav.filter((item) => !item.adminOnly || isAdminRole(userRole)).map(({ adminOnly: _adminOnly, ...item }) => (
             <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
           ))}
         </div>
