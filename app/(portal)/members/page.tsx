@@ -1410,6 +1410,11 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [depSubmitting, setDepSubmitting]   = useState(false);
   const [depError, setDepError]             = useState('');
   const [depGeneratedUrl, setDepGeneratedUrl] = useState('');
+  const [showTerminateConfirm, setShowTerminateConfirm] = useState(false);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [termDate, setTermDate]             = useState(todayIso);
+  const [terminating, setTerminating]       = useState(false);
+  const [termError, setTermError]           = useState('');
 
   // Dependent form state
   const [depFirstName, setDepFirstName]     = useState('');
@@ -1472,6 +1477,36 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       toast('Failed to send email. Please try again.', 'error');
     } finally {
       setSendingId(false);
+    }
+  }
+
+  async function handleTerminate() {
+    if (!member.cifNumber) { toast('No CIF number on record for this member.', 'error'); return; }
+    if (!termDate) { setTermError('Please choose an effective date.'); return; }
+    setTermError('');
+    setTerminating(true);
+    try {
+      const res = await fetch('/api/hr/members/terminate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cifNumber: member.cifNumber,
+          effectiveDate: termDate,
+          memberName: `${member.firstName} ${member.lastName}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setTermError(data.error ?? 'Failed to terminate member.');
+      } else {
+        toast(`${member.firstName} ${member.lastName} has been terminated.`, 'success');
+        setShowTerminateConfirm(false);
+        onClose();
+      }
+    } catch {
+      setTermError('Network error. Please try again.');
+    } finally {
+      setTerminating(false);
     }
   }
 
@@ -1809,15 +1844,66 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <CreditCard style={{ width: 14, height: 14 }} /> E-Card
             </button>
-            {vis.showTerminateAction && (
+            {vis.showTerminateAction && member.status !== 'Terminated' && (
             <button
-              onClick={() => { toast('Member terminated successfully.', 'error'); onClose(); }}
+              onClick={() => { setShowTerminateConfirm(true); setTermDate(todayIso); setTermError(''); }}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
               <AlertCircle style={{ width: 14, height: 14 }} /> Terminate
             </button>
             )}
           </div>
         </div>
+
+        {/* ── Terminate confirmation bottom sheet ── */}
+        {showTerminateConfirm && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: '#fff', borderTop: '2px solid #FEE2E2',
+            borderRadius: '20px 20px 0 0',
+            boxShadow: '0 -12px 40px rgba(0,0,0,0.12)',
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '70%', overflowY: 'auto', padding: '24px 28px 28px', zIndex: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertCircle style={{ width: 18, height: 18, color: '#DC2626' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E' }}>Terminate {member.firstName} {member.lastName}?</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>This ends the member&apos;s cover on Prognosis and cannot be undone.</p>
+              </div>
+            </div>
+
+            {!member.cifNumber ? (
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E', fontSize: 12.5, marginBottom: 14 }}>
+                No CIF number on record for this member — termination cannot proceed.
+              </div>
+            ) : (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Effective Date</label>
+                <input type="date" value={termDate} min={todayIso}
+                  onChange={(e) => setTermDate(e.target.value)}
+                  style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>Must be today or a future date — backdated terminations are not allowed.</p>
+              </div>
+            )}
+
+            {termError && (
+              <div style={{ fontSize: 12.5, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', marginBottom: 14 }}>{termError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowTerminateConfirm(false)} disabled={terminating}
+                style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleTerminate} disabled={terminating || !member.cifNumber}
+                style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: terminating || !member.cifNumber ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#EF4444,#DC2626)', opacity: terminating || !member.cifNumber ? 0.6 : 1, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
+                {terminating ? 'Terminating…' : 'Confirm Termination'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Add Dependent bottom sheet ── */}
         {showAddDependent && (
