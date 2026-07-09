@@ -406,6 +406,21 @@ export async function GET(req: Request) {
       return base;
     });
 
+    // Dedupe by enrolleeId — GetGroupPremium can return multiple rows per member
+    // (e.g. one per renewal/premium period), which otherwise renders as duplicate
+    // rows sharing the same id/key and breaks client-side filtering/list rendering.
+    // Keep the Active record when duplicates disagree on status, else the last one seen.
+    const dedupedById = new Map<string, Member>();
+    for (const m of members) {
+      const existing = dedupedById.get(m.employeeId);
+      if (!existing || existing.status !== 'Active' || m.status === 'Active') {
+        dedupedById.set(m.employeeId, m);
+      }
+    }
+    const dedupedMembers = [...dedupedById.values()];
+    members.length = 0;
+    members.push(...dedupedMembers);
+
     // Compute dependant counts by grouping on the ID prefix (everything before "/")
     // e.g. "25190120/0" → prefix "25190120"; dependants are those sharing the prefix but not "/0"
     const prefixCounts: Map<string, number> = new Map();
