@@ -14,7 +14,15 @@ function toArr(raw: unknown): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw as Record<string, unknown>[];
   if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
-    for (const key of ['result', 'data', 'Data', 'Result', 'items', 'Items']) {
+    // Real shape: { status, data: { Group: {...}, Members: [...] } }
+    const data = r['data'] ?? r['Data'];
+    if (data && typeof data === 'object') {
+      const d = data as Record<string, unknown>;
+      for (const key of ['Members', 'members', 'Result', 'result', 'Items', 'items']) {
+        if (Array.isArray(d[key])) return d[key] as Record<string, unknown>[];
+      }
+    }
+    for (const key of ['result', 'data', 'Data', 'Result', 'items', 'Items', 'Members', 'members']) {
       if (Array.isArray(r[key])) return r[key] as Record<string, unknown>[];
     }
   }
@@ -35,6 +43,7 @@ function extractDate(row: Record<string, unknown>): Date | null {
     'CreatedDate', 'Created_Date', 'DateCreated', 'Date_Created',
     'EnrolmentDate', 'Enrolment_Date', 'EnrollmentDate', 'Enrollment_Date',
     'AppRegistrationDate', 'RegDate', 'Reg_Date', 'DateOfRegistration',
+    'Dateregistered', 'Date_Registered_On', 'RegisteredDate',
   );
   if (!raw) return null;
   const d = new Date(raw);
@@ -44,9 +53,12 @@ function extractDate(row: Record<string, unknown>): Date | null {
 export interface PendingMemberRow {
   cifNumber: string;
   parentCif: string;
+  membershipNo: string;
+  suffix: string;
   isPrincipal: boolean;
   firstName: string;
   surname: string;
+  otherName: string;
   fullName: string;
   relationship: string;
   dateOfBirth: string;
@@ -56,6 +68,7 @@ export interface PendingMemberRow {
   employeeCode: string;
   schemeName: string;
   status: string;
+  terminationDate: string;
   registrationDate: string | null;
 }
 
@@ -106,20 +119,28 @@ export async function GET(req: Request) {
       const parentCif = parentCifRaw && parentCifRaw !== '0' ? parentCifRaw : cifNumber;
       const firstName = str(row, 'FirstName', 'First_Name', 'firstname');
       const surname = str(row, 'Surname', 'surname', 'LastName');
+      const otherName = str(row, 'Othername', 'OtherName', 'Other_Name');
+      const membershipNo = str(row, 'MembershipNo', 'Membership_No', 'MembershipNumber');
+      const suffix = str(row, 'Suffix');
+      const isPrincipal = suffix === '0' || (!suffix && (!parentCifRaw || parentCifRaw === '0' || parentCifRaw === cifNumber));
       return {
         cifNumber,
         parentCif,
-        isPrincipal: !parentCifRaw || parentCifRaw === '0' || parentCifRaw === cifNumber,
-        firstName, surname,
-        fullName: `${firstName} ${surname}`.trim() || str(row, 'Client_Name', 'ClientName', 'FullName', 'Name'),
-        relationship: str(row, 'Relationship', 'Relationship_Desc', 'RelationshipDesc', 'Relationship_ID') || (parentCifRaw ? '' : 'Principal'),
+        membershipNo,
+        suffix,
+        isPrincipal,
+        firstName, surname, otherName,
+        fullName: `${firstName} ${surname} ${otherName}`.replace(/\s+/g, ' ').trim() || str(row, 'Client_Name', 'ClientName', 'FullName', 'Name'),
+        // No explicit relationship field is returned by ViewMembersPerGroup — inferred from Suffix (0 = principal).
+        relationship: isPrincipal ? 'Principal' : (suffix ? `Dependant (${suffix})` : 'Dependant'),
         dateOfBirth: str(row, 'DateOfBirth', 'Date_Of_Birth', 'DOB'),
         sex: str(row, 'Sex', 'Gender', 'Sex_ID'),
         email: str(row, 'EmailAdress', 'Email', 'EmailAddress'),
         mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber'),
         employeeCode: str(row, 'EmployeeCode', 'Employee_Code', 'employeecode'),
         schemeName: str(row, 'Scheme', 'SchemeName', 'Scheme_Name'),
-        status: str(row, 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus') || 'Pending',
+        status: str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus') || 'Pending',
+        terminationDate: str(row, 'Termdate', 'TermDate', 'Term_Date'),
         registrationDate: null,
         _date: extractDate(row),
       };

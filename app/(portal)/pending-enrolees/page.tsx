@@ -188,14 +188,14 @@ export default function PendingEnroleesPage() {
                         {g.email && <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}><Mail style={{ width: 12, height: 12 }} />{g.email}</span>}
                         {g.mobile && <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}><Phone style={{ width: 12, height: 12 }} />{g.mobile}</span>}
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.8fr 0.6fr 1fr', gap: 8, padding: '8px 0', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        <span>Name</span><span>Relationship</span><span>DOB</span><span>Sex</span><span>Status</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 0.6fr 1fr', gap: 8, padding: '8px 0', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <span>Name</span><span>Relationship</span><span>Membership No</span><span>Sex</span><span>Status</span>
                       </div>
                       {g.members.map((m, i) => (
-                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.8fr 0.6fr 1fr', gap: 8, padding: '9px 0', borderTop: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151' }}>
+                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 0.6fr 1fr', gap: 8, padding: '9px 0', borderTop: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151' }}>
                           <span style={{ fontWeight: 600, color: '#131C4E' }}>{m.fullName || '—'}</span>
                           <span>{m.relationship || (m.isPrincipal ? 'Principal' : '—')}</span>
-                          <span>{m.dateOfBirth || '—'}</span>
+                          <span>{m.membershipNo || '—'}</span>
                           <span>{m.sex || '—'}</span>
                           <span style={{ color: '#D97706', fontWeight: 600 }}>{m.status}</span>
                         </div>
