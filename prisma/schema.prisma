@@ -139,6 +139,25 @@ model CompanyBranding {
   @@map("company_branding")
 }
 
+// Future-dated terminations: TerminateMember has no date parameter, so a
+// termination requested for a future date is held here and actually sent
+// to Prognosis by the /api/cron/process-terminations job on that date.
+model ScheduledTermination {
+  id            String    @id @default(cuid())
+  cifNumber     String
+  memberName    String?
+  groupId       String?
+  effectiveDate DateTime  // date-only, stored at midnight UTC
+  status        String    @default("pending") // pending | completed | failed | cancelled
+  requestedBy   String    // HR user email
+  requestedAt   DateTime  @default(now())
+  processedAt   DateTime?
+  error         String?
+
+  @@index([status, effectiveDate])
+  @@map("scheduled_terminations")
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())

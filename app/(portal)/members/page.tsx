@@ -1415,6 +1415,42 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [termDate, setTermDate]             = useState(todayIso);
   const [terminating, setTerminating]       = useState(false);
   const [termError, setTermError]           = useState('');
+  const [pendingTermination, setPendingTermination] = useState<{ id: string; effectiveDate: string } | null>(null);
+  const [cancellingTerm, setCancellingTerm] = useState(false);
+
+  useEffect(() => {
+    if (!member.cifNumber) return;
+    fetch(`/api/hr/members/terminate/scheduled?cifNumber=${encodeURIComponent(member.cifNumber)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const row = d.scheduled?.[0];
+        if (row) setPendingTermination({ id: row.id, effectiveDate: String(row.effectiveDate).slice(0, 10) });
+      })
+      .catch(() => { /* silently ignore */ });
+  }, [member.cifNumber]);
+
+  async function handleCancelScheduledTermination() {
+    if (!pendingTermination || cancellingTerm) return;
+    setCancellingTerm(true);
+    try {
+      const res = await fetch('/api/hr/members/terminate/scheduled', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pendingTermination.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast(data.error ?? 'Failed to cancel scheduled termination.', 'error');
+      } else {
+        toast('Scheduled termination cancelled.', 'success');
+        setPendingTermination(null);
+      }
+    } catch {
+      toast('Network error. Please try again.', 'error');
+    } finally {
+      setCancellingTerm(false);
+    }
+  }
 
   // Dependent form state
   const [depFirstName, setDepFirstName]     = useState('');
@@ -1498,6 +1534,10 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       const data = await res.json();
       if (!res.ok || data.error) {
         setTermError(data.error ?? 'Failed to terminate member.');
+      } else if (data.scheduled) {
+        toast(`Termination for ${member.firstName} ${member.lastName} scheduled for ${termDate}.`, 'success');
+        setPendingTermination({ id: data.scheduledId, effectiveDate: termDate });
+        setShowTerminateConfirm(false);
       } else {
         toast(`${member.firstName} ${member.lastName} has been terminated.`, 'success');
         setShowTerminateConfirm(false);
@@ -1844,7 +1884,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <CreditCard style={{ width: 14, height: 14 }} /> E-Card
             </button>
-            {vis.showTerminateAction && member.status !== 'Terminated' && (
+            {vis.showTerminateAction && member.status !== 'Terminated' && !pendingTermination && (
             <button
               onClick={() => { setShowTerminateConfirm(true); setTermDate(todayIso); setTermError(''); }}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
@@ -1852,6 +1892,19 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
             </button>
             )}
           </div>
+
+          {pendingTermination && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+              <AlertCircle style={{ width: 15, height: 15, color: '#D97706', flexShrink: 0 }} />
+              <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                Termination scheduled for <strong>{pendingTermination.effectiveDate}</strong>.
+              </p>
+              <button onClick={handleCancelScheduledTermination} disabled={cancellingTerm}
+                style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', background: 'none', border: 'none', cursor: cancellingTerm ? 'wait' : 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+                {cancellingTerm ? 'Cancelling…' : 'Cancel'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Terminate confirmation bottom sheet ── */}
@@ -1870,7 +1923,11 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               </div>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E' }}>Terminate {member.firstName} {member.lastName}?</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>This ends the member&apos;s cover on Prognosis and cannot be undone.</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
+                  {termDate === todayIso
+                    ? "This ends the member's cover immediately and cannot be undone."
+                    : "This schedules the member's cover to end on the chosen date. You can cancel it any time before then."}
+                </p>
               </div>
             </div>
 
@@ -1899,7 +1956,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               </button>
               <button onClick={handleTerminate} disabled={terminating || !member.cifNumber}
                 style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: terminating || !member.cifNumber ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#EF4444,#DC2626)', opacity: terminating || !member.cifNumber ? 0.6 : 1, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
-                {terminating ? 'Terminating…' : 'Confirm Termination'}
+                {terminating ? (termDate === todayIso ? 'Terminating…' : 'Scheduling…') : (termDate === todayIso ? 'Confirm Termination' : 'Schedule Termination')}
               </button>
             </div>
           </div>
