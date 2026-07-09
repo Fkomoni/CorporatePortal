@@ -169,11 +169,15 @@ export function Sidebar() {
           }}>
             {companyInitials || 'CO'}
           </div>
-          <div className="flex-1 min-w-0">
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }} className="truncate">
+          <div style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden' }}>
+            <p style={{
+              fontSize: 12, fontWeight: 600, color: '#131C4E', lineHeight: '1.3',
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              overflow: 'hidden', wordBreak: 'break-word',
+            }}>
               {companyName}
             </p>
-            <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 1 }}>{companyId || '—'}</p>
+            <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 2 }}>{companyId || '—'}</p>
           </div>
           <ChevronDown style={{ width: 13, height: 13, color: '#C8CDD9', flexShrink: 0 }} />
         </div>
