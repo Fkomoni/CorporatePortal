@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { approveEnrollee } from '@/lib/approve-enrollee';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -169,6 +170,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
     let apiUrl: string;
     let apiBody: unknown;
+    // For dependants, approve under the principal's CIF (Parent_Cif); for a new
+    // principal, approve under their own CIF once it's resolved from the response.
+    let approveCif: string | number | null = null;
 
     if (isDependent || isSelfDepAdd) {
       const resolvedParentCif = isDependent ? invitation.parentCif : String(body.parentCif ?? '');
@@ -208,6 +212,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddDependentsOnly`;
       apiBody = { AddBeneficiary: [depPayload] };
+      approveCif = resolvedParentCif;
     } else {
       const payload = {
         groupid: Number(invitation.groupId) || invitation.groupId,
@@ -286,6 +291,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const suffix       = String(dataItem?.Suffix ?? dataItem?.suffix ?? r?.Suffix ?? r?.suffix ?? '0');
     const enrolleeId   = membershipNo ? `${membershipNo}/${suffix}` : '';
 
+    // Self-enrolment via an HR-issued link should not sit in Prognosis's
+    // pending queue — auto-approve immediately. Principals approve under
+    // their own resolved CIF; dependants under the principal's CIF.
+    const finalApproveCif = approveCif ?? cifNumber;
+    let autoApproved = false;
+    if (finalApproveCif) {
+      const approveResult = await approveEnrollee(finalApproveCif as string | number);
+      autoApproved = approveResult.success;
+      if (!approveResult.success) console.warn(`[enroll/token] Auto-approve failed for CIF ${finalApproveCif}:`, approveResult.error);
+    }
+
     // If Prognosis returned HTTP 200 with no error status, treat as success regardless of ID presence
     return NextResponse.json({
       success: true,
@@ -293,6 +309,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       membershipNo,
       suffix,
       enrolleeId,
+      autoApproved,
     });
   } catch (err) {
     console.error('[enroll/token] Error:', err);

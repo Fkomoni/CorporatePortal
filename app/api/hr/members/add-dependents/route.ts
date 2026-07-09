@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { approveEnrollee } from '@/lib/approve-enrollee';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -151,7 +152,12 @@ export async function POST(req: Request) {
       };
     });
 
-    return NextResponse.json({ success: true, enrolled });
+    // HR-initiated registrations should not sit in Prognosis's pending queue —
+    // auto-approve immediately rather than waiting on manual insurer action.
+    const approveResult = await approveEnrollee(parentCif);
+    if (!approveResult.success) console.warn(`[hr/members/add-dependents] Auto-approve failed for parentCif ${parentCif}:`, approveResult.error);
+
+    return NextResponse.json({ success: true, enrolled, autoApproved: approveResult.success });
   } catch (err) {
     console.error('[hr/members/add-dependents] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to add dependents' }, { status: 500 });

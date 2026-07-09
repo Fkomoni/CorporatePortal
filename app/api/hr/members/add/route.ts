@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { approveEnrollee } from '@/lib/approve-enrollee';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -149,10 +150,20 @@ export async function POST(req: Request) {
       }
     }
 
+    // HR-initiated registrations should not sit in Prognosis's pending queue —
+    // auto-approve immediately rather than waiting on manual insurer action.
+    let autoApproved = false;
+    if (cifNumber) {
+      const approveResult = await approveEnrollee(cifNumber as string | number);
+      autoApproved = approveResult.success;
+      if (!approveResult.success) console.warn(`[hr/members/add] Auto-approve failed for CIF ${cifNumber}:`, approveResult.error);
+    }
+
     return NextResponse.json({
       success: true,
       cifNumber,
       enrolleeId,  // MembershipNo/Suffix e.g. "26307209/0"
+      autoApproved,
     });
   } catch (err) {
     console.error('[hr/members/add] Error:', err);
