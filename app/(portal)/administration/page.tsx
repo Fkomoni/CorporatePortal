@@ -296,7 +296,10 @@ export default function AdministrationPage() {
     fetch('/api/hr/2fa').then((r) => r.json()).then((d) => {
       if (typeof d.enabled === 'boolean') setTwoFaActive(d.enabled);
       if (d.method === 'sms' || d.method === 'email') setTwoFaMethod(d.method);
+      // Prefer the number already saved for 2FA; fall back to whatever Prognosis
+      // has on file for this HR user so the SMS setup field isn't blank.
       if (d.mobile) setTwoFaMobile(d.mobile);
+      else if (d.suggestedMobile) setTwoFaMobile(d.suggestedMobile);
     }).catch(() => {});
   }, []);
 

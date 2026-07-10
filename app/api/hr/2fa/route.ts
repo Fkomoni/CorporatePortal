@@ -9,6 +9,43 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { issueLoginOtp, verifyLoginOtp } from '@/lib/login-otp';
 import { logAudit } from '@/lib/audit';
+import { getServiceToken } from '@/lib/corporate-welcome';
+
+const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
+  .replace(/\/api$/, '')
+  .replace(/\/$/, '');
+
+function str(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = row[k];
+    if (v != null && String(v).trim() && String(v).trim().toLowerCase() !== 'null') return String(v).trim();
+  }
+  return '';
+}
+
+// Best-effort lookup of a mobile number already on file in Prognosis for this
+// HR user, so the SMS 2FA setup screen isn't blank when a number already
+// exists there — matched by email against the group's member list.
+async function findPrognosisMobile(email: string, groupId: string | null): Promise<string> {
+  if (!email || !groupId) return '';
+  try {
+    const token = await getServiceToken();
+    const res = await fetch(`${BASE}/api/CorporatePortal/ViewMembersPerGroup?groupId=${encodeURIComponent(groupId)}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    const raw = await res.json().catch(() => null);
+    const rows: Record<string, unknown>[] = Array.isArray(raw) ? raw
+      : Array.isArray((raw as Record<string, unknown>)?.data) ? (raw as Record<string, unknown>).data as Record<string, unknown>[]
+      : Array.isArray((raw as Record<string, unknown>)?.Data) ? (raw as Record<string, unknown>).Data as Record<string, unknown>[]
+      : [];
+    const wanted = email.trim().toLowerCase();
+    const match = rows.find((r) => str(r, 'EmailAdress', 'Email', 'EmailAddress').toLowerCase() === wanted);
+    return match ? str(match, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber') : '';
+  } catch (e) {
+    console.warn('[hr/2fa] Prognosis mobile lookup failed:', e);
+    return '';
+  }
+}
 
 export async function GET() {
   const session = await auth();
@@ -19,7 +56,18 @@ export async function GET() {
     where: { email: session.user.email ?? '' },
     select: { twoFaEnabled: true, twoFaMethod: true, mobile: true },
   });
-  return NextResponse.json({ enabled: user?.twoFaEnabled ?? false, method: user?.twoFaMethod ?? 'email', mobile: user?.mobile ?? '' });
+
+  let suggestedMobile = '';
+  if (!user?.mobile) {
+    suggestedMobile = await findPrognosisMobile(session.user.email ?? '', session.user.companyId ?? null);
+  }
+
+  return NextResponse.json({
+    enabled: user?.twoFaEnabled ?? false,
+    method: user?.twoFaMethod ?? 'email',
+    mobile: user?.mobile ?? '',
+    suggestedMobile,
+  });
 }
 
 export async function POST(req: Request) {
