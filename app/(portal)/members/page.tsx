@@ -36,6 +36,29 @@ const SUMMARY_CARD_DEFS = [
   { label: 'Pending Additions',  key: 'pendingCount'   as const, sub: 'Awaiting activation',      color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck },
 ];
 
+// Map an actual Prognosis scheme name to the UI plan label (mirrors server-side mapPlan)
+function mapPlanNameShared(raw: string): string {
+  const s = raw.toLowerCase();
+  if (s.includes('magnum') || s.includes('blackcard') || s.includes('black card')) return 'Magnum Plan';
+  if (s.includes('promax') || s.includes('pro max')) return 'Promax Plan';
+  if (s.includes('max')) return 'Max Plan';
+  if (s.includes('pro')) return 'Pro Plan';
+  return 'Plus Plan';
+}
+
+// Resolve a member's Prognosis schemeId even when the members list didn't carry
+// one — falls back to matching by scheme name, then to the company's only scheme.
+function resolveMemberScheme(p: { schemeId?: string; plan: string }, schemes: PolicyScheme[]): PolicyScheme | null {
+  if (p.schemeId) {
+    const byId = schemes.find((s) => s.schemeId === p.schemeId);
+    if (byId) return byId;
+  }
+  const byName = schemes.find((s) => mapPlanNameShared(s.schemeName) === p.plan);
+  if (byName) return byName;
+  if (schemes.length === 1) return schemes[0];
+  return null;
+}
+
 const avatarGradients = [
   'linear-gradient(135deg,#F56B22,#FFB54B)', 'linear-gradient(135deg,#131C4E,#3A4382)',
   'linear-gradient(135deg,#10B981,#059669)', 'linear-gradient(135deg,#3B82F6,#1D4ED8)',
@@ -1554,8 +1577,10 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
     }
   }
 
-  // Use the member's own scheme family size if available, otherwise fall back to prop
-  const memberScheme = schemes.find((s) => s.schemeId === member.schemeId);
+  // Use the member's own scheme family size if available, otherwise fall back to prop.
+  // schemeId matching alone often misses since GetGroupPremium rarely returns it —
+  // fall back to matching by scheme name (mirrors the Add Member modal's resolveScheme).
+  const memberScheme = resolveMemberScheme(member, schemes);
   const memberMaxFamily = memberScheme?.maxFamilySize ?? maxFamilySize;
   const remainingSlots = Math.max(0, memberMaxFamily - 1 - depCount);
   // Resolved schemeId for API calls — member.id is NOT the schemeId
