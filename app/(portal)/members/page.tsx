@@ -30,9 +30,10 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
 };
 
 const SUMMARY_CARD_DEFS = [
-  { label: 'Active Members',    key: 'activeCount'  as const, sub: 'Total covered lives', color: '#131C4E', bg: '#EEF2FF', Icon: Users       },
-  { label: 'New This Month',    key: 'newThisMonth' as const, sub: 'Enrolments this month', color: '#10B981', bg: '#ECFDF5', Icon: Activity    },
-  { label: 'Pending Additions', key: 'pendingCount' as const, sub: 'Awaiting activation', color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck },
+  { label: 'Active Lives',        key: 'activeCount'    as const, sub: 'Total covered lives',      color: '#131C4E', bg: '#EEF2FF', Icon: Users       },
+  { label: 'Total Number of Staff', key: 'principalCount' as const, sub: 'Active principals',        color: '#3A4382', bg: '#EEF2FF', Icon: Users       },
+  { label: 'New This Month',     key: 'newThisMonth'   as const, sub: 'Enrolments this month',    color: '#10B981', bg: '#ECFDF5', Icon: Activity    },
+  { label: 'Pending Additions',  key: 'pendingCount'   as const, sub: 'Awaiting activation',      color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck },
 ];
 
 const avatarGradients = [
@@ -2316,9 +2317,9 @@ export default function MembersPage() {
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-        {/* Summary cards — 3 columns (Pending Terminations removed) */}
+        {/* Summary cards */}
         {vis.showSummaryCards && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {SUMMARY_CARD_DEFS.map((c) => {
             const val = pageStats ? pageStats[c.key] : null;
             return (
