@@ -50,6 +50,19 @@ function extractDate(row: Record<string, unknown>): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Prognosis DOB comes back as "14-Dec-1974" — parseable by Date, but guard
+// against odd formats before computing age from it.
+function computeAge(dobRaw: string): number | null {
+  if (!dobRaw) return null;
+  const d = new Date(dobRaw);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const monthDiff = now.getMonth() - d.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) age--;
+  return age >= 0 && age < 130 ? age : null;
+}
+
 export interface PendingMemberRow {
   cifNumber: string;
   parentCif: string;
@@ -62,6 +75,7 @@ export interface PendingMemberRow {
   fullName: string;
   relationship: string;
   dateOfBirth: string;
+  age: number | null;
   sex: string;
   email: string;
   mobile: string;
@@ -140,6 +154,13 @@ export async function GET(req: Request) {
       const membershipNo = str(row, 'MembershipNo', 'Membership_No', 'MembershipNumber');
       const suffix = str(row, 'Suffix');
       const isPrincipal = suffix === '0' || (!suffix && (!parentCifRaw || parentCifRaw === '0' || parentCifRaw === cifNumber));
+      const dob = str(row, 'DOB', 'DateOfBirth', 'Date_Of_Birth');
+      // Relationship is now returned directly by Prognosis (e.g. "Main member", "Spouse", "Child") —
+      // trim stray whitespace/tabs and only fall back to Suffix-based inference if it's missing.
+      const relationshipRaw = str(row, 'Relationship', 'Member_Relationship', 'RelationshipType').replace(/\s+/g, ' ').trim();
+      const relationship = relationshipRaw
+        ? (/main\s*member/i.test(relationshipRaw) ? 'Principal' : relationshipRaw)
+        : (isPrincipal ? 'Principal' : (suffix ? `Dependant (${suffix})` : 'Dependant'));
       return {
         cifNumber,
         parentCif,
@@ -148,9 +169,9 @@ export async function GET(req: Request) {
         isPrincipal,
         firstName, surname, otherName,
         fullName: `${firstName} ${surname} ${otherName}`.replace(/\s+/g, ' ').trim() || str(row, 'Client_Name', 'ClientName', 'FullName', 'Name'),
-        // No explicit relationship field is returned by ViewMembersPerGroup — inferred from Suffix (0 = principal).
-        relationship: isPrincipal ? 'Principal' : (suffix ? `Dependant (${suffix})` : 'Dependant'),
-        dateOfBirth: str(row, 'DateOfBirth', 'Date_Of_Birth', 'DOB'),
+        relationship,
+        dateOfBirth: dob,
+        age: computeAge(dob),
         sex: str(row, 'Sex', 'Gender', 'Sex_ID'),
         email: str(row, 'EmailAdress', 'Email', 'EmailAddress'),
         mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber'),
