@@ -225,7 +225,7 @@ export default function DashboardPage() {
                   : pendingEnrolmentCount === 0
                     ? 'No Beneficiaries Awaiting Approval'
                     : `${pendingEnrolmentCount} Beneficiar${pendingEnrolmentCount === 1 ? 'y' : 'ies'} Enrolment Awaiting Approval`,
-                action: 'Review →', actionColor: '#EF4444', onClick: () => router.push('/pending-enrolees'),
+                action: 'View List →', actionColor: '#EF4444', onClick: () => router.push('/pending-enrolees'),
               },
               { Icon: Receipt,   border: '#10B981', urgency: 'Due soon', title: 'Invoice Due In 7 Days — ₦10.5M',  action: 'View Invoice →', actionColor: '#10B981' },
             ].map((item) => {

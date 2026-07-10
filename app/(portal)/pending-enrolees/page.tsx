@@ -1,10 +1,43 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ClipboardCheck, Check, X, ChevronDown, RefreshCw, Users, Calendar, Mail, Phone } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ClipboardCheck, Check, X, RefreshCw, Calendar } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { useToast } from '@/components/ui/Toast';
 import type { PendingGroup } from '@/app/api/hr/members/pending/route';
+
+interface BeneficiaryRow {
+  rowId: string;
+  parentCif: string;
+  staffName: string;
+  beneficiaryName: string;
+  relationship: string;
+  membershipNo: string;
+  sex: string;
+  status: string;
+  email: string;
+}
+
+function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
+  const rows: BeneficiaryRow[] = [];
+  for (const g of groups) {
+    for (const m of g.members) {
+      if (m.isPrincipal) continue; // only beneficiaries (dependants) require approval
+      rows.push({
+        rowId: `${g.parentCif}-${m.cifNumber}`,
+        parentCif: g.parentCif,
+        staffName: g.principalName || `CIF ${g.parentCif}`,
+        beneficiaryName: m.fullName || '—',
+        relationship: m.relationship || 'Dependant',
+        membershipNo: m.membershipNo || '—',
+        sex: m.sex || '—',
+        status: m.status,
+        email: g.email,
+      });
+    }
+  }
+  return rows;
+}
 
 export default function PendingEnroleesPage() {
   const { toast } = useToast();
@@ -13,10 +46,10 @@ export default function PendingEnroleesPage() {
   const [error, setError] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [decliningCif, setDecliningCif] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [decliningCif, setDecliningCif] = useState<string | null>(null); // null = not declining; 'bulk' = declining current selection
   const [declineReason, setDeclineReason] = useState('');
-  const [busyCif, setBusyCif] = useState<string | null>(null);
+  const [busyCif, setBusyCif] = useState<string | null>(null); // parentCif or 'bulk'
 
   const load = useCallback(() => {
     setLoading(true); setError('');
@@ -35,62 +68,97 @@ export default function PendingEnroleesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  function toggleExpand(cif: string) {
-    setExpanded((prev) => {
+  const rows = useMemo(() => flattenRows(groups), [groups]);
+  const allSelected = rows.length > 0 && selected.size === rows.length;
+  const someSelected = selected.size > 0 && !allSelected;
+
+  function toggleRow(rowId: string) {
+    setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(cif)) next.delete(cif); else next.add(cif);
+      if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
+      return next;
+    });
+  }
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.rowId)));
+  }
+
+  function removeParentCifs(cifs: Set<string>) {
+    setGroups((prev) => prev.filter((g) => !cifs.has(g.parentCif)));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const r of rows) if (cifs.has(r.parentCif)) next.delete(r.rowId);
       return next;
     });
   }
 
-  async function handleApprove(group: PendingGroup) {
-    setBusyCif(group.parentCif);
-    try {
-      const res = await fetch('/api/hr/members/pending/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parentCif: group.parentCif, principalName: group.principalName }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        toast(data.error ?? 'Failed to approve.', 'error');
-      } else {
-        toast(`${group.principalName || 'Registration'} approved${data.recordsUpdated ? ` (${data.recordsUpdated} record${data.recordsUpdated !== 1 ? 's' : ''})` : ''}.`, 'success');
-        setGroups((prev) => prev.filter((g) => g.parentCif !== group.parentCif));
-      }
-    } catch {
-      toast('Network error. Please try again.', 'error');
-    } finally {
-      setBusyCif(null);
+  async function approveCifs(cifs: string[]) {
+    let updated = 0;
+    let failed = 0;
+    for (const parentCif of cifs) {
+      const row = rows.find((r) => r.parentCif === parentCif);
+      try {
+        const res = await fetch('/api/hr/members/pending/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parentCif, principalName: row?.staffName }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;
+      } catch { failed++; }
     }
+    return { updated, failed };
   }
 
-  async function handleDecline(group: PendingGroup) {
+  async function handleApproveOne(row: BeneficiaryRow) {
+    setBusyCif(row.parentCif);
+    const { updated, failed } = await approveCifs([row.parentCif]);
+    setBusyCif(null);
+    if (failed) { toast(`Failed to approve ${row.beneficiaryName}.`, 'error'); return; }
+    toast(`${row.beneficiaryName} approved${updated ? ` (${updated} record${updated !== 1 ? 's' : ''})` : ''}.`, 'success');
+    removeParentCifs(new Set([row.parentCif]));
+  }
+
+  async function handleApproveSelected() {
+    const cifs = [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.parentCif))];
+    if (cifs.length === 0) return;
+    setBusyCif('bulk');
+    const { updated, failed } = await approveCifs(cifs);
+    setBusyCif(null);
+    if (failed) toast(`${failed} approval${failed !== 1 ? 's' : ''} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
+    if (updated) toast(`Approved ${updated} record${updated !== 1 ? 's' : ''}.`, 'success');
+    removeParentCifs(new Set(cifs));
+  }
+
+  async function handleDecline(cifs: string[]) {
     if (!declineReason.trim()) { toast('Please provide a reason for declining.', 'error'); return; }
-    setBusyCif(group.parentCif);
-    try {
-      const res = await fetch('/api/hr/members/pending/reject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parentCif: group.parentCif, principalName: group.principalName, reason: declineReason.trim(), email: group.email }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        toast(data.error ?? 'Failed to decline.', 'error');
-      } else {
-        toast(`${group.principalName || 'Registration'} declined.`, 'success');
-        setGroups((prev) => prev.filter((g) => g.parentCif !== group.parentCif));
-        setDecliningCif(null);
-        setDeclineReason('');
-      }
-    } catch {
-      toast('Network error. Please try again.', 'error');
-    } finally {
-      setBusyCif(null);
+    setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
+    let failed = 0;
+    for (const parentCif of cifs) {
+      const row = rows.find((r) => r.parentCif === parentCif);
+      try {
+        const res = await fetch('/api/hr/members/pending/reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parentCif, principalName: row?.staffName, reason: declineReason.trim(), email: row?.email }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) failed++;
+      } catch { failed++; }
     }
+    setBusyCif(null);
+    if (failed) toast(`${failed} decline${failed !== 1 ? 's' : ''} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
+    if (failed < cifs.length) toast(`Declined ${cifs.length - failed} record${cifs.length - failed !== 1 ? 's' : ''}.`, 'success');
+    removeParentCifs(new Set(cifs));
+    setDecliningCif(null);
+    setDeclineReason('');
   }
 
   const inputStyle: React.CSSProperties = { height: 40, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none' };
+
+  const decliningCifs = decliningCif === 'bulk'
+    ? [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.parentCif))]
+    : decliningCif ? [decliningCif] : [];
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -119,7 +187,7 @@ export default function PendingEnroleesPage() {
         {loading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1, 2, 3].map((i) => (
-              <div key={i} style={{ height: 90, borderRadius: 16, background: '#F0F1F5', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} style={{ height: 56, borderRadius: 12, background: '#F0F1F5', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         )}
@@ -128,100 +196,94 @@ export default function PendingEnroleesPage() {
           <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{error}</div>
         )}
 
-        {!loading && !error && groups.length === 0 && (
+        {!loading && !error && rows.length === 0 && (
           <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', padding: '48px 40px', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <ClipboardCheck style={{ width: 26, height: 26, color: '#059669' }} strokeWidth={1.5} />
             </div>
             <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>All caught up</p>
             <p style={{ fontSize: 13, color: '#9CA3B8', maxWidth: 420, margin: '0 auto', lineHeight: 1.65 }}>
-              No pending self-registrations {from || to ? 'in this date range' : 'from the mobile app right now'}.
+              No beneficiaries {from || to ? 'in this date range' : 'awaiting your approval right now'}.
             </p>
           </div>
         )}
 
-        {!loading && groups.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {groups.map((g) => {
-              const isExpanded = expanded.has(g.parentCif);
-              const isDeclining = decliningCif === g.parentCif;
-              const isBusy = busyCif === g.parentCif;
-              return (
-                <div key={g.parentCif} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 22px' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FFF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Users style={{ width: 20, height: 20, color: '#F56B22' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>{g.principalName || `CIF ${g.parentCif}`}</p>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 99, background: '#EEF2FF', color: '#3730A3' }}>
-                          {g.memberCount} member{g.memberCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
-                        {g.employeeCode && <span style={{ fontSize: 12, color: '#9CA3B8' }}>Emp. Code: {g.employeeCode}</span>}
-                        {g.schemeName && <span style={{ fontSize: 12, color: '#9CA3B8' }}>{g.schemeName}</span>}
-                        {g.registrationDate && <span style={{ fontSize: 12, color: '#9CA3B8' }}>Registered {g.registrationDate}</span>}
-                      </div>
-                    </div>
-                    <button onClick={() => toggleExpand(g.parentCif)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-                      {isExpanded ? 'Hide details' : 'View details'}
-                      <ChevronDown style={{ width: 14, height: 14, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-                    </button>
-                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                      <button onClick={() => { setDecliningCif(g.parentCif); setDeclineReason(''); }} disabled={isBusy}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 12, background: '#FEF2F2', cursor: isBusy ? 'wait' : 'pointer' }}>
-                        <X style={{ width: 13, height: 13 }} /> Decline
+        {!loading && rows.length > 0 && (
+          <>
+            {/* Bulk action bar */}
+            {selected.size > 0 && (
+              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #FFD8C0', boxShadow: '0 4px 16px rgba(245,107,34,0.10)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{selected.size}</div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', flex: 1 }}>beneficiar{selected.size > 1 ? 'ies' : 'y'} selected</span>
+                <button onClick={() => setDecliningCif('bulk')} disabled={busyCif === 'bulk'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 12, background: '#FEF2F2', cursor: busyCif === 'bulk' ? 'wait' : 'pointer' }}>
+                  <X style={{ width: 13, height: 13 }} /> Decline Selected
+                </button>
+                <button onClick={handleApproveSelected} disabled={busyCif === 'bulk'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: busyCif === 'bulk' ? 'wait' : 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.28)' }}>
+                  <Check style={{ width: 13, height: 13 }} /> {busyCif === 'bulk' ? 'Approving…' : 'Approve Selected'}
+                </button>
+              </div>
+            )}
+
+            {decliningCif && (
+              <div style={{ padding: '16px 20px', borderRadius: 16, border: '1.5px solid #FECACA', background: '#FFF8F8' }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Reason for declining {decliningCifs.length > 1 ? `${decliningCifs.length} beneficiaries` : ''} (required)
+                </label>
+                <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={2} placeholder="e.g. Not an eligible dependant"
+                  style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid #FECACA', borderRadius: 10, background: '#fff', color: '#131C4E', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button onClick={() => { setDecliningCif(null); setDeclineReason(''); }} disabled={busyCif !== null}
+                    style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => handleDecline(decliningCifs)} disabled={busyCif !== null || !declineReason.trim()}
+                    style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: !declineReason.trim() ? '#E5E7F1' : 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: busyCif !== null || !declineReason.trim() ? 'not-allowed' : 'pointer' }}>
+                    {busyCif !== null ? 'Declining…' : 'Confirm Decline'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Table */}
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '36px 1.3fr 1.3fr 1fr 0.9fr 0.6fr 1fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
+                <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleAll} style={{ cursor: 'pointer' }} />
+                <span>Staff Name</span>
+                <span>Beneficiary</span>
+                <span>Relationship</span>
+                <span>Membership No</span>
+                <span>Sex</span>
+                <span>Status</span>
+                <span>Actions</span>
+              </div>
+              {rows.map((row) => {
+                const isSelected = selected.has(row.rowId);
+                const isBusy = busyCif === row.parentCif || busyCif === 'bulk';
+                return (
+                  <div key={row.rowId}
+                    style={{ display: 'grid', gridTemplateColumns: '36px 1.3fr 1.3fr 1fr 0.9fr 0.6fr 1fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleRow(row.rowId)} style={{ cursor: 'pointer' }} />
+                    <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.staffName}</span>
+                    <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.beneficiaryName}</span>
+                    <span>{row.relationship}</span>
+                    <span>{row.membershipNo}</span>
+                    <span>{row.sex}</span>
+                    <span style={{ color: '#D97706', fontWeight: 600 }}>{row.status}</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { setDecliningCif(row.parentCif); setDeclineReason(''); }} disabled={isBusy}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 9, background: '#FEF2F2', cursor: isBusy ? 'wait' : 'pointer' }}>
+                        <X style={{ width: 11, height: 11 }} /> Decline
                       </button>
-                      <button onClick={() => handleApprove(g)} disabled={isBusy}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: isBusy ? 'wait' : 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.28)' }}>
-                        <Check style={{ width: 13, height: 13 }} /> {isBusy && !isDeclining ? 'Approving…' : 'Approve'}
+                      <button onClick={() => handleApproveOne(row)} disabled={isBusy}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 9, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: isBusy ? 'wait' : 'pointer' }}>
+                        <Check style={{ width: 11, height: 11 }} /> {busyCif === row.parentCif ? '…' : 'Approve'}
                       </button>
                     </div>
                   </div>
-
-                  {isExpanded && (
-                    <div style={{ padding: '0 22px 18px', borderTop: '1px solid #F0F1F5' }}>
-                      <div style={{ display: 'flex', gap: 20, padding: '14px 0 10px', flexWrap: 'wrap' }}>
-                        {g.email && <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}><Mail style={{ width: 12, height: 12 }} />{g.email}</span>}
-                        {g.mobile && <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}><Phone style={{ width: 12, height: 12 }} />{g.mobile}</span>}
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 0.6fr 1fr', gap: 8, padding: '8px 0', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        <span>Name</span><span>Relationship</span><span>Membership No</span><span>Sex</span><span>Status</span>
-                      </div>
-                      {g.members.map((m, i) => (
-                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 0.6fr 1fr', gap: 8, padding: '9px 0', borderTop: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151' }}>
-                          <span style={{ fontWeight: 600, color: '#131C4E' }}>{m.fullName || '—'}</span>
-                          <span>{m.relationship || (m.isPrincipal ? 'Principal' : '—')}</span>
-                          <span>{m.membershipNo || '—'}</span>
-                          <span>{m.sex || '—'}</span>
-                          <span style={{ color: '#D97706', fontWeight: 600 }}>{m.status}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {isDeclining && (
-                    <div style={{ padding: '16px 22px', borderTop: '1px solid #FECACA', background: '#FFF8F8' }}>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Reason for declining (required)</label>
-                      <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={2} placeholder="e.g. Employee no longer with the company"
-                        style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid #FECACA', borderRadius: 10, background: '#fff', color: '#131C4E', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                        <button onClick={() => { setDecliningCif(null); setDeclineReason(''); }} disabled={isBusy}
-                          style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                        <button onClick={() => handleDecline(g)} disabled={isBusy || !declineReason.trim()}
-                          style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: !declineReason.trim() ? '#E5E7F1' : 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: isBusy || !declineReason.trim() ? 'not-allowed' : 'pointer' }}>
-                          {isBusy ? 'Declining…' : 'Confirm Decline'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
