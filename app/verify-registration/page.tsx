@@ -323,7 +323,7 @@ function VerifyForm() {
               <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div>
                   <label style={labelStyle}>One-Time Passcode (OTP)</label>
-                  <input type="text" inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="Enter OTP" required
+                  <input type="text" inputMode="text" value={otp} onChange={(e) => setOtp(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="Enter OTP" required
                     style={{ ...inputStyle, letterSpacing: '0.3em', fontWeight: 700, fontSize: 22, textAlign: 'center' }} onFocus={fi} onBlur={fo} />
                 </div>
 
