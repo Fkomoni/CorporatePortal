@@ -111,7 +111,24 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: `Prognosis error ${res.status}: ${text.slice(0, 200)}` }, { status: 502 });
     }
     const raw = await res.json().catch(() => null);
-    const rows = toArr(raw);
+    const allRows = toArr(raw);
+
+    // Dedupe by Cif_Number — ViewMembersPerGroup can return the same member more
+    // than once (e.g. one row per scheme/policy period), which otherwise renders
+    // as duplicate rows in the same family group. Keep the Active record when
+    // duplicates disagree on status.
+    const dedupedByCif = new Map<string, Record<string, unknown>>();
+    for (const row of allRows) {
+      const cif = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
+      if (!cif) continue;
+      const existing = dedupedByCif.get(cif);
+      const status = str(row, 'Memberstatus', 'Status', 'MemberStatus');
+      const existingStatus = existing ? str(existing, 'Memberstatus', 'Status', 'MemberStatus') : '';
+      if (!existing || existingStatus !== 'Active' || status === 'Active') {
+        dedupedByCif.set(cif, row);
+      }
+    }
+    const rows = [...dedupedByCif.values()];
 
     const normalized: (PendingMemberRow & { _date: Date | null })[] = rows.map((row) => {
       const cifNumber = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
