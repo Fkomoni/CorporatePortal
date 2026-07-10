@@ -1447,8 +1447,33 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [showTerminateConfirm, setShowTerminateConfirm] = useState(false);
   const todayIso = new Date().toISOString().slice(0, 10);
   const [termDate, setTermDate]             = useState(todayIso);
+  const [termReason, setTermReason]         = useState('');
   const [terminating, setTerminating]       = useState(false);
   const [termError, setTermError]           = useState('');
+  const [showEdit, setShowEdit]             = useState(false);
+  const [editSexId, setEditSexId]           = useState('');
+  const [editDob, setEditDob]               = useState('');
+  const [editMobile, setEditMobile]         = useState('');
+  const [editEmail, setEditEmail]           = useState('');
+  const [editAddress, setEditAddress]       = useState('');
+  const [editPhotoB64, setEditPhotoB64]     = useState('');
+  const [editPhotoType, setEditPhotoType]   = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError]           = useState('');
+  const editPhotoRef = useRef<HTMLInputElement>(null);
+  function handleEditPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [header, b64] = result.split(',');
+      const mime = header.match(/data:([^;]+);/)?.[1] ?? file.type;
+      setEditPhotoB64(b64 ?? '');
+      setEditPhotoType(mime);
+    };
+    reader.readAsDataURL(file);
+  }
   const [pendingTermination, setPendingTermination] = useState<{ id: string; effectiveDate: string } | null>(null);
   const [cancellingTerm, setCancellingTerm] = useState(false);
 
@@ -1566,6 +1591,40 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   async function handleTerminate() {
     if (!member.cifNumber) { toast('No CIF number on record for this member.', 'error'); return; }
     if (!termDate) { setTermError('Please choose an effective date.'); return; }
+    // Dependants go through Prognosis's TerminateBeneficiary, which genuinely
+    // supports an effective date + reason — no need for our ScheduledTermination
+    // workaround (that exists only because TerminateMember, for principals, doesn't).
+    if (member.type === 'Dependant') {
+      if (!termReason.trim()) { setTermError('Please enter a reason for termination.'); return; }
+      setTermError('');
+      setTerminating(true);
+      try {
+        const res = await fetch('/api/hr/members/terminate-beneficiary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enrolleeId: member.employeeId,
+            cifNumber: member.cifNumber,
+            effectiveDate: termDate,
+            reason: termReason.trim(),
+            memberName: `${member.firstName} ${member.lastName}`,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setTermError(data.error ?? 'Failed to terminate beneficiary.');
+        } else {
+          toast(`Termination submitted for ${member.firstName} ${member.lastName}.`, 'success');
+          setShowTerminateConfirm(false);
+          onClose();
+        }
+      } catch {
+        setTermError('Network error. Please try again.');
+      } finally {
+        setTerminating(false);
+      }
+      return;
+    }
     setTermError('');
     setTerminating(true);
     try {
@@ -1594,6 +1653,52 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       setTermError('Network error. Please try again.');
     } finally {
       setTerminating(false);
+    }
+  }
+
+  const isPrincipalMember = member.type === 'Principal';
+
+  async function handleEditSubmit() {
+    if (editSubmitting) return;
+    setEditError('');
+    const hasChange = isPrincipalMember
+      ? Boolean(editDob || editMobile || editEmail || editAddress || editPhotoB64)
+      : Boolean(editSexId || editDob || editMobile || editEmail);
+    if (!hasChange) {
+      setEditError('Change at least one field.'); return;
+    }
+    setEditSubmitting(true);
+    try {
+      const res = await fetch('/api/hr/members/update-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enrolleeId: member.employeeId,
+          cifNumber: member.cifNumber,
+          isPrincipal: isPrincipalMember,
+          sexId: !isPrincipalMember ? (editSexId || undefined) : undefined,
+          dateOfBirth: editDob || undefined,
+          mobile: editMobile || undefined,
+          email: editEmail || undefined,
+          address: isPrincipalMember ? (editAddress || undefined) : undefined,
+          photo: isPrincipalMember ? (editPhotoB64 || undefined) : undefined,
+          photoType: isPrincipalMember ? (editPhotoType || undefined) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setEditError(data.error ?? 'Failed to update member.');
+      } else {
+        toast(`${member.firstName} ${member.lastName} updated successfully.`, 'success');
+        if (editMobile) setBioPhone(editMobile);
+        if (editEmail) setBioEmail(editEmail);
+        if (editPhotoB64) setAvatarPreview(`data:${editPhotoType || 'image/jpeg'};base64,${editPhotoB64}`);
+        setShowEdit(false);
+      }
+    } catch {
+      setEditError('Network error. Please try again.');
+    } finally {
+      setEditSubmitting(false);
     }
   }
 
@@ -1926,7 +2031,17 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           {/* Row 2 — Edit / E-Card / Terminate */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={() => toast('Member record opened for editing.')}
+              onClick={() => {
+                setEditSexId(member.gender === 'Female' ? '2' : member.gender === 'Male' ? '1' : '');
+                setEditDob(member.dateOfBirth || '');
+                setEditMobile(bioPhone || '');
+                setEditEmail(bioEmail || '');
+                setEditAddress('');
+                setEditPhotoB64('');
+                setEditPhotoType('');
+                setEditError('');
+                setShowEdit(true);
+              }}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: '#EEF2FF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               Edit Member
             </button>
@@ -1996,6 +2111,15 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               </div>
             )}
 
+            {member.cifNumber && member.type === 'Dependant' && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Reason for Termination</label>
+                <textarea value={termReason} onChange={(e) => setTermReason(e.target.value)} rows={2}
+                  placeholder="e.g. No longer an eligible dependant"
+                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+            )}
+
             {termError && (
               <div style={{ fontSize: 12.5, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', marginBottom: 14 }}>{termError}</div>
             )}
@@ -2008,6 +2132,95 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               <button onClick={handleTerminate} disabled={terminating || !member.cifNumber}
                 style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: terminating || !member.cifNumber ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#EF4444,#DC2626)', opacity: terminating || !member.cifNumber ? 0.6 : 1, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
                 {terminating ? (termDate === todayIso ? 'Terminating…' : 'Scheduling…') : (termDate === todayIso ? 'Confirm Termination' : 'Schedule Termination')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Edit Member bottom sheet ── */}
+        {showEdit && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: '#fff', borderTop: '2px solid #C7D2FE',
+            borderRadius: '20px 20px 0 0',
+            boxShadow: '0 -12px 40px rgba(0,0,0,0.12)',
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '80%', overflowY: 'auto', padding: '24px 28px 28px', zIndex: 10,
+          }}>
+            <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Edit {member.firstName} {member.lastName}</p>
+            <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>
+              {isPrincipalMember
+                ? 'Only passport photo, phone, email, date of birth and address can be updated here.'
+                : 'Only gender, date of birth, phone and email can be updated here.'}
+            </p>
+
+            {isPrincipalMember && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div onClick={() => editPhotoRef.current?.click()} style={{ width: 60, height: 60, borderRadius: '50%', border: '2px dashed #C7D2FE', background: '#F7F8FC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  {editPhotoB64
+                    ? <img src={`data:${editPhotoType};base64,${editPhotoB64}`} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : (avatarPreview ? <img src={avatarPreview} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Camera style={{ width: 20, height: 20, color: '#C4C9D9' }} />)}
+                </div>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Passport Photo</p>
+                  <button type="button" onClick={() => editPhotoRef.current?.click()}
+                    style={{ height: 30, padding: '0 12px', fontSize: 12, fontWeight: 600, color: '#3A4382', border: '1.5px solid #C7D2FE', borderRadius: 8, background: '#EEF2FF', cursor: 'pointer' }}>
+                    Change Photo
+                  </button>
+                </div>
+                <input ref={editPhotoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleEditPhotoChange} />
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              {!isPrincipalMember && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Gender</label>
+                  <select value={editSexId} onChange={(e) => setEditSexId(e.target.value)}
+                    style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                    <option value="">Select</option>
+                    <option value="1">Male</option>
+                    <option value="2">Female</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Date of Birth</label>
+                <input type="date" value={editDob} onChange={(e) => setEditDob(e.target.value)}
+                  style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Phone Number</label>
+                <input type="tel" value={editMobile} onChange={(e) => setEditMobile(e.target.value)}
+                  style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Email</label>
+                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)}
+                  style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              {isPrincipalMember && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Home Address</label>
+                  <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)}
+                    placeholder="e.g. 12 Adeola Odeku Street, Victoria Island"
+                    style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              )}
+            </div>
+
+            {editError && (
+              <div style={{ fontSize: 12.5, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', marginBottom: 14 }}>{editError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowEdit(false)} disabled={editSubmitting}
+                style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleEditSubmit} disabled={editSubmitting}
+                style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: editSubmitting ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#3A4382,#131C4E)', opacity: editSubmitting ? 0.6 : 1 }}>
+                {editSubmitting ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           </div>
