@@ -2,6 +2,7 @@
 
 import { TrendingDown, UserPlus, Receipt } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { DashboardVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
@@ -111,6 +112,7 @@ function fmtLives(n: number | null): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [vis, setVis] = useState<DashboardVis>(DEFAULTS.dashboard);
   useEffect(() => { setVis(getVis('dashboard')); }, []);
   const { data: session } = useSession();
@@ -124,11 +126,19 @@ export default function DashboardPage() {
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [showAllProviders, setShowAllProviders] = useState(false);
+  const [pendingEnrolmentCount, setPendingEnrolmentCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/api/hr/dashboard-stats')
       .then((r) => r.json())
       .then((d) => { if (d.stats) setStats(d.stats); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/hr/members/pending')
+      .then((r) => r.json())
+      .then((d) => { if (typeof d.totalGroups === 'number') setPendingEnrolmentCount(d.totalGroups); })
       .catch(() => {});
   }, []);
 
@@ -208,7 +218,15 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
             {[
-              { Icon: UserPlus,  border: '#EF4444', urgency: 'Urgent',   title: '12 Employees Awaiting Enrolment', action: 'Review →',       actionColor: '#EF4444' },
+              {
+                Icon: UserPlus, border: '#EF4444', urgency: 'Urgent',
+                title: pendingEnrolmentCount === null
+                  ? 'Checking for pending enrolments…'
+                  : pendingEnrolmentCount === 0
+                    ? 'No Employees Awaiting Enrolment'
+                    : `${pendingEnrolmentCount} Employee${pendingEnrolmentCount === 1 ? '' : 's'} Awaiting Enrolment`,
+                action: 'Review →', actionColor: '#EF4444', onClick: () => router.push('/pending-enrolees'),
+              },
               { Icon: Receipt,   border: '#10B981', urgency: 'Due soon', title: 'Invoice Due In 7 Days — ₦10.5M',  action: 'View Invoice →', actionColor: '#10B981' },
             ].map((item) => {
               const Icon = item.Icon;
@@ -224,7 +242,7 @@ export default function DashboardPage() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: item.actionColor, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{item.urgency}</span>
                   </div>
                   <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', lineHeight: 1.4, marginBottom: 12 }}>{item.title}</p>
-                  <button style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <button onClick={item.onClick} style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: item.onClick ? 'pointer' : 'default', padding: 0 }}>
                     {item.action}
                   </button>
                 </div>
