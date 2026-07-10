@@ -91,6 +91,8 @@ export async function GET(req: Request) {
     const genotype = s(row, 'genotype', 'Genotype');
     const hospital = s(row, 'Hospital', 'PreferredHospital', 'FacilityName');
     const dob = s(row, 'DateOfBirth', 'DOB', 'Member_DateOfBirth', 'BirthDate', 'Date_Of_Birth');
+    const photo = s(row, 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
+    const photoType = s(row, 'EnrolleePictureType', 'EnrolleepictureType', 'PictureType', 'PhotoType', 'ImageType') || 'image/jpeg';
 
     return NextResponse.json({
       enrolleeId,
@@ -102,6 +104,8 @@ export async function GET(req: Request) {
       genotype: genotype || null,
       hospital: hospital || null,
       dateOfBirth: dob || null,
+      photo: photo || null,
+      photoType,
       raw: row,
     });
   } catch (err) {

@@ -1469,9 +1469,10 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [depLinkEmail, setDepLinkEmail]     = useState(member.email ?? '');
   const avatarInputRef                      = useRef<HTMLInputElement>(null);
 
-  // Biodata: enriched phone + staffId fetched from GetEnrolleeBioDataByEnrolleeID
+  // Biodata: enriched phone + staffId + email fetched from GetEnrolleeBioDataByEnrolleeID
   const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
   const [bioStaffId, setBioStaffId]         = useState<string | null>(member.staffId || null);
+  const [bioEmail, setBioEmail]             = useState<string | null>(member.email || null);
   useEffect(() => {
     if (!member.employeeId) return;
     fetch(`/api/hr/members/biodata?enrolleeid=${encodeURIComponent(member.employeeId)}`)
@@ -1479,6 +1480,8 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       .then((d) => {
         if (d.phone) setBioPhone(d.phone);
         if (d.staffId) setBioStaffId(d.staffId);
+        if (d.email) setBioEmail(d.email);
+        if (d.photo) setAvatarPreview(`data:${d.photoType || 'image/jpeg'};base64,${d.photo}`);
       })
       .catch(() => { /* silently ignore */ });
   }, [member.employeeId]);
@@ -1491,14 +1494,14 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
 
   async function handleSendEnroleeId() {
     if (sendingId) return;
-    if (!member.email) { toast('No email address on record for this member.', 'error'); return; }
+    if (!bioEmail) { toast('No email address on record for this member.', 'error'); return; }
     setSendingId(true);
     try {
       const res = await fetch('/api/hr/members/send-enrolee-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: member.email,
+          email: bioEmail,
           enroleeId,
           memberName: `${member.firstName} ${member.lastName}`,
           schemeName: member.plan,
@@ -1508,7 +1511,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       if (!res.ok || data.error) {
         toast(data.error ?? 'Failed to send email', 'error');
       } else {
-        toast(`Enrolee ID sent to ${member.email}`, 'success');
+        toast(`Enrolee ID sent to ${bioEmail}`, 'success');
       }
     } catch {
       toast('Failed to send email. Please try again.', 'error');
