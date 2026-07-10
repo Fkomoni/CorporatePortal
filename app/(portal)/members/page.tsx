@@ -249,6 +249,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [townId, setTownId]         = useState('');
   const [address, setAddress]       = useState('');
   const [preExisting, setPreExist]  = useState('');
+  const [startDate, setStartDate]   = useState('');
   const [photoBase64, setPhotoB64]  = useState('');
   const [photoType, setPhotoType]   = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
@@ -551,9 +552,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '',
             firstName, surname, otherNames, dateOfBirth: dob,
             sexId, maritalStatus, email, mobile, mobile2,
-            postalTownId: postalId, address,
+            postalTownId: postalId, stateId, regionId, address,
             employeeCode: empCode, preExistingCondition: preExisting || 'None',
             enrolleePicture: photoBase64, enrolleePictureType: photoType,
+            startDate: startDate || undefined,
           }),
         });
         const data = await res.json();
@@ -1389,6 +1391,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'vertical' }}
                       onFocus={focusOn} onBlur={focusOff} />
                   </div>
+
+                  {memberType !== 'existing' && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today)</span></p>
+                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                        style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                    </div>
+                  )}
                 </div>
               )}
             </>

@@ -43,11 +43,19 @@ export interface AddMemberPayload {
   maritalStatus?: string;
   email: string;
   mobile: string;
+  mobile2?: string;
   postalTownId: string;
+  regionId?: string;
+  stateId?: string;
+  address?: string;
   bloodGroup?: string;
   genotype?: string;
   employeeCode: string;
   cadre?: string;
+  preExistingCondition?: string;
+  enrolleePicture?: string;
+  enrolleePictureType?: string;
+  startDate?: string;
 }
 
 export async function POST(req: Request) {
@@ -72,11 +80,39 @@ export async function POST(req: Request) {
   try {
     const token = await getServiceToken();
 
+    // Flag emails/mobiles already registered to another member in this group —
+    // Prognosis's AddPrincipalOnly accepts duplicates silently, so check first.
+    try {
+      const dupRes = await fetch(`${BASE}/api/CorporatePortal/ViewMembersPerGroup?groupId=${encodeURIComponent(groupId)}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      const dupRaw = await dupRes.json().catch(() => null);
+      const dupRows: Record<string, unknown>[] = Array.isArray(dupRaw) ? dupRaw
+        : Array.isArray((dupRaw as Record<string, unknown>)?.data) ? (dupRaw as Record<string, unknown>).data as Record<string, unknown>[]
+        : Array.isArray((dupRaw as Record<string, unknown>)?.Data) ? (dupRaw as Record<string, unknown>).Data as Record<string, unknown>[]
+        : [];
+      const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+      const wantedEmail = norm(email);
+      const wantedMobile = norm(mobile);
+      const clash = dupRows.find((row) => {
+        const rowEmail = norm(row['EmailAdress'] ?? row['Email'] ?? row['EmailAddress']);
+        const rowMobile = norm(row['Mobile'] ?? row['Mobile1'] ?? row['Phone'] ?? row['MobileNumber']);
+        return (wantedEmail && rowEmail === wantedEmail) || (wantedMobile && rowMobile === wantedMobile);
+      });
+      if (clash) {
+        const clashName = `${clash['FirstName'] ?? ''} ${clash['Surname'] ?? ''}`.trim() || 'another member';
+        const field = norm(clash['EmailAdress'] ?? clash['Email'] ?? clash['EmailAddress']) === wantedEmail ? 'email address' : 'mobile number';
+        return NextResponse.json({ error: `This ${field} is already registered to ${clashName} in this group. Please verify and use a unique ${field}.` }, { status: 409 });
+      }
+    } catch (e) {
+      console.warn('[hr/members/add] Duplicate check failed, proceeding without it:', e);
+    }
+
     const payload = {
       groupid: Number(groupId) || groupId,
       schemeid: Number(schemeId) || schemeId,
       Scheme: schemeName,
-      regionid: 1,
+      regionid: body.regionId ? (Number(body.regionId) || body.regionId) : 1,
       Parent_Cif: 0,
       FirstName: firstName,
       Surname: surname,
@@ -86,13 +122,20 @@ export async function POST(req: Request) {
       MaritalStatus: body.maritalStatus ?? '',
       EmailAdress: email,
       Mobile: mobile,
+      Mobile2: body.mobile2 ?? '',
       Postal_Town_ID: postalTownId,
+      Physical_Add1: body.address ?? '',
       Relationship_ID: '30',
       BloodGroup: body.bloodGroup ?? '',
       genotype: body.genotype ?? '',
       employeecode: employeeCode,
       cadre: body.cadre ?? '',
+      PreExistingCondition: body.preExistingCondition ?? 'None',
+      EnrolleePicture: body.enrolleePicture ?? '',
+      EnrolleePictureType: body.enrolleePictureType ?? '',
       registrationsource: 'Web Portal',
+      ...(body.stateId ? { State_ID: body.stateId, StateId: body.stateId } : {}),
+      ...(body.startDate ? { Fromdate: body.startDate, StartDate: body.startDate } : {}),
     };
 
     const res = await fetch(`${BASE}/api/CorporatePortal/AddPrincipalOnly`, {
