@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { callTerminateMember } from '@/lib/terminate-member';
+import { cacheBust } from '@/lib/server-cache';
 
 export const maxDuration = 300;
 
@@ -35,6 +36,7 @@ export async function GET(req: Request) {
       },
     });
     results.push({ id: item.id, cifNumber: item.cifNumber, success: result.success, error: result.error });
+    if (result.success && item.groupId) cacheBust(`members-${item.groupId}`);
   }
 
   console.log(`[process-terminations] due=${due.length} completed=${results.filter(r => r.success).length} failed=${results.filter(r => !r.success).length}`);

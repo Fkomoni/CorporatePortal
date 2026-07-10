@@ -373,6 +373,20 @@ export async function GET(req: Request) {
       ms.recentClaims = ms.recentClaims.slice(0, 10);
     }
 
+    // Claims rows are keyed by bare MembershipNo/CifNo, but members are keyed by
+    // employeeId in "MembershipNo/Suffix" form (e.g. "21000097/0") — without this,
+    // the lookup in the UI always misses and Utilization/Claim History show empty
+    // even when claims exist. Mirror both directions so either form resolves.
+    for (const [key, ms] of Object.entries({ ...memberStatsMap })) {
+      if (key.includes('/')) {
+        const prefix = key.split('/')[0];
+        if (prefix && !memberStatsMap[prefix]) memberStatsMap[prefix] = ms;
+      } else {
+        const withSuffix = `${key}/0`;
+        if (!memberStatsMap[withSuffix]) memberStatsMap[withSuffix] = ms;
+      }
+    }
+
     // ── Map member rows to Member objects ─────────────────────────────────
     // GetGroupPremium is the primary source — it has the confirmed field names
     // (Member_EnrolleeID, Member_CustomerName, Member_Relationship, etc.)

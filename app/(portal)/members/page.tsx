@@ -1434,6 +1434,94 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   );
 }
 
+/* ── E-Card ──────────────────────────────────────────────────────────── */
+function ECardModal({ member, enroleeId, avatarPreview, schemeName, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; onClose: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+      onClick={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }} onClick={(e) => e.stopPropagation()}>
+        <div className="ecard-print-area" style={{
+          width: 380, height: 240, borderRadius: 18, background: '#fff',
+          border: '5px solid #F56B22', boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
+          position: 'relative', overflow: 'hidden', padding: '16px 18px', boxSizing: 'border-box',
+        }}>
+          {/* Fingerprint watermark */}
+          <svg width="140" height="140" viewBox="0 0 100 100" style={{ position: 'absolute', right: -10, bottom: -14, opacity: 0.5 }}>
+            <g fill="none" stroke="#FBD5B5" strokeWidth="2.2">
+              <ellipse cx="50" cy="52" rx="10" ry="16" />
+              <ellipse cx="50" cy="52" rx="16" ry="24" />
+              <ellipse cx="50" cy="52" rx="22" ry="32" />
+              <ellipse cx="50" cy="52" rx="28" ry="40" />
+              <path d="M 30 20 Q 50 10 70 20" />
+              <path d="M 25 30 Q 50 18 75 30" />
+            </g>
+          </svg>
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/leadway-logo.jpeg" alt="Leadway Health" style={{ height: 26, objectFit: 'contain' }} />
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 13, fontWeight: 900, color: '#131C4E', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15 }}>
+                {member.firstName} {member.lastName}
+              </p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', marginTop: 2 }}>{member.type}</p>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div style={{ display: 'flex', gap: 14, marginTop: 14, position: 'relative', zIndex: 1 }}>
+            <div>
+              <div style={{ width: 76, height: 90, borderRadius: 10, overflow: 'hidden', border: '2px solid #E5E7F1', background: '#F7F8FC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {avatarPreview
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={avatarPreview} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <Users style={{ width: 28, height: 28, color: '#C4C9D9' }} />}
+              </div>
+              <div style={{ marginTop: 6, background: 'linear-gradient(135deg,#EC4899,#DB2777)', borderRadius: 6, padding: '3px 6px', textAlign: 'center' }}>
+                <p style={{ fontSize: 8, fontWeight: 700, color: '#fff', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{schemeName}</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+              <div>
+                <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Member No.</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E', fontFamily: 'monospace' }}>{enroleeId}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plan Type</p>
+                <p style={{ fontSize: 12.5, fontWeight: 700, color: '#131C4E' }}>{member.plan}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheme Type</p>
+                <p style={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>{schemeName}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose}
+            style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 12, background: 'rgba(255,255,255,0.12)', cursor: 'pointer' }}>
+            Close
+          </button>
+          <button onClick={() => window.print()}
+            style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#131C4E', border: 'none', borderRadius: 12, background: '#fff', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+            Print / Save as PDF
+          </button>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          .ecard-print-area, .ecard-print-area * { visibility: visible; }
+          .ecard-print-area { position: fixed !important; top: 50%; left: 50%; transform: translate(-50%,-50%); box-shadow: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
 function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats, maxFamilySize, schemes }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[] }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
@@ -1450,6 +1538,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [termReason, setTermReason]         = useState('');
   const [terminating, setTerminating]       = useState(false);
   const [termError, setTermError]           = useState('');
+  const [showECard, setShowECard]           = useState(false);
   const [showEdit, setShowEdit]             = useState(false);
   const [editSexId, setEditSexId]           = useState('');
   const [editDob, setEditDob]               = useState('');
@@ -2046,7 +2135,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               Edit Member
             </button>
             <button
-              onClick={() => toast("E-Card sent to member's email.")}
+              onClick={() => setShowECard(true)}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <CreditCard style={{ width: 14, height: 14 }} /> E-Card
             </button>
@@ -2224,6 +2313,17 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               </button>
             </div>
           </div>
+        )}
+
+        {/* ── E-Card modal ── */}
+        {showECard && (
+          <ECardModal
+            member={member}
+            enroleeId={enroleeId}
+            avatarPreview={avatarPreview}
+            schemeName={memberScheme?.schemeName ?? member.plan}
+            onClose={() => setShowECard(false)}
+          />
         )}
 
         {/* ── Add Dependent bottom sheet ── */}

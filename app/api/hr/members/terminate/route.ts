@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { isAdminRole } from '@/lib/roles';
 import { callTerminateMember } from '@/lib/terminate-member';
+import { cacheBust } from '@/lib/server-cache';
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
 
   void logAudit({ session, action: 'TERMINATE_MEMBER', resource: 'members', request: req,
     details: { cifNumber, effectiveDate, memberName } });
+
+  if (groupId) cacheBust(`members-${groupId}`);
 
   return NextResponse.json({ success: true, scheduled: false, message: result.message });
 }
