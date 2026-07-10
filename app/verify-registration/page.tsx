@@ -42,8 +42,10 @@ function VerifyForm() {
     e.target.style.boxShadow   = 'none';
   };
 
-  // ── Step 1: collect password ──────────────────────────────────────────────
-  function handleSetPassword(e: React.FormEvent) {
+  // ── Step 1: collect password, then request the OTP now that the user is
+  // actually ready to use it (rather than it being sent automatically with
+  // the welcome email, which risks expiring before they get here) ──────────
+  async function handleSetPassword(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!email.trim())                    { setError('Email address is required.'); return; }
@@ -53,7 +55,25 @@ function VerifyForm() {
     if (!/[a-z]/.test(password))         { setError('Password must include at least one lowercase letter (a–z).'); return; }
     if (!/[0-9]/.test(password))         { setError('Password must include at least one number (0–9).'); return; }
     if (!/[^A-Za-z0-9]/.test(password)) { setError('Password must include at least one special character.'); return; }
-    setStage('otp');
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/hr/request-registration-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, policyNumber: urlPolicyNumber, companyName: urlCompanyName, name: urlName || email }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? 'Failed to send OTP. Please try again.');
+        return;
+      }
+      setStage('otp');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   // ── Step 2: submit OTP + password ────────────────────────────────────────
@@ -270,9 +290,9 @@ function VerifyForm() {
                   <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{error}</div>
                 )}
 
-                <button type="submit" disabled={!email || !password || !confirm || password !== confirm}
-                  style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (!email || !password || !confirm || password !== confirm) ? 0.55 : 1, marginTop: 4 }}>
-                  Continue to Verification →
+                <button type="submit" disabled={loading || !email || !password || !confirm || password !== confirm}
+                  style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !email || !password || !confirm || password !== confirm) ? 0.55 : 1, marginTop: 4 }}>
+                  {loading ? 'Sending code…' : 'Continue to Verification →'}
                 </button>
               </form>
 
