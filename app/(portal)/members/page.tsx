@@ -1496,6 +1496,16 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
   const [bioStaffId, setBioStaffId]         = useState<string | null>(member.staffId || null);
   const [bioEmail, setBioEmail]             = useState<string | null>(member.email || null);
+  // Authoritative schemeId straight from Prognosis — GetGroupPremium rarely
+  // carries one, so name-matching against local `schemes` can still miss.
+  const [profileSchemeId, setProfileSchemeId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!member.employeeId) return;
+    fetch(`/api/hr/members/enrollee-profile?enrolleeId=${encodeURIComponent(member.employeeId)}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.schemeId) setProfileSchemeId(d.schemeId); })
+      .catch(() => { /* fall back to local resolution */ });
+  }, [member.employeeId]);
   useEffect(() => {
     if (!member.employeeId) return;
     fetch(`/api/hr/members/biodata?enrolleeid=${encodeURIComponent(member.employeeId)}`)
@@ -1580,11 +1590,13 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   // Use the member's own scheme family size if available, otherwise fall back to prop.
   // schemeId matching alone often misses since GetGroupPremium rarely returns it —
   // fall back to matching by scheme name (mirrors the Add Member modal's resolveScheme).
-  const memberScheme = resolveMemberScheme(member, schemes);
+  const memberScheme = (profileSchemeId && schemes.find((s) => s.schemeId === profileSchemeId)) || resolveMemberScheme(member, schemes);
   const memberMaxFamily = memberScheme?.maxFamilySize ?? maxFamilySize;
   const remainingSlots = Math.max(0, memberMaxFamily - 1 - depCount);
-  // Resolved schemeId for API calls — member.id is NOT the schemeId
-  const resolvedSchemeId = member.schemeId ?? memberScheme?.schemeId ?? '';
+  // Resolved schemeId for API calls — member.id is NOT the schemeId.
+  // Prefer the value fetched straight from Prognosis (profileSchemeId);
+  // fall back to local schemeId/name-matching if that fetch hasn't landed yet.
+  const resolvedSchemeId = profileSchemeId || member.schemeId || memberScheme?.schemeId || '';
 
   async function handleDepSubmit() {
     if (depSubmitting) return;
