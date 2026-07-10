@@ -1033,12 +1033,14 @@ export default function AdministrationPage() {
 
                     {twoFaSetup === 'sms-number' && (
                       <div style={{ padding: '20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                           <button onClick={() => setTwoFaSetup('choose')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>← Back</button>
                           <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2 · Phone Number</p>
                         </div>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Enter the mobile number to receive your code</p>
+                        <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 14 }}>We'll text a one-time verification code to this number.</p>
                         <label style={labelStyle}>Mobile Number</label>
-                        <input value={twoFaMobile} onChange={(e) => setTwoFaMobile(e.target.value)} placeholder="+234 …" style={{ ...inputStyle, marginBottom: 14 }}
+                        <input autoFocus value={twoFaMobile} onChange={(e) => setTwoFaMobile(e.target.value)} placeholder="+234 …" style={{ ...inputStyle, marginBottom: 14 }}
                           onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                           onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                         <button onClick={async () => {
