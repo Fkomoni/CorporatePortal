@@ -17,9 +17,9 @@ export async function GET() {
   }
   const user = await prisma.user.findUnique({
     where: { email: session.user.email ?? '' },
-    select: { twoFaEnabled: true },
+    select: { twoFaEnabled: true, twoFaMethod: true, mobile: true },
   });
-  return NextResponse.json({ enabled: user?.twoFaEnabled ?? false });
+  return NextResponse.json({ enabled: user?.twoFaEnabled ?? false, method: user?.twoFaMethod ?? 'email', mobile: user?.mobile ?? '' });
 }
 
 export async function POST(req: Request) {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { action?: string; code?: string; password?: string };
+  let body: { action?: string; code?: string; password?: string; method?: string; mobile?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -38,8 +38,19 @@ export async function POST(req: Request) {
 
   switch (body.action) {
     case 'setup': {
-      const sent = await issueLoginOtp(user);
-      if (!sent) return NextResponse.json({ error: 'Could not send the verification code. Please try again.' }, { status: 502 });
+      const method = body.method === 'sms' ? 'sms' : 'email';
+      let mobile = user.mobile;
+
+      if (method === 'sms') {
+        mobile = (body.mobile ?? user.mobile ?? '').trim();
+        if (!mobile) return NextResponse.json({ error: 'A phone number is required for SMS verification.' }, { status: 400 });
+        if (mobile !== user.mobile) {
+          await prisma.user.update({ where: { id: user.id }, data: { mobile } });
+        }
+      }
+
+      const sent = await issueLoginOtp({ ...user, mobile }, method);
+      if (!sent) return NextResponse.json({ error: `Could not send the verification code${method === 'sms' ? ' by SMS' : ''}. Please try again.` }, { status: 502 });
       return NextResponse.json({ sent: true });
     }
 
@@ -51,8 +62,9 @@ export async function POST(req: Request) {
       if (check === 'expired') return NextResponse.json({ error: 'Code expired. Request a new one.' }, { status: 400 });
       if (check !== 'ok')      return NextResponse.json({ error: 'Incorrect code. Please try again.' }, { status: 400 });
 
-      await prisma.user.update({ where: { id: user.id }, data: { twoFaEnabled: true } });
-      void logAudit({ session, action: 'ENABLE_2FA', resource: 'account', request: req });
+      const method = body.method === 'sms' ? 'sms' : 'email';
+      await prisma.user.update({ where: { id: user.id }, data: { twoFaEnabled: true, twoFaMethod: method } });
+      void logAudit({ session, action: 'ENABLE_2FA', resource: 'account', request: req, details: { method } });
       return NextResponse.json({ enabled: true });
     }
 

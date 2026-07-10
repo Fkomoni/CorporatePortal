@@ -282,8 +282,9 @@ export default function AdministrationPage() {
 
   // 2FA state — twoFaActive mirrors the persisted server-side setting
   const [twoFaEnabled, setTwoFaEnabled] = useState(false); // wizard open
-  const [twoFaSetup, setTwoFaSetup]     = useState<'choose' | 'scan'>('choose');
+  const [twoFaSetup, setTwoFaSetup]     = useState<'choose' | 'sms-number' | 'scan'>('choose');
   const [twoFaMethod, setTwoFaMethod]   = useState<'email' | 'sms'>('email');
+  const [twoFaMobile, setTwoFaMobile]   = useState('');
   const [twoFaCode, setTwoFaCode]       = useState('');
   const [twoFaActive, setTwoFaActive]   = useState(false);
   const [twoFaError, setTwoFaError]     = useState('');
@@ -294,15 +295,17 @@ export default function AdministrationPage() {
   useEffect(() => {
     fetch('/api/hr/2fa').then((r) => r.json()).then((d) => {
       if (typeof d.enabled === 'boolean') setTwoFaActive(d.enabled);
+      if (d.method === 'sms' || d.method === 'email') setTwoFaMethod(d.method);
+      if (d.mobile) setTwoFaMobile(d.mobile);
     }).catch(() => {});
   }, []);
 
-  async function start2FaSetup() {
+  async function start2FaSetup(method: 'email' | 'sms' = twoFaMethod, mobile?: string) {
     setTwoFaError(''); setTwoFaBusy(true);
     try {
       const res = await fetch('/api/hr/2fa', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'setup' }),
+        body: JSON.stringify({ action: 'setup', method, mobile }),
       });
       const json = await res.json();
       if (!res.ok) { setTwoFaError(json.error ?? 'Could not send the code.'); return false; }
@@ -316,7 +319,7 @@ export default function AdministrationPage() {
     try {
       const res = await fetch('/api/hr/2fa', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify', code: twoFaCode }),
+        body: JSON.stringify({ action: 'verify', code: twoFaCode, method: twoFaMethod }),
       });
       const json = await res.json();
       if (!res.ok) { setTwoFaError(json.error ?? 'Incorrect code.'); return; }
@@ -1003,14 +1006,13 @@ export default function AdministrationPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {([
                             { key: 'email' as const, Icon: Mail,  label: 'Email',            desc: `Send a one-time code to ${profile.email || 'your email'}` },
-                            { key: 'sms'   as const, Icon: Phone, label: 'SMS Text Message', desc: 'Receive a one-time code on your registered phone' },
+                            { key: 'sms'   as const, Icon: Phone, label: 'SMS Text Message', desc: twoFaMobile ? `Send a one-time code to ${twoFaMobile}` : 'Receive a one-time code on your phone' },
                           ]).map(({ key, Icon, label, desc }) => (
-                            <button key={key} disabled={key === 'sms' || twoFaBusy}
-                              title={key === 'sms' ? 'SMS verification is coming soon' : undefined}
+                            <button key={key} disabled={twoFaBusy}
                               onClick={async () => {
-                                if (key !== 'email') return;
                                 setTwoFaMethod(key);
-                                const ok = await start2FaSetup();
+                                if (key === 'sms') { setTwoFaSetup('sms-number'); return; }
+                                const ok = await start2FaSetup('email');
                                 if (ok) setTwoFaSetup('scan');
                               }}
                               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${twoFaMethod === key ? '#F56B22' : '#E5E7F1'}`, background: twoFaMethod === key ? '#FFF5EF' : '#fff', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
@@ -1029,16 +1031,39 @@ export default function AdministrationPage() {
                       </div>
                     )}
 
-                    {twoFaSetup === 'scan' && (
+                    {twoFaSetup === 'sms-number' && (
                       <div style={{ padding: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                           <button onClick={() => setTwoFaSetup('choose')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>← Back</button>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2 · Phone Number</p>
+                        </div>
+                        <label style={labelStyle}>Mobile Number</label>
+                        <input value={twoFaMobile} onChange={(e) => setTwoFaMobile(e.target.value)} placeholder="+234 …" style={{ ...inputStyle, marginBottom: 14 }}
+                          onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
+                        <button onClick={async () => {
+                            if (!twoFaMobile.trim() || twoFaBusy) return;
+                            const ok = await start2FaSetup('sms', twoFaMobile.trim());
+                            if (ok) setTwoFaSetup('scan');
+                          }}
+                          disabled={!twoFaMobile.trim() || twoFaBusy}
+                          style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaMobile.trim() && !twoFaBusy ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaMobile.trim() && !twoFaBusy ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaMobile.trim() && !twoFaBusy ? 'pointer' : 'not-allowed' }}>
+                          {twoFaBusy ? 'Sending…' : 'Send Code'}
+                        </button>
+                        {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
+                      </div>
+                    )}
+
+                    {twoFaSetup === 'scan' && (
+                      <div style={{ padding: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                          <button onClick={() => setTwoFaSetup(twoFaMethod === 'sms' ? 'sms-number' : 'choose')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', padding: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>← Back</button>
                           <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2 · {twoFaMethod === 'email' ? 'Verify Email' : 'Verify Phone'}</p>
                         </div>
                         <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 14 }}>
                           {twoFaMethod === 'email'
                             ? <>A verification code has been sent to <strong>{profile.email || 'your email'}</strong>. Enter it below.</>
-                            : <>A verification code will be sent to <strong>{profile.phone || 'your phone'}</strong>. Enter it below.</>}
+                            : <>A verification code has been sent to <strong>{twoFaMobile || 'your phone'}</strong>. Enter it below.</>}
                         </p>
                         <label style={labelStyle}>6-digit code</label>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -1052,7 +1077,7 @@ export default function AdministrationPage() {
                           </button>
                         </div>
                         {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
-                        <button onClick={() => { if (!twoFaBusy) start2FaSetup(); }} disabled={twoFaBusy}
+                        <button onClick={() => { if (!twoFaBusy) start2FaSetup(twoFaMethod, twoFaMobile); }} disabled={twoFaBusy}
                           style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: twoFaBusy ? 'wait' : 'pointer', padding: 0 }}>
                           {twoFaBusy ? 'Sending…' : 'Resend Code'}
                         </button>
