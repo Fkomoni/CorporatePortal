@@ -94,7 +94,7 @@ export default function PendingEnroleesPage() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Pending Enrolees" subtitle="App self-registrations awaiting your review" />
+      <TopBar title="Pending Enrolees" subtitle="Beneficiaries enrolment awaiting your approval" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Filters */}

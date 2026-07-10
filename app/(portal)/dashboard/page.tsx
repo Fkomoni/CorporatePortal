@@ -138,7 +138,7 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch('/api/hr/members/pending')
       .then((r) => r.json())
-      .then((d) => { if (typeof d.totalGroups === 'number') setPendingEnrolmentCount(d.totalGroups); })
+      .then((d) => { if (typeof d.totalRows === 'number') setPendingEnrolmentCount(d.totalRows); })
       .catch(() => {});
   }, []);
 
@@ -223,8 +223,8 @@ export default function DashboardPage() {
                 title: pendingEnrolmentCount === null
                   ? 'Checking for pending enrolments…'
                   : pendingEnrolmentCount === 0
-                    ? 'No Employees Awaiting Enrolment'
-                    : `${pendingEnrolmentCount} Employee${pendingEnrolmentCount === 1 ? '' : 's'} Awaiting Enrolment`,
+                    ? 'No Beneficiaries Awaiting Approval'
+                    : `${pendingEnrolmentCount} Beneficiar${pendingEnrolmentCount === 1 ? 'y' : 'ies'} Enrolment Awaiting Approval`,
                 action: 'Review →', actionColor: '#EF4444', onClick: () => router.push('/pending-enrolees'),
               },
               { Icon: Receipt,   border: '#10B981', urgency: 'Due soon', title: 'Invoice Due In 7 Days — ₦10.5M',  action: 'View Invoice →', actionColor: '#10B981' },
