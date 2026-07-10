@@ -209,6 +209,10 @@ export async function sendCorporateWelcome(p: WelcomeParams): Promise<WelcomeRes
       console.error('[corporate-welcome] DB pre-registration failed (non-fatal):', dbErr);
     }
 
+    // The OTP itself is deliberately NOT sent here — it's requested on-demand
+    // via /api/hr/request-registration-otp once the user actually reaches the
+    // OTP step, so its expiry window starts when they're ready to use it
+    // rather than the moment this welcome email goes out.
     if (!otp) return { success: true, emailSent: false, registrationLink, error: 'No OTP returned — email not sent' };
 
     const emailBody = `
@@ -263,9 +267,6 @@ ${emailFooter()}
     } catch (e) {
       emailError = e instanceof Error ? e.message : 'Email send failed';
     }
-
-    // Deliver the OTP separately (own email + SMS) — never inside the link email
-    await sendOtpDelivery(token, { email: p.email, mobile: p.mobile, otp: String(otp), companyName: p.companyName });
 
     return { success: true, emailSent, registrationLink, error: emailError };
   } catch (err) {
