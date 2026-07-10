@@ -15,7 +15,10 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 
-export async function issueLoginOtp(user: { id: string; email: string; name?: string | null }): Promise<boolean> {
+export async function issueLoginOtp(
+  user: { id: string; email: string; name?: string | null; mobile?: string | null },
+  method: 'email' | 'sms' = 'email',
+): Promise<boolean> {
   const code = crypto.randomInt(100000, 1000000).toString();
 
   await prisma.user.update({
@@ -26,6 +29,32 @@ export async function issueLoginOtp(user: { id: string; email: string; name?: st
       loginOtpAttempts: 0,
     },
   });
+
+  if (method === 'sms') {
+    if (!user.mobile) return false;
+    try {
+      const token = await getServiceToken();
+      const res = await fetch(`${BASE}/api/Sms/SendSms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          To: user.mobile,
+          Message: `Leadway Health Corporate Portal: your login verification code is ${code}. It expires in 10 minutes. Never share this code.`,
+          Source: 'Corporate Portal',
+          SourceId: 1,
+          TemplateId: 5,
+          PolicyNumber: '',
+          ReferenceNo: '',
+          UserId: 0,
+        }),
+      });
+      console.log(`[login-otp] OTP SMS to ${user.mobile} → HTTP ${res.status}`);
+      return res.ok;
+    } catch (e) {
+      console.error('[login-otp] SMS send failed:', e);
+      return false;
+    }
+  }
 
   const emailBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">

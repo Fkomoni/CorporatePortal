@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ twoFaRequired: false });
   }
 
-  const sent = await issueLoginOtp(user);
-  return NextResponse.json({ twoFaRequired: true, otpSent: sent });
+  const method = user.twoFaMethod === 'sms' ? 'sms' : 'email';
+  const sent = await issueLoginOtp(user, method);
+  return NextResponse.json({ twoFaRequired: true, otpSent: sent, method });
 }
