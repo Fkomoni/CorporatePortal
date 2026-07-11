@@ -33,6 +33,45 @@ export async function getServiceToken(): Promise<string> {
   return token;
 }
 
+function toRows(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    for (const key of ['data', 'Data', 'result', 'Result']) {
+      if (Array.isArray(r[key])) return r[key] as Record<string, unknown>[];
+    }
+  }
+  return [];
+}
+
+// Prognosis's Company_Email1 (via GetAllPolicies) is the single source of
+// truth for which email is currently authorised as a group's HR contact —
+// our own OTP/password logic never decides this, only Prognosis does.
+// groupId, when known, scopes the check to that specific group; otherwise
+// any active policy with a matching Company_Email1 is accepted.
+export async function isEmailAuthorizedForGroup(email: string, groupId?: string | null): Promise<boolean> {
+  const wanted = email.trim().toLowerCase();
+  if (!wanted) return false;
+  try {
+    const token = await getServiceToken();
+    const res = await fetch(`${BASE}/api/CorporateProfile/GetAllPolicies`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    if (!res.ok) return false;
+    const raw = await res.json().catch(() => null);
+    const rows = toRows(raw);
+    return rows.some((r) => {
+      const rowGroupId = String(r['GROUP_ID'] ?? r['GroupID'] ?? r['id'] ?? '');
+      if (groupId && rowGroupId !== String(groupId)) return false;
+      const rowEmail = String(r['Company_Email1'] ?? r['AdminEmail'] ?? r['ContactEmail'] ?? r['Email'] ?? '').trim().toLowerCase();
+      return rowEmail === wanted;
+    });
+  } catch (e) {
+    console.error('[corporate-welcome] isEmailAuthorizedForGroup failed:', e);
+    return false;
+  }
+}
+
 // Delivers the OTP to the HR contact in its own email and SMS — kept separate
 // from the registration-link email so the link alone can't complete signup.
 export async function sendOtpDelivery(
