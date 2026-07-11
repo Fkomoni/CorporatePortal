@@ -156,6 +156,17 @@ export async function GET(req: Request) {
               welcomeSentAt: r.emailSent ? new Date() : state.welcomeSentAt, lastSyncedAt: new Date(),
             },
           });
+          // The old email's login account must stop working once the HR
+          // contact changes — otherwise the previous person keeps access
+          // indefinitely alongside the newly invited one.
+          try {
+            await prisma.user.updateMany({
+              where: { email: prevEmail, companyId: p.groupId },
+              data: { active: false },
+            });
+          } catch (e) {
+            console.error(`[sync-corporates] Failed to deactivate old email ${prevEmail} for group ${p.groupId}:`, e);
+          }
         }
         results.emailChanges.push(entry);
         continue;

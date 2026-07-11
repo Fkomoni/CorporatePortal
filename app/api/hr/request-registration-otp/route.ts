@@ -55,7 +55,19 @@ export async function POST(req: Request) {
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
-    if (!otp) return NextResponse.json({ error: 'No OTP returned from Prognosis' }, { status: 502 });
+    if (!otp) {
+      // Surface whatever message Prognosis actually sent instead of a generic
+      // error, and log the full response — this call can legitimately fail
+      // differently (e.g. "already registered") than a hard error, and the
+      // previous blanket message gave no way to tell those apart.
+      const prognosisMessage = d?.message ?? d?.Message ?? d?.ErrorMessage ?? d?.status ?? null;
+      console.error(`[request-registration-otp] No OTP in ClientUserRegistration response for ${email}:`, JSON.stringify(d).slice(0, 500));
+      return NextResponse.json({
+        error: prognosisMessage
+          ? `Prognosis did not return a code: ${prognosisMessage}`
+          : 'No OTP returned from Prognosis',
+      }, { status: 502 });
+    }
 
     const { otpEmailSent } = await sendOtpDelivery(token, {
       email, mobile: body.mobile, otp: String(otp), companyName,
