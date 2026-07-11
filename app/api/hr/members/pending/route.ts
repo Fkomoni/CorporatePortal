@@ -50,6 +50,16 @@ function extractDate(row: Record<string, unknown>): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Normalises Prognosis's free-text Memberstatus into one of our three states —
+// mirrors mapStatus() in app/api/hr/members/route.ts. Only "Pending" members
+// actually require HR approval; "Active" dependants already went through.
+function classifyStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
+  const s = raw.toLowerCase();
+  if (s.includes('active') || s === '1' || s === 'true') return 'Active';
+  if (s.includes('terminat') || s.includes('cancel') || s.includes('inactive') || s.includes('deleted')) return 'Terminated';
+  return 'Pending';
+}
+
 // Prognosis DOB comes back as "14-Dec-1974" — parseable by Date, but guard
 // against odd formats before computing age from it.
 function computeAge(dobRaw: string): number | null {
@@ -177,7 +187,7 @@ export async function GET(req: Request) {
         mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber'),
         employeeCode: str(row, 'EmployeeCode', 'Employee_Code', 'employeecode'),
         schemeName: str(row, 'Scheme', 'SchemeName', 'Scheme_Name'),
-        status: str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus') || 'Pending',
+        status: classifyStatus(str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus')),
         terminationDate: str(row, 'Termdate', 'TermDate', 'Term_Date'),
         registrationDate: null,
         _date: extractDate(row),
@@ -199,14 +209,35 @@ export async function GET(req: Request) {
       return true;
     });
 
-    // Group by parentCif — a family's principal + dependants are reviewed as one unit
-    const groups = new Map<string, PendingGroup>();
+    // Header details (staff name, scheme, contact info) come from ANY row in the
+    // family — the principal is usually Active by the time a dependant is added,
+    // so we still need their name even though they won't appear in the approval list.
+    const headerByParentCif = new Map<string, { principalName: string; employeeCode: string; schemeName: string; email: string; mobile: string }>();
     for (const r of filtered) {
       if (!r.parentCif) continue;
+      const h = headerByParentCif.get(r.parentCif) ?? { principalName: '', employeeCode: '', schemeName: '', email: '', mobile: '' };
+      if (r.isPrincipal || !h.principalName) {
+        h.principalName = r.fullName || h.principalName;
+        h.employeeCode = r.employeeCode || h.employeeCode;
+        h.schemeName = r.schemeName || h.schemeName;
+        h.email = r.email || h.email;
+        h.mobile = r.mobile || h.mobile;
+      }
+      headerByParentCif.set(r.parentCif, h);
+    }
+
+    // Only dependants genuinely awaiting approval (status = Pending) belong in
+    // the review list/count — principals and already-Active dependants don't.
+    const pendingBeneficiaries = filtered.filter((r) => !r.isPrincipal && r.status === 'Pending');
+
+    const groups = new Map<string, PendingGroup>();
+    for (const r of pendingBeneficiaries) {
+      if (!r.parentCif) continue;
       if (!groups.has(r.parentCif)) {
+        const h = headerByParentCif.get(r.parentCif);
         groups.set(r.parentCif, {
-          parentCif: r.parentCif, principalName: '', employeeCode: '', schemeName: '',
-          email: '', mobile: '', registrationDate: null, memberCount: 0, members: [],
+          parentCif: r.parentCif, principalName: h?.principalName ?? '', employeeCode: h?.employeeCode ?? '', schemeName: h?.schemeName ?? '',
+          email: h?.email ?? '', mobile: h?.mobile ?? '', registrationDate: null, memberCount: 0, members: [],
         });
       }
       const g = groups.get(r.parentCif)!;
@@ -214,14 +245,6 @@ export async function GET(req: Request) {
       void _date;
       g.members.push(member);
       g.memberCount++;
-      // Prefer the principal's own row for header details; fall back to the first member seen
-      if (r.isPrincipal || !g.principalName) {
-        g.principalName = r.fullName || g.principalName;
-        g.employeeCode = r.employeeCode || g.employeeCode;
-        g.schemeName = r.schemeName || g.schemeName;
-        g.email = r.email || g.email;
-        g.mobile = r.mobile || g.mobile;
-      }
       if (!g.registrationDate || (r.registrationDate && r.registrationDate < g.registrationDate)) {
         g.registrationDate = r.registrationDate ?? g.registrationDate;
       }
@@ -229,12 +252,7 @@ export async function GET(req: Request) {
 
     const groupList = [...groups.values()].sort((a, b) => (b.registrationDate ?? '').localeCompare(a.registrationDate ?? ''));
 
-    // totalRows includes principals (every member on the group's roster) — the
-    // dashboard's "awaiting approval" count should only reflect beneficiaries
-    // (dependants), which is what actually needs HR review here.
-    const totalBeneficiaries = filtered.filter((r) => !r.isPrincipal).length;
-
-    return NextResponse.json({ groups: groupList, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries });
+    return NextResponse.json({ groups: groupList, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
   } catch (err) {
     console.error('[hr/members/pending] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch pending enrolees' }, { status: 500 });
