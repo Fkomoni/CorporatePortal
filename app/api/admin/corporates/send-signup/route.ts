@@ -2,7 +2,6 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-import { sendOtpDelivery } from '@/lib/corporate-welcome';
 import { emailFooter } from '@/lib/email-footer';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -123,14 +122,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const otp =
-      d?.otp ?? d?.OTP ?? d?.verificationCode ?? d?.VerificationCode ??
-      d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
-      d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
-
-    // Build registration link with scheme identifiers — the OTP is deliberately
-    // NOT embedded so the link alone can't complete registration (true 2FA:
-    // the code must be typed from the separate OTP message).
+    // Build registration link with scheme identifiers — the OTP is requested
+    // separately later (see comment below) so it can't be embedded in the link.
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
     const registrationLink = `${appBase}/verify-registration?email=${encodeURIComponent(email)}&groupId=${encodeURIComponent(groupId ?? '')}&company=${encodeURIComponent(companyName ?? '')}&name=${encodeURIComponent(`${firstname ?? ''} ${surname ?? ''}`.trim())}`;
 
@@ -182,12 +175,18 @@ export async function POST(req: Request) {
       }
     }
 
-    // Send registration email via Prognosis SendEmailAlert
+    // Send registration email via Prognosis SendEmailAlert. The OTP itself is
+    // deliberately NOT sent here — it's requested on-demand via
+    // /api/hr/request-registration-otp once the user reaches that step, so:
+    //   (a) its 10-minute expiry starts when they're ready to use it, and
+    //   (b) ClientUserRegistration is only invoked once per registration
+    //       attempt instead of twice, which some Prognosis responses appear
+    //       to only issue a fresh code for on the first call.
     let emailSent = false;
     let emailError: string | null = null;
     let emailResponse: unknown = null;
 
-    if (otp) {
+    {
       const emailBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
@@ -241,22 +240,10 @@ ${emailFooter()}
       }
     }
 
-    // Deliver the OTP separately (own email + SMS) — never inside the link email
-    let otpDelivery: { otpEmailSent: boolean; otpSmsSent: boolean } | null = null;
-    if (otp) {
-      otpDelivery = await sendOtpDelivery(token, { email, mobile, otp: String(otp), companyName: companyName ?? '' });
-    }
-
     void logAudit({ session, action: 'SEND_SIGNUP_EMAIL', resource: 'corporates', request: req,
-      details: { PolicyNumber: body.PolicyNumber, email: body.email, emailSent, otpEmailSent: otpDelivery?.otpEmailSent, otpSmsSent: otpDelivery?.otpSmsSent } });
+      details: { PolicyNumber: body.PolicyNumber, email: body.email, emailSent } });
 
-    // Never return the raw OTP (or the Prognosis response containing it) to the
-    // browser — the OTP must only reach the HR contact via their own channel.
-    return NextResponse.json({
-      success: true, registrationLink, emailSent, emailError,
-      otpEmailSent: otpDelivery?.otpEmailSent ?? false,
-      otpSmsSent: otpDelivery?.otpSmsSent ?? false,
-    });
+    return NextResponse.json({ success: true, registrationLink, emailSent, emailError });
   } catch (err) {
     console.error('[send-signup] Error:', err);
     return NextResponse.json(
