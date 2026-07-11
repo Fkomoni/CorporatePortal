@@ -229,7 +229,12 @@ export async function GET(req: Request) {
 
     const groupList = [...groups.values()].sort((a, b) => (b.registrationDate ?? '').localeCompare(a.registrationDate ?? ''));
 
-    return NextResponse.json({ groups: groupList, totalRows: rows.length, totalGroups: groupList.length });
+    // totalRows includes principals (every member on the group's roster) — the
+    // dashboard's "awaiting approval" count should only reflect beneficiaries
+    // (dependants), which is what actually needs HR review here.
+    const totalBeneficiaries = filtered.filter((r) => !r.isPrincipal).length;
+
+    return NextResponse.json({ groups: groupList, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries });
   } catch (err) {
     console.error('[hr/members/pending] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch pending enrolees' }, { status: 500 });
