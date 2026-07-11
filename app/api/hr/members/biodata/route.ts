@@ -91,8 +91,24 @@ export async function GET(req: Request) {
     const genotype = s(row, 'genotype', 'Genotype');
     const hospital = s(row, 'Hospital', 'PreferredHospital', 'FacilityName');
     const dob = s(row, 'DateOfBirth', 'DOB', 'Member_DateOfBirth', 'BirthDate', 'Date_Of_Birth');
-    const photo = s(row, 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
+    let photo = s(row, 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
+    let photoKey = photo ? 'known-alias' : '';
+    // Fallback: Prognosis's actual field name for the photo isn't confirmed —
+    // scan every key for one that looks like a base64 image (long, base64-charset,
+    // and named like a picture/photo/image field) instead of guessing further.
+    if (!photo) {
+      for (const [key, value] of Object.entries(row)) {
+        if (typeof value !== 'string' || value.length < 200) continue;
+        if (!/pic|photo|image|img/i.test(key)) continue;
+        const sample = value.replace(/\s+/g, '');
+        if (!/^[A-Za-z0-9+/]+=*$/.test(sample.slice(0, 500))) continue;
+        photo = sample;
+        photoKey = key;
+        break;
+      }
+    }
     const photoType = s(row, 'EnrolleePictureType', 'EnrolleepictureType', 'PictureType', 'PhotoType', 'ImageType') || 'image/jpeg';
+    console.log(`[hr/members/biodata] ${enrolleeId} photo resolved via "${photoKey || 'none'}" (${photo ? photo.length : 0} chars). Row keys: ${Object.keys(row).join(', ')}`);
 
     return NextResponse.json({
       enrolleeId,
