@@ -138,7 +138,7 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch('/api/hr/members/pending')
       .then((r) => r.json())
-      .then((d) => { if (typeof d.totalRows === 'number') setPendingEnrolmentCount(d.totalRows); })
+      .then((d) => { if (typeof d.totalBeneficiaries === 'number') setPendingEnrolmentCount(d.totalBeneficiaries); })
       .catch(() => {});
   }, []);
 
