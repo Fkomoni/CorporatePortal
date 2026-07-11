@@ -18,6 +18,7 @@ interface BeneficiaryRow {
   sex: string;
   status: string;
   email: string;
+  schemeName: string;
 }
 
 function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
@@ -37,6 +38,7 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
         sex: m.sex || '—',
         status: m.status,
         email: g.email,
+        schemeName: m.schemeName || g.schemeName || '—',
       });
     }
   }
@@ -250,14 +252,14 @@ export default function PendingEnroleesPage() {
 
             {/* Table */}
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 1.2fr 0.9fr 0.5fr 0.9fr 0.9fr 0.6fr 1fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '36px 1.1fr 1.1fr 0.8fr 0.45fr 0.85fr 0.9fr 0.55fr 0.9fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
                 <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleAll} style={{ cursor: 'pointer' }} />
                 <span>Staff Name</span>
                 <span>Beneficiary</span>
                 <span>Relationship</span>
                 <span>Age</span>
                 <span>Date Registered</span>
-                <span>Membership No</span>
+                <span>Scheme</span>
                 <span>Sex</span>
                 <span>Status</span>
                 <span>Actions</span>
@@ -267,14 +269,14 @@ export default function PendingEnroleesPage() {
                 const isBusy = busyCif === row.parentCif || busyCif === 'bulk';
                 return (
                   <div key={row.rowId}
-                    style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 1.2fr 0.9fr 0.5fr 0.9fr 0.9fr 0.6fr 1fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
+                    style={{ display: 'grid', gridTemplateColumns: '36px 1.1fr 1.1fr 0.8fr 0.45fr 0.85fr 0.9fr 0.55fr 0.9fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleRow(row.rowId)} style={{ cursor: 'pointer' }} />
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.staffName}</span>
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.beneficiaryName}</span>
                     <span>{row.relationship}</span>
                     <span>{row.age != null ? row.age : '—'}</span>
                     <span>{row.registrationDate || '—'}</span>
-                    <span>{row.membershipNo}</span>
+                    <span>{row.schemeName}</span>
                     <span>{row.sex}</span>
                     <span style={{ color: '#D97706', fontWeight: 600 }}>{row.status}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
