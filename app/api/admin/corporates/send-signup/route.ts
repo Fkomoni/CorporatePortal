@@ -159,6 +159,24 @@ export async function POST(req: Request) {
           },
         });
         console.log(`[send-signup] Pre-registered HR user: ${email} (groupId: ${groupId}, policyNumber: ${PolicyNumber})`);
+
+        // If this is a new email for an existing group's primary HR contact,
+        // deactivate the previous one — otherwise both stay valid indefinitely.
+        // Scoped to role='hr_admin' (the auto-synced contact role) so manually
+        // invited sub-users under the same company are never touched.
+        if (groupId) {
+          try {
+            const deactivated = await prisma.user.updateMany({
+              where: { companyId: String(groupId), role: 'hr_admin', email: { not: email }, active: true },
+              data: { active: false },
+            });
+            if (deactivated.count > 0) {
+              console.log(`[send-signup] Deactivated ${deactivated.count} previous HR admin login(s) for group ${groupId}`);
+            }
+          } catch (deactivateErr) {
+            console.error('[send-signup] Failed to deactivate previous HR admin login:', deactivateErr);
+          }
+        }
       } catch (dbErr) {
         console.error('[send-signup] DB pre-registration failed (non-fatal):', dbErr);
       }
