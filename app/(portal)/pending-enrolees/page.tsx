@@ -19,6 +19,7 @@ interface BeneficiaryRow {
   status: string;
   email: string;
   schemeName: string;
+  registrationSource: 'Corporate Portal' | 'Enrolee App';
 }
 
 function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
@@ -39,6 +40,7 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
         status: m.status,
         email: g.email,
         schemeName: m.schemeName || g.schemeName || '—',
+        registrationSource: m.registrationSource,
       });
     }
   }
@@ -251,8 +253,9 @@ export default function PendingEnroleesPage() {
             )}
 
             {/* Table */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '36px 1.05fr 1.05fr 0.75fr 0.4fr 0.8fr 0.85fr 0.85fr 0.5fr 0.85fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
+              <div style={{ minWidth: 1180 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
                 <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleAll} style={{ cursor: 'pointer' }} />
                 <span>Staff Name</span>
                 <span>Beneficiary</span>
@@ -260,6 +263,7 @@ export default function PendingEnroleesPage() {
                 <span>Age</span>
                 <span>Date Registered</span>
                 <span>Scheme</span>
+                <span>Reg. Source</span>
                 <span>Membership No</span>
                 <span>Sex</span>
                 <span>Status</span>
@@ -270,7 +274,7 @@ export default function PendingEnroleesPage() {
                 const isBusy = busyCif === row.parentCif || busyCif === 'bulk';
                 return (
                   <div key={row.rowId}
-                    style={{ display: 'grid', gridTemplateColumns: '36px 1.05fr 1.05fr 0.75fr 0.4fr 0.8fr 0.85fr 0.85fr 0.5fr 0.85fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
+                    style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleRow(row.rowId)} style={{ cursor: 'pointer' }} />
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.staffName}</span>
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.beneficiaryName}</span>
@@ -278,6 +282,9 @@ export default function PendingEnroleesPage() {
                     <span>{row.age != null ? row.age : '—'}</span>
                     <span>{row.registrationDate || '—'}</span>
                     <span>{row.schemeName}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20, display: 'inline-block', width: 'fit-content', color: row.registrationSource === 'Corporate Portal' ? '#2563EB' : '#7C3AED', background: row.registrationSource === 'Corporate Portal' ? '#EFF6FF' : '#F5F3FF' }}>
+                      {row.registrationSource}
+                    </span>
                     <span>{row.membershipNo}</span>
                     <span>{row.sex}</span>
                     <span style={{ color: '#D97706', fontWeight: 600 }}>{row.status}</span>
@@ -294,6 +301,7 @@ export default function PendingEnroleesPage() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </>
         )}

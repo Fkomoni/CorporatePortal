@@ -160,6 +160,19 @@ model ScheduledTermination {
   @@map("scheduled_terminations")
 }
 
+// Tracks members enrolled via an HR-issued self-service link (/enroll/[token]).
+// Prognosis's ViewMembersPerGroup doesn't expose a reliable registration-source
+// field, so we record it ourselves at submission time: any pending beneficiary
+// whose CIF isn't in this table came in through the Enrolee mobile app instead.
+model LinkRegistration {
+  id        String   @id @default(cuid())
+  cifNumber String   @unique
+  groupId   String?
+  createdAt DateTime @default(now())
+
+  @@map("link_registrations")
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { approveEnrollee } from '@/lib/approve-enrollee';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -170,9 +169,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
     let apiUrl: string;
     let apiBody: unknown;
-    // For dependants, approve under the principal's CIF (Parent_Cif); for a new
-    // principal, approve under their own CIF once it's resolved from the response.
-    let approveCif: string | number | null = null;
 
     if (isDependent || isSelfDepAdd) {
       const resolvedParentCif = isDependent ? invitation.parentCif : String(body.parentCif ?? '');
@@ -212,7 +208,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddDependentsOnly`;
       apiBody = { AddBeneficiary: [depPayload] };
-      approveCif = resolvedParentCif;
     } else {
       const payload = {
         groupid: Number(invitation.groupId) || invitation.groupId,
@@ -291,15 +286,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const suffix       = String(dataItem?.Suffix ?? dataItem?.suffix ?? r?.Suffix ?? r?.suffix ?? '0');
     const enrolleeId   = membershipNo ? `${membershipNo}/${suffix}` : '';
 
-    // Self-enrolment via an HR-issued link should not sit in Prognosis's
-    // pending queue — auto-approve immediately. Principals approve under
-    // their own resolved CIF; dependants under the principal's CIF.
-    const finalApproveCif = approveCif ?? cifNumber;
-    let autoApproved = false;
-    if (finalApproveCif) {
-      const approveResult = await approveEnrollee(finalApproveCif as string | number);
-      autoApproved = approveResult.success;
-      if (!approveResult.success) console.warn(`[enroll/token] Auto-approve failed for CIF ${finalApproveCif}:`, approveResult.error);
+    // Self-service registrations via an HR-issued link go through the same HR
+    // approval queue as Enrolee App registrations — only HR's own direct
+    // Add Member action auto-approves. Record this CIF as link-sourced so
+    // Pending Enrolees can label it "Corporate Portal" instead of "Enrolee App".
+    if (cifNumber) {
+      try {
+        await prisma.linkRegistration.upsert({
+          where: { cifNumber: String(cifNumber) },
+          create: { cifNumber: String(cifNumber), groupId: String(invitation.groupId ?? '') || null },
+          update: {},
+        });
+      } catch (e) {
+        console.warn('[enroll/token] Failed to record link registration source:', e);
+      }
     }
 
     // If Prognosis returned HTTP 200 with no error status, treat as success regardless of ID presence
@@ -309,7 +309,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       membershipNo,
       suffix,
       enrolleeId,
-      autoApproved,
+      autoApproved: false,
     });
   } catch (err) {
     console.error('[enroll/token] Error:', err);
