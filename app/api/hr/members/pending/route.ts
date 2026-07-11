@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { isAdminRole } from '@/lib/roles';
 import { getServiceToken } from '@/lib/corporate-welcome';
+import { prisma } from '@/lib/prisma';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -94,6 +95,7 @@ export interface PendingMemberRow {
   status: string;
   terminationDate: string;
   registrationDate: string | null;
+  registrationSource: 'Corporate Portal' | 'Enrolee App';
 }
 
 export interface PendingGroup {
@@ -190,6 +192,7 @@ export async function GET(req: Request) {
         status: classifyStatus(str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus')),
         terminationDate: str(row, 'Termdate', 'TermDate', 'Term_Date'),
         registrationDate: null,
+        registrationSource: 'Enrolee App' as const,
         _date: extractDate(row),
       };
     }).map((r) => ({ ...r, registrationDate: r._date ? r._date.toISOString().slice(0, 10) : null }));
@@ -230,6 +233,22 @@ export async function GET(req: Request) {
     // the review list/count — principals and already-Active dependants don't.
     const pendingBeneficiaries = filtered.filter((r) => !r.isPrincipal && r.status === 'Pending');
 
+    // Registrations submitted through an HR-issued self-service link are
+    // recorded in link_registrations at submission time; anything pending
+    // that ISN'T in there came straight from the Enrolee mobile app.
+    const linkCifSet = new Set<string>();
+    if (pendingBeneficiaries.length > 0) {
+      try {
+        const linkRows = await prisma.linkRegistration.findMany({
+          where: { cifNumber: { in: pendingBeneficiaries.map((r) => r.cifNumber) } },
+          select: { cifNumber: true },
+        });
+        for (const row of linkRows) linkCifSet.add(row.cifNumber);
+      } catch (e) {
+        console.warn('[hr/members/pending] Failed to look up link registration sources:', e);
+      }
+    }
+
     const groups = new Map<string, PendingGroup>();
     for (const r of pendingBeneficiaries) {
       if (!r.parentCif) continue;
@@ -243,7 +262,7 @@ export async function GET(req: Request) {
       const g = groups.get(r.parentCif)!;
       const { _date, ...member } = r;
       void _date;
-      g.members.push(member);
+      g.members.push({ ...member, registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App' });
       g.memberCount++;
       if (!g.registrationDate || (r.registrationDate && r.registrationDate < g.registrationDate)) {
         g.registrationDate = r.registrationDate ?? g.registrationDate;
