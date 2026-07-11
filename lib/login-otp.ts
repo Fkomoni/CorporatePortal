@@ -18,6 +18,7 @@ const OTP_TTL_MS = 10 * 60 * 1000;
 export async function issueLoginOtp(
   user: { id: string; email: string; name?: string | null; mobile?: string | null },
   method: 'email' | 'sms' = 'email',
+  purpose: 'login' | 'reset' = 'login',
 ): Promise<boolean> {
   const code = crypto.randomInt(100000, 1000000).toString();
 
@@ -30,6 +31,7 @@ export async function issueLoginOtp(
     },
   });
 
+  const smsAction = purpose === 'reset' ? 'password reset code' : 'login verification code';
   if (method === 'sms') {
     if (!user.mobile) return false;
     try {
@@ -39,7 +41,7 @@ export async function issueLoginOtp(
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           To: user.mobile,
-          Message: `Leadway Health Corporate Portal: your login verification code is ${code}. It expires in 10 minutes. Never share this code.`,
+          Message: `Leadway Health Corporate Portal: your ${smsAction} is ${code}. It expires in 10 minutes. Never share this code.`,
           Source: 'Corporate Portal',
           SourceId: 1,
           TemplateId: 5,
@@ -56,6 +58,14 @@ export async function issueLoginOtp(
     }
   }
 
+  const heading = purpose === 'reset' ? 'Your Password Reset Code' : 'Your Login Verification Code';
+  const intro = purpose === 'reset'
+    ? 'Use this code to reset your Corporate Portal password. It expires in 10 minutes.'
+    : 'Use this code to complete your sign-in to the Corporate Portal. It expires in 10 minutes.';
+  const footNote = purpose === 'reset'
+    ? "If you didn't request a password reset, you can safely ignore this email — your password will not change unless this code is used."
+    : "If you didn't try to sign in, someone may have your password — change it immediately.";
+
   const emailBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
@@ -63,13 +73,11 @@ export async function issueLoginOtp(
     <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL</p>
   </div>
   <div style="background:#fff;padding:36px 32px;border:1px solid #E5E7F1;border-top:none;">
-    <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">Your Login Verification Code</p>
-    <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 24px">
-      Use this code to complete your sign-in to the Corporate Portal. It expires in 10 minutes.
-    </p>
+    <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">${heading}</p>
+    <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 24px">${intro}</p>
     <p style="font-size:34px;font-weight:900;letter-spacing:0.25em;color:#131C4E;background:#F7F8FC;border:1px dashed #C7CBE0;border-radius:12px;padding:18px 24px;text-align:center;margin:0 0 24px">${code}</p>
     <p style="font-size:12px;color:#9CA3B8;margin:0;line-height:1.7">
-      If you didn't try to sign in, someone may have your password — change it immediately.
+      ${footNote}
       Never share this code; Leadway Health will never ask you for it.
     </p>
   </div>
@@ -85,7 +93,7 @@ ${emailFooter()}
         EmailAddress: user.email,
         CC: '',
         BCC: '',
-        Subject: 'Your Login Verification Code – Leadway Health Corporate Portal',
+        Subject: purpose === 'reset' ? 'Your Password Reset Code – Leadway Health Corporate Portal' : 'Your Login Verification Code – Leadway Health Corporate Portal',
         MessageBody: emailBody,
         Attachments: null,
         Category: '',

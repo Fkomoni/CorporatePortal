@@ -17,6 +17,73 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
   const router = useRouter();
 
+  // ── Forgot password ──────────────────────────────────────────────────────
+  const [forgotStep, setForgotStep] = useState<null | 'email' | 'reset' | 'done'>(null);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotCode, setForgotCode] = useState('');
+  const [forgotPassword, setForgotPassword] = useState('');
+  const [forgotConfirm, setForgotConfirm] = useState('');
+  const [forgotShowPass, setForgotShowPass] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotInfo, setForgotInfo] = useState('');
+
+  function openForgot() {
+    setForgotStep('email');
+    setForgotEmail(email);
+    setForgotCode(''); setForgotPassword(''); setForgotConfirm('');
+    setForgotError(''); setForgotInfo('');
+  }
+  function closeForgot() {
+    setForgotStep(null);
+    setForgotError(''); setForgotInfo('');
+  }
+
+  async function handleForgotRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) { setForgotError('Email is required.'); return; }
+    setForgotError(''); setForgotLoading(true);
+    try {
+      const res = await fetch('/api/hr/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request', email: forgotEmail.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setForgotError(json.error ?? 'Failed to send reset code.'); return; }
+      setForgotInfo('If an account exists for this email, a reset code has been sent.');
+      setForgotStep('reset');
+    } catch {
+      setForgotError('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
+  async function handleForgotReset(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotError('');
+    if (!forgotCode.trim()) { setForgotError('Please enter the reset code.'); return; }
+    if (forgotPassword !== forgotConfirm) { setForgotError('Passwords do not match.'); return; }
+    if (forgotPassword.length < 8) { setForgotError('Password must be at least 8 characters long.'); return; }
+    if (!/[A-Z]/.test(forgotPassword) || !/[a-z]/.test(forgotPassword) || !/[0-9]/.test(forgotPassword) || !/[^A-Za-z0-9]/.test(forgotPassword)) {
+      setForgotError('Password must include uppercase, lowercase, a number and a special character.'); return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch('/api/hr/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset', email: forgotEmail.trim(), code: forgotCode.trim(), newPassword: forgotPassword }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setForgotError(json.error ?? 'Failed to reset password.'); return; }
+      setForgotStep('done');
+    } catch {
+      setForgotError('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
   const completeSignIn = async (otpCode?: string) => {
     const result = await signIn('hr-credentials', {
       email,
@@ -175,6 +242,108 @@ export default function LoginPage() {
             <span style={{ fontSize: 11, fontWeight: 700, color: '#F56B22', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Secure HR Sign-In</span>
           </div>
 
+          {forgotStep ? (
+            <>
+              <h2 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>
+                {forgotStep === 'done' ? 'Password reset' : 'Reset your password'}
+              </h2>
+              <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 32 }}>
+                {forgotStep === 'email' && 'Enter your account email and we\'ll send you a reset code.'}
+                {forgotStep === 'reset' && <>Enter the code sent to <strong style={{ color: '#131C4E' }}>{forgotEmail}</strong> and choose a new password.</>}
+                {forgotStep === 'done' && 'Your password has been reset. You can now sign in with your new password.'}
+              </p>
+
+              {forgotStep === 'email' && (
+                <form onSubmit={handleForgotRequest} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                      Email Address
+                    </label>
+                    <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus
+                      placeholder="chidi.nwosu@acmecorp.com"
+                      style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={fi} onBlur={fo} />
+                  </div>
+                  {forgotError && (
+                    <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{forgotError}</div>
+                  )}
+                  <button type="submit" disabled={forgotLoading}
+                    style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: forgotLoading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg, #F56B22 0%, #FF8C4B 100%)', color: '#fff', fontSize: 14, fontWeight: 700, opacity: forgotLoading ? 0.7 : 1 }}>
+                    {forgotLoading ? 'Sending…' : 'Send Reset Code →'}
+                  </button>
+                  <button type="button" onClick={closeForgot} style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'center' }}>
+                    ← Back to sign in
+                  </button>
+                </form>
+              )}
+
+              {forgotStep === 'reset' && (
+                <form onSubmit={handleForgotReset} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {forgotInfo && (
+                    <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>{forgotInfo}</div>
+                  )}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                      Reset Code
+                    </label>
+                    <input type="text" inputMode="numeric" value={forgotCode} autoFocus
+                      onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000" required
+                      style={{ width: '100%', height: 52, padding: '0 14px', fontSize: 24, fontWeight: 700, letterSpacing: '0.35em', textAlign: 'center', border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={fi} onBlur={fo} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                      New Password
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input type={forgotShowPass ? 'text' : 'password'} value={forgotPassword} onChange={(e) => setForgotPassword(e.target.value)}
+                        placeholder="••••••••" required autoComplete="new-password"
+                        style={{ width: '100%', height: 44, padding: '0 44px 0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                        onFocus={fi} onBlur={fo} />
+                      <button type="button" onClick={() => setForgotShowPass(!forgotShowPass)}
+                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#B8BFD0', padding: 0, display: 'flex' }}>
+                        {forgotShowPass ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>Min 8 characters, with uppercase, lowercase, a number and a special character.</p>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                      Confirm New Password
+                    </label>
+                    <input type={forgotShowPass ? 'text' : 'password'} value={forgotConfirm} onChange={(e) => setForgotConfirm(e.target.value)}
+                      placeholder="••••••••" required autoComplete="new-password"
+                      style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={fi} onBlur={fo} />
+                  </div>
+                  {forgotError && (
+                    <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{forgotError}</div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <button type="button" onClick={() => setForgotStep('email')} style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      ← Back
+                    </button>
+                    <button type="button" onClick={handleForgotRequest} disabled={forgotLoading} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: forgotLoading ? 'wait' : 'pointer', padding: 0 }}>
+                      {forgotLoading ? 'Sending…' : 'Resend code'}
+                    </button>
+                  </div>
+                  <button type="submit" disabled={forgotLoading}
+                    style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: forgotLoading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg, #F56B22 0%, #FF8C4B 100%)', color: '#fff', fontSize: 14, fontWeight: 700, opacity: forgotLoading ? 0.7 : 1 }}>
+                    {forgotLoading ? 'Resetting…' : 'Reset Password →'}
+                  </button>
+                </form>
+              )}
+
+              {forgotStep === 'done' && (
+                <button type="button" onClick={() => { closeForgot(); setPassword(''); }}
+                  style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #F56B22 0%, #FF8C4B 100%)', color: '#fff', fontSize: 14, fontWeight: 700 }}>
+                  ← Back to Sign In
+                </button>
+              )}
+            </>
+          ) : (
+          <>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>{otpStep ? 'Two-factor verification' : 'Welcome back'}</h2>
           <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 32 }}>
             {otpStep
@@ -204,7 +373,7 @@ export default function LoginPage() {
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Password
                 </label>
-                <button type="button" style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <button type="button" onClick={openForgot} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   Forgot password?
                 </button>
               </div>
@@ -276,6 +445,8 @@ export default function LoginPage() {
               ) : otpStep ? 'Verify & Sign In →' : 'Sign in to Corporate Portal →'}
             </button>
           </form>
+          </>
+          )}
 
           <p style={{ fontSize: 12, textAlign: 'center', marginTop: 28, color: '#B8BFD0' }}>
             Protected by Leadway Health security. Your data is encrypted and secure.
