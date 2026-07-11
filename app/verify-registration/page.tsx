@@ -61,7 +61,7 @@ function VerifyForm() {
       const res = await fetch('/api/hr/request-registration-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, policyNumber: urlPolicyNumber, companyName: urlCompanyName, name: urlName || email }),
+        body: JSON.stringify({ email, groupId: urlGroupId, policyNumber: urlPolicyNumber, companyName: urlCompanyName, name: urlName || email }),
       });
       const json = await res.json();
       if (!res.ok) {

@@ -18,7 +18,7 @@ const OTP_TTL_MS = 10 * 60 * 1000;
 export async function issueLoginOtp(
   user: { id: string; email: string; name?: string | null; mobile?: string | null },
   method: 'email' | 'sms' = 'email',
-  purpose: 'login' | 'reset' = 'login',
+  purpose: 'login' | 'reset' | 'registration' = 'login',
 ): Promise<boolean> {
   const code = crypto.randomInt(100000, 1000000).toString();
 
@@ -31,7 +31,7 @@ export async function issueLoginOtp(
     },
   });
 
-  const smsAction = purpose === 'reset' ? 'password reset code' : 'login verification code';
+  const smsAction = purpose === 'reset' ? 'password reset code' : purpose === 'registration' ? 'registration verification code' : 'login verification code';
   if (method === 'sms') {
     if (!user.mobile) return false;
     try {
@@ -58,13 +58,17 @@ export async function issueLoginOtp(
     }
   }
 
-  const heading = purpose === 'reset' ? 'Your Password Reset Code' : 'Your Login Verification Code';
+  const heading = purpose === 'reset' ? 'Your Password Reset Code' : purpose === 'registration' ? 'Your Registration Verification Code' : 'Your Login Verification Code';
   const intro = purpose === 'reset'
     ? 'Use this code to reset your Corporate Portal password. It expires in 10 minutes.'
-    : 'Use this code to complete your sign-in to the Corporate Portal. It expires in 10 minutes.';
+    : purpose === 'registration'
+      ? 'Use this code to complete setting up your Corporate Portal account. It expires in 10 minutes.'
+      : 'Use this code to complete your sign-in to the Corporate Portal. It expires in 10 minutes.';
   const footNote = purpose === 'reset'
     ? "If you didn't request a password reset, you can safely ignore this email — your password will not change unless this code is used."
-    : "If you didn't try to sign in, someone may have your password — change it immediately.";
+    : purpose === 'registration'
+      ? "If you didn't request to set up this account, you can safely ignore this email."
+      : "If you didn't try to sign in, someone may have your password — change it immediately.";
 
   const emailBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
@@ -93,7 +97,7 @@ ${emailFooter()}
         EmailAddress: user.email,
         CC: '',
         BCC: '',
-        Subject: purpose === 'reset' ? 'Your Password Reset Code – Leadway Health Corporate Portal' : 'Your Login Verification Code – Leadway Health Corporate Portal',
+        Subject: `${heading} – Leadway Health Corporate Portal`,
         MessageBody: emailBody,
         Attachments: null,
         Category: '',

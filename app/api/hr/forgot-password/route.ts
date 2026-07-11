@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { issueLoginOtp, verifyLoginOtp } from '@/lib/login-otp';
+import { isEmailAuthorizedForGroup } from '@/lib/corporate-welcome';
 
 export async function POST(req: Request) {
   let body: { action?: string; email?: string; code?: string; newPassword?: string };
@@ -20,11 +21,22 @@ export async function POST(req: Request) {
   switch (body.action) {
     case 'request': {
       // Don't reveal whether the account exists/is active — always report success.
+      // For the primary HR admin contact (role=hr_admin), Prognosis's
+      // Company_Email1 must still recognise this email for that company —
+      // same authorisation rule as registration. Manually invited sub-users
+      // (Viewer, Finance, custom roles) were never tied to Prognosis this way,
+      // so they're exempt from this check.
       if (user?.active) {
-        try {
-          await issueLoginOtp(user, 'email', 'reset');
-        } catch (e) {
-          console.error('[forgot-password] Failed to send reset code:', e);
+        const needsProgCheck = user.role === 'hr_admin';
+        const authorized = needsProgCheck ? await isEmailAuthorizedForGroup(email, user.companyId) : true;
+        if (authorized) {
+          try {
+            await issueLoginOtp(user, 'email', 'reset');
+          } catch (e) {
+            console.error('[forgot-password] Failed to send reset code:', e);
+          }
+        } else {
+          console.warn(`[forgot-password] ${email} is no longer the Prognosis-authorised contact — reset code withheld.`);
         }
       }
       return NextResponse.json({ success: true, message: 'If an account exists for this email, a reset code has been sent.' });
