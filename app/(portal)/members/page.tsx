@@ -1630,6 +1630,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [editEmail, setEditEmail]           = useState('');
   const [editAddress, setEditAddress]       = useState('');
   const [editNin, setEditNin]               = useState('');
+  const [editNeedsNin, setEditNeedsNin]     = useState(false);
   const [editPhotoB64, setEditPhotoB64]     = useState('');
   const [editPhotoType, setEditPhotoType]   = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -1894,7 +1895,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setEditError(data.error ?? 'Failed to update member.');
+        const errMsg = data.error ?? 'Failed to update member.';
+        setEditError(errMsg);
+        if (/\bnin\b/i.test(errMsg)) setEditNeedsNin(true);
       } else {
         toast(`${member.firstName} ${member.lastName} updated successfully.`, 'success');
         if (editMobile) setBioPhone(editMobile);
@@ -2260,6 +2263,8 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                 setEditAddress('');
                 setEditPhotoB64('');
                 setEditPhotoType('');
+                setEditNin('');
+                setEditNeedsNin(false);
                 setEditError('');
                 setShowEdit(true);
               }}
@@ -2428,12 +2433,14 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                     style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               )}
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>NIN (National Identification Number)</label>
-                <input value={editNin} onChange={(e) => setEditNin(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                  placeholder="11-digit NIN — required by Prognosis on every save"
-                  style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
+              {editNeedsNin && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>NIN required to save</label>
+                  <input value={editNin} onChange={(e) => setEditNin(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    placeholder="Prognosis has no NIN on file for this member — enter their 11-digit NIN"
+                    style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #FDE68A', borderRadius: 10, background: '#FFFBEB', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              )}
             </div>
 
             {editError && (
