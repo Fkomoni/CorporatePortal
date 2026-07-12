@@ -52,9 +52,17 @@ async function sendPrognosisEmail(token: string, to: string, subject: string, ht
       TransactionType: '',
     }),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`SendEmailAlert HTTP ${res.status}: ${text.slice(0, 200)}`);
+  const text = await res.text();
+  console.log(`[invite] SendEmailAlert → HTTP ${res.status}: ${text.slice(0, 500)}`);
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch { raw = text; }
+  const r = raw as Record<string, unknown>;
+  // Prognosis can return HTTP 200 with a logical failure embedded in the
+  // body — never trust res.ok alone.
+  const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
+  const apiMessage = String(r?.message ?? r?.Message ?? '');
+  if (!res.ok || (apiStatus && !['success', '200', 'ok', 'true'].includes(apiStatus))) {
+    throw new Error(apiMessage || `SendEmailAlert HTTP ${res.status}: ${text.slice(0, 200)}`);
   }
 }
 
