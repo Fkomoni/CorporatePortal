@@ -34,6 +34,7 @@ export default function EnrollPage() {
   const [invitation, setInvitation]   = useState<InvitationMeta | null>(null);
   const [genders, setGenders]         = useState<ListItem[]>([]);
   const [maritalStatuses, setMarital] = useState<ListItem[]>([]);
+  const [copiedId, setCopiedId]       = useState('');
   const [states, setStates]           = useState<ListItem[]>([]);
   const [relationships, setRelationships] = useState<ListItem[]>([]);
   const [submitting, setSubmitting]   = useState(false);
@@ -232,7 +233,22 @@ export default function EnrollPage() {
       allEnrolled.push({ enrolleeId: enrollResult.enrolleeId || enrollResult.membershipNo || '', name: '', role: isDependent ? 'Dependant' : 'Staff Member' });
     }
 
-    const copyText = (t: string) => { try { navigator.clipboard.writeText(t); } catch { const el = document.createElement('textarea'); el.value = t; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); } };
+    const copyText = async (t: string) => {
+      let copied = false;
+      if (navigator.clipboard?.writeText) {
+        try { await navigator.clipboard.writeText(t); copied = true; } catch { /* fall through to legacy path */ }
+      }
+      if (!copied) {
+        const el = document.createElement('textarea');
+        el.value = t;
+        el.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+        document.body.appendChild(el);
+        el.focus(); el.select(); el.setSelectionRange(0, 99999);
+        try { copied = document.execCommand('copy'); } catch { copied = false; }
+        document.body.removeChild(el);
+      }
+      if (copied) { setCopiedId(t); setTimeout(() => setCopiedId(''), 2000); }
+    };
 
     return (
       <div style={{ minHeight: '100vh', background: '#F7F8FC', padding: '40px 16px' }}>
@@ -267,7 +283,7 @@ export default function EnrollPage() {
                 {m.enrolleeId && (
                   <button onClick={() => copyText(m.enrolleeId)}
                     style={{ height: 34, padding: '0 14px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1.5px solid #BBF7D0', borderRadius: 8, background: '#ECFDF5', cursor: 'pointer', flexShrink: 0 }}>
-                    Copy
+                    {copiedId === m.enrolleeId ? 'Copied!' : 'Copy'}
                   </button>
                 )}
               </div>
@@ -542,7 +558,7 @@ export default function EnrollPage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Contact Details</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Field label="Mobile Number *" value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" required />
+              <Field label={isDependent ? 'Mobile Number' : 'Mobile Number *'} value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" required={!isDependent} />
               <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel" />
               <SelectField label="State of Residence *" value={postalTownId} onChange={setStateId} required>
                 <option value="">Select state</option>

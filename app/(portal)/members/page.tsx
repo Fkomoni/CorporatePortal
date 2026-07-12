@@ -2525,17 +2525,22 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                     <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 12, padding: '12px 14px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link ready — copy and share:</p>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <input readOnly value={depGeneratedUrl} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
-                        <button onClick={() => {
-                          const ta = document.createElement('textarea');
-                          ta.value = depGeneratedUrl;
-                          ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
-                          document.body.appendChild(ta);
-                          ta.select(); ta.setSelectionRange(0, 99999);
-                          try { document.execCommand('copy'); } catch { /* ignore */ }
-                          document.body.removeChild(ta);
-                          if (navigator.clipboard?.writeText) navigator.clipboard.writeText(depGeneratedUrl).catch(() => {});
-                          toast('Link copied!', 'success');
+                        <input readOnly value={depGeneratedUrl} onFocus={(e) => e.currentTarget.select()} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
+                        <button onClick={async () => {
+                          let copied = false;
+                          if (navigator.clipboard?.writeText) {
+                            try { await navigator.clipboard.writeText(depGeneratedUrl); copied = true; } catch { /* fall through to legacy path */ }
+                          }
+                          if (!copied) {
+                            const ta = document.createElement('textarea');
+                            ta.value = depGeneratedUrl;
+                            ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+                            document.body.appendChild(ta);
+                            ta.focus(); ta.select(); ta.setSelectionRange(0, 99999);
+                            try { copied = document.execCommand('copy'); } catch { copied = false; }
+                            document.body.removeChild(ta);
+                          }
+                          toast(copied ? 'Link copied!' : 'Could not copy automatically — select the link text and copy manually.', copied ? 'success' : 'error');
                         }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
                       </div>
                     </div>
