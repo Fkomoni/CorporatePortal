@@ -103,10 +103,17 @@ ${emailFooter()}
       }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('[send-enrolee-id] SendEmailAlert error:', text.slice(0, 300));
-      return NextResponse.json({ error: `Email send failed (HTTP ${res.status})` }, { status: 502 });
+    const text = await res.text();
+    console.log(`[send-enrolee-id] SendEmailAlert → HTTP ${res.status}: ${text.slice(0, 500)}`);
+    let raw: unknown;
+    try { raw = JSON.parse(text); } catch { raw = text; }
+    const r = raw as Record<string, unknown>;
+    // Prognosis can return HTTP 200 with a logical failure embedded in the
+    // body — never trust res.ok alone.
+    const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
+    const apiMessage = String(r?.message ?? r?.Message ?? '');
+    if (!res.ok || (apiStatus && !['success', '200', 'ok', 'true'].includes(apiStatus))) {
+      return NextResponse.json({ error: apiMessage || `Email send failed (HTTP ${res.status})` }, { status: 502 });
     }
 
     console.log(`[send-enrolee-id] Sent to ${email} via Prognosis`);
