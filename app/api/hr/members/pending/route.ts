@@ -40,7 +40,7 @@ function str(row: Record<string, unknown>, ...keys: string[]): string {
 
 function extractDate(row: Record<string, unknown>): Date | null {
   const raw = str(row,
-    'RegistrationDate', 'Registration_Date', 'DateRegistered', 'Date_Registered',
+    'Registrationdate', 'RegistrationDate', 'Registration_Date', 'DateRegistered', 'Date_Registered',
     'CreatedDate', 'Created_Date', 'DateCreated', 'Date_Created',
     'EnrolmentDate', 'Enrolment_Date', 'EnrollmentDate', 'Enrollment_Date',
     'AppRegistrationDate', 'RegDate', 'Reg_Date', 'DateOfRegistration',
@@ -145,7 +145,7 @@ export async function GET(req: Request) {
     // duplicates disagree on status.
     const dedupedByCif = new Map<string, Record<string, unknown>>();
     for (const row of allRows) {
-      const cif = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
+      const cif = str(row, 'cif_number', 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
       if (!cif) continue;
       const existing = dedupedByCif.get(cif);
       const status = str(row, 'Memberstatus', 'Status', 'MemberStatus');
@@ -156,15 +156,20 @@ export async function GET(req: Request) {
     }
     const rows = [...dedupedByCif.values()];
 
-    const normalized: (PendingMemberRow & { _date: Date | null })[] = rows.map((row) => {
-      const cifNumber = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
+    const normalized: (PendingMemberRow & { _date: Date | null; _principalHint: string })[] = rows.map((row) => {
+      // ViewPortalRegisteredMembersPerGroup_pendingActivation uses its own
+      // (differently-cased) field names from ViewMembersPerGroup — e.g.
+      // "cif_number", "Membershipno", "Registrationdate", lowercase "scheme",
+      // and — confusingly — "member" for this member's own surname (NOT
+      // "psurname"/"pfirstname", which describe the *principal*'s name).
+      const cifNumber = str(row, 'cif_number', 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
       const parentCifRaw = str(row, 'Parent_Cif', 'ParentCif', 'parentCif', 'Parent_CIF');
       const parentCif = parentCifRaw && parentCifRaw !== '0' ? parentCifRaw : cifNumber;
-      const firstName = str(row, 'FirstName', 'First_Name', 'firstname');
-      const surname = str(row, 'Surname', 'surname', 'LastName');
+      const firstName = str(row, 'firstname', 'FirstName', 'First_Name');
+      const surname = str(row, 'member', 'Surname', 'surname', 'LastName');
       const otherName = str(row, 'Othername', 'OtherName', 'Other_Name');
-      const membershipNo = str(row, 'MembershipNo', 'Membership_No', 'MembershipNumber');
-      const suffix = str(row, 'Suffix');
+      const membershipNo = str(row, 'Membershipno', 'MembershipNo', 'Membership_No', 'MembershipNumber');
+      const suffix = str(row, 'suffix', 'Suffix');
       const isPrincipal = suffix === '0' || (!suffix && (!parentCifRaw || parentCifRaw === '0' || parentCifRaw === cifNumber));
       const dob = str(row, 'DOB', 'DateOfBirth', 'Date_Of_Birth');
       // Relationship is now returned directly by Prognosis (e.g. "Main member", "Spouse", "Child") —
@@ -180,7 +185,9 @@ export async function GET(req: Request) {
         suffix,
         isPrincipal,
         firstName, surname, otherName,
-        fullName: `${firstName} ${surname} ${otherName}`.replace(/\s+/g, ' ').trim() || str(row, 'Client_Name', 'ClientName', 'FullName', 'Name'),
+        fullName: str(row, 'DependantName')
+          || `${surname} ${firstName} ${otherName}`.replace(/\s+/g, ' ').trim()
+          || str(row, 'Client_Name', 'ClientName', 'FullName', 'Name'),
         relationship,
         dateOfBirth: dob,
         age: computeAge(dob),
@@ -188,12 +195,16 @@ export async function GET(req: Request) {
         email: str(row, 'EmailAdress', 'Email', 'EmailAddress'),
         mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber'),
         employeeCode: str(row, 'EmployeeCode', 'Employee_Code', 'employeecode'),
-        schemeName: str(row, 'Scheme', 'SchemeName', 'Scheme_Name'),
+        schemeName: str(row, 'scheme', 'Scheme', 'SchemeName', 'Scheme_Name'),
         status: classifyStatus(str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus')),
         terminationDate: str(row, 'Termdate', 'TermDate', 'Term_Date'),
         registrationDate: null,
         registrationSource: 'Enrolee App' as const,
         _date: extractDate(row),
+        // "PrincipalMember" gives the principal's first name even on a
+        // dependant-only row — used purely as a header fallback below when
+        // no actual principal row is present in this snapshot.
+        _principalHint: str(row, 'PrincipalMember'),
       };
     }).map((r) => ({ ...r, registrationDate: r._date ? r._date.toISOString().slice(0, 10) : null }));
 
@@ -220,7 +231,7 @@ export async function GET(req: Request) {
       if (!r.parentCif) continue;
       const h = headerByParentCif.get(r.parentCif) ?? { principalName: '', employeeCode: '', schemeName: '', email: '', mobile: '' };
       if (r.isPrincipal || !h.principalName) {
-        h.principalName = r.fullName || h.principalName;
+        h.principalName = (r.isPrincipal ? r.fullName : '') || r._principalHint || r.fullName || h.principalName;
         h.employeeCode = r.employeeCode || h.employeeCode;
         h.schemeName = r.schemeName || h.schemeName;
         h.email = r.email || h.email;
@@ -261,8 +272,8 @@ export async function GET(req: Request) {
         });
       }
       const g = groups.get(r.parentCif)!;
-      const { _date, ...member } = r;
-      void _date;
+      const { _date, _principalHint, ...member } = r;
+      void _date; void _principalHint;
       g.members.push({ ...member, registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App' });
       g.memberCount++;
       if (!g.registrationDate || (r.registrationDate && r.registrationDate < g.registrationDate)) {
