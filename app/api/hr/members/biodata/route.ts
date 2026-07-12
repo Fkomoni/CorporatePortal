@@ -86,6 +86,11 @@ export async function GET(req: Request) {
     const row = toRow(raw);
     if (!row) return NextResponse.json({ error: 'No data found' }, { status: 404 });
 
+    // profilepic/picturetype are siblings of `result` in the raw response
+    // ({status, result:[...], profilepic, picturetype}), not fields inside
+    // the row itself — must search the top-level object separately.
+    const topLevel = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? (raw as Record<string, unknown>) : {};
+
     const phone = s(row,
       'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM',
       'Tel', 'TelNo', 'CellPhone', 'MobilePhone', 'HomePhone', 'WorkPhone',
@@ -101,13 +106,15 @@ export async function GET(req: Request) {
     const genotype = s(row, 'genotype', 'Genotype');
     const hospital = s(row, 'Hospital', 'PreferredHospital', 'FacilityName');
     const dob = s(row, 'DateOfBirth', 'DOB', 'Member_DateOfBirth', 'BirthDate', 'Date_Of_Birth');
-    let photo = s(row, 'profilepic', 'ProfilePic', 'Profilepic', 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
+    // profilepic/picturetype live as siblings of `result` on the top-level
+    // response object, not inside the row itself — check topLevel first.
+    let photo = s(topLevel, 'profilepic', 'ProfilePic', 'Profilepic')
+      || s(row, 'profilepic', 'ProfilePic', 'Profilepic', 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
     let photoKey = photo ? 'known-alias' : '';
-    // Fallback: Prognosis's actual field name for the photo isn't confirmed —
-    // scan every key for one that looks like a base64 image (long, base64-charset,
-    // and named like a picture/photo/image field) instead of guessing further.
+    // Fallback: scan every key on both objects for one that looks like a
+    // base64 image (long, base64-charset, and named like a picture field).
     if (!photo) {
-      for (const [key, value] of Object.entries(row)) {
+      for (const [key, value] of [...Object.entries(topLevel), ...Object.entries(row)]) {
         if (typeof value !== 'string' || value.length < 200) continue;
         if (!/pic|photo|image|img/i.test(key)) continue;
         const sample = value.replace(/\s+/g, '');
@@ -117,7 +124,12 @@ export async function GET(req: Request) {
         break;
       }
     }
-    const photoType = s(row, 'EnrolleePictureType', 'EnrolleepictureType', 'PictureType', 'PhotoType', 'ImageType') || 'image/jpeg';
+    const rawPhotoType = s(topLevel, 'picturetype', 'PictureType')
+      || s(row, 'EnrolleePictureType', 'EnrolleepictureType', 'PictureType', 'PhotoType', 'ImageType')
+      || 'jpeg';
+    // Prognosis returns a bare type ("jpeg"), not a full MIME type — the
+    // client builds `data:${photoType};base64,...`, so it must be prefixed.
+    const photoType = rawPhotoType.includes('/') ? rawPhotoType : `image/${rawPhotoType}`;
     console.log(`[hr/members/biodata] ${enrolleeId} photo resolved via "${photoKey || 'none'}" (${photo ? photo.length : 0} chars). Row keys: ${Object.keys(row).join(', ')}`);
 
     return NextResponse.json({

@@ -178,8 +178,14 @@ export async function GET(req: Request) {
       const firstName = str(row, 'firstname', 'FirstName', 'First_Name');
       const surname = str(row, 'member', 'Surname', 'surname', 'LastName');
       const otherName = str(row, 'Othername', 'OtherName', 'Other_Name');
-      const membershipNo = str(row, 'Membershipno', 'MembershipNo', 'Membership_No', 'MembershipNumber');
+      const membershipNoBase = str(row, 'Membershipno', 'MembershipNo', 'Membership_No', 'MembershipNumber');
       const suffix = str(row, 'suffix', 'Suffix');
+      // Prognosis's membership number is only unique per-family; the full
+      // enrolee identifier is "<membershipNo>/<suffix>" (e.g. 25231697/0) —
+      // without the suffix it looks truncated/incomplete on screen.
+      const membershipNo = membershipNoBase
+        ? (membershipNoBase.includes('/') ? membershipNoBase : `${membershipNoBase}/${suffix || '0'}`)
+        : membershipNoBase;
       const isPrincipal = suffix === '0' || (!suffix && (!parentCifRaw || parentCifRaw === '0' || parentCifRaw === cifNumber));
       const dob = str(row, 'DOB', 'DateOfBirth', 'Date_Of_Birth');
       // Relationship is now returned directly by Prognosis (e.g. "Main member", "Spouse", "Child") —
