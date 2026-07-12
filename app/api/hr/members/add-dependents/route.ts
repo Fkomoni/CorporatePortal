@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { approveEnrollee } from '@/lib/approve-enrollee';
+import { findDuplicateContact } from '@/lib/duplicate-contact-check';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -79,6 +80,20 @@ export async function POST(req: Request) {
 
   try {
     const token = await getServiceToken();
+
+    // Flag emails/mobiles already registered to another member in this group —
+    // Prognosis's AddDependentsOnly accepts duplicates silently, so check first.
+    try {
+      for (const dep of dependents) {
+        if (!dep.email && !dep.mobile) continue;
+        const clash = await findDuplicateContact(BASE, token, groupId, dep.email ?? '', dep.mobile ?? '');
+        if (clash) {
+          return NextResponse.json({ error: `This ${clash.field} (for ${dep.firstName} ${dep.surname}) is already registered to ${clash.name} in this group. Please verify and use a unique ${clash.field}.` }, { status: 409 });
+        }
+      }
+    } catch (e) {
+      console.warn('[hr/members/add-dependents] Duplicate check failed, proceeding without it:', e);
+    }
 
     const addBeneficiary = dependents.map((dep) => ({
       groupid: Number(groupId) || groupId,

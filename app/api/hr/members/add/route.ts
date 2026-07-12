@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { approveEnrollee } from '@/lib/approve-enrollee';
+import { findDuplicateContact } from '@/lib/duplicate-contact-check';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -93,26 +94,9 @@ export async function POST(req: Request) {
     // Flag emails/mobiles already registered to another member in this group —
     // Prognosis's AddPrincipalOnly accepts duplicates silently, so check first.
     try {
-      const dupRes = await fetch(`${BASE}/api/CorporatePortal/ViewMembersPerGroup?groupId=${encodeURIComponent(groupId)}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      });
-      const dupRaw = await dupRes.json().catch(() => null);
-      const dupRows: Record<string, unknown>[] = Array.isArray(dupRaw) ? dupRaw
-        : Array.isArray((dupRaw as Record<string, unknown>)?.data) ? (dupRaw as Record<string, unknown>).data as Record<string, unknown>[]
-        : Array.isArray((dupRaw as Record<string, unknown>)?.Data) ? (dupRaw as Record<string, unknown>).Data as Record<string, unknown>[]
-        : [];
-      const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
-      const wantedEmail = norm(email);
-      const wantedMobile = norm(mobile);
-      const clash = dupRows.find((row) => {
-        const rowEmail = norm(row['EmailAdress'] ?? row['Email'] ?? row['EmailAddress']);
-        const rowMobile = norm(row['Mobile'] ?? row['Mobile1'] ?? row['Phone'] ?? row['MobileNumber']);
-        return (wantedEmail && rowEmail === wantedEmail) || (wantedMobile && rowMobile === wantedMobile);
-      });
+      const clash = await findDuplicateContact(BASE, token, groupId, email, mobile);
       if (clash) {
-        const clashName = `${clash['FirstName'] ?? ''} ${clash['Surname'] ?? ''}`.trim() || 'another member';
-        const field = norm(clash['EmailAdress'] ?? clash['Email'] ?? clash['EmailAddress']) === wantedEmail ? 'email address' : 'mobile number';
-        return NextResponse.json({ error: `This ${field} is already registered to ${clashName} in this group. Please verify and use a unique ${field}.` }, { status: 409 });
+        return NextResponse.json({ error: `This ${clash.field} is already registered to ${clash.name} in this group. Please verify and use a unique ${clash.field}.` }, { status: 409 });
       }
     } catch (e) {
       console.warn('[hr/members/add] Duplicate check failed, proceeding without it:', e);
