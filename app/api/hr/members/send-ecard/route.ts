@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
-import { emailFooter } from '@/lib/email-footer';
+import { renderEmailTemplate } from '@/lib/email-template';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -56,23 +56,10 @@ export async function POST(req: Request) {
     ? `<img src="${photoDataUri}" alt="" width="76" height="90" style="width:76px;height:90px;object-fit:cover;border-radius:10px;border:2px solid #E5E7F1;display:block;" />`
     : `<div style="width:76px;height:90px;border-radius:10px;border:2px solid #E5E7F1;background:#F7F8FC;"></div>`;
 
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F7F8FC;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#F56B22,#FF8C4B);padding:32px 40px;">
-      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Leadway Health</p>
-      <p style="margin:0;font-size:22px;font-weight:800;color:#fff;">Your Digital Health ID Card</p>
-    </div>
-    <div style="padding:36px 40px;">
-      <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
-        Dear <strong>${memberName}</strong>, here is your Leadway Health e-card. Present it at any accredited hospital or pharmacy when accessing care.
-      </p>
-      <table role="presentation" width="100%" style="border:1.5px solid #E5E7F1;border-radius:16px;background:#fff;">
+  const cardTable = `<table role="presentation" width="100%" style="border:1.5px solid #E5E7F1;border-radius:12px;background:#fff;">
         <tr>
-          <td style="padding:20px;width:96px;vertical-align:top;">${photoCell}</td>
-          <td style="padding:20px 20px 20px 0;vertical-align:top;">
+          <td style="padding:16px;width:96px;vertical-align:top;">${photoCell}</td>
+          <td style="padding:16px 16px 16px 0;vertical-align:top;">
             <p style="margin:0 0 2px;font-size:15px;font-weight:800;color:#131C4E;text-transform:uppercase;">${memberName}</p>
             <p style="margin:0 0 14px;font-size:11px;font-weight:700;color:#F56B22;text-transform:uppercase;">${memberType ?? ''}</p>
             <p style="margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#9CA3B8;">Member No.</p>
@@ -81,15 +68,16 @@ export async function POST(req: Request) {
             <p style="margin:0;font-size:13px;font-weight:700;color:#374151;">${planName ?? ''}${schemeName ? ` &middot; ${schemeName}` : ''}</p>
           </td>
         </tr>
-      </table>
-      <p style="margin:24px 0 0;font-size:13px;color:#9CA3B8;line-height:1.6;">
-        If you have any questions, please contact your HR team or reach Leadway Health support.
-      </p>
-    </div>
-${emailFooter()}
-  </div>
-</body>
-</html>`;
+      </table>`;
+
+  const html = renderEmailTemplate({
+    category: 'Member Services',
+    eyebrow: 'Digital ID Card',
+    headline: 'Your Digital Health ID Card',
+    body: `Dear <strong>${memberName}</strong>, here is your Leadway Health e-card. Present it at any accredited hospital or pharmacy when accessing care.`,
+    highlight: cardTable,
+    footnote: 'If you have any questions, please contact your HR team or reach Leadway Health support.',
+  });
 
   try {
     const token = await getServiceToken();
