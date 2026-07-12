@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; reason?: string; email?: string };
+  let body: { parentCif?: string | number; principalName?: string; reason?: string; email?: string; cifNumbers?: (string | number)[] };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -29,15 +29,25 @@ export async function POST(req: Request) {
   if (!parentCif) return NextResponse.json({ error: 'parentCif is required' }, { status: 400 });
   if (!reason) return NextResponse.json({ error: 'A reason for declining is required.' }, { status: 400 });
 
-  const result = await rejectEnrollee(parentCif);
+  // RejectEnrollees operates on a single member's own CIF, not a family
+  // grouping — reject every member in this family individually.
+  const cifNumbers = [...new Set((body.cifNumbers ?? [parentCif]).map((c) => String(c).trim()).filter(Boolean))];
+  const userEmail = session.user.email ?? '';
+
+  const results = await Promise.all(
+    cifNumbers.map((cifNumber) => rejectEnrollee({ cifNumber, reason, userEmail })),
+  );
+  const failures = results.filter((r) => !r.success);
+  const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
 
   void logAudit({
     session, request: req, resource: 'members',
-    action: result.success ? 'REJECT_PENDING_ENROLEE' : 'REJECT_PENDING_ENROLEE_FAILED',
-    details: { parentCif, principalName: body.principalName, reason, recordsUpdated: result.recordsUpdated, error: result.error },
+    action: failures.length === 0 ? 'REJECT_PENDING_ENROLEE' : 'REJECT_PENDING_ENROLEE_FAILED',
+    details: { parentCif, principalName: body.principalName, reason, cifNumbers, recordsUpdated, errors: failures.map((f) => f.error) },
   });
 
-  if (!result.success) return NextResponse.json({ error: result.error ?? 'Rejection failed' }, { status: 422 });
+  if (failures.length > 0) return NextResponse.json({ error: failures[0].error ?? 'Rejection failed', failedCifs: failures.length }, { status: 422 });
+  const result = { message: undefined as string | undefined, recordsUpdated };
 
   // Best-effort notification to the applicant — never blocks the rejection itself
   if (body.email) {

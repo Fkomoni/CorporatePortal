@@ -143,9 +143,10 @@ export async function POST(req: Request) {
     const enrolled = dataArr.map((d) => {
       const membershipNo = String(d?.MembershipNo ?? d?.membershipNo ?? '');
       const suffix = String(d?.Suffix ?? d?.suffix ?? '0');
+      const cifRaw = d?.Cif_Number ?? d?.cifNumber ?? null;
       return {
         name: String(d?.Name ?? d?.name ?? ''),
-        cifNumber: d?.Cif_Number ?? d?.cifNumber ?? null,
+        cifNumber: (cifRaw != null ? String(cifRaw) : null) as string | null,
         membershipNo,
         suffix,
         enrolleeId: membershipNo ? `${membershipNo}/${suffix}` : '',
@@ -154,10 +155,20 @@ export async function POST(req: Request) {
 
     // HR-initiated registrations should not sit in Prognosis's pending queue —
     // auto-approve immediately rather than waiting on manual insurer action.
-    const approveResult = await approveEnrollee(parentCif);
-    if (!approveResult.success) console.warn(`[hr/members/add-dependents] Auto-approve failed for parentCif ${parentCif}:`, approveResult.error);
+    // ApproveEnrollees operates on each beneficiary's own CIF, not the family's
+    // parentCif, so every newly added dependant must be approved individually.
+    const userEmail = session.user.email ?? '';
+    let autoApproved = enrolled.length > 0;
+    for (const dep of enrolled) {
+      if (!dep.cifNumber) { autoApproved = false; continue; }
+      const approveResult = await approveEnrollee({ cifNumber: dep.cifNumber, reason: 'Active', userEmail });
+      if (!approveResult.success) {
+        autoApproved = false;
+        console.warn(`[hr/members/add-dependents] Auto-approve failed for CIF ${dep.cifNumber}:`, approveResult.error);
+      }
+    }
 
-    return NextResponse.json({ success: true, enrolled, autoApproved: approveResult.success });
+    return NextResponse.json({ success: true, enrolled, autoApproved });
   } catch (err) {
     console.error('[hr/members/add-dependents] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to add dependents' }, { status: 500 });

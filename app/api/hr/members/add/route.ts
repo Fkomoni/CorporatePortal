@@ -197,7 +197,11 @@ export async function POST(req: Request) {
     // auto-approve immediately rather than waiting on manual insurer action.
     let autoApproved = false;
     if (cifNumber) {
-      const approveResult = await approveEnrollee(cifNumber as string | number);
+      const approveResult = await approveEnrollee({
+        cifNumber: cifNumber as string | number,
+        reason: 'Active',
+        userEmail: session.user.email ?? '',
+      });
       autoApproved = approveResult.success;
       if (!approveResult.success) console.warn(`[hr/members/add] Auto-approve failed for CIF ${cifNumber}:`, approveResult.error);
     }
