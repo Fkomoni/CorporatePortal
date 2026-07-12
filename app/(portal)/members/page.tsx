@@ -1629,6 +1629,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [editMobile, setEditMobile]         = useState('');
   const [editEmail, setEditEmail]           = useState('');
   const [editAddress, setEditAddress]       = useState('');
+  const [editNin, setEditNin]               = useState('');
   const [editPhotoB64, setEditPhotoB64]     = useState('');
   const [editPhotoType, setEditPhotoType]   = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -1867,8 +1868,8 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
     if (editSubmitting) return;
     setEditError('');
     const hasChange = isPrincipalMember
-      ? Boolean(editDob || editMobile || editEmail || editAddress || editPhotoB64)
-      : Boolean(editSexId || editDob || editMobile || editEmail);
+      ? Boolean(editDob || editMobile || editEmail || editAddress || editPhotoB64 || editNin)
+      : Boolean(editSexId || editDob || editMobile || editEmail || editNin);
     if (!hasChange) {
       setEditError('Change at least one field.'); return;
     }
@@ -1888,6 +1889,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           address: isPrincipalMember ? (editAddress || undefined) : undefined,
           photo: isPrincipalMember ? (editPhotoB64 || undefined) : undefined,
           photoType: isPrincipalMember ? (editPhotoType || undefined) : undefined,
+          nin: editNin || undefined,
         }),
       });
       const data = await res.json();
@@ -2426,6 +2428,12 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                     style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               )}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>NIN (National Identification Number)</label>
+                <input value={editNin} onChange={(e) => setEditNin(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="11-digit NIN — required by Prognosis on every save"
+                  style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
             </div>
 
             {editError && (
