@@ -91,7 +91,7 @@ export async function GET(req: Request) {
     const genotype = s(row, 'genotype', 'Genotype');
     const hospital = s(row, 'Hospital', 'PreferredHospital', 'FacilityName');
     const dob = s(row, 'DateOfBirth', 'DOB', 'Member_DateOfBirth', 'BirthDate', 'Date_Of_Birth');
-    let photo = s(row, 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
+    let photo = s(row, 'profilepic', 'ProfilePic', 'Profilepic', 'EnrolleePicture', 'Enrolleepicture', 'Picture', 'MemberPicture', 'Photo', 'PassportPhoto', 'Base64Picture', 'ImageBase64', 'EnrolleeImage');
     let photoKey = photo ? 'known-alias' : '';
     // Fallback: Prognosis's actual field name for the photo isn't confirmed —
     // scan every key for one that looks like a base64 image (long, base64-charset,
