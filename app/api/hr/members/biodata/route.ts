@@ -92,18 +92,19 @@ export async function GET(req: Request) {
     const topLevel = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? (raw as Record<string, unknown>) : {};
 
     const phone = s(row,
+      'Member_Phone_One', 'Member_Phone_Two', 'Member_Phone_Three', 'Member_Phone_Four', 'Member_Phone_Five',
       'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM',
       'Tel', 'TelNo', 'CellPhone', 'MobilePhone', 'HomePhone', 'WorkPhone',
       'ContactPhone', 'Telephone',
     );
     const staffId = s(row,
-      'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID',
+      'Member_staffid', 'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID',
       'EmployeeNo', 'EmpNo', 'StaffCode', 'HR_EmployeeID', 'Employee_Code', 'StaffNo',
     );
-    const email = s(row, 'EmailAddress', 'Email', 'email', 'EmailAddr');
-    const address = s(row, 'Physical_Add1', 'Address', 'HomeAddress', 'ResidentialAddress');
-    const bloodGroup = s(row, 'BloodGroup', 'Blood_Group', 'bloodgroup');
-    const genotype = s(row, 'genotype', 'Genotype');
+    const email = s(row, 'Member_EmailAddress_One', 'Member_EmailAddress_Two', 'EmailAddress', 'Email', 'email', 'EmailAddr');
+    const address = s(row, 'Member_Address', 'Physical_Add1', 'Address', 'HomeAddress', 'ResidentialAddress');
+    const bloodGroup = s(row, 'Member_BloodGroup', 'BloodGroup', 'Blood_Group', 'bloodgroup');
+    const genotype = s(row, 'Member_Genotype', 'genotype', 'Genotype');
     const hospital = s(row, 'Hospital', 'PreferredHospital', 'FacilityName');
     const dob = s(row, 'DateOfBirth', 'DOB', 'Member_DateOfBirth', 'BirthDate', 'Date_Of_Birth');
     // profilepic/picturetype live as siblings of `result` on the top-level
