@@ -31,9 +31,14 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
+// Case-insensitive: Prognosis is inconsistent about field casing across
+// endpoints/versions, so match keys ignoring case rather than assuming exact casing.
 function s(row: Record<string, unknown>, ...keys: string[]): string {
+  const lowerMap = new Map(Object.keys(row).map((k) => [k.toLowerCase(), k]));
   for (const k of keys) {
-    const v = row[k];
+    const actualKey = lowerMap.get(k.toLowerCase());
+    if (!actualKey) continue;
+    const v = row[actualKey];
     if (v != null && String(v).trim() && String(v).trim().toLowerCase() !== 'null') return String(v).trim();
   }
   return '';
