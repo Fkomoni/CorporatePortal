@@ -44,6 +44,7 @@ export interface Dependent {
   regionId?: string;
   postalTownId: string;
   relationshipId: string;
+  address?: string;
   preExistingCondition?: string;
   enrolleePicture?: string;
   enrolleePictureType?: string;
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
       Hospital: '',
       Postal_Phone: '',
       Postal_Town_ID: dep.postalTownId,
-      Physical_Add1: '',
+      Physical_Add1: dep.address ?? '',
       Relationship_ID: dep.relationshipId,
       BloodGroup: '',
       genotype: '',

@@ -112,7 +112,13 @@ export async function POST(req: Request) {
       groupid: Number(groupId) || groupId,
       schemeid: Number(schemeId) || schemeId,
       Scheme: schemeName,
-      regionid: body.regionId ? (Number(body.regionId) || body.regionId) : 1,
+      // regionid is Prognosis's real field for state (GetStates returns
+      // {RegionID, RegionName} — "region" is Prognosis's word for state).
+      // body.stateId is what the State dropdown actually sets; body.regionId
+      // is only a fallback in case a caller already resolved it that way.
+      regionid: body.regionId
+        ? (Number(body.regionId) || body.regionId)
+        : body.stateId ? (Number(body.stateId) || body.stateId) : 1,
       Parent_Cif: 0,
       FirstName: firstName,
       Surname: surname,
@@ -134,7 +140,6 @@ export async function POST(req: Request) {
       EnrolleePicture: body.enrolleePicture ?? '',
       EnrolleePictureType: body.enrolleePictureType ?? '',
       registrationsource: 'Web Portal',
-      ...(body.stateId ? { State_ID: body.stateId, StateId: body.stateId } : {}),
       ...(body.startDate ? { Fromdate: body.startDate, StartDate: body.startDate } : {}),
     };
 
