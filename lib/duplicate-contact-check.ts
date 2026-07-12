@@ -31,6 +31,10 @@ export interface DuplicateClash {
   field: 'email address' | 'mobile number';
 }
 
+export function duplicateClashMessage(clash: DuplicateClash): string {
+  return `This ${clash.field} is already registered to ${clash.name} in this group. Please verify that this is not the same person you are trying to add again, new registrations require a unique ${clash.field}.`;
+}
+
 async function fetchBeneficiaries(base: string, token: string, groupId: string, memberstatus: string): Promise<Record<string, unknown>[]> {
   const res = await fetch(
     `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`,

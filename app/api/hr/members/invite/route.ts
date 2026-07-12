@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { renderEmailTemplate } from '@/lib/email-template';
-import { findDuplicateContact } from '@/lib/duplicate-contact-check';
+import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
       const token = await getServiceToken();
       const clash = await findDuplicateContact(BASE, token, groupId, email, '');
       if (clash) {
-        return NextResponse.json({ error: `This ${clash.field} is already registered to ${clash.name} in this group. Please verify and use a unique ${clash.field}.` }, { status: 409 });
+        return NextResponse.json({ error: duplicateClashMessage(clash) }, { status: 409 });
       }
     } catch (e) {
       console.warn('[hr/members/invite] Duplicate check failed, proceeding without it:', e);
