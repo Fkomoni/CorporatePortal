@@ -25,8 +25,14 @@ export async function POST(req: Request) {
   // drives the member's waiting period on Prognosis, so HR must choose it
   // rather than have it silently default to "today".
   const effectiveDate = String(body.effectiveDate ?? '').trim();
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(effectiveDate)) {
+  const dmy = effectiveDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!dmy) {
     return NextResponse.json({ error: 'effectiveDate (dd/mm/yyyy) is required' }, { status: 400 });
+  }
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const effectiveDateVal = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+  if (effectiveDateVal < todayMidnight) {
+    return NextResponse.json({ error: 'Effective date cannot be in the past.' }, { status: 400 });
   }
 
   // ApproveEnrollees operates on a single member's own CIF, not a family

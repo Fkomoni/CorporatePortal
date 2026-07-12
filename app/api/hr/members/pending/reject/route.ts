@@ -32,8 +32,14 @@ export async function POST(req: Request) {
   // RejectEnrollees requires an explicit dd/mm/yyyy termination date — HR
   // must choose it rather than have it silently default to "today".
   const terminationDate = String(body.terminationDate ?? '').trim();
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(terminationDate)) {
+  const dmy = terminationDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!dmy) {
     return NextResponse.json({ error: 'terminationDate (dd/mm/yyyy) is required' }, { status: 400 });
+  }
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const terminationDateVal = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+  if (terminationDateVal < todayMidnight) {
+    return NextResponse.json({ error: 'Termination date cannot be in the past.' }, { status: 400 });
   }
 
   // RejectEnrollees operates on a single member's own CIF, not a family

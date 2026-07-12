@@ -152,6 +152,7 @@ export default function PendingEnroleesPage() {
 
   async function handleApproveConfirm(cifs: string[]) {
     if (!approveDate) { toast('Please choose an effective date.', 'error'); return; }
+    if (approveDate < todayIso()) { toast('Effective date cannot be in the past.', 'error'); return; }
     const names = cifs.length > 1 ? `${cifs.length} beneficiaries` : rows.find((r) => r.cifNumber === cifs[0])?.beneficiaryName;
     setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
     const { updated, failed } = await approveCifs(cifs, toDdMmYyyy(approveDate));
@@ -166,6 +167,7 @@ export default function PendingEnroleesPage() {
   async function handleDecline(cifs: string[]) {
     if (!declineReason.trim()) { toast('Please provide a reason for declining.', 'error'); return; }
     if (!declineDate) { toast('Please choose a termination date.', 'error'); return; }
+    if (declineDate < todayIso()) { toast('Termination date cannot be in the past.', 'error'); return; }
     setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
     let failed = 0;
     for (const cifNumber of cifs) {
@@ -266,7 +268,7 @@ export default function PendingEnroleesPage() {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                   Effective date for {approvingCifs.length > 1 ? `${approvingCifs.length} beneficiaries` : 'this beneficiary'} (required)
                 </label>
-                <input type="date" value={approveDate} onChange={(e) => setApproveDate(e.target.value)}
+                <input type="date" value={approveDate} min={todayIso()} onChange={(e) => setApproveDate(e.target.value)}
                   style={{ ...inputStyle, background: '#fff', border: '1px solid #A7F3D0' }} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button onClick={() => { setApprovingCif(null); setApproveDate(''); }} disabled={busyCif !== null}
@@ -289,7 +291,7 @@ export default function PendingEnroleesPage() {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 8px' }}>
                   Termination date (required)
                 </label>
-                <input type="date" value={declineDate} onChange={(e) => setDeclineDate(e.target.value)}
+                <input type="date" value={declineDate} min={todayIso()} onChange={(e) => setDeclineDate(e.target.value)}
                   style={{ ...inputStyle, background: '#fff', border: '1px solid #FECACA' }} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button onClick={() => { setDecliningCif(null); setDeclineReason(''); setDeclineDate(''); }} disabled={busyCif !== null}
