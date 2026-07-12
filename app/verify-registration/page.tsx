@@ -30,6 +30,8 @@ function VerifyForm() {
   const [otp, setOtp]               = useState('');
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
+  const [resending, setResending]   = useState(false);
+  const [resendInfo, setResendInfo] = useState('');
 
   useEffect(() => { if (urlEmail) setEmail(urlEmail); }, [urlEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -58,6 +60,17 @@ function VerifyForm() {
 
     setLoading(true);
     try {
+      const ok = await requestOtp();
+      if (ok) setStage('otp');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Shared by the initial "Continue to Verification" submit and the OTP
+  // step's "Resend code" button — both just need a fresh code sent.
+  async function requestOtp(): Promise<boolean> {
+    try {
       const res = await fetch('/api/hr/request-registration-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,13 +79,24 @@ function VerifyForm() {
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? 'Failed to send OTP. Please try again.');
-        return;
+        return false;
       }
-      setStage('otp');
+      return true;
     } catch {
       setError('Network error. Please try again.');
+      return false;
+    }
+  }
+
+  async function handleResendOtp() {
+    if (resending) return;
+    setError(''); setResendInfo('');
+    setResending(true);
+    try {
+      const ok = await requestOtp();
+      if (ok) { setOtp(''); setResendInfo('A new code has been sent.'); }
     } finally {
-      setLoading(false);
+      setResending(false);
     }
   }
 
@@ -327,6 +351,10 @@ function VerifyForm() {
                     style={{ ...inputStyle, letterSpacing: '0.3em', fontWeight: 700, fontSize: 22, textAlign: 'center' }} onFocus={fi} onBlur={fo} />
                 </div>
 
+                {resendInfo && (
+                  <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>{resendInfo}</div>
+                )}
+
                 {error && (
                   <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{error}</div>
                 )}
@@ -344,10 +372,16 @@ function VerifyForm() {
                   ) : 'Verify & Access Portal →'}
                 </button>
 
-                <button type="button" onClick={() => { setStage('password'); setError(''); }}
-                  style={{ height: 40, borderRadius: 10, border: 'none', background: 'transparent', color: '#9CA3B8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                  ← Back to password
-                </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <button type="button" onClick={() => { setStage('password'); setError(''); setResendInfo(''); }}
+                    style={{ height: 40, borderRadius: 10, border: 'none', background: 'transparent', color: '#9CA3B8', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                    ← Back to password
+                  </button>
+                  <button type="button" onClick={handleResendOtp} disabled={resending}
+                    style={{ height: 40, borderRadius: 10, border: 'none', background: 'transparent', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: resending ? 'wait' : 'pointer', padding: 0 }}>
+                    {resending ? 'Sending…' : 'Resend code'}
+                  </button>
+                </div>
               </form>
             </>
           )}
