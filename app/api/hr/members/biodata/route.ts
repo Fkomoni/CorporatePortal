@@ -46,6 +46,11 @@ function s(row: Record<string, unknown>, ...keys: string[]): string {
 
 function toRow(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== 'object') return null;
+  // Confirmed shape: GetEnrolleeBioDataByEnrolleeID returns a bare top-level
+  // array, not wrapped in { data: [...] } — check this before anything else,
+  // since Array.isArray(raw) === true would otherwise fall through and treat
+  // the whole array as the row (every field lookup then silently fails).
+  if (Array.isArray(raw)) return raw.length > 0 ? (raw[0] as Record<string, unknown>) : null;
   const r = raw as Record<string, unknown>;
   // Handle wrapped shapes: { data: [...] } or { result: {...} }
   for (const key of ['data', 'Data', 'result', 'Result']) {
