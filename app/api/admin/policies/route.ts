@@ -172,20 +172,25 @@ export async function GET(req: Request) {
     // Only serve currently-active policies (Termdate not expired)
     const active = unique.filter((p) => p.status === 'Active');
 
-    // Fetch lastLogin for every admin email in one query
+    // Fetch lastLogin/account-active state for every admin email in one query
     const emails = [...new Set(active.map((p) => p.adminEmail).filter(Boolean))];
     const users  = emails.length
-      ? await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true, lastLogin: true } })
+      ? await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true, lastLogin: true, active: true } })
       : [];
     const loginMap = new Map(users.map((u) => [u.email, u.lastLogin]));
+    const activeMap = new Map(users.map((u) => [u.email, u.active]));
 
     const policies = active.map((p) => {
       const lastLogin = loginMap.get(p.adminEmail) ?? null;
+      const hrAccountExists = activeMap.has(p.adminEmail);
+      const hrAccountActive = activeMap.get(p.adminEmail) ?? false;
       return {
         ...p,
         lastLogin: lastLogin ? lastLogin.toISOString() : null,
         // Portal status: Active = has logged in, Pending = never logged in
         portalStatus: lastLogin ? 'Active' : 'Pending',
+        hrAccountExists,
+        hrAccountActive,
       };
     });
 
