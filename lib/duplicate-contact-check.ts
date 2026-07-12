@@ -31,6 +31,23 @@ export interface DuplicateClash {
   field: 'email address' | 'mobile number';
 }
 
+async function fetchBeneficiaries(base: string, token: string, groupId: string, memberstatus: string): Promise<Record<string, unknown>[]> {
+  const res = await fetch(
+    `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`,
+    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+  );
+  const raw = await res.json().catch(() => null);
+  return Array.isArray((raw as Record<string, unknown>)?.result)
+    ? (raw as Record<string, unknown>).result as Record<string, unknown>[]
+    : Array.isArray((raw as Record<string, unknown>)?.Result)
+      ? (raw as Record<string, unknown>).Result as Record<string, unknown>[]
+      : Array.isArray(raw) ? raw as Record<string, unknown>[] : [];
+}
+
+// A contact already used by ANY member — active or inactive — must be
+// treated as taken: an inactive/terminated principal's record still exists
+// in Prognosis and re-enrolling their old email/phone under a new person
+// would collide with (or resurrect confusion around) that old record.
 export async function findDuplicateContact(
   base: string, token: string, groupId: string, email: string, mobile: string,
 ): Promise<DuplicateClash | null> {
@@ -38,18 +55,13 @@ export async function findDuplicateContact(
   const wantedMobile = normPhone(mobile);
   if (!wantedEmail && !wantedMobile) return null;
 
-  const res = await fetch(
-    `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=active`,
-    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
-  );
-  const raw = await res.json().catch(() => null);
-  const rows: Record<string, unknown>[] = Array.isArray((raw as Record<string, unknown>)?.result)
-    ? (raw as Record<string, unknown>).result as Record<string, unknown>[]
-    : Array.isArray((raw as Record<string, unknown>)?.Result)
-      ? (raw as Record<string, unknown>).Result as Record<string, unknown>[]
-      : Array.isArray(raw) ? raw as Record<string, unknown>[] : [];
+  const [activeRows, inactiveRows] = await Promise.all([
+    fetchBeneficiaries(base, token, groupId, 'active'),
+    fetchBeneficiaries(base, token, groupId, 'inactive'),
+  ]);
+  const rows = [...activeRows, ...inactiveRows];
 
-  console.log(`[duplicate-contact-check] groupId=${groupId} rows=${rows.length}`);
+  console.log(`[duplicate-contact-check] groupId=${groupId} activeRows=${activeRows.length} inactiveRows=${inactiveRows.length}`);
 
   for (const row of rows) {
     const rowEmail = normEmail(row['EmailAdress']);
