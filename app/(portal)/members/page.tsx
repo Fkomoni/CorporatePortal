@@ -2081,9 +2081,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                     : <Users style={{ width: 26, height: 26, color: '#C4C9D9' }} />}
                 </div>
                 <div>
-                  <p style={{ fontSize: 13, color: avatarPreview ? '#374151' : '#9CA3B8' }}>
-                    {avatarPreview ? 'On file with Prognosis.' : 'No passport photo on file for this member.'}
-                  </p>
+                  {!avatarPreview && (
+                    <p style={{ fontSize: 13, color: '#9CA3B8' }}>No passport photo on file for this member.</p>
+                  )}
                   {avatarPreview && (
                     <button onClick={() => setShowPhotoZoom(true)}
                       style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
