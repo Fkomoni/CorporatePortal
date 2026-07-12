@@ -47,6 +47,16 @@ function extractDate(row: Record<string, unknown>): Date | null {
     'Dateregistered', 'Date_Registered_On', 'RegisteredDate',
   );
   if (!raw) return null;
+  // Prognosis sends this as dd/mm/yyyy (e.g. "12/07/2026" = 12 July 2026).
+  // new Date(raw) parses slash dates as US mm/dd/yyyy, silently flipping day
+  // and month whenever the day is <=12 — check this shape before falling
+  // back to the generic parser.
+  const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]), month = Number(dmy[2]), year = Number(dmy[3]);
+    const d = new Date(year, month - 1, day);
+    return isNaN(d.getTime()) ? null : d;
+  }
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
 }
