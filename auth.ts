@@ -118,16 +118,35 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           if (!res.ok) return null;
 
           const data = await res.json() as Record<string, unknown>;
-          const payload = (data?.result ?? data?.Result ?? data?.data ?? data?.Data ?? data) as Record<string, unknown> | null;
+
+          // Prognosis endpoints in this system routinely return HTTP 200 with
+          // a status/error field even on a rejected login — checking res.ok
+          // alone is not a valid pass/fail signal. Reject on any explicit
+          // failure indicator before considering this a successful login.
+          const status = String(data?.status ?? data?.Status ?? '').toLowerCase();
+          if (status && !['success', 'true', '200', 'ok'].includes(status)) return null;
+          if (data?.ErrorMessage || data?.errorMessage || data?.error || data?.Error) return null;
+
+          // Only ever trust an explicitly wrapped payload — never fall back to
+          // the raw top-level response, which is still a truthy object even
+          // for a rejection body with no wrapper key.
+          const payload = (data?.result ?? data?.Result ?? data?.data ?? data?.Data) as Record<string, unknown> | Record<string, unknown>[] | null;
           if (!payload) return null;
 
           // Prognosis returns an array or object — normalise
           const record = Array.isArray(payload) ? payload[0] as Record<string, unknown> : payload;
-          if (!record) return null;
+          if (!record || typeof record !== 'object') return null;
 
-          const email = String(record.email ?? record.Email ?? record.EmailAddress ?? credentials.login);
-          const name  = String(record.name ?? record.Name ?? record.FullName ?? record.fullName ?? credentials.login);
-          const id    = String(record.id ?? record.Id ?? record.userId ?? record.UserId ?? email);
+          // Require Prognosis to return a genuine identity — never fall back
+          // to the credentials the user typed, or any HTTP-200 response with
+          // a wrapper key (even an empty one) could still grant a session.
+          const emailRaw = record.email ?? record.Email ?? record.EmailAddress ?? null;
+          const idRaw     = record.id ?? record.Id ?? record.userId ?? record.UserId ?? null;
+          if (!emailRaw || !idRaw) return null;
+
+          const email = String(emailRaw);
+          const id    = String(idRaw);
+          const name  = String(record.name ?? record.Name ?? record.FullName ?? record.fullName ?? email);
 
           return {
             id,
