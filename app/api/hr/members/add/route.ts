@@ -75,6 +75,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  // Cover can only be backdated to the 1st of the current month at the
+  // earliest — HR must not be able to back-register cover further than that.
+  if (body.startDate) {
+    const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
+    const chosenStart = new Date(body.startDate); chosenStart.setHours(0, 0, 0, 0);
+    if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
+      return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+    }
+  }
+
   const groupId = session.user.companyId ?? '';
 
   try {
