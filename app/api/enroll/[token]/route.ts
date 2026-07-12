@@ -205,6 +205,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         cadre: '',
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
+        // Self-service link submissions must wait for HR approval — Activated
+        // is the same field UpdateBeneficiary/TerminateBeneficiary use to flag
+        // a beneficiary's active state, so we ask Prognosis not to activate
+        // this one immediately. HR's own direct Add Dependent stays untouched
+        // (unset there) and keeps auto-activating as before.
+        Activated: false,
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddDependentsOnly`;
       apiBody = { AddBeneficiary: [depPayload] };
@@ -239,6 +245,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         cadre: body.cadre ?? '',
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
+        // See note above — same reasoning applies to a principal self-enrolling
+        // via their own link.
+        Activated: false,
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddPrincipalOnly`;
       apiBody = payload;
