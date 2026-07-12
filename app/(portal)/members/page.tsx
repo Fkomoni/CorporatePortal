@@ -5,7 +5,7 @@ import { PeopleVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
-  ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus, Camera,
+  ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus, Camera, Copy, Check,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import type { Member } from '@/lib/types';
@@ -1435,7 +1435,41 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 }
 
 /* ── E-Card ──────────────────────────────────────────────────────────── */
-function ECardModal({ member, enroleeId, avatarPreview, schemeName, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; onClose: () => void }) {
+function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; memberEmail: string | null; onClose: () => void }) {
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+
+  async function handleSendECard() {
+    if (sending) return;
+    if (!memberEmail) { toast('No email address on record for this member.', 'error'); return; }
+    setSending(true);
+    try {
+      const res = await fetch('/api/hr/members/send-ecard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: memberEmail,
+          enroleeId,
+          memberName: `${member.firstName} ${member.lastName}`,
+          memberType: member.type,
+          planName: member.plan,
+          schemeName,
+          photoDataUri: avatarPreview || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast(data.error ?? 'Failed to send e-card', 'error');
+      } else {
+        toast(`E-Card sent to ${memberEmail}`, 'success');
+      }
+    } catch {
+      toast('Failed to send e-card. Please try again.', 'error');
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
       onClick={onClose}>
@@ -1508,6 +1542,10 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, onClose }: {
             style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#131C4E', border: 'none', borderRadius: 12, background: '#fff', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
             Print / Save as PDF
           </button>
+          <button onClick={handleSendECard} disabled={sending}
+            style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: sending ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', opacity: sending ? 0.6 : 1, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+            {sending ? 'Sending…' : 'Send E-Card'}
+          </button>
         </div>
       </div>
 
@@ -1529,6 +1567,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
   const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
   const [sendingId, setSendingId]           = useState(false);
+  const [showSendIdSheet, setShowSendIdSheet] = useState(false);
+  const [sendIdEmail, setSendIdEmail]       = useState('');
+  const [idCopied, setIdCopied]             = useState(false);
   const [depSubmitting, setDepSubmitting]   = useState(false);
   const [depError, setDepError]             = useState('');
   const [depGeneratedUrl, setDepGeneratedUrl] = useState('');
@@ -1649,16 +1690,22 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const enroleeId = member.employeeId;
   const depCount  = member.dependants ?? 0;
 
-  async function handleSendEnroleeId() {
+  function openSendIdSheet() {
+    setSendIdEmail(bioEmail || '');
+    setShowSendIdSheet(true);
+  }
+
+  async function handleSendEnroleeId(emailOverride?: string) {
     if (sendingId) return;
-    if (!bioEmail) { toast('No email address on record for this member.', 'error'); return; }
+    const targetEmail = (emailOverride ?? bioEmail ?? '').trim();
+    if (!targetEmail) { openSendIdSheet(); return; }
     setSendingId(true);
     try {
       const res = await fetch('/api/hr/members/send-enrolee-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: bioEmail,
+          email: targetEmail,
           enroleeId,
           memberName: `${member.firstName} ${member.lastName}`,
           schemeName: member.plan,
@@ -1668,12 +1715,39 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       if (!res.ok || data.error) {
         toast(data.error ?? 'Failed to send email', 'error');
       } else {
-        toast(`Enrolee ID sent to ${bioEmail}`, 'success');
+        toast(`Enrolee ID sent to ${targetEmail}`, 'success');
+        setShowSendIdSheet(false);
       }
     } catch {
       toast('Failed to send email. Please try again.', 'error');
     } finally {
       setSendingId(false);
+    }
+  }
+
+  async function handleCopyEnroleeId() {
+    let copied = false;
+    if (navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(enroleeId); copied = true; } catch { /* fall through */ }
+    }
+    if (!copied) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = enroleeId;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch { /* ignore */ }
+    }
+    if (copied) {
+      setIdCopied(true);
+      toast('Enrolee ID copied', 'success');
+      setTimeout(() => setIdCopied(false), 2000);
+    } else {
+      toast('Could not copy — please copy manually.', 'error');
     }
   }
 
@@ -1958,10 +2032,10 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #F0F1F5', flexShrink: 0, padding: '0 24px' }}>
-          {(['overview', 'claims', 'benefits'] as const).map((tab) => (
+          {(['overview', 'benefits'] as const).map((tab) => (
             <button key={tab} onClick={() => setDrawerTab(tab)}
               style={{ padding: '13px 0', marginRight: 28, fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: drawerTab === tab ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${drawerTab === tab ? '#F56B22' : 'transparent'}` }}>
-              {tab === 'overview' ? 'Overview' : tab === 'claims' ? 'Claim History' : 'Benefits'}
+              {tab === 'overview' ? 'Overview' : 'Benefits'}
             </button>
           ))}
         </div>
@@ -2104,10 +2178,16 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           {/* Row 1 — Send Enrolee ID + Add Dependent (principals only) */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={handleSendEnroleeId}
+              onClick={openSendIdSheet}
               disabled={sendingId}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: sendingId ? '#9CA3B8' : '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: sendingId ? '#F7F8FA' : 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: sendingId ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.15s' }}>
               <Send style={{ width: 14, height: 14 }} /> {sendingId ? 'Sending…' : 'Send Enrolee ID'}
+            </button>
+            <button
+              onClick={handleCopyEnroleeId}
+              title="Copy Enrolee ID"
+              style={{ width: 42, height: 42, flexShrink: 0, fontSize: 13, fontWeight: 600, color: idCopied ? '#059669' : '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: idCopied ? '#ECFDF5' : 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
+              {idCopied ? <Check style={{ width: 15, height: 15 }} /> : <Copy style={{ width: 15, height: 15 }} />}
             </button>
             {member.type === 'Principal' && (
               <button
@@ -2315,6 +2395,39 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           </div>
         )}
 
+        {/* ── Send Enrolee ID sheet ── */}
+        {showSendIdSheet && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+            onClick={() => setShowSendIdSheet(false)}>
+            <div style={{ width: 380, background: '#fff', borderRadius: 18, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
+              <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Send Enrolee ID</p>
+              <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>
+                {enroleeId} will be emailed to {member.firstName} {member.lastName}.
+              </p>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Email address</label>
+              <input
+                type="email"
+                value={sendIdEmail}
+                onChange={(e) => setSendIdEmail(e.target.value)}
+                placeholder="member@example.com"
+                style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, marginBottom: 18, boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setShowSendIdSheet(false)}
+                  style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSendEnroleeId(sendIdEmail)}
+                  disabled={sendingId || !sendIdEmail.trim()}
+                  style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: sendingId || !sendIdEmail.trim() ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#3A4382,#131C4E)', opacity: sendingId || !sendIdEmail.trim() ? 0.6 : 1 }}>
+                  {sendingId ? 'Sending…' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── E-Card modal ── */}
         {showECard && (
           <ECardModal
@@ -2322,6 +2435,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
             enroleeId={enroleeId}
             avatarPreview={avatarPreview}
             schemeName={memberScheme?.schemeName ?? member.plan}
+            memberEmail={bioEmail}
             onClose={() => setShowECard(false)}
           />
         )}
