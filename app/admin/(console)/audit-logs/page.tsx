@@ -153,6 +153,15 @@ export default function AuditLogsPage() {
             const detailLine = log.details
               ? (() => {
                   const d = log.details as Record<string, unknown>;
+                  if (log.action.includes('PENDING_ENROLEE')) {
+                    return [
+                      d.beneficiaryName ? `${String(d.beneficiaryName)}${d.relationship ? ` (${String(d.relationship)})` : ''}` : (d.principalName ? String(d.principalName) : null),
+                      Array.isArray(d.cifNumbers) && d.cifNumbers.length > 0 ? `CIF ${(d.cifNumbers as unknown[]).join(', ')}` : null,
+                      d.effectiveDate ? `effective ${String(d.effectiveDate)}` : null,
+                      d.terminationDate ? `terminated ${String(d.terminationDate)}` : null,
+                      d.reason ? `reason: ${String(d.reason)}` : null,
+                    ].filter(Boolean).join(' · ');
+                  }
                   if (d.totalCount !== undefined) return `${d.totalCount} records`;
                   if (d.totalClaims !== undefined) return `${d.totalClaims} claims`;
                   if (d.targetUserName) return `${d.targetUserName} → ${d.newStatus}`;

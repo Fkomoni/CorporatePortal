@@ -30,6 +30,10 @@ const ACTION_COLORS: Record<string, { bg: string; text: string }> = {
   TOGGLE_USER_STATUS:   { bg: '#FFFBEB', text: '#D97706' },
   VIEW_DASHBOARD:       { bg: '#F0FDF4', text: '#16A34A' },
   VIEW_COMPANY_PROFILE: { bg: '#F1F5F9', text: '#64748B' },
+  APPROVE_PENDING_ENROLEE:        { bg: '#ECFDF5', text: '#059669' },
+  APPROVE_PENDING_ENROLEE_FAILED: { bg: '#FEF2F2', text: '#DC2626' },
+  REJECT_PENDING_ENROLEE:         { bg: '#FEF2F2', text: '#DC2626' },
+  REJECT_PENDING_ENROLEE_FAILED:  { bg: '#FEF2F2', text: '#DC2626' },
 };
 
 function fmtTime(iso: string) {
@@ -172,13 +176,28 @@ export default function HRAuditLogsPage() {
               const ac = ACTION_COLORS[log.action] ?? { bg: '#F1F5F9', text: '#6B7280' };
               const label = actionLabel(log.action);
               const d = (log.details ?? {}) as Record<string, unknown>;
-              const detailLine = d.totalCount !== undefined
-                ? `${String(d.totalCount)} records`
-                : d.totalClaims !== undefined
-                  ? `${String(d.totalClaims)} claims`
-                  : d.targetUserName
-                    ? `${String(d.targetUserName)} → ${String(d.newStatus ?? '')}`
-                    : null;
+              const isEnroleeDecision = log.action === 'APPROVE_PENDING_ENROLEE' || log.action === 'APPROVE_PENDING_ENROLEE_FAILED'
+                || log.action === 'REJECT_PENDING_ENROLEE' || log.action === 'REJECT_PENDING_ENROLEE_FAILED';
+              const detailLine = isEnroleeDecision
+                ? [
+                    d.beneficiaryName
+                      ? `${String(d.beneficiaryName)}${d.relationship ? ` (${String(d.relationship)})` : ''}`
+                      : (d.principalName ? String(d.principalName) : (d.parentCif ? `CIF ${String(d.parentCif)}` : null)),
+                    d.beneficiaryName && d.principalName && d.principalName !== d.beneficiaryName ? `staff: ${String(d.principalName)}` : null,
+                    Array.isArray(d.cifNumbers) && d.cifNumbers.length > 0 ? `CIF${d.cifNumbers.length > 1 ? 's' : ''} ${(d.cifNumbers as unknown[]).join(', ')}` : null,
+                    d.effectiveDate ? `effective ${String(d.effectiveDate)}` : null,
+                    d.terminationDate ? `terminated ${String(d.terminationDate)}` : null,
+                    d.reason ? `reason: ${String(d.reason)}` : null,
+                    d.recordsUpdated !== undefined ? `${String(d.recordsUpdated)} updated` : null,
+                    Array.isArray(d.errors) && d.errors.filter(Boolean).length > 0 ? `error: ${(d.errors as unknown[]).filter(Boolean).join('; ')}` : null,
+                  ].filter(Boolean).join(' · ') || null
+                : d.totalCount !== undefined
+                  ? `${String(d.totalCount)} records`
+                  : d.totalClaims !== undefined
+                    ? `${String(d.totalClaims)} claims`
+                    : d.targetUserName
+                      ? `${String(d.targetUserName)} → ${String(d.newStatus ?? '')}`
+                      : null;
 
               return (
                 <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '170px 1fr 160px 130px', columnGap: 12, alignItems: 'center', padding: '13px 24px', borderBottom: '1px solid #F7F8FA' }}>
