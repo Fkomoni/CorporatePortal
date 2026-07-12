@@ -94,7 +94,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Could not load current member record (${profileRes.status})` }, { status: 502 });
     }
     const p = profileRaw as Record<string, unknown>;
-    const row = ((p?.result ?? p?.Result ?? p?.data ?? p?.Data ?? p) as Record<string, unknown>) ?? {};
+    // GetEnrolleeBioDataByEnrolleeID's "result" is an array — the row itself
+    // is result[0], not the array. Spreading the array directly (as before)
+    // put numeric-index keys into the payload instead of real field names,
+    // so Prognosis received a payload missing Cif_Number/scheme/NIN entirely
+    // and rejected the whole record as invalid.
+    const resultField = p?.result ?? p?.Result ?? p?.data ?? p?.Data;
+    const row = ((Array.isArray(resultField) ? resultField[0] : resultField) ?? p ?? {}) as Record<string, unknown>;
 
     const cifNumber = body.cifNumber ?? row['Cif_Number'] ?? row['CIF_Number'] ?? row['CifNo'] ?? row['Cif'] ?? row['cifNumber'];
 
@@ -131,7 +137,12 @@ export async function POST(req: Request) {
     }
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
-    const apiMessage = String(r?.message ?? r?.Message ?? '');
+    // On failure Prognosis returns its message as a `result` array of
+    // { Text: "..." } validation entries rather than a single message field.
+    const resultErrors = Array.isArray(r?.result)
+      ? (r.result as Array<{ Text?: string }>).map((e) => e?.Text).filter(Boolean).join('; ')
+      : '';
+    const apiMessage = String(r?.message ?? r?.Message ?? '') || resultErrors;
     if (apiStatus && apiStatus !== 'success' && apiStatus !== '200') {
       return NextResponse.json({ error: apiMessage || `Update failed (${apiStatus})` }, { status: 422 });
     }

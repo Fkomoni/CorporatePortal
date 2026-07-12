@@ -1611,6 +1611,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [sendingId, setSendingId]           = useState(false);
   const [showSendIdSheet, setShowSendIdSheet] = useState(false);
   const [sendIdEmail, setSendIdEmail]       = useState('');
+  const [sendIdSentTo, setSendIdSentTo]     = useState('');
   const [idCopied, setIdCopied]             = useState(false);
   const [depSubmitting, setDepSubmitting]   = useState(false);
   const [depError, setDepError]             = useState('');
@@ -1733,6 +1734,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
 
   function openSendIdSheet() {
     setSendIdEmail(bioEmail || '');
+    setSendIdSentTo('');
     setShowSendIdSheet(true);
   }
 
@@ -1756,8 +1758,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       if (!res.ok || data.error) {
         toast(data.error ?? 'Failed to send email', 'error');
       } else {
-        toast(`Enrolee ID sent to ${targetEmail}`, 'success');
-        setShowSendIdSheet(false);
+        setSendIdSentTo(targetEmail);
       }
     } catch {
       toast('Failed to send email. Please try again.', 'error');
@@ -2457,32 +2458,46 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         {showSendIdSheet && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
             onClick={() => setShowSendIdSheet(false)}>
-            <div style={{ width: 380, background: '#fff', borderRadius: 18, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
-              <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Send Enrolee ID</p>
-              <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>
-                {enroleeId} will be emailed to {member.firstName} {member.lastName}.
-              </p>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Email address</label>
-              <input
-                type="email"
-                value={sendIdEmail}
-                onChange={(e) => setSendIdEmail(e.target.value)}
-                placeholder="member@example.com"
-                style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, marginBottom: 18, boxSizing: 'border-box' }}
-              />
-              <div style={{ display: 'flex', gap: 10 }}>
+            {sendIdSentTo ? (
+              <div style={{ width: 380, background: '#fff', borderRadius: 18, padding: 28, boxShadow: '0 20px 50px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Check style={{ width: 22, height: 22, color: '#059669' }} />
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Enrolee ID sent successfully</p>
+                <p style={{ fontSize: 12.5, color: '#6B7280', textAlign: 'center' }}>Delivered to <strong>{sendIdSentTo}</strong></p>
                 <button onClick={() => setShowSendIdSheet(false)}
-                  style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSendEnroleeId(sendIdEmail)}
-                  disabled={sendingId || !sendIdEmail.trim()}
-                  style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: sendingId || !sendIdEmail.trim() ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#3A4382,#131C4E)', opacity: sendingId || !sendIdEmail.trim() ? 0.6 : 1 }}>
-                  {sendingId ? 'Sending…' : 'Send'}
+                  style={{ marginTop: 6, height: 38, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,#059669,#10B981)', cursor: 'pointer' }}>
+                  Done
                 </button>
               </div>
-            </div>
+            ) : (
+              <div style={{ width: 380, background: '#fff', borderRadius: 18, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
+                <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Send Enrolee ID</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>
+                  {enroleeId} will be emailed to {member.firstName} {member.lastName}.
+                </p>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Email address</label>
+                <input
+                  type="email"
+                  value={sendIdEmail}
+                  onChange={(e) => setSendIdEmail(e.target.value)}
+                  placeholder="member@example.com"
+                  style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, marginBottom: 18, boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setShowSendIdSheet(false)}
+                    style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleSendEnroleeId(sendIdEmail)}
+                    disabled={sendingId || !sendIdEmail.trim()}
+                    style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: sendingId || !sendIdEmail.trim() ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#3A4382,#131C4E)', opacity: sendingId || !sendIdEmail.trim() ? 0.6 : 1 }}>
+                    {sendingId ? 'Sending…' : 'Send'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
