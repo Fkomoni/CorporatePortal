@@ -59,11 +59,14 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
       [dateKey]: opts.effectiveDate || todayDdMmYyyy(),
       useremail: opts.userEmail,
     });
-    const res = await callWithRetry(`${BASE}/api/CorporatePortal/${endpoint}?${params.toString()}`);
+    const url = `${BASE}/api/CorporatePortal/${endpoint}?${params.toString()}`;
+    console.log(`[${endpoint}] → ${url}`);
+    const res = await callWithRetry(url);
     const text = await res.text();
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
     const r = raw as Record<string, unknown>;
+    console.log(`[${endpoint}] ← HTTP ${res.status}: ${text.slice(0, 500)}`);
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');

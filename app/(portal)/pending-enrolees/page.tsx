@@ -60,7 +60,22 @@ export default function PendingEnroleesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [decliningCif, setDecliningCif] = useState<string | null>(null); // null = not declining; 'bulk' = declining current selection
   const [declineReason, setDeclineReason] = useState('');
+  const [declineDate, setDeclineDate] = useState(''); // termination date, yyyy-mm-dd
+  const [approvingCif, setApprovingCif] = useState<string | null>(null); // null = not approving; 'bulk' = approving current selection
+  const [approveDate, setApproveDate] = useState(''); // effective date, yyyy-mm-dd
   const [busyCif, setBusyCif] = useState<string | null>(null); // parentCif or 'bulk'
+
+  // Prognosis needs an explicit dd/mm/yyyy effective/termination date for
+  // every approve/reject decision — it drives the member's waiting period,
+  // so it can't be silently defaulted to "today" behind HR's back.
+  function toDdMmYyyy(isoDate: string): string {
+    const [y, m, d] = isoDate.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  function todayIso(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
 
   const load = useCallback(() => {
     setLoading(true); setError('');
@@ -108,7 +123,7 @@ export default function PendingEnroleesPage() {
     });
   }
 
-  async function approveCifs(cifs: string[]) {
+  async function approveCifs(cifs: string[], effectiveDate: string) {
     let updated = 0;
     let failed = 0;
     for (const cifNumber of cifs) {
@@ -117,7 +132,7 @@ export default function PendingEnroleesPage() {
         const res = await fetch('/api/hr/members/pending/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, cifNumbers: [cifNumber] }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, cifNumbers: [cifNumber], effectiveDate }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;
@@ -126,28 +141,31 @@ export default function PendingEnroleesPage() {
     return { updated, failed };
   }
 
-  async function handleApproveOne(row: BeneficiaryRow) {
-    setBusyCif(row.cifNumber);
-    const { updated, failed } = await approveCifs([row.cifNumber]);
-    setBusyCif(null);
-    if (failed) { toast(`Failed to approve ${row.beneficiaryName}.`, 'error'); return; }
-    toast(`${row.beneficiaryName} approved${updated ? ` (${updated} record${updated !== 1 ? 's' : ''})` : ''}.`, 'success');
-    removeCifNumbers(new Set([row.cifNumber]));
+  const approvingCifs = approvingCif === 'bulk'
+    ? [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.cifNumber))]
+    : approvingCif ? [approvingCif] : [];
+
+  function openApproveSheet(cif: string) {
+    setApprovingCif(cif);
+    setApproveDate(todayIso());
   }
 
-  async function handleApproveSelected() {
-    const cifs = [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.cifNumber))];
-    if (cifs.length === 0) return;
-    setBusyCif('bulk');
-    const { updated, failed } = await approveCifs(cifs);
+  async function handleApproveConfirm(cifs: string[]) {
+    if (!approveDate) { toast('Please choose an effective date.', 'error'); return; }
+    const names = cifs.length > 1 ? `${cifs.length} beneficiaries` : rows.find((r) => r.cifNumber === cifs[0])?.beneficiaryName;
+    setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
+    const { updated, failed } = await approveCifs(cifs, toDdMmYyyy(approveDate));
     setBusyCif(null);
-    if (failed) toast(`${failed} approval${failed !== 1 ? 's' : ''} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
-    if (updated) toast(`Approved ${updated} record${updated !== 1 ? 's' : ''}.`, 'success');
+    if (failed) toast(`${failed > 1 ? `${failed} approvals` : `Failed to approve ${names}`} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
+    if (updated) toast(`${cifs.length > 1 ? `Approved ${updated} record${updated !== 1 ? 's' : ''}` : `${names} approved`}.`, 'success');
     removeCifNumbers(new Set(cifs));
+    setApprovingCif(null);
+    setApproveDate('');
   }
 
   async function handleDecline(cifs: string[]) {
     if (!declineReason.trim()) { toast('Please provide a reason for declining.', 'error'); return; }
+    if (!declineDate) { toast('Please choose a termination date.', 'error'); return; }
     setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
     let failed = 0;
     for (const cifNumber of cifs) {
@@ -156,7 +174,7 @@ export default function PendingEnroleesPage() {
         const res = await fetch('/api/hr/members/pending/reject', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, reason: declineReason.trim(), email: row?.email, cifNumbers: [cifNumber] }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, reason: declineReason.trim(), email: row?.email, cifNumbers: [cifNumber], terminationDate: toDdMmYyyy(declineDate) }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++;
@@ -168,6 +186,7 @@ export default function PendingEnroleesPage() {
     removeCifNumbers(new Set(cifs));
     setDecliningCif(null);
     setDeclineReason('');
+    setDeclineDate('');
   }
 
   const inputStyle: React.CSSProperties = { height: 40, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none' };
@@ -231,14 +250,32 @@ export default function PendingEnroleesPage() {
               <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #FFD8C0', boxShadow: '0 4px 16px rgba(245,107,34,0.10)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{selected.size}</div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', flex: 1 }}>beneficiar{selected.size > 1 ? 'ies' : 'y'} selected</span>
-                <button onClick={() => setDecliningCif('bulk')} disabled={busyCif === 'bulk'}
+                <button onClick={() => { setDecliningCif('bulk'); setDeclineDate(todayIso()); }} disabled={busyCif === 'bulk'}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 12, background: '#FEF2F2', cursor: busyCif === 'bulk' ? 'wait' : 'pointer' }}>
                   <X style={{ width: 13, height: 13 }} /> Decline Selected
                 </button>
-                <button onClick={handleApproveSelected} disabled={busyCif === 'bulk'}
+                <button onClick={() => openApproveSheet('bulk')} disabled={busyCif === 'bulk'}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: busyCif === 'bulk' ? 'wait' : 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.28)' }}>
                   <Check style={{ width: 13, height: 13 }} /> {busyCif === 'bulk' ? 'Approving…' : 'Approve Selected'}
                 </button>
+              </div>
+            )}
+
+            {approvingCif && (
+              <div style={{ padding: '16px 20px', borderRadius: 16, border: '1.5px solid #A7F3D0', background: '#F0FDF9' }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Effective date for {approvingCifs.length > 1 ? `${approvingCifs.length} beneficiaries` : 'this beneficiary'} (required)
+                </label>
+                <input type="date" value={approveDate} onChange={(e) => setApproveDate(e.target.value)}
+                  style={{ ...inputStyle, background: '#fff', border: '1px solid #A7F3D0' }} />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button onClick={() => { setApprovingCif(null); setApproveDate(''); }} disabled={busyCif !== null}
+                    style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => handleApproveConfirm(approvingCifs)} disabled={busyCif !== null || !approveDate}
+                    style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: !approveDate ? '#E5E7F1' : 'linear-gradient(135deg,#10B981,#059669)', cursor: busyCif !== null || !approveDate ? 'not-allowed' : 'pointer' }}>
+                    {busyCif !== null ? 'Approving…' : 'Confirm Approve'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -249,11 +286,16 @@ export default function PendingEnroleesPage() {
                 </label>
                 <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={2} placeholder="e.g. Not an eligible dependant"
                   style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid #FECACA', borderRadius: 10, background: '#fff', color: '#131C4E', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 8px' }}>
+                  Termination date (required)
+                </label>
+                <input type="date" value={declineDate} onChange={(e) => setDeclineDate(e.target.value)}
+                  style={{ ...inputStyle, background: '#fff', border: '1px solid #FECACA' }} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => { setDecliningCif(null); setDeclineReason(''); }} disabled={busyCif !== null}
+                  <button onClick={() => { setDecliningCif(null); setDeclineReason(''); setDeclineDate(''); }} disabled={busyCif !== null}
                     style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={() => handleDecline(decliningCifs)} disabled={busyCif !== null || !declineReason.trim()}
-                    style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: !declineReason.trim() ? '#E5E7F1' : 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: busyCif !== null || !declineReason.trim() ? 'not-allowed' : 'pointer' }}>
+                  <button onClick={() => handleDecline(decliningCifs)} disabled={busyCif !== null || !declineReason.trim() || !declineDate}
+                    style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: (!declineReason.trim() || !declineDate) ? '#E5E7F1' : 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: (busyCif !== null || !declineReason.trim() || !declineDate) ? 'not-allowed' : 'pointer' }}>
                     {busyCif !== null ? 'Declining…' : 'Confirm Decline'}
                   </button>
                 </div>
@@ -297,11 +339,11 @@ export default function PendingEnroleesPage() {
                     <span>{row.sex}</span>
                     <span style={{ color: '#D97706', fontWeight: 600 }}>{row.status}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => { setDecliningCif(row.cifNumber); setDeclineReason(''); }} disabled={isBusy}
+                      <button onClick={() => { setDecliningCif(row.cifNumber); setDeclineReason(''); setDeclineDate(todayIso()); }} disabled={isBusy}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 9, background: '#FEF2F2', cursor: isBusy ? 'wait' : 'pointer' }}>
                         <X style={{ width: 11, height: 11 }} /> Decline
                       </button>
-                      <button onClick={() => handleApproveOne(row)} disabled={isBusy}
+                      <button onClick={() => openApproveSheet(row.cifNumber)} disabled={isBusy}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 9, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: isBusy ? 'wait' : 'pointer' }}>
                         <Check style={{ width: 11, height: 11 }} /> {busyCif === row.cifNumber ? '…' : 'Approve'}
                       </button>
