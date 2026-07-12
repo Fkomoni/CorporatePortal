@@ -1566,6 +1566,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
   const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
+  const [showPhotoZoom, setShowPhotoZoom]   = useState(false);
   const [sendingId, setSendingId]           = useState(false);
   const [showSendIdSheet, setShowSendIdSheet] = useState(false);
   const [sendIdEmail, setSendIdEmail]       = useState('');
@@ -2046,6 +2047,31 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           {/* ── Overview ── */}
           {drawerTab === 'overview' && (
             <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Passport Photo</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+                <div
+                  onClick={() => avatarPreview && setShowPhotoZoom(true)}
+                  style={{ width: 76, height: 90, borderRadius: 10, overflow: 'hidden', border: '2px solid #E5E7F1', background: '#F7F8FC', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: avatarPreview ? 'zoom-in' : 'default', flexShrink: 0 }}>
+                  {avatarPreview
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={avatarPreview} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Users style={{ width: 26, height: 26, color: '#C4C9D9' }} />}
+                </div>
+                <div>
+                  <p style={{ fontSize: 13, color: avatarPreview ? '#374151' : '#9CA3B8' }}>
+                    {avatarPreview ? 'On file with Prognosis.' : 'No passport photo on file for this member.'}
+                  </p>
+                  {avatarPreview && (
+                    <button onClick={() => setShowPhotoZoom(true)}
+                      style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                      View full size
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: '#F0F1F5', marginBottom: 24 }} />
+
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 20px', marginBottom: 24 }}>
                 {[
@@ -2392,6 +2418,15 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                 {editSubmitting ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ── Passport photo zoom ── */}
+        {showPhotoZoom && avatarPreview && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110, padding: 20 }}
+            onClick={() => setShowPhotoZoom(false)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={avatarPreview} alt="passport" style={{ maxWidth: '80vw', maxHeight: '80vh', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} />
           </div>
         )}
 
