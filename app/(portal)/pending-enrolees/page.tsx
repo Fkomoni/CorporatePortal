@@ -8,6 +8,7 @@ import type { PendingGroup } from '@/app/api/hr/members/pending/route';
 
 interface BeneficiaryRow {
   rowId: string;
+  cifNumber: string;
   parentCif: string;
   staffName: string;
   beneficiaryName: string;
@@ -29,6 +30,7 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
       if (m.isPrincipal) continue; // only beneficiaries (dependants) require approval
       rows.push({
         rowId: `${g.parentCif}-${m.cifNumber}`,
+        cifNumber: m.cifNumber,
         parentCif: g.parentCif,
         staffName: g.principalName || `CIF ${g.parentCif}`,
         beneficiaryName: m.fullName || '—',
@@ -91,11 +93,16 @@ export default function PendingEnroleesPage() {
     setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.rowId)));
   }
 
-  function removeParentCifs(cifs: Set<string>) {
-    setGroups((prev) => prev.filter((g) => !cifs.has(g.parentCif)));
+  // ApproveEnrollees/RejectEnrollees each act on a single member's own CIF —
+  // remove by that CIF, not the whole family's parentCif, so acting on one
+  // dependant never drops unrelated siblings from the pending list.
+  function removeCifNumbers(cifs: Set<string>) {
+    setGroups((prev) => prev
+      .map((g) => ({ ...g, members: g.members.filter((m) => !cifs.has(m.cifNumber)) }))
+      .filter((g) => g.members.length > 0));
     setSelected((prev) => {
       const next = new Set(prev);
-      for (const r of rows) if (cifs.has(r.parentCif)) next.delete(r.rowId);
+      for (const r of rows) if (cifs.has(r.cifNumber)) next.delete(r.rowId);
       return next;
     });
   }
@@ -103,13 +110,13 @@ export default function PendingEnroleesPage() {
   async function approveCifs(cifs: string[]) {
     let updated = 0;
     let failed = 0;
-    for (const parentCif of cifs) {
-      const row = rows.find((r) => r.parentCif === parentCif);
+    for (const cifNumber of cifs) {
+      const row = rows.find((r) => r.cifNumber === cifNumber);
       try {
         const res = await fetch('/api/hr/members/pending/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif, principalName: row?.staffName }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, cifNumbers: [cifNumber] }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;
@@ -119,36 +126,36 @@ export default function PendingEnroleesPage() {
   }
 
   async function handleApproveOne(row: BeneficiaryRow) {
-    setBusyCif(row.parentCif);
-    const { updated, failed } = await approveCifs([row.parentCif]);
+    setBusyCif(row.cifNumber);
+    const { updated, failed } = await approveCifs([row.cifNumber]);
     setBusyCif(null);
     if (failed) { toast(`Failed to approve ${row.beneficiaryName}.`, 'error'); return; }
     toast(`${row.beneficiaryName} approved${updated ? ` (${updated} record${updated !== 1 ? 's' : ''})` : ''}.`, 'success');
-    removeParentCifs(new Set([row.parentCif]));
+    removeCifNumbers(new Set([row.cifNumber]));
   }
 
   async function handleApproveSelected() {
-    const cifs = [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.parentCif))];
+    const cifs = [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.cifNumber))];
     if (cifs.length === 0) return;
     setBusyCif('bulk');
     const { updated, failed } = await approveCifs(cifs);
     setBusyCif(null);
     if (failed) toast(`${failed} approval${failed !== 1 ? 's' : ''} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
     if (updated) toast(`Approved ${updated} record${updated !== 1 ? 's' : ''}.`, 'success');
-    removeParentCifs(new Set(cifs));
+    removeCifNumbers(new Set(cifs));
   }
 
   async function handleDecline(cifs: string[]) {
     if (!declineReason.trim()) { toast('Please provide a reason for declining.', 'error'); return; }
     setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
     let failed = 0;
-    for (const parentCif of cifs) {
-      const row = rows.find((r) => r.parentCif === parentCif);
+    for (const cifNumber of cifs) {
+      const row = rows.find((r) => r.cifNumber === cifNumber);
       try {
         const res = await fetch('/api/hr/members/pending/reject', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif, principalName: row?.staffName, reason: declineReason.trim(), email: row?.email }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, reason: declineReason.trim(), email: row?.email, cifNumbers: [cifNumber] }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++;
@@ -157,7 +164,7 @@ export default function PendingEnroleesPage() {
     setBusyCif(null);
     if (failed) toast(`${failed} decline${failed !== 1 ? 's' : ''} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
     if (failed < cifs.length) toast(`Declined ${cifs.length - failed} record${cifs.length - failed !== 1 ? 's' : ''}.`, 'success');
-    removeParentCifs(new Set(cifs));
+    removeCifNumbers(new Set(cifs));
     setDecliningCif(null);
     setDeclineReason('');
   }
@@ -165,7 +172,7 @@ export default function PendingEnroleesPage() {
   const inputStyle: React.CSSProperties = { height: 40, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none' };
 
   const decliningCifs = decliningCif === 'bulk'
-    ? [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.parentCif))]
+    ? [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.cifNumber))]
     : decliningCif ? [decliningCif] : [];
 
   return (
@@ -271,7 +278,7 @@ export default function PendingEnroleesPage() {
               </div>
               {rows.map((row) => {
                 const isSelected = selected.has(row.rowId);
-                const isBusy = busyCif === row.parentCif || busyCif === 'bulk';
+                const isBusy = busyCif === row.cifNumber || busyCif === 'bulk';
                 return (
                   <div key={row.rowId}
                     style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
@@ -289,13 +296,13 @@ export default function PendingEnroleesPage() {
                     <span>{row.sex}</span>
                     <span style={{ color: '#D97706', fontWeight: 600 }}>{row.status}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => { setDecliningCif(row.parentCif); setDeclineReason(''); }} disabled={isBusy}
+                      <button onClick={() => { setDecliningCif(row.cifNumber); setDeclineReason(''); }} disabled={isBusy}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 9, background: '#FEF2F2', cursor: isBusy ? 'wait' : 'pointer' }}>
                         <X style={{ width: 11, height: 11 }} /> Decline
                       </button>
                       <button onClick={() => handleApproveOne(row)} disabled={isBusy}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 9, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: isBusy ? 'wait' : 'pointer' }}>
-                        <Check style={{ width: 11, height: 11 }} /> {busyCif === row.parentCif ? '…' : 'Approve'}
+                        <Check style={{ width: 11, height: 11 }} /> {busyCif === row.cifNumber ? '…' : 'Approve'}
                       </button>
                     </div>
                   </div>
