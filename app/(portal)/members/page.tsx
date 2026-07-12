@@ -169,6 +169,13 @@ interface ListItem { text: string; value: string; }
 
 
 /* ── Add Member Modal ────────────────────────────────────────────────── */
+// HR can only backdate a new member's cover to the 1st of the current month
+// at the earliest — never earlier, so cover can't be silently back-registered.
+function firstOfMonthIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
 function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, principals }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[]; principals: Member[] }) {
   const [mode, setMode]             = useState<'individual' | 'bulk'>(initialMode ?? 'individual');
   const [step, setStep]             = useState<1 | 2 | 3>(1);
@@ -549,6 +556,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const postalId = townId || stateId;
         if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !postalId) {
           setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State/Town.'); return;
+        }
+        if (startDate && startDate < firstOfMonthIso()) {
+          setFormError('Cover start date cannot be earlier than the 1st of this month.'); return;
         }
         const res = await fetch('/api/hr/members/add', {
           method: 'POST',
@@ -1399,8 +1409,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
                   {memberType !== 'existing' && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today)</span></p>
-                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; earliest is the 1st of this month)</span></p>
+                      <input type="date" value={startDate} min={firstOfMonthIso()} onChange={(e) => setStartDate(e.target.value)}
                         style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                     </div>
                   )}

@@ -67,6 +67,13 @@ export async function POST(req: Request) {
   if (!effectiveDate) return NextResponse.json({ error: 'Effective date is required' }, { status: 400 });
   if (!reason?.trim()) return NextResponse.json({ error: 'A reason for termination is required' }, { status: 400 });
 
+  // No backdated terminations — same rule as principal termination.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const chosen = new Date(effectiveDate); chosen.setHours(0, 0, 0, 0);
+  if (isNaN(chosen.getTime()) || chosen < today) {
+    return NextResponse.json({ error: 'Effective date must be today or a future date.' }, { status: 400 });
+  }
+
   const groupId = session.user.companyId ?? '';
 
   try {
