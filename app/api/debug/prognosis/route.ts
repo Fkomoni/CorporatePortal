@@ -58,8 +58,18 @@ export async function GET(req: Request) {
 
   const cifno      = searchParams.get('cifno') ?? groupId;
   const enrolleeId = searchParams.get('enrolleeId');
+  const path       = searchParams.get('path');
 
   const token = await getServiceToken();
+
+  // If ?path= supplied, hit that raw Prognosis path directly (must start with /api/)
+  if (path) {
+    if (!path.startsWith('/api/')) {
+      return NextResponse.json({ error: 'path must start with /api/' }, { status: 400 });
+    }
+    const result = await hit(token, path);
+    return NextResponse.json({ path, ...result }, { status: 200 });
+  }
 
   // If ?enrolleeId= supplied, just return enrollee bio data
   if (enrolleeId) {
