@@ -2046,8 +2046,11 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
             {[
-              { Icon: Phone,    value: member.phone },
-              { Icon: Mail,     value: member.email },
+              // member.phone/email come from the initial list fetch, which is
+              // often blank — bioPhone/bioEmail (resolved from the more
+              // reliable GetEnrolleeBioDataByEnrolleeID call) take priority.
+              { Icon: Phone,    value: bioPhone || member.phone },
+              { Icon: Mail,     value: bioEmail || member.email },
               { Icon: MapPin,   value: member.location },
               { Icon: Calendar, value: `Enrolled ${new Date(member.enrollmentDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}` },
             ].map(({ Icon, value }) => (
@@ -2263,7 +2266,14 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
             </button>
             {member.type === 'Principal' && (
               <button
-                onClick={() => setShowAddDep(true)}
+                onClick={() => {
+                  // member.email comes from the initial list fetch, which often
+                  // lags behind bioEmail (resolved later from the more reliable
+                  // GetEnrolleeBioDataByEnrolleeID call) — prefer bioEmail here
+                  // so the Send Link email field isn't blank when it's on file.
+                  setDepLinkEmail(bioEmail || member.email || '');
+                  setShowAddDep(true);
+                }}
                 style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 2px 8px rgba(16,185,129,0.25)' }}>
                 <UserPlus style={{ width: 14, height: 14 }} /> Add Dependent
               </button>
