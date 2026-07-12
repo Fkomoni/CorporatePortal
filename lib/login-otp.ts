@@ -50,8 +50,15 @@ export async function issueLoginOtp(
           UserId: 0,
         }),
       });
-      console.log(`[login-otp] OTP SMS to ${user.mobile} → HTTP ${res.status}`);
-      return res.ok;
+      const text = await res.text();
+      console.log(`[login-otp] OTP SMS to ${user.mobile} → HTTP ${res.status}: ${text.slice(0, 300)}`);
+      if (!res.ok) return false;
+      let d: Record<string, unknown> | null = null;
+      try { d = JSON.parse(text); } catch { /* non-JSON success body — fine */ }
+      const status = String(d?.status ?? d?.Status ?? '').toLowerCase();
+      if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
+      if (d?.ErrorMessage || d?.errorMessage || d?.error || d?.Error) return false;
+      return true;
     } catch (e) {
       console.error('[login-otp] SMS send failed:', e);
       return false;
@@ -108,8 +115,15 @@ ${emailFooter()}
         TransactionType: '',
       }),
     });
-    console.log(`[login-otp] OTP email to ${user.email} → HTTP ${res.status}`);
-    return res.ok;
+    const text = await res.text();
+    console.log(`[login-otp] OTP email to ${user.email} → HTTP ${res.status}: ${text.slice(0, 300)}`);
+    if (!res.ok) return false;
+    let d: Record<string, unknown> | null = null;
+    try { d = JSON.parse(text); } catch { /* non-JSON success body — fine */ }
+    const status = String(d?.status ?? d?.Status ?? '').toLowerCase();
+    if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
+    if (d?.ErrorMessage || d?.errorMessage || d?.error || d?.Error) return false;
+    return true;
   } catch (e) {
     console.error('[login-otp] email send failed:', e);
     return false;
