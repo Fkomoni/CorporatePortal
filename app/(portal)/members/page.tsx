@@ -1438,17 +1438,26 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; memberEmail: string | null; onClose: () => void }) {
   const { toast } = useToast();
   const [sending, setSending] = useState(false);
+  const [showSendSheet, setShowSendSheet] = useState(false);
+  const [sendEmail, setSendEmail] = useState(memberEmail ?? '');
+  const [sentTo, setSentTo] = useState('');
+
+  function openSendSheet() {
+    setSendEmail(memberEmail ?? '');
+    setShowSendSheet(true);
+  }
 
   async function handleSendECard() {
     if (sending) return;
-    if (!memberEmail) { toast('No email address on record for this member.', 'error'); return; }
+    const email = sendEmail.trim();
+    if (!email) { toast('Please enter an email address.', 'error'); return; }
     setSending(true);
     try {
       const res = await fetch('/api/hr/members/send-ecard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: memberEmail,
+          email,
           enroleeId,
           memberName: `${member.firstName} ${member.lastName}`,
           memberType: member.type,
@@ -1461,7 +1470,8 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
       if (!res.ok || data.error) {
         toast(data.error ?? 'Failed to send e-card', 'error');
       } else {
-        toast(`E-Card sent to ${memberEmail}`, 'success');
+        setSentTo(email);
+        setShowSendSheet(false);
       }
     } catch {
       toast('Failed to send e-card. Please try again.', 'error');
@@ -1533,20 +1543,51 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose}
-            style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 12, background: 'rgba(255,255,255,0.12)', cursor: 'pointer' }}>
-            Close
-          </button>
-          <button onClick={() => window.print()}
-            style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#131C4E', border: 'none', borderRadius: 12, background: '#fff', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-            Print / Save as PDF
-          </button>
-          <button onClick={handleSendECard} disabled={sending}
-            style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: sending ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', opacity: sending ? 0.6 : 1, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-            {sending ? 'Sending…' : 'Send E-Card'}
-          </button>
-        </div>
+        {sentTo ? (
+          <div style={{ width: 380, background: '#fff', borderRadius: 16, padding: '20px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.25)' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Check style={{ width: 22, height: 22, color: '#059669' }} />
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>E-Card sent successfully</p>
+            <p style={{ fontSize: 12.5, color: '#6B7280', textAlign: 'center' }}>Delivered to <strong>{sentTo}</strong></p>
+            <button onClick={onClose}
+              style={{ marginTop: 6, height: 38, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,#059669,#10B981)', cursor: 'pointer' }}>
+              Done
+            </button>
+          </div>
+        ) : showSendSheet ? (
+          <div style={{ width: 380, background: '#fff', borderRadius: 16, padding: '18px 20px', boxShadow: '0 8px 30px rgba(0,0,0,0.25)' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Send to</p>
+            <input type="email" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="member@email.com"
+              style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+            {!memberEmail && <p style={{ fontSize: 11.5, color: '#D97706', marginTop: 6 }}>No email on file for this member — enter one to send.</p>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button onClick={() => setShowSendSheet(false)} disabled={sending}
+                style={{ flex: 1, height: 38, fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleSendECard} disabled={sending || !sendEmail.trim()}
+                style={{ flex: 1, height: 38, fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, cursor: (sending || !sendEmail.trim()) ? 'not-allowed' : 'pointer', background: (sending || !sendEmail.trim()) ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)' }}>
+                {sending ? 'Sending…' : 'Confirm & Send'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose}
+              style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 12, background: 'rgba(255,255,255,0.12)', cursor: 'pointer' }}>
+              Close
+            </button>
+            <button onClick={() => window.print()}
+              style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#131C4E', border: 'none', borderRadius: 12, background: '#fff', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+              Print / Save as PDF
+            </button>
+            <button onClick={openSendSheet}
+              style={{ height: 40, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+              Send E-Card
+            </button>
+          </div>
+        )}
       </div>
 
       <style jsx global>{`
