@@ -14,12 +14,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; cifNumbers?: (string | number)[] };
+  let body: { parentCif?: string | number; principalName?: string; cifNumbers?: (string | number)[]; effectiveDate?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
   const parentCif = String(body.parentCif ?? '').trim();
   if (!parentCif) return NextResponse.json({ error: 'parentCif is required' }, { status: 400 });
+
+  // ApproveEnrollees requires an explicit dd/mm/yyyy effective date — it
+  // drives the member's waiting period on Prognosis, so HR must choose it
+  // rather than have it silently default to "today".
+  const effectiveDate = String(body.effectiveDate ?? '').trim();
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(effectiveDate)) {
+    return NextResponse.json({ error: 'effectiveDate (dd/mm/yyyy) is required' }, { status: 400 });
+  }
 
   // ApproveEnrollees operates on a single member's own CIF, not a family
   // grouping — approve every member in this family (principal + dependants)
@@ -27,16 +35,20 @@ export async function POST(req: Request) {
   const cifNumbers = [...new Set((body.cifNumbers ?? [parentCif]).map((c) => String(c).trim()).filter(Boolean))];
   const userEmail = session.user.email ?? '';
 
+  console.log(`[pending/approve] cifNumbers=${cifNumbers.join(',')} effectiveDate=${effectiveDate} userEmail=${userEmail}`);
+
   const results = await Promise.all(
-    cifNumbers.map((cifNumber) => approveEnrollee({ cifNumber, reason: 'Active', userEmail })),
+    cifNumbers.map((cifNumber) => approveEnrollee({ cifNumber, reason: 'Active', userEmail, effectiveDate })),
   );
   const failures = results.filter((r) => !r.success);
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
 
+  console.log(`[pending/approve] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);
+
   void logAudit({
     session, request: req, resource: 'members',
     action: failures.length === 0 ? 'APPROVE_PENDING_ENROLEE' : 'APPROVE_PENDING_ENROLEE_FAILED',
-    details: { parentCif, principalName: body.principalName, cifNumbers, recordsUpdated, errors: failures.map((f) => f.error) },
+    details: { parentCif, principalName: body.principalName, cifNumbers, effectiveDate, recordsUpdated, errors: failures.map((f) => f.error) },
   });
 
   if (failures.length > 0) {

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; reason?: string; email?: string; cifNumbers?: (string | number)[] };
+  let body: { parentCif?: string | number; principalName?: string; reason?: string; email?: string; cifNumbers?: (string | number)[]; terminationDate?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -29,21 +29,32 @@ export async function POST(req: Request) {
   if (!parentCif) return NextResponse.json({ error: 'parentCif is required' }, { status: 400 });
   if (!reason) return NextResponse.json({ error: 'A reason for declining is required.' }, { status: 400 });
 
+  // RejectEnrollees requires an explicit dd/mm/yyyy termination date — HR
+  // must choose it rather than have it silently default to "today".
+  const terminationDate = String(body.terminationDate ?? '').trim();
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(terminationDate)) {
+    return NextResponse.json({ error: 'terminationDate (dd/mm/yyyy) is required' }, { status: 400 });
+  }
+
   // RejectEnrollees operates on a single member's own CIF, not a family
   // grouping — reject every member in this family individually.
   const cifNumbers = [...new Set((body.cifNumbers ?? [parentCif]).map((c) => String(c).trim()).filter(Boolean))];
   const userEmail = session.user.email ?? '';
 
+  console.log(`[pending/reject] cifNumbers=${cifNumbers.join(',')} terminationDate=${terminationDate} userEmail=${userEmail}`);
+
   const results = await Promise.all(
-    cifNumbers.map((cifNumber) => rejectEnrollee({ cifNumber, reason, userEmail })),
+    cifNumbers.map((cifNumber) => rejectEnrollee({ cifNumber, reason, userEmail, effectiveDate: terminationDate })),
   );
   const failures = results.filter((r) => !r.success);
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
 
+  console.log(`[pending/reject] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);
+
   void logAudit({
     session, request: req, resource: 'members',
     action: failures.length === 0 ? 'REJECT_PENDING_ENROLEE' : 'REJECT_PENDING_ENROLEE_FAILED',
-    details: { parentCif, principalName: body.principalName, reason, cifNumbers, recordsUpdated, errors: failures.map((f) => f.error) },
+    details: { parentCif, principalName: body.principalName, reason, cifNumbers, terminationDate, recordsUpdated, errors: failures.map((f) => f.error) },
   });
 
   if (failures.length > 0) return NextResponse.json({ error: failures[0].error ?? 'Rejection failed', failedCifs: failures.length }, { status: 422 });
