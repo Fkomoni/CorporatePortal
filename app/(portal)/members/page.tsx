@@ -519,7 +519,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             dependents: [{
               firstName, surname, otherNames, dateOfBirth: dob,
               sexId, maritalStatus, email, mobile,
-              regionId, postalTownId: townId || stateId, relationshipId: relId,
+              // stateId already holds Prognosis's RegionID (the state dropdown is
+              // sourced straight from GetStates) — regionId/townId are separate,
+              // never-populated fields left over from an LGA picker that was
+              // never wired up, so using them here silently dropped the state.
+              regionId: stateId, postalTownId: stateId, relationshipId: relId,
+              address,
               preExistingCondition: preExisting || 'None',
               enrolleePicture: photoBase64, enrolleePictureType: photoType,
             }],
@@ -552,7 +557,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '',
             firstName, surname, otherNames, dateOfBirth: dob,
             sexId, maritalStatus, email, mobile, mobile2,
-            postalTownId: postalId, stateId, regionId, address,
+            postalTownId: postalId, stateId, regionId: stateId, address,
             employeeCode: empCode, preExistingCondition: preExisting || 'None',
             enrolleePicture: photoBase64, enrolleePictureType: photoType,
             startDate: startDate || undefined,
@@ -1696,6 +1701,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   const [depStateId, setDepStateId]         = useState('');
   const [depRelId, setDepRelId]             = useState('');
   const [depMarital, setDepMarital]         = useState('');
+  const [depAddress, setDepAddress]         = useState('');
 
   // Link tab state
   const [depMaxCount, setDepMaxCount]       = useState(1);
@@ -1949,7 +1955,9 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
               maritalStatus: depMarital,
               email: depEmail,
               mobile: depMobile,
+              regionId: depStateId,
               postalTownId: depStateId,
+              address: depAddress,
               relationshipId: depRelId,
             }],
           }),
@@ -2662,6 +2670,12 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
                         ))}
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Home Address</p>
+                    <input value={depAddress} onChange={(e) => setDepAddress(e.target.value)}
+                      placeholder="e.g. 12 Adeola Odeku Street, Victoria Island"
+                      style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   {!member.cifNumber && (
                     <div style={{ padding: '10px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FDE68A' }}>
