@@ -1656,7 +1656,6 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
   // Link tab state
   const [depMaxCount, setDepMaxCount]       = useState(1);
   const [depLinkEmail, setDepLinkEmail]     = useState(member.email ?? '');
-  const avatarInputRef                      = useRef<HTMLInputElement>(null);
 
   // Biodata: enriched phone + staffId + email fetched from GetEnrolleeBioDataByEnrolleeID
   const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
@@ -1963,25 +1962,8 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 17, background: grad }}>
-                {avatarPreview
-                  ? <img src={avatarPreview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <>{member.firstName[0]}{member.lastName[0]}</>
-                }
+                {member.firstName[0]}{member.lastName[0]}
               </div>
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                title="Change photo"
-                style={{ position: 'absolute', bottom: -4, right: -4, width: 20, height: 20, borderRadius: '50%', background: '#F56B22', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.18)' }}>
-                <Camera style={{ width: 9, height: 9, color: '#fff' }} />
-              </button>
-              <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  const reader = new FileReader();
-                  reader.onload = (ev) => setAvatarPreview((ev.target?.result as string) ?? null);
-                  reader.readAsDataURL(f);
-                }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
