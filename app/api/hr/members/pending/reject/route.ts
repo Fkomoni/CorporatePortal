@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; reason?: string; email?: string; cifNumbers?: (string | number)[]; terminationDate?: string };
+  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; reason?: string; email?: string; cifNumbers?: (string | number)[]; terminationDate?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   void logAudit({
     session, request: req, resource: 'members',
     action: failures.length === 0 ? 'REJECT_PENDING_ENROLEE' : 'REJECT_PENDING_ENROLEE_FAILED',
-    details: { parentCif, principalName: body.principalName, reason, cifNumbers, terminationDate, recordsUpdated, errors: failures.map((f) => f.error) },
+    details: { parentCif, principalName: body.principalName, beneficiaryName: body.beneficiaryName, relationship: body.relationship, reason, cifNumbers, terminationDate, recordsUpdated, errors: failures.map((f) => f.error) },
   });
 
   if (failures.length > 0) return NextResponse.json({ error: failures[0].error ?? 'Rejection failed', failedCifs: failures.length }, { status: 422 });

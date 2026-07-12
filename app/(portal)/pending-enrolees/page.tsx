@@ -132,7 +132,7 @@ export default function PendingEnroleesPage() {
         const res = await fetch('/api/hr/members/pending/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, cifNumbers: [cifNumber], effectiveDate }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, cifNumbers: [cifNumber], effectiveDate }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;
@@ -174,7 +174,7 @@ export default function PendingEnroleesPage() {
         const res = await fetch('/api/hr/members/pending/reject', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, reason: declineReason.trim(), email: row?.email, cifNumbers: [cifNumber], terminationDate: toDdMmYyyy(declineDate) }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, reason: declineReason.trim(), email: row?.email, cifNumbers: [cifNumber], terminationDate: toDdMmYyyy(declineDate) }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++;
