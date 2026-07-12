@@ -129,7 +129,7 @@ export async function GET(req: Request) {
 
   try {
     const token = await getServiceToken();
-    const res = await fetch(`${BASE}/api/CorporatePortal/ViewMembersPerGroup?groupId=${encodeURIComponent(groupId)}`, {
+    const res = await fetch(`${BASE}/api/CorporatePortal/ViewPortalRegisteredMembersPerGroup_pendingActivation?groupId=${encodeURIComponent(groupId)}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
     if (!res.ok) {
@@ -229,9 +229,10 @@ export async function GET(req: Request) {
       headerByParentCif.set(r.parentCif, h);
     }
 
-    // Only dependants genuinely awaiting approval (status = Pending) belong in
-    // the review list/count — principals and already-Active dependants don't.
-    const pendingBeneficiaries = filtered.filter((r) => !r.isPrincipal && r.status === 'Pending');
+    // This endpoint (ViewPortalRegisteredMembersPerGroup_pendingActivation) only
+    // ever returns members genuinely awaiting activation — including principals
+    // who self-registered via their own link — so no extra status filtering here.
+    const pendingBeneficiaries = filtered;
 
     // Registrations submitted through an HR-issued self-service link are
     // recorded in link_registrations at submission time; anything pending
