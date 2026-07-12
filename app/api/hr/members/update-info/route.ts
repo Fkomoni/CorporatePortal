@@ -53,6 +53,7 @@ export interface UpdateInfoPayload {
   address?: string;      // principals only
   photo?: string;         // base64 — principals only
   photoType?: string;
+  nin?: string;           // 11-digit NIN — Prognosis requires this on every save, even if unrelated fields are the only ones changing
 }
 
 function s(v: unknown): string {
@@ -136,11 +137,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { enrolleeId, isPrincipal, sexId, dateOfBirth, mobile, email, address, photo, photoType } = body;
+  const { enrolleeId, isPrincipal, sexId, dateOfBirth, mobile, email, address, photo, photoType, nin } = body;
   if (!enrolleeId) return NextResponse.json({ error: 'enrolleeId is required' }, { status: 400 });
+  if (nin && !/^\d{11}$/.test(nin)) {
+    return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
+  }
   const hasChange = isPrincipal
-    ? Boolean(dateOfBirth || mobile || email || address || photo)
-    : Boolean(sexId || dateOfBirth || mobile || email);
+    ? Boolean(dateOfBirth || mobile || email || address || photo || nin)
+    : Boolean(sexId || dateOfBirth || mobile || email || nin);
   if (!hasChange) {
     return NextResponse.json({ error: 'Change at least one field.' }, { status: 400 });
   }
@@ -227,7 +231,7 @@ export async function POST(req: Request) {
       UserCaptured: enrolleeId,
       Effectivedate: dateOnly(row['Member_Entry_date']),
       Reason: 'Profile self-service update',
-      memberNin: s(row['NIN']),
+      memberNin: nin || s(row['NIN']),
       Dependents: n(row['Member_FamilyNo']),
     };
 
@@ -277,7 +281,7 @@ export async function POST(req: Request) {
     if (groupId) cacheBust(`members-${groupId}`);
 
     void logAudit({ session, action: 'UPDATE_MEMBER_INFO', resource: 'members', request: req,
-      details: { enrolleeId, cifNumber, isPrincipal, changed: { sexId: !!sexId, dateOfBirth: !!dateOfBirth, mobile: !!mobile, email: !!email, address: !!address, photo: !!photo } } });
+      details: { enrolleeId, cifNumber, isPrincipal, changed: { sexId: !!sexId, dateOfBirth: !!dateOfBirth, mobile: !!mobile, email: !!email, address: !!address, photo: !!photo, nin: !!nin } } });
 
     return NextResponse.json({ success: true, message: apiMessage || 'Member updated successfully.' });
   } catch (err) {
