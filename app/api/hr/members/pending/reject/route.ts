@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { isAdminRole } from '@/lib/roles';
 import { rejectEnrollee } from '@/lib/approve-enrollee';
 import { getServiceToken } from '@/lib/corporate-welcome';
-import { emailFooter } from '@/lib/email-footer';
+import { renderEmailTemplate } from '@/lib/email-template';
 import { logAudit } from '@/lib/audit';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -64,27 +64,14 @@ export async function POST(req: Request) {
   if (body.email) {
     try {
       const svcToken = await getServiceToken();
-      const emailBody = `
-<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-  <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
-    <p style="font-size:22px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em">LEADWAY <span style="color:#F56B22;">HEALTH</span></p>
-    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL</p>
-  </div>
-  <div style="background:#fff;padding:36px 32px;border:1px solid #E5E7F1;border-top:none;">
-    <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">Registration Not Approved</p>
-    <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 20px">
-      Your recent registration${body.principalName ? ` for ${body.principalName}` : ''} could not be approved by your HR department.
-    </p>
-    <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:16px 18px;margin:0 0 24px">
-      <p style="font-size:11px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px">Reason</p>
-      <p style="font-size:13px;color:#7F1D1D;margin:0;line-height:1.6">${reason}</p>
-    </div>
-    <p style="font-size:12px;color:#9CA3B8;margin:0;line-height:1.7">
-      If you believe this was in error, please contact your HR department directly.
-    </p>
-  </div>
-${emailFooter()}
-</div>`.trim();
+      const emailBody = renderEmailTemplate({
+        category: 'Enrolment',
+        eyebrow: 'Registration Update',
+        headline: 'Registration Not Approved',
+        body: `Your recent registration${body.beneficiaryName ? ` for <strong style="color:#131C4E;">${body.beneficiaryName}</strong>` : (body.principalName ? ` for ${body.principalName}` : '')} could not be approved by your HR department.`,
+        highlight: `<span style="display:block;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#991B1B;margin-bottom:6px;">Reason</span><span style="display:block;font-size:14px;color:#374151;">${reason}</span>`,
+        footnote: 'If you believe this was in error, please contact your HR department directly.',
+      });
 
       await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
         method: 'POST',
