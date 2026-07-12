@@ -5,12 +5,13 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Send, Users, Pencil, X, Plus, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Users, Pencil, X, Plus, MoreHorizontal, Trash2, ShieldOff, ShieldCheck } from 'lucide-react';
 
 interface Policy {
   id: string; groupId: string; name: string; schemeCode: string;
   dateProvisioned: string; adminEmail: string; contactName: string; phone: string;
   status: string; activeMembers: number; template: string; colors: string[];
+  hrAccountExists?: boolean; hrAccountActive?: boolean;
 }
 
 const PERMISSIONS = [
@@ -102,6 +103,35 @@ export default function CorporateDetailPage() {
   const [editName, setEditName]   = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editDate, setEditDate]   = useState('');
+
+  const [hrAccessLoading, setHrAccessLoading] = useState(false);
+  const [hrAccessError, setHrAccessError]     = useState('');
+
+  async function toggleHrAccess() {
+    if (!corp || hrAccessLoading) return;
+    const nextActive = !corp.hrAccountActive;
+    setHrAccessError('');
+    setHrAccessLoading(true);
+    try {
+      const res = await fetch('/api/admin/corporates/toggle-hr-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: corp.groupId, active: nextActive }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setHrAccessError(json.error ?? 'Failed to update HR access.');
+        return;
+      }
+      setCorp({ ...corp, hrAccountActive: nextActive, hrAccountExists: true });
+      setShowEmailToast({ ok: true, msg: nextActive ? 'HR access restored' : 'HR access revoked' });
+      setTimeout(() => setShowEmailToast(null), 4000);
+    } catch {
+      setHrAccessError('Network error. Please try again.');
+    } finally {
+      setHrAccessLoading(false);
+    }
+  }
 
   useEffect(() => {
     const rawId = decodeURIComponent(id ?? '');
@@ -310,6 +340,14 @@ export default function CorporateDetailPage() {
                 style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#131C4E,#3A4382)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Pencil style={{ width: 14, height: 14 }} /> Edit
               </button>
+              {corp?.hrAccountExists && (
+                <button onClick={toggleHrAccess} disabled={hrAccessLoading}
+                  style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: corp.hrAccountActive ? '1px solid #FECACA' : '1px solid #A7F3D0', borderRadius: 14, background: corp.hrAccountActive ? '#FEF2F2' : '#ECFDF5', color: corp.hrAccountActive ? '#DC2626' : '#059669', cursor: hrAccessLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
+                  {corp.hrAccountActive
+                    ? <><ShieldOff style={{ width: 14, height: 14 }} /> {hrAccessLoading ? 'Revoking…' : 'Revoke HR Access'}</>
+                    : <><ShieldCheck style={{ width: 14, height: 14 }} /> {hrAccessLoading ? 'Restoring…' : 'Restore HR Access'}</>}
+                </button>
+              )}
             </div>
           )}
 
@@ -326,6 +364,10 @@ export default function CorporateDetailPage() {
             </div>
           )}
         </div>
+
+        {hrAccessError && (
+          <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{hrAccessError}</div>
+        )}
 
         {/* ── DETAIL VIEW ── */}
         {view === 'detail' && (
