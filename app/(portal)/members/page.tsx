@@ -1504,7 +1504,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/leadway-logo.jpeg" alt="Leadway Health" style={{ height: 26, objectFit: 'contain' }} />
+            <img src="/leadway-logo.jpeg" alt="Leadway Health" style={{ height: 78, objectFit: 'contain' }} />
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: 13, fontWeight: 900, color: '#131C4E', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15 }}>
                 {member.firstName} {member.lastName}
