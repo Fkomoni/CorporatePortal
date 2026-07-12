@@ -14,6 +14,7 @@ interface BeneficiaryRow {
   beneficiaryName: string;
   relationship: string;
   age: number | null;
+  dateOfBirth: string;
   registrationDate: string | null;
   membershipNo: string;
   sex: string;
@@ -37,6 +38,7 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
         beneficiaryName: m.fullName || '—',
         relationship: m.relationship || 'Dependant',
         age: m.age,
+        dateOfBirth: m.dateOfBirth || '',
         registrationDate: m.registrationDate,
         membershipNo: m.membershipNo || '—',
         sex: m.sex || '—',
@@ -132,7 +134,7 @@ export default function PendingEnroleesPage() {
         const res = await fetch('/api/hr/members/pending/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, cifNumbers: [cifNumber], effectiveDate }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, dateOfBirth: row?.dateOfBirth, cifNumbers: [cifNumber], effectiveDate }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;

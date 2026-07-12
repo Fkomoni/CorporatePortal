@@ -2,7 +2,13 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { isAdminRole } from '@/lib/roles';
 import { approveEnrollee } from '@/lib/approve-enrollee';
+import { getServiceToken } from '@/lib/corporate-welcome';
+import { getPrincipalFamily, findDuplicateDependent } from '@/lib/dependent-checks';
 import { logAudit } from '@/lib/audit';
+
+const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
+  .replace(/\/api$/, '')
+  .replace(/\/$/, '');
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -14,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; cifNumbers?: (string | number)[]; effectiveDate?: string };
+  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; dateOfBirth?: string; cifNumbers?: (string | number)[]; effectiveDate?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -42,6 +48,25 @@ export async function POST(req: Request) {
   const userEmail = session.user.email ?? '';
 
   console.log(`[pending/approve] cifNumbers=${cifNumbers.join(',')} effectiveDate=${effectiveDate} userEmail=${userEmail}`);
+
+  // Self-registrations via the Enrolee App never go through add-dependents'
+  // dedup check, so approval is the only checkpoint left to catch a
+  // dependant who was accidentally (or duplicately) registered twice under
+  // the same principal — match by date of birth against the family Prognosis
+  // already has active.
+  const groupId = session.user.companyId ?? '';
+  if (body.dateOfBirth && cifNumbers.length === 1 && groupId) {
+    try {
+      const token = await getServiceToken();
+      const family = await getPrincipalFamily(BASE, token, groupId, parentCif);
+      const dupe = findDuplicateDependent(family, body.dateOfBirth, cifNumbers[0]);
+      if (dupe) {
+        return NextResponse.json({ error: `A dependant matching this date of birth (${body.dateOfBirth}) already exists under this principal (${dupe.name}, CIF ${dupe.cifNumber}). Please verify this isn't a duplicate registration before approving.` }, { status: 409 });
+      }
+    } catch (e) {
+      console.warn('[pending/approve] Dependent dedup check failed, proceeding without it:', e);
+    }
+  }
 
   const results = await Promise.all(
     cifNumbers.map((cifNumber) => approveEnrollee({ cifNumber, reason: 'Active', userEmail, effectiveDate })),

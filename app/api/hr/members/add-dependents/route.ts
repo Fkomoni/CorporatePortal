@@ -1,7 +1,8 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { approveEnrollee } from '@/lib/approve-enrollee';
-import { findDuplicateContact } from '@/lib/duplicate-contact-check';
+import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
+import { getPrincipalFamily, findDuplicateDependent, getSchemeMaxFamilySize } from '@/lib/dependent-checks';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -88,11 +89,36 @@ export async function POST(req: Request) {
         if (!dep.email && !dep.mobile) continue;
         const clash = await findDuplicateContact(BASE, token, groupId, dep.email ?? '', dep.mobile ?? '');
         if (clash) {
-          return NextResponse.json({ error: `This ${clash.field} (for ${dep.firstName} ${dep.surname}) is already registered to ${clash.name} in this group. Please verify and use a unique ${clash.field}.` }, { status: 409 });
+          return NextResponse.json({ error: `${duplicateClashMessage(clash)} (checked while adding ${dep.firstName} ${dep.surname})` }, { status: 409 });
         }
       }
     } catch (e) {
       console.warn('[hr/members/add-dependents] Duplicate check failed, proceeding without it:', e);
+    }
+
+    // Dedup against the principal's existing family by date of birth, and
+    // enforce the scheme's max family size — both checked here because
+    // AddDependentsOnly doesn't validate either itself.
+    try {
+      const family = await getPrincipalFamily(BASE, token, groupId, String(parentCif));
+
+      for (const dep of dependents) {
+        const dupe = findDuplicateDependent(family, dep.dateOfBirth);
+        if (dupe) {
+          return NextResponse.json({ error: `A dependant matching ${dep.firstName} ${dep.surname}'s date of birth (${dep.dateOfBirth}) already exists under this principal (${dupe.name}, CIF ${dupe.cifNumber}). Please verify before re-adding.` }, { status: 409 });
+        }
+      }
+
+      const maxFamilySize = await getSchemeMaxFamilySize(BASE, token, groupId, String(schemeId));
+      if (maxFamilySize != null) {
+        const projectedSize = family.length + dependents.length;
+        if (projectedSize > maxFamilySize) {
+          const remaining = Math.max(0, maxFamilySize - family.length);
+          return NextResponse.json({ error: `This scheme allows a maximum of ${maxFamilySize} family members (principal + dependants). Only ${remaining} slot${remaining !== 1 ? 's' : ''} remaining, but ${dependents.length} dependant${dependents.length !== 1 ? 's' : ''} were submitted.` }, { status: 409 });
+        }
+      }
+    } catch (e) {
+      console.warn('[hr/members/add-dependents] Dependent dedup/family-size check failed, proceeding without it:', e);
     }
 
     const addBeneficiary = dependents.map((dep) => ({
