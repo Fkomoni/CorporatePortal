@@ -27,7 +27,8 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
   const rows: BeneficiaryRow[] = [];
   for (const g of groups) {
     for (const m of g.members) {
-      if (m.isPrincipal) continue; // only beneficiaries (dependants) require approval
+      // Principals who self-register via their own HR-issued link also land
+      // in this same pending-activation queue now, so they need approval too.
       rows.push({
         rowId: `${g.parentCif}-${m.cifNumber}`,
         cifNumber: m.cifNumber,
