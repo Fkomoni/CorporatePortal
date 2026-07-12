@@ -2044,13 +2044,12 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         </div>
 
         {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           {[
             { label: 'Dependants',  value: String(member.dependants ?? 0),                                  Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
-            { label: 'Claims YTD',  value: String(stats?.claimsYtd ?? '—'),                                 Icon: Activity,    color: '#F56B22', bg: '#FFF3E8' },
             { label: 'Spend YTD',   value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—', Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
           ].map((k, ki) => (
-            <div key={k.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRight: ki < 2 ? '1px solid #F0F1F5' : 'none' }}>
+            <div key={k.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRight: ki < 1 ? '1px solid #F0F1F5' : 'none' }}>
               <div style={{ width: 32, height: 32, borderRadius: 9, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
                 <k.Icon style={{ width: 15, height: 15, color: k.color }} strokeWidth={1.75} />
               </div>
