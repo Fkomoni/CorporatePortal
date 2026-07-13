@@ -9,6 +9,11 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
 // Confirmed via ListValues/GetCountries: { country_id: 37, Country_Name: "Nigeria", CountryCode: "NG" }
 const NIGERIA_COUNTRY_ID = 37;
 
+// Confirmed via ListValues/GetTitles: { title_id: 2, title: "Mr" }, { title_id: 3, title: "Mrs" }
+function defaultTitle(gender: string): { id: number; name: string } {
+  return gender.toLowerCase().startsWith('f') ? { id: 3, name: 'Mrs' } : { id: 2, name: 'Mr' };
+}
+
 export interface CorporateUserSignUpInput {
   email: string;
   password: string;
@@ -30,6 +35,7 @@ export async function callCorporateUserSignUp(
   token: string,
   input: CorporateUserSignUpInput,
 ): Promise<CorporateUserSignUpResult> {
+  const title = defaultTitle(input.gender);
   const requestPayload = {
     Password: input.password,
     ConfirmPassword: input.password,
@@ -47,7 +53,7 @@ export async function callCorporateUserSignUp(
     CityID: 0,
     StateID: 0,
     CountryID: NIGERIA_COUNTRY_ID,
-    TitleID: 0,
+    TitleID: title.id,
     ProfilePictureType: '',
     callbackurl: (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '') + '/login',
     EnterService: true,
@@ -58,7 +64,7 @@ export async function callCorporateUserSignUp(
     Manageprescribers: true,
     ManageAdministrativestaff: true,
     ManageAccount: true,
-    TitleName: '',
+    TitleName: title.name,
     Fixed: '',
     Function: '',
   };
