@@ -66,7 +66,7 @@ export async function callCorporateUserSignUp(
     ManageAccount: true,
     TitleName: title.name,
     Fixed: '',
-    Function: 'HR Executive',
+    Function: 'HRExecutive',
   };
 
   const url = `${BASE}/api/CorporateProfile/CorporateUserSignUp`;
