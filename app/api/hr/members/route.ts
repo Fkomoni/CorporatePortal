@@ -253,31 +253,50 @@ async function fetchBeneficiariesFallback(base: string, token: string, groupId: 
 }
 
 function mapFallbackRow(row: Record<string, unknown>, index: number): Member {
+  // Confirmed real fields via raw dump (group 2697): firstname, surname,
+  // staffid, dateenrolled, Member_DateOfBirth, plantype, member_status_descr,
+  // EmailAdress, Phone, cif_number, parentcif, Enrolleeid, IsDependant,
+  // Gender (padded with trailing spaces), Schemeid, RelationshipToPrincipal.
   const cif = str(row, 'cif_number', 'Cif_Number', 'CifNumber');
-  const suffix = str(row, 'Suffix', 'suffix');
-  const enrolleeId = str(row, 'Enrolleeid', 'EnrolleeID', 'enrolleeid') || (suffix ? `${cif}/${suffix}` : cif);
+  const enrolleeId = str(row, 'Enrolleeid', 'EnrolleeID', 'enrolleeid') || cif;
   const isDependant = String(row['IsDependant'] ?? '').toLowerCase() === 'yes';
-  const status = String(row['_memberstatus'] ?? '').toLowerCase() === 'inactive' ? 'Terminated' : 'Active';
+  const email = str(row, 'EmailAdress', 'EmailAddress', 'Email');
 
   return {
     id: enrolleeId || String(index),
     employeeId: enrolleeId || `EMP${String(index + 1).padStart(4, '0')}`,
-    staffId: str(row, 'Employeecode', 'EmployeeCode', 'Staffid') || undefined,
+    staffId: str(row, 'staffid', 'Staffid', 'Employeecode', 'EmployeeCode') || undefined,
     firstName: str(row, 'firstname', 'Firstname', 'FirstName') || 'Member',
     lastName: str(row, 'surname', 'Surname') || String(index + 1),
-    email: str(row, 'EmailAdress', 'EmailAddress', 'Email') && str(row, 'EmailAdress', 'EmailAddress', 'Email').toLowerCase() !== 'noemail.com'
-      ? str(row, 'EmailAdress', 'EmailAddress', 'Email') : '',
+    email: email && email.toLowerCase() !== 'noemail.com' ? email : '',
     phone: str(row, 'Phone', 'PhoneNumber', 'Mobile') || '',
-    gender: mapGender(str(row, 'Gender', 'gender')),
+    gender: mapGender(str(row, 'Gender', 'gender').trim()),
     dateOfBirth: str(row, 'Member_DateOfBirth', 'DateOfBirth', 'DOB'),
-    plan: mapPlan(str(row, 'Scheme', 'SchemeName', 'Plan', 'PlanName')),
+    plan: mapPlan(str(row, 'plantype', 'Scheme', 'SchemeName', 'Plan', 'PlanName')),
     type: isDependant ? 'Dependant' : 'Principal',
-    status,
+    status: mapStatus(str(row, 'member_status_descr', 'MemberStatus_Desc', 'Status')),
     location: str(row, 'State', 'Location') || '',
-    enrollmentDate: str(row, 'RegistrationDate', 'Fromdate', 'StartDate') || '',
+    enrollmentDate: str(row, 'dateenrolled', 'RegistrationDate', 'Fromdate', 'StartDate') || '',
     cifNumber: cif || undefined,
-    schemeId: str(row, 'SchemeId', 'PlanId') || undefined,
+    schemeId: str(row, 'Schemeid', 'SchemeId', 'PlanId') || undefined,
   };
+}
+
+// Counts members genuinely awaiting HR activation — the "Pending Additions"
+// tile previously derived this from the active/inactive member list, which
+// can never contain a "Pending" row, so it always showed 0. This is the
+// same endpoint the Pending Enrolees page uses.
+async function fetchPendingCount(base: string, token: string, groupId: string): Promise<number> {
+  try {
+    const res = await fetch(`${base}/api/CorporatePortal/ViewPortalRegisteredMembersPerGroup_pendingActivation?groupId=${encodeURIComponent(groupId)}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    if (!res.ok) return 0;
+    const raw = await res.json().catch(() => null);
+    return toRows(raw).length;
+  } catch {
+    return 0;
+  }
 }
 
 export async function GET(req: Request) {
@@ -539,6 +558,8 @@ export async function GET(req: Request) {
       return y === now.getFullYear() && mo === now.getMonth();
     }).length;
 
+    const pendingCount = await fetchPendingCount(BASE, token, String(groupId));
+
     void logAudit({ session, action: 'VIEW_MEMBERS', resource: 'members', request: req,
       details: { totalCount: members.length, groupId } });
 
@@ -551,7 +572,7 @@ export async function GET(req: Request) {
         principalCount: members.filter((m) => m.type === 'Principal' && m.status === 'Active').length,
         dependantCount:  members.filter((m) => m.type === 'Dependant'  && m.status === 'Active').length,
         newThisMonth,
-        pendingCount: members.filter((m) => m.status === 'Pending').length,
+        pendingCount,
       },
       source: useFallbackMapping ? 'ClientPlanBeneficiariesNoPagitation' : premiumRows.length > 0 ? 'GetGroupPremium' : 'GetGroupMembers',
       _debug: {
