@@ -21,8 +21,15 @@ function VerifyForm() {
   const urlCompanyName  = searchParams?.get('company') ?? searchParams?.get('companyName') ?? '';
   const urlName         = searchParams?.get('name') ?? '';
 
+  const urlNameParts = urlName.trim().split(/\s+/);
+
   const [stage, setStage]           = useState<Stage>('password');
   const [email, setEmail]           = useState(urlEmail);
+  const [firstName, setFirstName]   = useState(urlNameParts[0] ?? '');
+  const [surname, setSurname]       = useState(urlNameParts.slice(1).join(' '));
+  const [dob, setDob]               = useState('');
+  const [gender, setGender]         = useState('');
+  const [phone, setPhone]           = useState('');
   const [password, setPassword]     = useState('');
   const [confirm, setConfirm]       = useState('');
   const [showPass, setShowPass]     = useState(false);
@@ -51,6 +58,11 @@ function VerifyForm() {
     e.preventDefault();
     setError('');
     if (!email.trim())                    { setError('Email address is required.'); return; }
+    if (!firstName.trim())                { setError('First name is required.'); return; }
+    if (!surname.trim())                  { setError('Surname is required.'); return; }
+    if (!dob)                             { setError('Date of birth is required.'); return; }
+    if (!gender)                          { setError('Gender is required.'); return; }
+    if (!phone.trim())                    { setError('Phone number is required.'); return; }
     if (password !== confirm)             { setError('Passwords do not match.'); return; }
     if (password.length < 8)             { setError('Password must be at least 8 characters long.'); return; }
     if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A–Z).'); return; }
@@ -74,7 +86,10 @@ function VerifyForm() {
       const res = await fetch('/api/hr/request-registration-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, groupId: urlGroupId, policyNumber: urlPolicyNumber, companyName: urlCompanyName, name: urlName || email }),
+        body: JSON.stringify({
+          email, groupId: urlGroupId, policyNumber: urlPolicyNumber, companyName: urlCompanyName,
+          name: urlName || email, firstName, surname, dateOfBirth: dob, gender, phone, password,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -275,6 +290,37 @@ function VerifyForm() {
                   )}
                 </div>
 
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>First Name</label>
+                    <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required style={inputStyle} onFocus={fi} onBlur={fo} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Surname</label>
+                    <input type="text" value={surname} onChange={(e) => setSurname(e.target.value)} placeholder="Surname" required style={inputStyle} onFocus={fi} onBlur={fo} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Date of Birth</label>
+                    <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required style={inputStyle} onFocus={fi} onBlur={fo} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Gender</label>
+                    <select value={gender} onChange={(e) => setGender(e.target.value)} required style={inputStyle}>
+                      <option value="">Select…</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Phone Number</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 08012345678" required style={inputStyle} onFocus={fi} onBlur={fo} />
+                </div>
+
                 <div>
                   <label style={labelStyle}>Password</label>
                   <div style={{ position: 'relative' }}>
@@ -314,9 +360,9 @@ function VerifyForm() {
                   <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{error}</div>
                 )}
 
-                <button type="submit" disabled={loading || !email || !password || !confirm || password !== confirm}
-                  style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !email || !password || !confirm || password !== confirm) ? 0.55 : 1, marginTop: 4 }}>
-                  {loading ? 'Sending code…' : 'Continue to Verification →'}
+                <button type="submit" disabled={loading || !email || !firstName || !surname || !dob || !gender || !phone || !password || !confirm || password !== confirm}
+                  style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !email || !firstName || !surname || !dob || !gender || !phone || !password || !confirm || password !== confirm) ? 0.55 : 1, marginTop: 4 }}>
+                  {loading ? 'Registering…' : 'Continue to Verification →'}
                 </button>
               </form>
 
