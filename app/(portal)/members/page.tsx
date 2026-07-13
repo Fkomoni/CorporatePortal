@@ -2947,7 +2947,7 @@ export default function MembersPage() {
         {/* Toolbar */}
         <div style={{ ...card, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 440 }}>
+            <div style={{ position: 'relative', flex: '2 1 480px', maxWidth: 720 }}>
               <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#C4C9D9' }} />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, ID, or phone..."
                 style={{ width: '100%', height: 42, paddingLeft: 44, paddingRight: 16, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
@@ -2983,10 +2983,6 @@ export default function MembersPage() {
             )}
 
             <div style={{ width: 1, height: 28, background: '#E5E7F1' }} />
-            <button onClick={() => setShowAddModal('bulk')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 500, color: '#3A4382', border: '1px solid #E5E7F1', borderRadius: 14, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              <Upload style={{ width: 15, height: 15 }} /> Bulk Upload
-            </button>
             <button onClick={() => loadMembers(true)} disabled={refreshing}
               title="Refresh member list from Prognosis"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: refreshing ? '#F0FDF4' : 'linear-gradient(135deg,#ECFDF5,#D1FAE5)', color: '#059669', border: '1px solid #A7F3D0', borderRadius: 14, cursor: refreshing ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: refreshing ? 0.8 : 1 }}>
