@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { useToast } from '@/components/ui/Toast';
 import { isAdminRole } from '@/lib/roles';
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -182,6 +183,7 @@ function formatRoleLabel(role: string): string {
 }
 
 export default function AdministrationPage() {
+  const { toast } = useToast();
   const { data: session, status: sessionStatus } = useSession();
   const isAdmin = isAdminRole((session?.user as { role?: string })?.role);
 
@@ -230,10 +232,11 @@ export default function AdministrationPage() {
     try {
       if (logoSavedUrl) {
         const res = await fetch('/api/hr/company-logo', { method: 'DELETE' });
-        if (!res.ok) { setLogoErr('Failed to remove logo.'); return; }
+        if (!res.ok) { setLogoErr('Failed to remove logo.'); toast('Failed to remove logo.', 'error'); return; }
       }
       setLogoUrl(null); setLogoSavedUrl(null);
-    } catch { setLogoErr('Network error. Please try again.'); }
+      toast('Logo removed.', 'success');
+    } catch { setLogoErr('Network error. Please try again.'); toast('Network error. Please try again.', 'error'); }
     finally { setLogoBusy(false); }
   }
 
@@ -325,9 +328,10 @@ export default function AdministrationPage() {
         body: JSON.stringify({ action: 'verify', code: twoFaCode, method: twoFaMethod }),
       });
       const json = await res.json();
-      if (!res.ok) { setTwoFaError(json.error ?? 'Incorrect code.'); return; }
+      if (!res.ok) { setTwoFaError(json.error ?? 'Incorrect code.'); toast(json.error ?? 'Incorrect code.', 'error'); return; }
       setTwoFaActive(true); setTwoFaEnabled(false); setTwoFaCode('');
-    } catch { setTwoFaError('Network error. Please try again.'); }
+      toast('Two-factor authentication is now active.', 'success');
+    } catch { setTwoFaError('Network error. Please try again.'); toast('Network error. Please try again.', 'error'); }
     finally { setTwoFaBusy(false); }
   }
 
@@ -339,9 +343,10 @@ export default function AdministrationPage() {
         body: JSON.stringify({ action: 'disable', password: disablePw }),
       });
       const json = await res.json();
-      if (!res.ok) { setTwoFaError(json.error ?? 'Could not disable 2FA.'); return; }
+      if (!res.ok) { setTwoFaError(json.error ?? 'Could not disable 2FA.'); toast(json.error ?? 'Could not disable 2FA.', 'error'); return; }
       setTwoFaActive(false); setShowDisable(false); setDisablePw('');
-    } catch { setTwoFaError('Network error. Please try again.'); }
+      toast('Two-factor authentication has been disabled.', 'success');
+    } catch { setTwoFaError('Network error. Please try again.'); toast('Network error. Please try again.', 'error'); }
     finally { setTwoFaBusy(false); }
   }
 
@@ -387,10 +392,11 @@ export default function AdministrationPage() {
     setRoleError('');
     setCustomRoles(customRoles.filter((cr) => cr.id !== r.id));
     if (editingRoleId === r.id) { setEditingRoleId(null); setShowRoleForm(false); setRoleForm(blankRoleForm); }
+    toast(`Role "${r.role}" deleted.`, 'success');
   }
 
   function saveRole() {
-    if (!roleForm.name.trim()) return;
+    if (!roleForm.name.trim()) { setRoleError('Role name is required.'); return; }
     const name = roleForm.name.trim();
     // Prevent duplicate role names (built-in or custom, excluding the one being edited)
     const clash = roleCards.some((rc) => rc.role.toLowerCase() === name.toLowerCase())
@@ -401,6 +407,7 @@ export default function AdministrationPage() {
     const enabledMods = MODULE_LIST.filter(({ key }) => roleForm.modules[key as keyof typeof roleForm.modules]).map(({ label }) => label);
     const desc = roleForm.desc.trim() || (enabledMods.length ? enabledMods.join(' · ') : 'No module access');
 
+    const wasEditing = Boolean(editingRoleId);
     if (editingRoleId) {
       setCustomRoles(customRoles.map((cr) => cr.id === editingRoleId
         ? { ...cr, role: name, desc, colorKey: roleForm.colorKey, modules: { ...roleForm.modules } }
@@ -411,6 +418,7 @@ export default function AdministrationPage() {
     setRoleForm(blankRoleForm);
     setEditingRoleId(null);
     setShowRoleForm(false);
+    toast(wasEditing ? `Role "${name}" updated.` : `Role "${name}" created.`, 'success');
   }
 
   // Invite user state
@@ -477,6 +485,7 @@ export default function AdministrationPage() {
 
   async function toggleUserStatus(user: PortalUser) {
     setTogglingUser(user.id);
+    const nextStatus = user.status === 'Active' ? 'Inactive' : 'Active';
     try {
       const res = await fetch('/api/hr/portal-users', {
         method: 'PATCH',
@@ -485,9 +494,15 @@ export default function AdministrationPage() {
       });
       if (res.ok) {
         setPortalUsers((prev) => prev.map((u) => u.id === user.id
-          ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' }
+          ? { ...u, status: nextStatus }
           : u));
+        toast(`${user.name || 'User'} is now ${nextStatus.toLowerCase()}.`, 'success');
+      } else {
+        const json = await res.json().catch(() => null);
+        toast(json?.error ?? `Failed to ${nextStatus === 'Active' ? 'activate' : 'deactivate'} ${user.name || 'user'}.`, 'error');
       }
+    } catch {
+      toast('Network error. Please try again.', 'error');
     } finally {
       setTogglingUser(null);
     }
