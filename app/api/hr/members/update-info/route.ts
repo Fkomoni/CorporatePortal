@@ -208,7 +208,10 @@ export async function POST(req: Request) {
       schemeid: n(row['Member_PlanID']),
       MemberType: s(row['Member_Membertype']) || s(row['Member_MemberTypeID']),
       BaseAmount: Math.round(n(row['Member_IndividualPremium'])),
-      regionid: n(row['StateID']),
+      // regionid=0 gets rejected outright ("Invalid state of origin"/"Invalid
+      // country") — some dependant bio records have no StateID on file at
+      // all, so fall back to a valid default rather than sending 0.
+      regionid: n(row['StateID']) || 1,
       titleid: n(row['Member_TitleID']),
       Physical_Add1: (isPrincipal && address) || s(row['Member_Address']),
       Postal_Town_ID: postalTownId(row),
