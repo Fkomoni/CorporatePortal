@@ -27,11 +27,13 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-async function hit(token: string, path: string) {
+async function hit(token: string, path: string, method: 'GET' | 'POST' = 'GET') {
   const url = `${BASE}${path}`;
   try {
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      method,
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) },
+      ...(method === 'POST' ? { body: '{}' } : {}),
     });
     const text = await res.text();
     let body: unknown;
@@ -59,6 +61,7 @@ export async function GET(req: Request) {
   const cifno      = searchParams.get('cifno') ?? groupId;
   const enrolleeId = searchParams.get('enrolleeId');
   const path       = searchParams.get('path');
+  const method     = (searchParams.get('method') ?? 'GET').toUpperCase() === 'POST' ? 'POST' : 'GET';
 
   const token = await getServiceToken();
 
@@ -67,8 +70,8 @@ export async function GET(req: Request) {
     if (!path.startsWith('/api/')) {
       return NextResponse.json({ error: 'path must start with /api/' }, { status: 400 });
     }
-    const result = await hit(token, path);
-    return NextResponse.json({ path, ...result }, { status: 200 });
+    const result = await hit(token, path, method);
+    return NextResponse.json({ path, method, ...result }, { status: 200 });
   }
 
   // If ?enrolleeId= supplied, just return enrollee bio data
