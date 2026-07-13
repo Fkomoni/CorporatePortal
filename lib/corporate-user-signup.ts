@@ -6,6 +6,9 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// Confirmed via ListValues/GetCountries: { country_id: 37, Country_Name: "Nigeria", CountryCode: "NG" }
+const NIGERIA_COUNTRY_ID = 37;
+
 export interface CorporateUserSignUpInput {
   email: string;
   password: string;
@@ -43,7 +46,7 @@ export async function callCorporateUserSignUp(
     Street: '',
     CityID: 0,
     StateID: 0,
-    CountryID: 0,
+    CountryID: NIGERIA_COUNTRY_ID,
     TitleID: 0,
     ProfilePictureType: '',
     callbackurl: '',
