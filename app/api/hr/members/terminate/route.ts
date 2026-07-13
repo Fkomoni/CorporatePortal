@@ -10,6 +10,7 @@ import { logAudit } from '@/lib/audit';
 import { isAdminRole } from '@/lib/roles';
 import { callTerminateMember } from '@/lib/terminate-member';
 import { cacheBust } from '@/lib/server-cache';
+import { logTag } from '@/lib/log-tag';
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -41,6 +42,8 @@ export async function POST(req: Request) {
 
   const groupId = session.user.companyId ?? null;
 
+  console.log(`[members/terminate] ${logTag(session.user.email)} cifNumber=${cifNumber} effectiveDate=${effectiveDate} memberName=${memberName ?? ''}`);
+
   // Future date → schedule it, don't call Prognosis yet
   if (chosen > today) {
     try {
@@ -51,6 +54,7 @@ export async function POST(req: Request) {
           requestedBy: session.user.email ?? '',
         },
       });
+      console.log(`[members/terminate] ${logTag(session.user.email)} scheduled cifNumber=${cifNumber} for ${effectiveDate} (scheduledId=${scheduled.id})`);
       void logAudit({ session, action: 'SCHEDULE_TERMINATION', resource: 'members', request: req,
         details: { cifNumber, effectiveDate, memberName } });
       return NextResponse.json({
@@ -67,11 +71,13 @@ export async function POST(req: Request) {
   const result = await callTerminateMember(cifNumber);
 
   if (!result.success) {
+    console.log(`[members/terminate] ${logTag(session.user.email)} FAILED cifNumber=${cifNumber} error=${result.error}`);
     void logAudit({ session, action: 'TERMINATE_MEMBER_FAILED', resource: 'members', request: req,
       details: { cifNumber, effectiveDate, memberName, error: result.error } });
     return NextResponse.json({ error: result.error ?? 'Termination failed' }, { status: 422 });
   }
 
+  console.log(`[members/terminate] ${logTag(session.user.email)} SUCCESS cifNumber=${cifNumber}`);
   void logAudit({ session, action: 'TERMINATE_MEMBER', resource: 'members', request: req,
     details: { cifNumber, effectiveDate, memberName } });
 
