@@ -5,9 +5,9 @@
 // Confirmed signatures (from real Prognosis requests — each operates on a
 // single member's own CIF, not a family/parentCif, so every beneficiary,
 // principal included, must be decided on individually):
-//   POST /api/CorporatePortal/ApproveEnrollees
+//   GET /api/CorporatePortal/ApproveEnrollees
 //     ?cifnumber=<cif>&approvereason=<text>&effective_date=<dd/mm/yyyy>&useremail=<hr email>
-//   POST /api/CorporatePortal/RejectEnrollees
+//   GET /api/CorporatePortal/RejectEnrollees
 //     ?cifnumber=<cif>&rejectionreason=<text>&terminationdate=<dd/mm/yyyy>&useremail=<hr email>
 // A successful call returns HTTP 200 with an empty body ({}) — no status/
 // message/recordsUpdated fields to read back.
@@ -40,7 +40,7 @@ function todayDdMmYyyy(): string {
 
 async function callWithRetry(url: string): Promise<Response> {
   let token = await getServiceToken();
-  const call = (t: string) => fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' } });
+  const call = (t: string) => fetch(url, { method: 'GET', headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' } });
   let res = await call(token);
   if (res.status === 401 || res.status === 403) {
     token = await getServiceToken();
