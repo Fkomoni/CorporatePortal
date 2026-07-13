@@ -40,11 +40,15 @@ export async function callTerminateMember(cifNumber: string): Promise<TerminateR
   try {
     let token = await getServiceToken();
 
+    const requestBody = JSON.stringify({ CifNumber: Number(cifNumber) || cifNumber });
+    const url = `${BASE}/api/CorporatePortal/TerminateMember`;
+    console.log(`[TerminateMember] → POST ${url} body=${requestBody}`);
+
     const callApi = async (t: string) =>
-      fetch(`${BASE}/api/CorporatePortal/TerminateMember`, {
+      fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ CifNumber: Number(cifNumber) || cifNumber }),
+        body: requestBody,
       });
 
     let res = await callApi(token);
@@ -55,6 +59,7 @@ export async function callTerminateMember(cifNumber: string): Promise<TerminateR
     }
 
     const text = await res.text();
+    console.log(`[TerminateMember] ← HTTP ${res.status}: ${text.slice(0, 500)}`);
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
     const r = raw as Record<string, unknown>;
