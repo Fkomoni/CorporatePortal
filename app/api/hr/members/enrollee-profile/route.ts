@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { logTag } from '@/lib/log-tag';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
       { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
     );
     const text = await res.text();
-    console.log(`[enrollee-profile] ${enrolleeId} → HTTP ${res.status}: ${text.slice(0, 500)}`);
+    console.log(`[enrollee-profile] ${logTag(session.user.email)} ${enrolleeId} → HTTP ${res.status}: ${text.slice(0, 500)}`);
 
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = null; }
@@ -78,7 +79,7 @@ export async function GET(req: Request) {
     const groupId    = str(row, 'GroupId', 'Group_Id', 'Groupid', 'groupid', 'GroupID', 'CompanyId', 'Company_Id');
     const employeeCode = str(row, 'EmployeeCode', 'Employee_Code', 'EmployeeNo', 'Employeecode', 'employeecode');
 
-    console.log(`[enrollee-profile] resolved → cifNumber=${cifNumber} schemeId=${schemeId} schemeName=${schemeName} groupId=${groupId}`);
+    console.log(`[enrollee-profile] ${logTag(session.user.email)} resolved → cifNumber=${cifNumber} schemeId=${schemeId} schemeName=${schemeName} groupId=${groupId}`);
 
     return NextResponse.json({ cifNumber, schemeId, schemeName, groupId, employeeCode, raw: row });
   } catch (err) {

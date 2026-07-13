@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { logTag } from '@/lib/log-tag';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? process.env.PROGNOSIS_API_BASE ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -97,7 +98,7 @@ function extractArray(raw: unknown): unknown[] {
 
 // All ListValues endpoints share the same lowercase schemeid param and pagination shape.
 // No NoOfRecords/pageSize limit — pass a very large value so all records come back.
-async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string): Promise<{ providers: Provider[]; error?: string }> {
+async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string, userEmail?: string | null): Promise<{ providers: Provider[]; error?: string }> {
   const params = new URLSearchParams({ schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' });
   const url = `${BASE}${endpoint}?${params}`;
   try {
@@ -114,7 +115,7 @@ async function fetchListValues(token: string, endpoint: string, schemeId: string
       return { providers: [], error: `${endpoint} HTTP ${res.status}: ${String(msg)}` };
     }
     const providers = extractArray(raw).map((r) => normalise(r, type)).filter((p): p is Provider => p !== null);
-    console.log(`[providers] ${endpoint} schemeId=${schemeId} → ${providers.length} ${type} providers`);
+    console.log(`[providers] ${logTag(userEmail)} ${endpoint} schemeId=${schemeId} → ${providers.length} ${type} providers`);
     return { providers };
   } catch (e) {
     console.warn(`[providers] Error fetching ${endpoint}:`, e);
@@ -137,10 +138,10 @@ export async function GET(req: Request) {
     const token = await getServiceToken();
 
     const [hospResult, eyeResult, dentalResult, spaResult] = await Promise.all([
-      fetchListValues(token, '/api/ListValues/GetGeneralHospitalByPlanCode', schemeId, 'Hospital'),
-      fetchListValues(token, '/api/ListValues/GetEyeClinicByPlanCode',       schemeId, 'Optical'),
-      fetchListValues(token, '/api/ListValues/GetDentalClinicByPlanCode',    schemeId, 'Dental'),
-      fetchListValues(token, '/api/ListValues/GetSpaAndGymClinicByPlanCode', schemeId, 'Spa/Gym'),
+      fetchListValues(token, '/api/ListValues/GetGeneralHospitalByPlanCode', schemeId, 'Hospital', session.user.email),
+      fetchListValues(token, '/api/ListValues/GetEyeClinicByPlanCode',       schemeId, 'Optical', session.user.email),
+      fetchListValues(token, '/api/ListValues/GetDentalClinicByPlanCode',    schemeId, 'Dental', session.user.email),
+      fetchListValues(token, '/api/ListValues/GetSpaAndGymClinicByPlanCode', schemeId, 'Spa/Gym', session.user.email),
     ]);
 
     const hospitals     = hospResult.providers;
