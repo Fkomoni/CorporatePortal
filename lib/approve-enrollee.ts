@@ -40,7 +40,16 @@ function todayDdMmYyyy(): string {
 
 async function callWithRetry(url: string): Promise<Response> {
   let token = await getServiceToken();
-  const call = (t: string) => fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' } });
+  // TerminateBeneficiary (confirmed working) sends Content-Type + a JSON
+  // body; ApproveEnrollees/RejectEnrollees were sent with neither — just
+  // query params on a bare POST. ASP.NET Web API POST actions can reject a
+  // request with no Content-Type/body at all with a generic 400 "The
+  // request is invalid" even when every real parameter is FromUri.
+  const call = (t: string) => fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${t}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: '{}',
+  });
   let res = await call(token);
   if (res.status === 401 || res.status === 403) {
     token = await getServiceToken();
