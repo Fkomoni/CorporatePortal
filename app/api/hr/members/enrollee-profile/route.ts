@@ -67,17 +67,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: `Failed to fetch enrollee profile (${res.status})` }, { status: res.status });
     }
 
-    // Prognosis may wrap in result/data/Result
+    // GetEnrolleeBioDataByEnrolleeID's "result" is an array — the row itself
+    // is result[0], not the array. Using the array directly as `row` (as
+    // before) meant every field lookup below silently failed, since arrays
+    // don't have properties like "Cif_Number" — this is why cifNumber/
+    // schemeId/schemeName/groupId resolved blank on every single call.
     const r = raw as Record<string, unknown>;
-    const row = (
-      (r?.result ?? r?.Result ?? r?.data ?? r?.Data ?? r) as Record<string, unknown>
-    ) ?? {};
+    const resultField = r?.result ?? r?.Result ?? r?.data ?? r?.Data;
+    const row = ((Array.isArray(resultField) ? resultField[0] : resultField) ?? r ?? {}) as Record<string, unknown>;
 
-    const cifNumber  = str(row, 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber', 'MemberCifNo', 'CIF_No');
-    const schemeId   = str(row, 'SchemeId', 'Scheme_Id', 'SchemId', 'schemeid', 'SchemeID', 'Schemeid', 'ProductId');
-    const schemeName = str(row, 'SchemeName', 'Scheme_Name', 'Scheme', 'PlanName', 'Plan', 'ProductName');
-    const groupId    = str(row, 'GroupId', 'Group_Id', 'Groupid', 'groupid', 'GroupID', 'CompanyId', 'Company_Id');
-    const employeeCode = str(row, 'EmployeeCode', 'Employee_Code', 'EmployeeNo', 'Employeecode', 'employeecode');
+    const cifNumber  = str(row, 'Member_MemberUniqueID', 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber', 'MemberCifNo', 'CIF_No');
+    const schemeId   = str(row, 'Member_PlanID', 'SchemeId', 'Scheme_Id', 'SchemId', 'schemeid', 'SchemeID', 'Schemeid', 'ProductId');
+    const schemeName = str(row, 'Member_Plan', 'SchemeName', 'Scheme_Name', 'Scheme', 'PlanName', 'Plan', 'ProductName');
+    const groupId    = str(row, 'Client_GroupID', 'GroupId', 'Group_Id', 'Groupid', 'groupid', 'GroupID', 'CompanyId', 'Company_Id');
+    const employeeCode = str(row, 'Member_staffid', 'EmployeeCode', 'Employee_Code', 'EmployeeNo', 'Employeecode', 'employeecode');
 
     console.log(`[enrollee-profile] ${logTag(session.user.email)} resolved → cifNumber=${cifNumber} schemeId=${schemeId} schemeName=${schemeName} groupId=${groupId}`);
 
