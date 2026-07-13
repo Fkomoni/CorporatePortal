@@ -227,6 +227,58 @@ function inferCategory(row: Record<string, unknown>): string {
   return 'Outpatient';
 }
 
+// Fallback source when GetGroupMembers/GetGroupPremium return no rows for a
+// group (confirmed to happen for some groups, e.g. group 2697) — this
+// endpoint is confirmed working for those same groups via raw dumps.
+// Confirmed real fields: cif_number, Enrolleeid, firstname, surname,
+// Member_DateOfBirth, IsDependant, parentcif, EmailAdress, Phone, Gender,
+// Scheme/SchemeName, MembershipNo/Suffix.
+async function fetchBeneficiariesFallback(base: string, token: string, groupId: string): Promise<Record<string, unknown>[]> {
+  const fetchStatus = async (memberstatus: string) => {
+    const res = await fetch(
+      `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    );
+    const raw = await res.json().catch(() => null);
+    const rows = Array.isArray((raw as Record<string, unknown>)?.result)
+      ? (raw as Record<string, unknown>).result as Record<string, unknown>[]
+      : Array.isArray((raw as Record<string, unknown>)?.Result)
+        ? (raw as Record<string, unknown>).Result as Record<string, unknown>[]
+        : Array.isArray(raw) ? raw as Record<string, unknown>[] : [];
+    return rows.map((r) => ({ ...r, _memberstatus: memberstatus }));
+  };
+  const [active, inactive] = await Promise.all([fetchStatus('active'), fetchStatus('inactive')]);
+  return [...active, ...inactive];
+}
+
+function mapFallbackRow(row: Record<string, unknown>, index: number): Member {
+  const cif = str(row, 'cif_number', 'Cif_Number', 'CifNumber');
+  const suffix = str(row, 'Suffix', 'suffix');
+  const enrolleeId = str(row, 'Enrolleeid', 'EnrolleeID', 'enrolleeid') || (suffix ? `${cif}/${suffix}` : cif);
+  const isDependant = String(row['IsDependant'] ?? '').toLowerCase() === 'yes';
+  const status = String(row['_memberstatus'] ?? '').toLowerCase() === 'inactive' ? 'Terminated' : 'Active';
+
+  return {
+    id: enrolleeId || String(index),
+    employeeId: enrolleeId || `EMP${String(index + 1).padStart(4, '0')}`,
+    staffId: str(row, 'Employeecode', 'EmployeeCode', 'Staffid') || undefined,
+    firstName: str(row, 'firstname', 'Firstname', 'FirstName') || 'Member',
+    lastName: str(row, 'surname', 'Surname') || String(index + 1),
+    email: str(row, 'EmailAdress', 'EmailAddress', 'Email') && str(row, 'EmailAdress', 'EmailAddress', 'Email').toLowerCase() !== 'noemail.com'
+      ? str(row, 'EmailAdress', 'EmailAddress', 'Email') : '',
+    phone: str(row, 'Phone', 'PhoneNumber', 'Mobile') || '',
+    gender: mapGender(str(row, 'Gender', 'gender')),
+    dateOfBirth: str(row, 'Member_DateOfBirth', 'DateOfBirth', 'DOB'),
+    plan: mapPlan(str(row, 'Scheme', 'SchemeName', 'Plan', 'PlanName')),
+    type: isDependant ? 'Dependant' : 'Principal',
+    status,
+    location: str(row, 'State', 'Location') || '',
+    enrollmentDate: str(row, 'RegistrationDate', 'Fromdate', 'StartDate') || '',
+    cifNumber: cif || undefined,
+    schemeId: str(row, 'SchemeId', 'PlanId') || undefined,
+  };
+}
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -304,6 +356,17 @@ export async function GET(req: Request) {
     const memberRows  = toRows(membersRaw);
     const premiumRows = toRows(premiumRaw);
     const claimRows   = skipClaims ? [] : toRows(claimsRaw);
+
+    // GetGroupMembers/GetGroupPremium return zero rows for some groups even
+    // though they have active members (confirmed for group 2697) — fall back
+    // to the confirmed-working ClientPlanBeneficiariesNoPagitation endpoint.
+    let fallbackRows: Record<string, unknown>[] = [];
+    let usedFallback = false;
+    if (memberRows.length === 0 && premiumRows.length === 0) {
+      fallbackRows = await fetchBeneficiariesFallback(BASE, token, String(groupId));
+      usedFallback = fallbackRows.length > 0;
+      console.log(`[hr/members] groupId=${groupId} GetGroupMembers/GetGroupPremium empty, fallback rows=${fallbackRows.length}`);
+    }
 
     // Build premium lookup keyed by enrollee ID
     const premiumByEnrollee: Map<string, Record<string, unknown>> = new Map();
@@ -393,6 +456,7 @@ export async function GET(req: Request) {
     // GetGroupMembers is used only as enrichment for extra fields (phone, email)
     // when available and the enrollee IDs match.
     const primaryRows = premiumRows.length > 0 ? premiumRows : memberRows;
+    const useFallbackMapping = usedFallback && primaryRows.length === 0;
 
     // Build a lookup from GetGroupMembers by enrollee ID for enrichment.
     // Store both the full ID and the prefix (before '/') to handle format mismatches.
@@ -406,19 +470,21 @@ export async function GET(req: Request) {
       if (prefix && !memberByEnrollee.has(prefix)) memberByEnrollee.set(prefix, r);
     }
 
-    const members: Member[] = primaryRows.map((row, i) => {
-      const base = mapRow(row, i, principalTexts, knownRelTexts);
-      // Enrich with GetGroupMembers fields if available (phone, email, staffId, etc.)
-      // Try exact ID match first, then prefix match (strip '/0' suffix)
-      const basePrefix = base.employeeId.includes('/') ? base.employeeId.split('/')[0] : null;
-      const mRow = memberByEnrollee.get(base.employeeId) ?? (basePrefix ? memberByEnrollee.get(basePrefix) : undefined);
-      if (mRow) {
-        if (!base.phone) base.phone = str(mRow, 'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone');
-        if (!base.email) base.email = str(mRow, 'EmailAddress', 'Email', 'email');
-        if (!base.staffId) base.staffId = str(mRow, 'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'StaffCode') || undefined;
-      }
-      return base;
-    });
+    const members: Member[] = useFallbackMapping
+      ? fallbackRows.map((row, i) => mapFallbackRow(row, i))
+      : primaryRows.map((row, i) => {
+        const base = mapRow(row, i, principalTexts, knownRelTexts);
+        // Enrich with GetGroupMembers fields if available (phone, email, staffId, etc.)
+        // Try exact ID match first, then prefix match (strip '/0' suffix)
+        const basePrefix = base.employeeId.includes('/') ? base.employeeId.split('/')[0] : null;
+        const mRow = memberByEnrollee.get(base.employeeId) ?? (basePrefix ? memberByEnrollee.get(basePrefix) : undefined);
+        if (mRow) {
+          if (!base.phone) base.phone = str(mRow, 'MemberPhone', 'PhoneNumber', 'Phone', 'Mobile', 'GSMNo', 'MobileNo', 'GSM', 'Tel', 'TelNo', 'CellPhone', 'MobilePhone');
+          if (!base.email) base.email = str(mRow, 'EmailAddress', 'Email', 'email');
+          if (!base.staffId) base.staffId = str(mRow, 'MemberStaffid', 'EmployeeCode', 'employeecode', 'EmpCode', 'Staff_ID', 'StaffID', 'EmployeeNo', 'StaffCode') || undefined;
+        }
+        return base;
+      });
 
     // Dedupe by enrolleeId — GetGroupPremium can return multiple rows per member
     // (e.g. one per renewal/premium period), which otherwise renders as duplicate
@@ -486,10 +552,12 @@ export async function GET(req: Request) {
         newThisMonth,
         pendingCount: members.filter((m) => m.status === 'Pending').length,
       },
-      source: premiumRows.length > 0 ? 'GetGroupPremium' : 'GetGroupMembers',
+      source: useFallbackMapping ? 'ClientPlanBeneficiariesNoPagitation' : premiumRows.length > 0 ? 'GetGroupPremium' : 'GetGroupMembers',
       _debug: {
         memberRowCount: memberRows.length,
         premiumRowCount: premiumRows.length,
+        fallbackRowCount: fallbackRows.length,
+        usedFallback: useFallbackMapping,
         primaryRowCount: primaryRows.length,
         firstPremiumKeys: premiumRows[0] ? Object.keys(premiumRows[0]).slice(0, 15) : [],
         firstMemberKeys:  memberRows[0]  ? Object.keys(memberRows[0]).slice(0, 15)  : [],
