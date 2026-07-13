@@ -235,11 +235,12 @@ function inferCategory(row: Record<string, unknown>): string {
 // Scheme/SchemeName, MembershipNo/Suffix.
 async function fetchBeneficiariesFallback(base: string, token: string, groupId: string): Promise<Record<string, unknown>[]> {
   const fetchStatus = async (memberstatus: string) => {
-    const res = await fetch(
-      `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
-    );
-    const raw = await res.json().catch(() => null);
+    const url = `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+    const text = await res.text();
+    console.log(`[hr/members/fallback] GET ${url} → HTTP ${res.status}: ${text.slice(0, 800)}`);
+    let raw: unknown;
+    try { raw = JSON.parse(text); } catch { raw = null; }
     const rows = Array.isArray((raw as Record<string, unknown>)?.result)
       ? (raw as Record<string, unknown>).result as Record<string, unknown>[]
       : Array.isArray((raw as Record<string, unknown>)?.Result)
