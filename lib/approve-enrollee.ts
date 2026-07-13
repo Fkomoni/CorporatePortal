@@ -2,15 +2,16 @@
 // auto-approving HR-initiated registrations and for the Pending Enrolees
 // review screen (mobile-app / link self-registrations awaiting HR decision).
 //
-// Confirmed signatures (from real Prognosis requests — each operates on a
-// single member's own CIF, not a family/parentCif, so every beneficiary,
-// principal included, must be decided on individually):
-//   POST /api/CorporatePortal/ApproveEnrollees
-//     ?cifnumber=<cif>&approvereason=<text>&effective_date=<dd/mm/yyyy>&useremail=<hr email>
+// Confirmed signature (from Prognosis's updated Swagger — a JSON body, not
+// query params like we previously assumed). Both endpoints use the IDENTICAL
+// field names below — ApproveEnrollees's Swagger doc also shows
+// rejectionreason/terminationdate, not approvereason/effective_date, so this
+// is presumably a shared DTO on Prognosis's side rather than a doc typo:
 //   POST /api/CorporatePortal/RejectEnrollees
-//     ?cifnumber=<cif>&rejectionreason=<text>&terminationdate=<dd/mm/yyyy>&useremail=<hr email>
-// A successful call returns HTTP 200 with an empty body ({}) — no status/
-// message/recordsUpdated fields to read back.
+//   POST /api/CorporatePortal/ApproveEnrollees
+//     { "CifNumber": 0, "rejectionreason": "string", "terminationdate": "<ISO datetime>", "useremail": "string" }
+// Each operates on a single member's own CIF, not a family/parentCif, so every
+// beneficiary, principal included, must be decided on individually.
 import { getServiceToken } from '@/lib/corporate-welcome';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -31,6 +32,14 @@ export interface DecisionOptions {
   effectiveDate?: string; // dd/mm/yyyy — defaults to today
 }
 
+// dd/mm/yyyy -> ISO datetime string, matching Swagger's example
+// ("2026-07-13T13:48:03.914Z").
+function toIsoDateTime(ddMmYyyy: string): string {
+  const m = ddMmYyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const d = m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : new Date();
+  return d.toISOString();
+}
+
 function todayDdMmYyyy(): string {
   const d = new Date();
   const dd = String(d.getDate()).padStart(2, '0');
@@ -38,17 +47,12 @@ function todayDdMmYyyy(): string {
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
-async function callWithRetry(url: string): Promise<Response> {
+async function callWithRetry(url: string, body: string): Promise<Response> {
   let token = await getServiceToken();
-  // TerminateBeneficiary (confirmed working) sends Content-Type + a JSON
-  // body; ApproveEnrollees/RejectEnrollees were sent with neither — just
-  // query params on a bare POST. ASP.NET Web API POST actions can reject a
-  // request with no Content-Type/body at all with a generic 400 "The
-  // request is invalid" even when every real parameter is FromUri.
   const call = (t: string) => fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${t}`, Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: '{}',
+    body,
   });
   let res = await call(token);
   if (res.status === 401 || res.status === 403) {
@@ -60,17 +64,15 @@ async function callWithRetry(url: string): Promise<Response> {
 
 async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: DecisionOptions): Promise<ApproveResult> {
   try {
-    const reasonKey = endpoint === 'ApproveEnrollees' ? 'approvereason' : 'rejectionreason';
-    const dateKey = endpoint === 'ApproveEnrollees' ? 'effective_date' : 'terminationdate';
-    const params = new URLSearchParams({
-      cifnumber: String(opts.cifNumber),
-      [reasonKey]: opts.reason,
-      [dateKey]: opts.effectiveDate || todayDdMmYyyy(),
+    const requestBody = JSON.stringify({
+      CifNumber: Number(opts.cifNumber) || opts.cifNumber,
+      rejectionreason: opts.reason,
+      terminationdate: toIsoDateTime(opts.effectiveDate || todayDdMmYyyy()),
       useremail: opts.userEmail,
     });
-    const url = `${BASE}/api/CorporatePortal/${endpoint}?${params.toString()}`;
-    console.log(`[${endpoint}] → ${url}`);
-    const res = await callWithRetry(url);
+    const url = `${BASE}/api/CorporatePortal/${endpoint}`;
+    console.log(`[${endpoint}] → POST ${url} body=${requestBody}`);
+    const res = await callWithRetry(url, requestBody);
     const text = await res.text();
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
