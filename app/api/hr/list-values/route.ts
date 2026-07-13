@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { cacheGet, cacheSet } from '@/lib/server-cache';
+import { logTag } from '@/lib/log-tag';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -73,7 +74,7 @@ export async function GET(req: Request) {
         ? `${BASE}/api/CorporatePortal/GetTowns?regionId=${regionId}`
         : `${BASE}/api/CorporatePortal/GetTowns`;
       const raw = await fetchJson(token, url);
-      console.log('[list-values/towns]', JSON.stringify(raw)?.slice(0, 300));
+      console.log('[list-values/towns]', logTag(session.user.email), JSON.stringify(raw)?.slice(0, 300));
       const rows = toArr((raw as Record<string,unknown>)?.result ?? (raw as Record<string,unknown>)?.data ?? raw ?? []);
       const towns: TownOption[] = rows.map((r) => ({
         value:    String(r.TownID ?? r.townid ?? r.Town_ID ?? r.PostalTownID ?? r.Id ?? r.id ?? ''),
@@ -103,7 +104,7 @@ export async function GET(req: Request) {
       fetchJson(token, `${BASE}/api/ListValues/GetStates`),
       fetchJson(token, `${BASE}/api/CorporatePortal/GetRegion`),
     ]);
-    console.log('[list-values/regions raw]', JSON.stringify(regionsRaw)?.slice(0, 300));
+    console.log('[list-values/regions raw]', logTag(session.user.email), JSON.stringify(regionsRaw)?.slice(0, 300));
 
     // Relationships → {Text, Value}[]
     const relationships: RelationshipOption[] = Array.isArray(relRaw)

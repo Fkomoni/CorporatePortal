@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { logTag } from '@/lib/log-tag';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -131,7 +132,7 @@ export async function GET(req: Request) {
     // Prognosis returns a bare type ("jpeg"), not a full MIME type — the
     // client builds `data:${photoType};base64,...`, so it must be prefixed.
     const photoType = rawPhotoType.includes('/') ? rawPhotoType : `image/${rawPhotoType}`;
-    console.log(`[hr/members/biodata] ${enrolleeId} photo resolved via "${photoKey || 'none'}" (${photo ? photo.length : 0} chars). Row keys: ${Object.keys(row).join(', ')}`);
+    console.log(`[hr/members/biodata] ${logTag(session.user.email)} ${enrolleeId} photo resolved via "${photoKey || 'none'}" (${photo ? photo.length : 0} chars). Row keys: ${Object.keys(row).join(', ')}`);
 
     return NextResponse.json({
       enrolleeId,
