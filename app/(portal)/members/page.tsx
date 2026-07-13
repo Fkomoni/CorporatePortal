@@ -1617,7 +1617,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, vis, relationshipOptions, stats, maxFamilySize, schemes }: { member: Member; index: number; onClose: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[] }) {
+function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[] }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -1693,6 +1693,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
       } else {
         toast('Scheduled termination cancelled.', 'success');
         setPendingTermination(null);
+        onMutated();
       }
     } catch {
       toast('Network error. Please try again.', 'error');
@@ -1839,6 +1840,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         } else {
           toast(`Termination submitted for ${member.firstName} ${member.lastName}.`, 'success');
           setShowTerminateConfirm(false);
+          onMutated();
           onClose();
         }
       } catch {
@@ -1867,9 +1869,11 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         toast(`Termination for ${member.firstName} ${member.lastName} scheduled for ${termDate}.`, 'success');
         setPendingTermination({ id: data.scheduledId, effectiveDate: termDate });
         setShowTerminateConfirm(false);
+        onMutated();
       } else {
         toast(`${member.firstName} ${member.lastName} has been terminated.`, 'success');
         setShowTerminateConfirm(false);
+        onMutated();
         onClose();
       }
     } catch {
@@ -1920,6 +1924,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         if (editEmail) setBioEmail(editEmail);
         if (editPhotoB64) setAvatarPreview(`data:${editPhotoType || 'image/jpeg'};base64,${editPhotoB64}`);
         setShowEdit(false);
+        onMutated();
       }
     } catch {
       setEditError('Network error. Please try again.');
@@ -1976,6 +1981,7 @@ function Member360Drawer({ member, index, onClose, vis, relationshipOptions, sta
         if (!res.ok || data.error) { setDepError(data.error ?? 'Failed to add dependent'); return; }
         toast(`Dependent added successfully!`, 'success');
         setShowAddDep(false);
+        onMutated();
       } else {
         // Send link
         if (!depLinkEmail) { setDepError('Member email is required to send the link.'); return; }
@@ -3154,6 +3160,7 @@ export default function MembersPage() {
           member={activeMember.member}
           index={activeMember.index}
           onClose={() => setActiveMember(null)}
+          onMutated={() => loadMembers(true)}
           vis={vis}
           relationshipOptions={relationshipOptions}
           stats={memberStatsMap[activeMember.member.employeeId]}
