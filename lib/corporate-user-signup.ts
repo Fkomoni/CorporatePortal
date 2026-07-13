@@ -49,7 +49,7 @@ export async function callCorporateUserSignUp(
     CountryID: NIGERIA_COUNTRY_ID,
     TitleID: 0,
     ProfilePictureType: '',
-    callbackurl: '',
+    callbackurl: (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '') + '/login',
     EnterService: true,
     ConsultServiceEntered: true,
     RegisterInvoice: true,
