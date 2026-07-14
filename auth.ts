@@ -11,33 +11,55 @@ const PROGNOSIS_BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api
 // routinely return HTTP 200 with a status/error field even on a rejected
 // login, so res.ok alone is never a valid pass/fail signal.
 async function validateWithPrognosis(email: string, password: string): Promise<boolean> {
+  const requestBody = JSON.stringify({
+    UserName: email,
+    Password: password,
+    RememberMe: true,
+    Email: email,
+    LogInSource: 'CorporatePortal',
+  });
   try {
     const res = await fetch(`${PROGNOSIS_BASE}/api/Account/ExternalPortalLogin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        UserName: email,
-        Password: password,
-        RememberMe: true,
-        Email: email,
-        LogInSource: 'CorporatePortal',
-      }),
+      body: requestBody,
     });
+    const text = await res.text();
+    console.log(`[auth/validateWithPrognosis] email=${email} → HTTP ${res.status}: ${text.slice(0, 500)}`);
+
     if (!res.ok) return false;
 
-    const data = await res.json() as Record<string, unknown>;
+    let data: Record<string, unknown>;
+    try { data = JSON.parse(text); } catch {
+      console.log(`[auth/validateWithPrognosis] email=${email} non-JSON response`);
+      return false;
+    }
     const status = String(data?.status ?? data?.Status ?? '').toLowerCase();
-    if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
-    if (data?.ErrorMessage || data?.errorMessage || data?.error || data?.Error) return false;
+    if (status && !['success', 'true', '200', 'ok'].includes(status)) {
+      console.log(`[auth/validateWithPrognosis] email=${email} rejected: status=${status}`);
+      return false;
+    }
+    if (data?.ErrorMessage || data?.errorMessage || data?.error || data?.Error) {
+      console.log(`[auth/validateWithPrognosis] email=${email} rejected: error field present`);
+      return false;
+    }
 
     const payload = (data?.result ?? data?.Result ?? data?.data ?? data?.Data) as Record<string, unknown> | Record<string, unknown>[] | null;
-    if (!payload) return false;
+    if (!payload) {
+      console.log(`[auth/validateWithPrognosis] email=${email} rejected: no result/data wrapper in response`);
+      return false;
+    }
     const record = Array.isArray(payload) ? payload[0] as Record<string, unknown> : payload;
-    if (!record || typeof record !== 'object') return false;
+    if (!record || typeof record !== 'object') {
+      console.log(`[auth/validateWithPrognosis] email=${email} rejected: wrapper payload not an object`);
+      return false;
+    }
 
     const emailRaw = record.email ?? record.Email ?? record.EmailAddress ?? null;
     const idRaw     = record.id ?? record.Id ?? record.userId ?? record.UserId ?? null;
-    return Boolean(emailRaw && idRaw);
+    const ok = Boolean(emailRaw && idRaw);
+    if (!ok) console.log(`[auth/validateWithPrognosis] email=${email} rejected: missing email/id in record, keys=${Object.keys(record).join(',')}`);
+    return ok;
   } catch (err) {
     console.error('[auth/validateWithPrognosis] Error:', err);
     return false;
@@ -95,18 +117,27 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           where: { email: credentials.email as string },
         });
 
-        if (!user || !user.active) return null;
+        if (!user || !user.active) {
+          console.log(`[auth/hr-credentials] email=${credentials.email} rejected: no active user found`);
+          return null;
+        }
 
         const valid = await bcrypt.compare(
           credentials.password as string,
           user.password
         );
-        if (!valid) return null;
+        if (!valid) {
+          console.log(`[auth/hr-credentials] email=${user.email} rejected: local bcrypt check failed`);
+          return null;
+        }
 
         // Require Prognosis to also confirm the password before granting
         // entry — our local hash and Prognosis's record must both agree.
         const prognosisValid = await validateWithPrognosis(user.email, credentials.password as string);
-        if (!prognosisValid) return null;
+        if (!prognosisValid) {
+          console.log(`[auth/hr-credentials] email=${user.email} rejected: Prognosis ExternalPortalLogin check failed`);
+          return null;
+        }
 
         // 2FA: when enabled, a valid emailed OTP is required to get a session.
         // Enforced here (not just in the UI) so it can't be bypassed by
