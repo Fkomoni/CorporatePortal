@@ -7,6 +7,43 @@ const PROGNOSIS_BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// Shared by both login providers — Prognosis endpoints in this system
+// routinely return HTTP 200 with a status/error field even on a rejected
+// login, so res.ok alone is never a valid pass/fail signal.
+async function validateWithPrognosis(email: string, password: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${PROGNOSIS_BASE}/api/Account/ExternalPortalLogin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        UserName: email,
+        Password: password,
+        RememberMe: true,
+        Email: email,
+        LogInSource: 'CorporatePortal',
+      }),
+    });
+    if (!res.ok) return false;
+
+    const data = await res.json() as Record<string, unknown>;
+    const status = String(data?.status ?? data?.Status ?? '').toLowerCase();
+    if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
+    if (data?.ErrorMessage || data?.errorMessage || data?.error || data?.Error) return false;
+
+    const payload = (data?.result ?? data?.Result ?? data?.data ?? data?.Data) as Record<string, unknown> | Record<string, unknown>[] | null;
+    if (!payload) return false;
+    const record = Array.isArray(payload) ? payload[0] as Record<string, unknown> : payload;
+    if (!record || typeof record !== 'object') return false;
+
+    const emailRaw = record.email ?? record.Email ?? record.EmailAddress ?? null;
+    const idRaw     = record.id ?? record.Id ?? record.userId ?? record.UserId ?? null;
+    return Boolean(emailRaw && idRaw);
+  } catch (err) {
+    console.error('[auth/validateWithPrognosis] Error:', err);
+    return false;
+  }
+}
+
 declare module 'next-auth' {
   interface User {
     loginType?: string;
@@ -65,6 +102,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           user.password
         );
         if (!valid) return null;
+
+        // Require Prognosis to also confirm the password before granting
+        // entry — our local hash and Prognosis's record must both agree.
+        const prognosisValid = await validateWithPrognosis(user.email, credentials.password as string);
+        if (!prognosisValid) return null;
 
         // 2FA: when enabled, a valid emailed OTP is required to get a session.
         // Enforced here (not just in the UI) so it can't be bypassed by
