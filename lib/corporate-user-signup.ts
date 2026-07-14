@@ -90,6 +90,14 @@ export async function callCorporateUserSignUp(
     // the body, not just res.ok.
     const bodyStatus = r?.status ?? r?.Status;
     const message = String(r?.message ?? r?.Message ?? r?.ErrorMessage ?? '');
+
+    // "already taken" means this HR user already completed CorporateUserSignUp
+    // on a prior attempt (e.g. a resend-OTP retry, or revisiting the link) —
+    // that's success, not a failure to surface and block on.
+    if (/already taken|already exist/i.test(message)) {
+      return { success: true, raw };
+    }
+
     const looksFailed = !res.ok || (bodyStatus != null && Number(bodyStatus) >= 400) || /error|invalid|fail/i.test(message);
 
     if (looksFailed) {
