@@ -165,6 +165,13 @@ export default function AuditLogsPage() {
                   if (d.totalCount !== undefined) return `${d.totalCount} records`;
                   if (d.totalClaims !== undefined) return `${d.totalClaims} claims`;
                   if (d.targetUserName) return `${d.targetUserName} → ${d.newStatus}`;
+                  if (log.action === 'SEND_SIGNUP_EMAIL') {
+                    return [
+                      d.email ? `to ${String(d.email)}` : null,
+                      d.PolicyNumber ? `policy ${String(d.PolicyNumber)}` : null,
+                      d.emailSent === false ? 'send failed' : null,
+                    ].filter(Boolean).join(' · ');
+                  }
                   return '';
                 })()
               : '';
