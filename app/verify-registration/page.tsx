@@ -293,22 +293,22 @@ function VerifyForm() {
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>First Name</label>
-                    <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required style={inputStyle} onFocus={fi} onBlur={fo} />
+                    <input type="text" autoComplete="given-name" name="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required style={inputStyle} onFocus={fi} onBlur={fo} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Surname</label>
-                    <input type="text" value={surname} onChange={(e) => setSurname(e.target.value)} placeholder="Surname" required style={inputStyle} onFocus={fi} onBlur={fo} />
+                    <input type="text" autoComplete="family-name" name="surname" value={surname} onChange={(e) => setSurname(e.target.value)} placeholder="Surname" required style={inputStyle} onFocus={fi} onBlur={fo} />
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Date of Birth</label>
-                    <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required style={inputStyle} onFocus={fi} onBlur={fo} />
+                    <input type="date" autoComplete="bday" name="dob" value={dob} onChange={(e) => setDob(e.target.value)} required style={inputStyle} onFocus={fi} onBlur={fo} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Gender</label>
-                    <select value={gender} onChange={(e) => setGender(e.target.value)} required style={inputStyle}>
+                    <select value={gender} onChange={(e) => setGender(e.target.value)} required autoComplete="sex" name="gender" style={inputStyle}>
                       <option value="">Select…</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -318,13 +318,13 @@ function VerifyForm() {
 
                 <div>
                   <label style={labelStyle}>Phone Number</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 08012345678" required style={inputStyle} onFocus={fi} onBlur={fo} />
+                  <input type="tel" autoComplete="tel" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 08012345678" required style={inputStyle} onFocus={fi} onBlur={fo} />
                 </div>
 
                 <div>
                   <label style={labelStyle}>Password</label>
                   <div style={{ position: 'relative' }}>
-                    <input type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a strong password" required style={{ ...inputStyle, paddingRight: 44 }} onFocus={fi} onBlur={fo} />
+                    <input type={showPass ? 'text' : 'password'} autoComplete="new-password" name="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a strong password" required style={{ ...inputStyle, paddingRight: 44 }} onFocus={fi} onBlur={fo} />
                     <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#B8BFD0', padding: 0, display: 'flex' }}>
                       {showPass ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                     </button>
@@ -345,7 +345,7 @@ function VerifyForm() {
                 <div>
                   <label style={labelStyle}>Confirm Password</label>
                   <div style={{ position: 'relative' }}>
-                    <input type={showConf ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter your password" required
+                    <input type={showConf ? 'text' : 'password'} autoComplete="new-password" name="confirm-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter your password" required
                       style={{ ...inputStyle, paddingRight: 44, borderColor: confirm && confirm !== password ? '#EF4444' : '#E5E7F1' }}
                       onFocus={fi}
                       onBlur={(e) => { e.target.style.borderColor = confirm && confirm !== password ? '#EF4444' : '#E5E7F1'; e.target.style.boxShadow = 'none'; }} />
