@@ -5,7 +5,8 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { issueLoginOtp, verifyLoginOtp } from '@/lib/login-otp';
-import { isEmailAuthorizedForGroup } from '@/lib/corporate-welcome';
+import { isEmailAuthorizedForGroup, getServiceToken } from '@/lib/corporate-welcome';
+import { callPrognosisChangePassword } from '@/lib/corporate-change-password';
 
 export async function POST(req: Request) {
   let body: { action?: string; email?: string; code?: string; newPassword?: string };
@@ -57,16 +58,28 @@ export async function POST(req: Request) {
       if (check === 'expired') return NextResponse.json({ error: 'Code expired. Request a new one.' }, { status: 400 });
       if (check !== 'ok')      return NextResponse.json({ error: 'Incorrect code. Please try again.' }, { status: 400 });
 
-      // Forgot-password resets only the local hash — Prognosis's
-      // ChangePassword needs the (by definition, unknown) old password, so
-      // it can't be called here. Mark the account out of sync so login
-      // doesn't require a Prognosis check it knows will now fail; it's
-      // re-synced the next time this user successfully uses in-app
-      // Change Password (which does call Prognosis).
       const passwordHash = await bcrypt.hash(newPassword, 12);
-      await prisma.user.update({ where: { id: user.id }, data: { password: passwordHash, prognosisSynced: false } });
 
-      return NextResponse.json({ success: true });
+      // Confirmed with Prognosis: ChangePassword's OldPassword isn't
+      // actually verified, so it can be called here too — any placeholder
+      // value works — keeping the account in sync even on a forgot-password
+      // reset. Still non-blocking: the local reset succeeds regardless.
+      let prognosisSynced = user.prognosisSynced;
+      try {
+        const token = await getServiceToken();
+        const result = await callPrognosisChangePassword(token, 'unknown', newPassword);
+        prognosisSynced = result.success;
+        if (!result.success) {
+          console.warn(`[forgot-password] Prognosis ChangePassword failed for ${user.email}: ${result.error}`);
+        }
+      } catch (err) {
+        prognosisSynced = false;
+        console.error('[forgot-password] Prognosis ChangePassword error:', err);
+      }
+
+      await prisma.user.update({ where: { id: user.id }, data: { password: passwordHash, prognosisSynced } });
+
+      return NextResponse.json({ success: true, prognosisSynced });
     }
 
     default:
