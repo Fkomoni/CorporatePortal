@@ -19,6 +19,8 @@ export default function StaffAccessPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [addEmail, setAddEmail] = useState('');
   const [addCompanyId, setAddCompanyId] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
 
@@ -53,7 +55,7 @@ export default function StaffAccessPage() {
       });
       const json = await res.json();
       if (!res.ok) { setAddError(json.error ?? 'Failed to grant access.'); return; }
-      setAddEmail(''); setAddCompanyId(''); setShowAdd(false);
+      setAddEmail(''); setAddCompanyId(''); setClientQuery(''); setShowAdd(false);
       await load();
     } catch {
       setAddError('Network error. Please try again.');
@@ -100,12 +102,39 @@ export default function StaffAccessPage() {
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', marginBottom: 6 }}>Leadway Staff Email</label>
               <input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="firstname.lastname@leadway.com" required style={inputStyle} />
             </div>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', marginBottom: 6 }}>Client</label>
-              <select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)} required style={inputStyle}>
-                <option value="">Select a client…</option>
-                {policies.map((p) => <option key={p.groupId} value={p.groupId}>{p.name}</option>)}
-              </select>
+              <input
+                type="text"
+                value={clientQuery}
+                onChange={(e) => { setClientQuery(e.target.value); setAddCompanyId(''); setClientDropdownOpen(true); }}
+                onFocus={() => setClientDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setClientDropdownOpen(false), 150)}
+                placeholder="Type to search clients…"
+                autoComplete="off"
+                required={!addCompanyId}
+                style={inputStyle}
+              />
+              {clientDropdownOpen && clientQuery.trim() && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 260, overflowY: 'auto', background: '#fff', border: '1px solid #E5E7F1', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', zIndex: 20 }}>
+                  {policies
+                    .filter((p) => p.name.toLowerCase().includes(clientQuery.trim().toLowerCase()))
+                    .slice(0, 50)
+                    .map((p) => (
+                      <button
+                        key={p.groupId}
+                        type="button"
+                        onClick={() => { setAddCompanyId(p.groupId); setClientQuery(p.name); setClientDropdownOpen(false); }}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: 13, color: '#131C4E', background: p.groupId === addCompanyId ? '#FFF5EF' : 'transparent', border: 'none', borderBottom: '1px solid #F7F8FA', cursor: 'pointer' }}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  {policies.filter((p) => p.name.toLowerCase().includes(clientQuery.trim().toLowerCase())).length === 0 && (
+                    <p style={{ padding: '10px 14px', fontSize: 12, color: '#9CA3B8' }}>No matching clients.</p>
+                  )}
+                </div>
+              )}
             </div>
             <button type="submit" disabled={addLoading}
               style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 10, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', cursor: addLoading ? 'not-allowed' : 'pointer', opacity: addLoading ? 0.6 : 1 }}>
