@@ -15,6 +15,7 @@ import { prisma } from '@/lib/prisma';
 import { isEmailAuthorizedForGroup, getServiceToken } from '@/lib/corporate-welcome';
 import { issueLoginOtp } from '@/lib/login-otp';
 import { callCorporateUserSignUp } from '@/lib/corporate-user-signup';
+import { callPrognosisChangePassword } from '@/lib/corporate-change-password';
 
 export async function POST(req: Request) {
   let body: {
@@ -78,10 +79,19 @@ export async function POST(req: Request) {
 
     const fullName = `${firstName} ${surname}`.trim() || email;
 
-    // Only a genuine (not "already existed") CorporateUserSignUp confirms
-    // Prognosis now has this exact password — otherwise its stored password
-    // may be an earlier one, and the login gate must not assume they match.
-    const prognosisSynced = !signup.alreadyExisted;
+    // A genuine CorporateUserSignUp confirms Prognosis now has this exact
+    // password. If the account already existed there instead, force it into
+    // sync with a ChangePassword call — confirmed with Prognosis that
+    // OldPassword isn't actually verified, so this is safe even though we
+    // don't know the account's real prior password.
+    let prognosisSynced = !signup.alreadyExisted;
+    if (signup.alreadyExisted) {
+      const sync = await callPrognosisChangePassword(token, 'unknown', password);
+      prognosisSynced = sync.success;
+      if (!sync.success) {
+        console.warn(`[request-registration-otp] Could not force-sync existing Prognosis account for ${email}: ${sync.error}`);
+      }
+    }
 
     // Pre-register the HR user record if it doesn't already exist (e.g. the
     // link was reached without going through the welcome/send-signup step).
