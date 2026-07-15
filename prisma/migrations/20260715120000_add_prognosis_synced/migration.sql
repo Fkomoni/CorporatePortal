@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "prognosisSynced" BOOLEAN NOT NULL DEFAULT false;

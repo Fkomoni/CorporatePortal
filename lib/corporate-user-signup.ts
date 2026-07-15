@@ -29,6 +29,10 @@ export interface CorporateUserSignUpResult {
   success: boolean;
   error?: string;
   raw?: unknown;
+  // True only when the account already existed and this call didn't change
+  // its password — Prognosis's stored password may not be the one just
+  // submitted, so callers must not treat this as "password now in sync".
+  alreadyExisted?: boolean;
 }
 
 export async function callCorporateUserSignUp(
@@ -95,7 +99,7 @@ export async function callCorporateUserSignUp(
     // on a prior attempt (e.g. a resend-OTP retry, or revisiting the link) —
     // that's success, not a failure to surface and block on.
     if (/already taken|already exist/i.test(message)) {
-      return { success: true, raw };
+      return { success: true, alreadyExisted: true, raw };
     }
 
     const looksFailed = !res.ok || (bodyStatus != null && Number(bodyStatus) >= 400) || /error|invalid|fail/i.test(message);

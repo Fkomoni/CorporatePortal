@@ -69,6 +69,11 @@ export async function POST(req: Request) {
 
     const fullName = `${firstName} ${surname}`.trim() || email;
 
+    // Only a genuine (not "already existed") CorporateUserSignUp confirms
+    // Prognosis now has this exact password — otherwise its stored password
+    // may be an earlier one, and the login gate must not assume they match.
+    const prognosisSynced = !signup.alreadyExisted;
+
     // Pre-register the HR user record if it doesn't already exist (e.g. the
     // link was reached without going through the welcome/send-signup step).
     const user = await prisma.user.upsert({
@@ -79,6 +84,7 @@ export async function POST(req: Request) {
         policyNumber: body.policyNumber || undefined,
         name: fullName,
         mobile: phone || undefined,
+        prognosisSynced,
       },
       create: {
         email,
@@ -90,6 +96,7 @@ export async function POST(req: Request) {
         policyNumber: body.policyNumber || null,
         active: false,
         mobile: phone || null,
+        prognosisSynced,
       },
     });
 

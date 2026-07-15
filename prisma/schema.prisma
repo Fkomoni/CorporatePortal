@@ -21,6 +21,12 @@ model User {
   mobile        String?
   twoFaEnabled  Boolean   @default(false)
   twoFaMethod   String    @default("email")
+  // True once Prognosis has confirmed this exact password via
+  // CorporateUserSignUp or ChangePassword. A local-only password reset
+  // (forgot-password, where the old password is unknown so Prognosis's
+  // ChangePassword can't be called) sets this back to false so the login
+  // gate doesn't require a Prognosis check it knows is now out of sync.
+  prognosisSynced Boolean @default(false)
   // Pending login/setup OTP (sha256 hash) — cleared once used
   loginOtpHash      String?
   loginOtpExpiresAt DateTime?

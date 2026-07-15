@@ -132,11 +132,17 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         }
 
         // Require Prognosis to also confirm the password before granting
-        // entry — our local hash and Prognosis's record must both agree.
-        const prognosisValid = await validateWithPrognosis(user.email, credentials.password as string);
-        if (!prognosisValid) {
-          console.log(`[auth/hr-credentials] email=${user.email} rejected: Prognosis ExternalPortalLogin check failed`);
-          return null;
+        // entry — but only for accounts it actually knows the current
+        // password for (prognosisSynced). A forgot-password reset can only
+        // update our local hash (Prognosis's ChangePassword needs the old
+        // password, which by definition is unknown), so those accounts are
+        // marked out of sync and skip this check until back in sync.
+        if (user.prognosisSynced) {
+          const prognosisValid = await validateWithPrognosis(user.email, credentials.password as string);
+          if (!prognosisValid) {
+            console.log(`[auth/hr-credentials] email=${user.email} rejected: Prognosis ExternalPortalLogin check failed`);
+            return null;
+          }
         }
 
         // 2FA: when enabled, a valid emailed OTP is required to get a session.
