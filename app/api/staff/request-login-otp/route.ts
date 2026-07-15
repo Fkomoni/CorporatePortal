@@ -28,17 +28,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid credentials. Please check your Leadway staff email and password.' }, { status: 401 });
     }
 
-    const clients = await prisma.staffClientAccess.findMany({ where: { staffEmail: staff.email } });
-
-    const staffUser = await prisma.staffUser.upsert({
-      where: { email: staff.email },
-      update: { name: staff.name, role: staff.role },
-      create: { email: staff.email, name: staff.name, role: staff.role },
-    });
-
-    if (!staffUser.active) {
-      return NextResponse.json({ error: 'Your staff account has been deactivated. Contact your administrator.' }, { status: 403 });
+    // A valid Leadway AD login is not enough on its own — the account must
+    // also have been explicitly enabled for this portal by an admin
+    // (/admin/staff-access). Never auto-create or auto-enable here.
+    const staffUser = await prisma.staffUser.findUnique({ where: { email: staff.email } });
+    if (!staffUser || !staffUser.active) {
+      console.log(`[staff/request-login-otp] email=${staff.email} rejected: not enabled for internal admin portal`);
+      return NextResponse.json({
+        error: 'Your account has not been enabled for the internal admin portal. Contact your administrator to be granted access.',
+      }, { status: 403 });
     }
+
+    await prisma.staffUser.update({ where: { id: staffUser.id }, data: { name: staff.name, role: staff.role } });
+
+    const clients = await prisma.staffClientAccess.findMany({ where: { staffEmail: staff.email } });
 
     // Recognized device — skip sending an OTP entirely; the final sign-in
     // step re-checks trust server-side rather than trusting this response.

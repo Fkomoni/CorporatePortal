@@ -20,8 +20,47 @@ export async function GET() {
   const { error } = await requireStaffSession();
   if (error) return error;
 
-  const rows = await prisma.staffClientAccess.findMany({ orderBy: [{ staffEmail: 'asc' }, { companyName: 'asc' }] });
-  return NextResponse.json({ access: rows });
+  const [access, staffUsers] = await Promise.all([
+    prisma.staffClientAccess.findMany({ orderBy: [{ staffEmail: 'asc' }, { companyName: 'asc' }] }),
+    prisma.staffUser.findMany({ orderBy: { email: 'asc' } }),
+  ]);
+  return NextResponse.json({
+    access,
+    staffUsers: staffUsers.map((u) => ({ email: u.email, active: u.active, role: u.role })),
+  });
+}
+
+// Enable or disable a Leadway email's access to the internal admin portal
+// at all — independent of which clients it's linked to. This is the actual
+// gate: a valid AD login is never sufficient on its own.
+export async function PATCH(req: Request) {
+  const { error } = await requireStaffSession();
+  if (error) return error;
+
+  let body: { email?: string; active?: boolean };
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  const email = (body.email ?? '').trim().toLowerCase();
+  if (!email || typeof body.active !== 'boolean') {
+    return NextResponse.json({ error: 'Email and active are required.' }, { status: 400 });
+  }
+  if (!/^[^\s@]+@leadway\.com$/i.test(email)) {
+    return NextResponse.json({ error: 'Only Leadway email addresses can be enabled for internal admin access.' }, { status: 400 });
+  }
+
+  try {
+    const staffUser = await prisma.staffUser.upsert({
+      where: { email },
+      update: { active: body.active },
+      create: { email, name: email, active: body.active },
+    });
+    return NextResponse.json({ success: true, staffUser: { email: staffUser.email, active: staffUser.active } });
+  } catch (err) {
+    console.error('[admin/staff-access] Enable/disable error:', err);
+    return NextResponse.json({ error: 'Failed to update access.' }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {

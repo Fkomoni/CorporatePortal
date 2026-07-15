@@ -44,6 +44,12 @@ model User {
 // Prognosis's ExternalPortalLogin — never a locally-set/reset password).
 // A staff member picks one linked client (StaffClientAccess) per login and
 // operates in that client's exact HR portal for the session.
+//
+// Prognosis recognizing a @leadway.com AD account is NOT sufficient to use
+// this portal — a row must exist here AND be active. Rows are only ever
+// created explicitly (by an admin enabling someone on /admin/staff-access),
+// never auto-created on login, so having a valid Leadway email/password
+// alone can't grant access to anyone not deliberately approved.
 model StaffUser {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -51,7 +57,7 @@ model StaffUser {
   // Mapped from Prognosis's Role/RoleName: admin, medical_director,
   // supervisor, or officer.
   role              String    @default("officer")
-  active            Boolean   @default(true)
+  active            Boolean   @default(false)
   lastLogin         DateTime?
   loginOtpHash      String?
   loginOtpExpiresAt DateTime?
