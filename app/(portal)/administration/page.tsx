@@ -186,6 +186,10 @@ export default function AdministrationPage() {
   const { toast } = useToast();
   const { data: session, status: sessionStatus } = useSession();
   const isAdmin = isAdminRole((session?.user as { role?: string })?.role);
+  // Internal Leadway staff acting as HR for a client may never create roles
+  // or add secondary users — only the real HR admin, or a colleague that
+  // HR itself invited as Admin, can do that.
+  const isInternalStaff = Boolean((session?.user as { isInternalStaff?: boolean })?.isInternalStaff);
 
   const [activeTab, setActiveTab]   = useState<Tab>('users');
 
@@ -569,11 +573,13 @@ export default function AdministrationPage() {
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Access Roles</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Define what each user can see and do in the portal</p>
                 </div>
+                {!isInternalStaff && (
                 <button onClick={() => { setShowRoleForm(!showRoleForm); setRoleForm(blankRoleForm); setEditingRoleId(null); setRoleError(''); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 7, height: 38, padding: '0 18px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 20, cursor: 'pointer', background: showRoleForm ? '#6B7280' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: showRoleForm ? 'none' : '0 2px 8px rgba(245,107,34,0.28)' }}>
                   {showRoleForm ? <X style={{ width: 13, height: 13 }} /> : <Plus style={{ width: 13, height: 13 }} />}
                   {showRoleForm ? 'Cancel' : 'Define Role'}
                 </button>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
@@ -685,11 +691,13 @@ export default function AdministrationPage() {
                     {loading ? 'Loading…' : `${portalUsers.length} user${portalUsers.length !== 1 ? 's' : ''}`}
                   </p>
                 </div>
+                {!isInternalStaff && (
                 <button onClick={() => { setShowInvite(!showInvite); setInviteError(''); setInviteSent(''); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: showInvite ? '#6B7280' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: showInvite ? 'none' : '0 2px 10px rgba(245,107,34,0.32)' }}>
                   {showInvite ? <X style={{ width: 15, height: 15 }} /> : <Plus style={{ width: 15, height: 15 }} />}
                   {showInvite ? 'Close' : 'Invite User'}
                 </button>
+                )}
               </div>
 
               {showInvite && (

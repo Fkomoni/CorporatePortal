@@ -40,6 +40,60 @@ model User {
   @@map("users")
 }
 
+// Internal Leadway staff (Active Directory accounts, validated live via
+// Prognosis's ExternalPortalLogin — never a locally-set/reset password).
+// A staff member picks one linked client (StaffClientAccess) per login and
+// operates in that client's exact HR portal for the session.
+model StaffUser {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String
+  // Mapped from Prognosis's Role/RoleName: admin, medical_director,
+  // supervisor, or officer.
+  role              String    @default("officer")
+  active            Boolean   @default(true)
+  lastLogin         DateTime?
+  loginOtpHash      String?
+  loginOtpExpiresAt DateTime?
+  loginOtpAttempts  Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  clientAccess      StaffClientAccess[]
+
+  @@map("staff_users")
+}
+
+// "Remember this device for 45 days" — skips the OTP step on a recognized
+// browser. The cookie itself only ever holds a random opaque token; the
+// hash stored here is what's actually checked, same pattern as OTP storage.
+model StaffTrustedDevice {
+  id           String   @id @default(cuid())
+  staffUserId  String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([staffUserId])
+  @@map("staff_trusted_devices")
+}
+
+// Which client companies a given Leadway staff email may act as HR for.
+// Managed entirely by us — Prognosis has no equivalent endpoint.
+model StaffClientAccess {
+  id           String   @id @default(cuid())
+  staffEmail   String
+  companyId    String
+  companyName  String?
+  policyNumber String?
+  createdAt    DateTime @default(now())
+
+  staffUser    StaffUser? @relation(fields: [staffEmail], references: [email])
+
+  @@unique([staffEmail, companyId])
+  @@map("staff_client_access")
+}
+
 // NextAuth required tables
 model Account {
   id                String  @id @default(cuid())

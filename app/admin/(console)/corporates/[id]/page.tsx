@@ -332,10 +332,6 @@ export default function CorporateDetailPage() {
                 style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 600, border: '1px solid #E5E7F1', borderRadius: 14, background: '#fff', color: '#131C4E', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Send style={{ width: 14, height: 14 }} /> Send Signup Email
               </button>
-              <button onClick={() => setView('access')}
-                style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 2px 10px rgba(245,107,34,0.32)' }}>
-                <Users style={{ width: 14, height: 14 }} /> Manage Access
-              </button>
               <button onClick={() => setShowEditModal(true)}
                 style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 14, background: 'linear-gradient(135deg,#131C4E,#3A4382)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Pencil style={{ width: 14, height: 14 }} /> Edit
