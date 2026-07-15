@@ -127,13 +127,13 @@ export default function StaffLoginPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>
-              Corporate Portal — Staff Access
+              Corporate Portal · Staff Access
             </p>
             <h1 style={{ fontSize: 38, fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 16 }}>
               Manage clients.<br />Drive outcomes.
             </h1>
             <p style={{ fontSize: 15, color: '#A8AECB', lineHeight: 1.6 }}>
-              The Leadway Health staff portal gives your team full visibility into every corporate client — members, benefits, claims, and wellness data in one place.
+              End to end Underwriting, Claims, Provider Network, Fraud & Abuse, and Member Support: one system of record.
             </p>
           </div>
 
@@ -220,7 +220,7 @@ export default function StaffLoginPage() {
                 </button>
               </div>
               <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>
-                Your usual Leadway Active Directory password — this portal never sets or resets it.
+                Your usual Leadway Active Directory password (this portal never sets or resets it).
               </p>
             </div>
 
@@ -274,7 +274,7 @@ export default function StaffLoginPage() {
             </div>
             ) : (
               <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>
-                Device recognized — no code needed. Just pick where you&apos;re going below.
+                Device recognized: no code needed. Just pick where you&apos;re going below.
               </div>
             )}
 
@@ -308,14 +308,14 @@ export default function StaffLoginPage() {
 
               {destination === 'console' && (
                 <p style={{ fontSize: 12, color: '#6B7480', lineHeight: 1.6 }}>
-                  Platform administration — manage corporates, portal settings, audit logs, and who has Client HR Desk access.
+                  Platform administration: manage corporates, portal settings, audit logs, and who has Client HR Desk access.
                 </p>
               )}
 
               {destination === 'client' && (
                 clients.length === 0 ? (
                   <p style={{ fontSize: 11, color: '#B0B7C9' }}>
-                    You&apos;re not linked to any client yet — ask an administrator to grant access.
+                    You&apos;re not linked to any client yet; ask an administrator to grant access.
                   </p>
                 ) : (
                   <>
