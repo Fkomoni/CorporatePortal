@@ -129,6 +129,9 @@ export default function DashboardPage() {
   const totalPremium       = stats?.totalPremium       ?? null;
   const earnedPremium      = stats?.earnedPremium      ?? null;
   const claimsPaid         = stats?.claimsPaid         ?? null;
+  const outstandingClaims  = stats?.outstandingClaims  ?? null;
+  const estimatedIBNR      = stats?.estimatedIBNR      ?? null;
+  const totalIncurredClaims = stats?.totalIncurredClaims ?? null;
   const lossRatioPct       = stats?.lossRatioPct       ?? null;
   const cor                = stats?.cor                ?? null;
   const riskStatus         = stats?.riskStatus         ?? null;
@@ -306,14 +309,17 @@ export default function DashboardPage() {
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: lrColor, display: 'inline-block' }} />
                 {rs}
               </span>
-              <div style={{ display: 'flex', gap: 32 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '16px 24px', maxWidth: 420 }}>
                 {([
-                  { label: 'Claims Paid',     value: fmtNaira(claimsPaid) },
-                  { label: 'Earned Premium',  value: fmtNaira(earnedPremium ?? totalPremium) },
+                  { label: 'Claims Paid',        value: fmtNaira(claimsPaid) },
+                  { label: 'Outstanding Claims', value: fmtNaira(outstandingClaims) },
+                  { label: 'Estimated IBNR',     value: fmtNaira(estimatedIBNR) },
+                  { label: 'Total Incurred',     value: fmtNaira(totalIncurredClaims) },
+                  { label: 'Earned Premium',     value: fmtNaira(earnedPremium ?? totalPremium) },
                 ] as { label: string; value: string }[]).map((m) => (
-                  <div key={m.label}>
+                  <div key={m.label} style={{ textAlign: 'right' }}>
                     <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 3 }}>{m.label}</p>
-                    <p style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{vis.showAmounts ? m.value : '—'}</p>
+                    <p style={{ fontSize: 18, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{vis.showAmounts ? m.value : '—'}</p>
                   </div>
                 ))}
               </div>
