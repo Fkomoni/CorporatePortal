@@ -1,10 +1,13 @@
 // Invite a colleague to the corporate portal. Creates an inactive user in
-// the inviter's company and emails an invitation link where they set their
-// password (token stored in verification_tokens, valid 7 days).
+// the inviter's company and emails a link into the same self-registration
+// flow used for the primary HR contact (/verify-registration): the invitee
+// fills in their own details, which registers them with Prognosis via
+// CorporateUserSignUp, then verifies an OTP — so every portal login,
+// regardless of who invited whom, is validated against both our DB and
+// Prognosis the same way.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { logAudit } from '@/lib/audit';
 import { isAdminRole } from '@/lib/roles';
@@ -65,19 +68,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // One invite token per email — replace any previous one
-    const token = crypto.randomBytes(32).toString('hex');
-    await prisma.verificationToken.deleteMany({ where: { identifier: `invite:${email}` } });
-    await prisma.verificationToken.create({
-      data: {
-        identifier: `invite:${email}`,
-        token,
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
-
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
-    const inviteLink = `${appBase}/accept-invite?token=${token}&email=${encodeURIComponent(email)}`;
+    const inviteLink = `${appBase}/verify-registration?email=${encodeURIComponent(email)}&groupId=${encodeURIComponent(groupId)}&company=${encodeURIComponent(session.user.companyName ?? '')}&name=${encodeURIComponent(name)}`;
 
     const companyName = session.user.companyName ?? 'your company';
     const emailBody = `
@@ -91,10 +83,10 @@ export async function POST(req: Request) {
     <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 28px">
       ${session.user.name ?? 'Your administrator'} has invited you to the Leadway Health
       Corporate Portal for <strong>${companyName}</strong> as <strong>${role}</strong>.
-      Click below to set your password and activate your account. This link expires in 7 days.
+      Click below to complete your registration and set your password.
     </p>
     <a href="${inviteLink}" style="display:inline-block;background:#F56B22;color:#fff;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;">
-      Accept Invitation
+      Complete Registration
     </a>
     <p style="font-size:12px;color:#9CA3B8;margin:28px 0 0;line-height:1.7">
       Or copy and paste this link:<br/>
