@@ -26,6 +26,12 @@ export async function POST(req: Request) {
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
+  // Internal Leadway staff acting as HR for a client may never invite
+  // secondary users — only the real HR admin, or a colleague HR itself
+  // invited as Admin, can do that.
+  if (session.user.isInternalStaff) {
+    return NextResponse.json({ error: 'Forbidden: internal staff cannot invite portal users' }, { status: 403 });
+  }
 
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
