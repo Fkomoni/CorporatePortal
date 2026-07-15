@@ -49,11 +49,20 @@ export async function POST(req: Request) {
   if (!/[^A-Za-z0-9]/.test(password))  return NextResponse.json({ error: 'Password must include at least one special character.' }, { status: 400 });
 
   try {
-    const authorized = await isEmailAuthorizedForGroup(email, body.groupId || null);
-    if (!authorized) {
-      return NextResponse.json({
-        error: 'This email is not currently registered with Leadway Health as your corporate account contact. Please contact Leadway Health to confirm your registered email.',
-      }, { status: 403 });
+    // Prognosis's Company_Email1 check only applies to the primary HR
+    // contact (role=hr_admin) — a colleague invited via Administration →
+    // Invite User (Admin/HR Manager/Finance/Viewer) was never registered as
+    // that contact with Prognosis, so this check would always wrongly
+    // reject them. Same exemption already used in forgot-password.
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const needsProgAuth = !existingUser || existingUser.role === 'hr_admin';
+    if (needsProgAuth) {
+      const authorized = await isEmailAuthorizedForGroup(email, body.groupId || null);
+      if (!authorized) {
+        return NextResponse.json({
+          error: 'This email is not currently registered with Leadway Health as your corporate account contact. Please contact Leadway Health to confirm your registered email.',
+        }, { status: 403 });
+      }
     }
 
     // Register this HR user with Prognosis so it recognises the account for
