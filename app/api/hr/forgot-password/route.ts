@@ -57,8 +57,14 @@ export async function POST(req: Request) {
       if (check === 'expired') return NextResponse.json({ error: 'Code expired. Request a new one.' }, { status: 400 });
       if (check !== 'ok')      return NextResponse.json({ error: 'Incorrect code. Please try again.' }, { status: 400 });
 
+      // Forgot-password resets only the local hash — Prognosis's
+      // ChangePassword needs the (by definition, unknown) old password, so
+      // it can't be called here. Mark the account out of sync so login
+      // doesn't require a Prognosis check it knows will now fail; it's
+      // re-synced the next time this user successfully uses in-app
+      // Change Password (which does call Prognosis).
       const passwordHash = await bcrypt.hash(newPassword, 12);
-      await prisma.user.update({ where: { id: user.id }, data: { password: passwordHash } });
+      await prisma.user.update({ where: { id: user.id }, data: { password: passwordHash, prognosisSynced: false } });
 
       return NextResponse.json({ success: true });
     }

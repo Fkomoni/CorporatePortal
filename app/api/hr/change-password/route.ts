@@ -3,9 +3,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { logAudit } from '@/lib/audit';
+import { getServiceToken } from '@/lib/corporate-welcome';
+import { callPrognosisChangePassword } from '@/lib/corporate-change-password';
 
-// HR logins are validated against the local users table (bcrypt), so the
-// password change must happen there — not in Prognosis.
+// HR logins are validated against the local users table (bcrypt), and (for
+// accounts registered via CorporateUserSignUp) also against Prognosis — so
+// a password change must keep both in sync, not just the local one.
 export async function POST(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -54,10 +57,30 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({ where: { id: user.id }, data: { password: passwordHash } });
 
-    void logAudit({ session, action: 'CHANGE_PASSWORD', resource: 'password', request: req });
-    return NextResponse.json({ success: true });
+    // Keep Prognosis in sync — only meaningful for accounts it already knows
+    // (prognosisSynced), and never blocks the local change: if Prognosis is
+    // unreachable or rejects it, the user still gets their new password
+    // locally, just flagged as out of sync until their next successful sync.
+    let prognosisSynced = user.prognosisSynced;
+    if (user.prognosisSynced) {
+      try {
+        const token = await getServiceToken();
+        const result = await callPrognosisChangePassword(token, currentPassword, newPassword);
+        prognosisSynced = result.success;
+        if (!result.success) {
+          console.warn(`[change-password] Prognosis ChangePassword failed for ${user.email}: ${result.error}`);
+        }
+      } catch (err) {
+        prognosisSynced = false;
+        console.error('[change-password] Prognosis ChangePassword error:', err);
+      }
+    }
+
+    await prisma.user.update({ where: { id: user.id }, data: { password: passwordHash, prognosisSynced } });
+
+    void logAudit({ session, action: 'CHANGE_PASSWORD', resource: 'password', request: req, details: { prognosisSynced } });
+    return NextResponse.json({ success: true, prognosisSynced });
   } catch (err) {
     console.error('[change-password] Error:', err);
     return NextResponse.json({ error: 'Failed to change password. Please try again.' }, { status: 500 });
