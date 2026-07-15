@@ -217,6 +217,7 @@ interface LossRatioResult {
   riskStatus: string;
   elapsedDays: number;
   totalPolicyDays: number;
+  monthlyPaid: { month: string; amount: number }[];
 }
 
 function computeLossRatio({
@@ -352,6 +353,14 @@ function computeLossRatio({
     riskStatus,
     elapsedDays,
     totalPolicyDays,
+    monthlyPaid: Object.entries(monthly)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([ym, amount]) => {
+        const [y, m] = ym.split('-').map(Number);
+        const label = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' });
+        return { month: label, amount: +(amount / 1_000_000).toFixed(2) };
+      }),
   };
 }
 
@@ -475,6 +484,8 @@ export interface DashboardStats {
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
   topConditions: { name: string; visits: number; amtPaid?: number }[];
+  // Paid claims by month (₦ millions), last 6 months with data
+  monthlySpend: { month: string; amount: number }[];
   // Scheme Health Score
   schemeHealthScore: number | null;
   schemeHealthLabel: string | null;
@@ -823,6 +834,7 @@ export async function GET() {
       allProviders: allProvidersSorted,
       topServices,
       topConditions,
+      monthlySpend: lr.monthlyPaid,
       policyPeriod,
       policyYear,
       policyFromDate,

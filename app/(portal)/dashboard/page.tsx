@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingDown, UserPlus, Receipt } from 'lucide-react';
+import { TrendingDown, UserPlus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -10,16 +10,6 @@ import {
 } from 'recharts';
 import { TopBar } from '@/components/layout/TopBar';
 
-const monthlySpend = [
-  { month: 'Jan', amount: 6.2 },
-  { month: 'Feb', amount: 7.8 },
-  { month: 'Mar', amount: 6.9 },
-  { month: 'Apr', amount: 8.4 },
-  { month: 'May', amount: 9.1 },
-  { month: 'Jun', amount: 9.8 },
-];
-
-
 const PROVIDER_GRADS = [
   'linear-gradient(135deg,#131C4E,#3A4382)',
   'linear-gradient(135deg,#F56B22,#FFB54B)',
@@ -27,21 +17,6 @@ const PROVIDER_GRADS = [
   'linear-gradient(135deg,#8B5CF6,#6366F1)',
   'linear-gradient(135deg,#3B82F6,#1D4ED8)',
 ];
-
-const openRequests = [
-  { id: 'TK-0041', title: 'New staff enrolment – Batch 12',  sub: 'TK-0041 · Jun 20 · Member Addition', dot: '#EF4444', pill: 'Open',        pillBg: '#FEF2F2', pillColor: '#DC2626' },
-  { id: 'TK-0039', title: 'Claims query – Mrs Adeyemi',       sub: 'TK-0039 · Jun 19 · Claims Query',   dot: '#D97706', pill: 'In Progress',  pillBg: '#FFFBEB', pillColor: '#D97706' },
-  { id: 'TK-0038', title: 'E-card reprint – Oluwaseun Bello', sub: 'TK-0038 · Jun 17 · E-Card Request', dot: '#C4C9D9', pill: 'Awaiting',     pillBg: '#F5F6FA', pillColor: '#6B7280' },
-  { id: 'TK-0037', title: 'Maternity benefit query',           sub: 'TK-0037 · Jun 15 · Benefit Query',  dot: '#EF4444', pill: 'Open',         pillBg: '#FEF2F2', pillColor: '#DC2626' },
-];
-
-const insights = [
-  { dot: '#F59E0B', text: '72% of spend is driven by just 15% of your members. Consider targeted wellness interventions for high-utilizers.' },
-  { dot: '#EF4444', text: 'Hypertension claims increased 18% this quarter. Screening programmes could reduce long-term costs significantly.' },
-  { dot: '#10B981', text: 'VI providers account for 41% of total utilization despite covering only 22% of enrolled staff.' },
-  { dot: '#EF4444', text: 'At current trajectory, loss ratio is projected to reach 84% by year-end. Renewal pricing may need review.' },
-];
-
 
 const card: React.CSSProperties = {
   background: '#fff',
@@ -92,6 +67,7 @@ interface DashboardStats {
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
   topConditions: { name: string; visits: number; amtPaid?: number }[];
+  monthlySpend: { month: string; amount: number }[];
   policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
@@ -159,6 +135,7 @@ export default function DashboardPage() {
   const utilizationRatePct = stats?.utilizationRatePct ?? null;
   const membersUtilized    = stats?.membersUtilized    ?? null;
   const liveTopProviders      = stats?.topProviders         ?? null;
+  const liveMonthlySpend      = stats?.monthlySpend         ?? [];
   const liveAllProviders      = stats?.allProviders         ?? [];
   const schemeHealthScore     = stats?.schemeHealthScore    ?? null;
   const schemeHealthLabel     = stats?.schemeHealthLabel    ?? null;
@@ -216,7 +193,7 @@ export default function DashboardPage() {
             <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Action Centre</p>
             <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>Items requiring your attention today</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
             {[
               {
                 Icon: UserPlus, border: '#EF4444', urgency: 'Urgent',
@@ -227,7 +204,6 @@ export default function DashboardPage() {
                     : `${pendingEnrolmentCount} Beneficiar${pendingEnrolmentCount === 1 ? 'y' : 'ies'} Enrolment Awaiting Approval`,
                 action: 'View List →', actionColor: '#EF4444', onClick: () => router.push('/pending-enrolees'),
               },
-              { Icon: Receipt,   border: '#10B981', urgency: 'Due soon', title: 'Invoice Due In 7 Days — ₦10.5M',  action: 'View Invoice →', actionColor: '#10B981' },
             ].map((item) => {
               const Icon = item.Icon;
               return (
@@ -242,7 +218,7 @@ export default function DashboardPage() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: item.actionColor, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{item.urgency}</span>
                   </div>
                   <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', lineHeight: 1.4, marginBottom: 12 }}>{item.title}</p>
-                  <button onClick={item.onClick} style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: item.onClick ? 'pointer' : 'default', padding: 0 }}>
+                  <button onClick={item.onClick} style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     {item.action}
                   </button>
                 </div>
@@ -372,16 +348,32 @@ export default function DashboardPage() {
         {(vis.showSpendChart || vis.showTopConditions) && (
         <div style={{ display: 'grid', gridTemplateColumns: vis.showSpendChart && vis.showTopConditions ? '3fr 2fr' : '1fr', gap: 16 }}>
 
-          {vis.showSpendChart && <div style={{ ...card, padding: '26px 28px' }}>
+          {vis.showSpendChart && (() => {
+            const spend = liveMonthlySpend;
+            const first = spend[0];
+            const last = spend[spend.length - 1];
+            const ytdTotal = spend.reduce((s, m) => s + m.amount, 0);
+            const growthPct = first && first.amount > 0 && last
+              ? Math.round(((last.amount - first.amount) / first.amount) * 100)
+              : null;
+            const rangeLabel = first && last
+              ? (first.month === last.month ? first.month : `${first.month}–${last.month}`)
+              : null;
+            return (
+            <div style={{ ...card, padding: '26px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Claims Spend Trend</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Monthly · Jan–Jun 2026</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{rangeLabel ? `Monthly · ${rangeLabel}` : 'Monthly'}</p>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#F56B22' }}>{vis.showAmounts ? '₦48.2M' : '—'} YTD</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F56B22' }}>{vis.showAmounts && spend.length > 0 ? `₦${ytdTotal.toFixed(1)}M` : '—'} YTD</span>
             </div>
+            {spend.length === 0 ? (
+              <p style={{ fontSize: 12, color: '#B0B7C9', padding: '24px 0', textAlign: 'center' }}>No claims data yet.</p>
+            ) : (
+            <>
             <ResponsiveContainer width="100%" height={148}>
-              <AreaChart data={monthlySpend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <AreaChart data={spend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <defs>
                   <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#F56B22" stopOpacity={0.14} />
@@ -400,11 +392,19 @@ export default function DashboardPage() {
               </AreaChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-              <span style={{ fontSize: 11, color: '#9CA3B8' }}>Jan <strong style={{ color: '#131C4E' }}>₦6.2M</strong></span>
-              <span style={{ fontSize: 11, color: '#9CA3B8' }}>Jun <strong style={{ color: '#131C4E' }}>₦9.8M</strong></span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#EF4444' }}>▲ +58% growth YTD</span>
+              {first && <span style={{ fontSize: 11, color: '#9CA3B8' }}>{first.month} <strong style={{ color: '#131C4E' }}>₦{first.amount.toFixed(1)}M</strong></span>}
+              {last && last !== first && <span style={{ fontSize: 11, color: '#9CA3B8' }}>{last.month} <strong style={{ color: '#131C4E' }}>₦{last.amount.toFixed(1)}M</strong></span>}
+              {growthPct !== null && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: growthPct >= 0 ? '#EF4444' : '#10B981' }}>
+                  {growthPct >= 0 ? '▲' : '▼'} {growthPct >= 0 ? '+' : ''}{growthPct}% growth
+                </span>
+              )}
             </div>
-          </div>}
+            </>
+            )}
+            </div>
+            );
+          })()}
 
           {vis.showTopConditions && <div style={{ ...card, padding: '26px 28px' }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Top Conditions</p>
@@ -435,10 +435,11 @@ export default function DashboardPage() {
         </div>
         )}
 
-        {/* ── ROW 5: PROVIDERS + OPEN REQUESTS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: vis.showTopProviders ? '1.2fr 1fr' : '1fr', gap: 16 }}>
+        {/* ── ROW 5: TOP PROVIDERS ── */}
+        {vis.showTopProviders && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
 
-          {vis.showTopProviders && <div style={{ ...card, padding: '26px 28px' }}>
+          <div style={{ ...card, padding: '26px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Top Provider Utilization</p>
@@ -464,50 +465,6 @@ export default function DashboardPage() {
             {(!liveTopProviders || liveTopProviders.length === 0) && (
               <p style={{ fontSize: 13, color: '#B0B7C9', textAlign: 'center', padding: '20px 0' }}>Loading provider data…</p>
             )}
-          </div>}
-
-          <div style={{ ...card, padding: '26px 28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Open Requests</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>4 awaiting action</p>
-              </div>
-              <button style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View all →</button>
-            </div>
-            {openRequests.map((r, i) => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '11px 0', borderBottom: i < openRequests.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: r.dot, flexShrink: 0, marginRight: 12, marginTop: 5 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>{r.sub}</p>
-                </div>
-                <span style={{ flexShrink: 0, marginLeft: 10, display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: r.pillBg, color: r.pillColor }}>
-                  {r.pill}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── ROW 6: HEALTH INSIGHTS (full width, light) ── */}
-        {vis.showHealthInsights && (
-        <div style={{ ...card, padding: '28px 32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Health Insights</p>
-              <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>AI-generated from your claims data · Updated today</p>
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#F56B22', background: '#FFF1E6', padding: '4px 10px', borderRadius: 6 }}>
-              4 insights
-            </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
-            {insights.map((ins, i) => (
-              <div key={i} style={{ padding: '18px 20px', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 12 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: ins.dot, marginBottom: 12 }} />
-                <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.65, fontWeight: 400 }}>{ins.text}</p>
-              </div>
-            ))}
           </div>
         </div>
         )}
