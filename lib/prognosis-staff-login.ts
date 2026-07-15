@@ -33,7 +33,23 @@ function mapRole(raw: unknown): StaffLoginResult['role'] {
   return 'officer';
 }
 
+// Only Leadway email addresses may be internal admins — ExternalPortalLogin
+// is a general-purpose Prognosis auth endpoint (the same one used elsewhere
+// in this app for HR account validation), so it will happily authenticate
+// any account Prognosis recognizes, not just Leadway AD staff. This check
+// must run before ever calling Prognosis, not just when granting client
+// access — otherwise any Prognosis-known non-Leadway account can sign in
+// here.
+function isLeadwayEmail(email: string): boolean {
+  return /^[^\s@]+@leadway\.com$/i.test(email.trim());
+}
+
 export async function staffLogin(login: string, password: string): Promise<StaffLoginResult | null> {
+  if (!isLeadwayEmail(login)) {
+    console.log(`[prognosis-staff-login] login=${login} rejected: not a @leadway.com email`);
+    return null;
+  }
+
   const url = `${BASE}/api/Account/ExternalPortalLogin`;
   const res = await fetch(url, {
     method: 'POST',
@@ -63,6 +79,11 @@ export async function staffLogin(login: string, password: string): Promise<Staff
   const idRaw = user.id ?? user.Id ?? user.userId ?? user.UserId ?? login;
   const nameRaw = user.name ?? user.Name ?? user.FullName ?? user.fullName ?? login;
   const roleRaw = user.role ?? user.Role ?? user.RoleName ?? user.roleName;
+
+  if (!isLeadwayEmail(String(emailRaw))) {
+    console.log(`[prognosis-staff-login] login=${login} rejected: Prognosis identity email (${emailRaw}) is not @leadway.com`);
+    return null;
+  }
 
   return {
     id: String(idRaw),
