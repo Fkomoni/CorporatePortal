@@ -7,6 +7,8 @@ import { trustThisDevice } from '@/lib/staff-trusted-device';
 
 export async function POST() {
   const session = await auth();
+  console.log(`[staff/trust-device] called, session present=${!!session}, loginType=${session?.user?.loginType}, isInternalStaff=${session?.user?.isInternalStaff}, id=${session?.user?.id}`);
+
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   // id is the underlying StaffUser id for both the general staff console
   // session (loginType 'staff') and an internal-admin-as-HR session

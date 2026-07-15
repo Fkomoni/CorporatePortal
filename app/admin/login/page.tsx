@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, ShieldCheck, Building2, BarChart3, Users } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, Building2, BarChart3, Users, LayoutGrid, Briefcase } from 'lucide-react';
 
 type Stage = 'credentials' | 'otp';
+type Destination = 'console' | 'client';
 
 interface ClientOption { companyId: string; companyName: string | null }
 
@@ -17,6 +18,7 @@ export default function StaffLoginPage() {
   const [otpRequired, setOtpRequired] = useState(true);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
+  const [destination, setDestination] = useState<Destination>('console');
   const [companyId, setCompanyId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,8 +41,10 @@ export default function StaffLoginPage() {
         setError(json.error ?? 'Invalid credentials. Please check your Leadway staff email and password.');
         return;
       }
-      setClients(json.clients ?? []);
-      setCompanyId((json.clients ?? []).length === 1 ? json.clients[0].companyId : '');
+      const linkedClients: ClientOption[] = json.clients ?? [];
+      setClients(linkedClients);
+      setDestination(linkedClients.length > 0 ? 'client' : 'console');
+      setCompanyId(linkedClients.length === 1 ? linkedClients[0].companyId : '');
       setOtpRequired(json.otpRequired !== false);
       setStage('otp');
     } catch {
@@ -55,11 +59,18 @@ export default function StaffLoginPage() {
     setIsLoading(true);
     setError('');
 
+    const effectiveCompanyId = destination === 'client' ? companyId : '';
+    if (destination === 'client' && !effectiveCompanyId) {
+      setIsLoading(false);
+      setError('Select which client you want to manage.');
+      return;
+    }
+
     const result = await signIn('staff-credentials', {
       email: login,
       password,
       otp,
-      companyId,
+      companyId: effectiveCompanyId,
       redirect: false,
     });
 
@@ -70,11 +81,16 @@ export default function StaffLoginPage() {
     }
 
     if (rememberDevice) {
-      try { await fetch('/api/staff/trust-device', { method: 'POST' }); } catch { /* non-fatal */ }
+      try {
+        const trustRes = await fetch('/api/staff/trust-device', { method: 'POST' });
+        if (!trustRes.ok) console.error('[login] trust-device call failed', trustRes.status, await trustRes.text());
+      } catch (err) {
+        console.error('[login] trust-device call errored', err);
+      }
     }
 
     setIsLoading(false);
-    router.push(companyId ? '/dashboard' : '/admin/corporates');
+    router.push(effectiveCompanyId ? '/dashboard' : '/admin/corporates');
     router.refresh();
   };
 
@@ -266,17 +282,55 @@ export default function StaffLoginPage() {
               <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
                 Where are you going?
               </label>
-              <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}
-                style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}>
-                <option value="">Staff Console (manage clients & settings)</option>
-                {clients.map((c) => (
-                  <option key={c.companyId} value={c.companyId}>{c.companyName || c.companyId}</option>
-                ))}
-              </select>
-              {clients.length === 0 && (
-                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>
-                  You&apos;re not linked to any client yet — ask an administrator to grant access if you need to act as HR for one.
+              <div style={{ display: 'flex', gap: 8, padding: 4, background: '#F0F1F5', borderRadius: 12, marginBottom: 12 }}>
+                <button type="button" onClick={() => setDestination('console')}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    height: 40, borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+                    background: destination === 'console' ? '#fff' : 'transparent',
+                    color: destination === 'console' ? '#131C4E' : '#9CA3B8',
+                    boxShadow: destination === 'console' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                  }}>
+                  <LayoutGrid style={{ width: 14, height: 14 }} /> Staff Console
+                </button>
+                <button type="button" onClick={() => setDestination('client')} disabled={clients.length === 0}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    height: 40, borderRadius: 9, border: 'none', cursor: clients.length === 0 ? 'not-allowed' : 'pointer', fontSize: 12.5, fontWeight: 700,
+                    background: destination === 'client' ? '#fff' : 'transparent',
+                    color: destination === 'client' ? '#131C4E' : '#9CA3B8',
+                    boxShadow: destination === 'client' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    opacity: clients.length === 0 ? 0.5 : 1,
+                  }}>
+                  <Briefcase style={{ width: 14, height: 14 }} /> Client HR Desk
+                </button>
+              </div>
+
+              {destination === 'console' && (
+                <p style={{ fontSize: 12, color: '#6B7480', lineHeight: 1.6 }}>
+                  Platform administration — manage corporates, portal settings, audit logs, and who has Client HR Desk access.
                 </p>
+              )}
+
+              {destination === 'client' && (
+                clients.length === 0 ? (
+                  <p style={{ fontSize: 11, color: '#B0B7C9' }}>
+                    You&apos;re not linked to any client yet — ask an administrator to grant access.
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ fontSize: 12, color: '#6B7480', marginBottom: 10, lineHeight: 1.6 }}>
+                      Sign in as HR for one of your linked clients.
+                    </p>
+                    <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}
+                      style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}>
+                      <option value="">Select a client…</option>
+                      {clients.map((c) => (
+                        <option key={c.companyId} value={c.companyId}>{c.companyName || c.companyId}</option>
+                      ))}
+                    </select>
+                  </>
+                )
               )}
             </div>
 
@@ -286,12 +340,12 @@ export default function StaffLoginPage() {
               </div>
             )}
 
-            <button type="submit" disabled={isLoading || (otpRequired && otp.length < 4)}
+            <button type="submit" disabled={isLoading || (otpRequired && otp.length < 4) || (destination === 'client' && !companyId)}
               style={{
                 width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: isLoading ? 'not-allowed' : 'pointer',
                 background: 'linear-gradient(135deg, #F56B22 0%, #FF8C4B 100%)',
                 color: '#fff', fontSize: 14, fontWeight: 700,
-                opacity: (isLoading || (otpRequired && otp.length < 4)) ? 0.55 : 1,
+                opacity: (isLoading || (otpRequired && otp.length < 4) || (destination === 'client' && !companyId)) ? 0.55 : 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 boxShadow: '0 2px 12px rgba(245,107,34,0.30)',
                 marginTop: 4,
