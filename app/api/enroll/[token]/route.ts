@@ -253,12 +253,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       apiBody = payload;
     }
 
+    console.log(`[enroll/token] → POST ${apiUrl} body=${JSON.stringify(apiBody)}`);
+
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { Authorization: `Bearer ${svcToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(apiBody),
     });
     const text = await res.text();
+    console.log(`[enroll/token] ← HTTP ${res.status}: ${text.slice(0, 2000)}`);
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
 
@@ -274,6 +277,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const apiMessage = String(r?.message ?? r?.Message ?? r?.error ?? r?.Error ?? '');
     const isApiError = apiStatus && !['success','200','ok','true'].includes(apiStatus);
     if (isApiError && apiMessage) {
+      console.error(`[enroll/token] Prognosis-level error: status=${apiStatus} message=${apiMessage} fullBody=${text.slice(0, 2000)}`);
       return NextResponse.json({ error: apiMessage }, { status: 422 });
     }
 
