@@ -267,9 +267,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
     const r = raw as Record<string, unknown>;
 
+    const debug = { requestUrl: apiUrl, requestPayload: apiBody, httpStatus: res.status, prognosisResponse: raw };
+
     if (!res.ok) {
       const msg = r?.Message ?? r?.message ?? r?.error ?? r?.Error ?? text.slice(0, 200);
-      return NextResponse.json({ error: String(msg) }, { status: res.status });
+      return NextResponse.json({ error: String(msg), debug }, { status: res.status });
     }
 
     // Check for Prognosis-level error in body (HTTP 200 but status≠success)
@@ -278,7 +280,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const isApiError = apiStatus && !['success','200','ok','true'].includes(apiStatus);
     if (isApiError && apiMessage) {
       console.error(`[enroll/token] Prognosis-level error: status=${apiStatus} message=${apiMessage} fullBody=${text.slice(0, 2000)}`);
-      return NextResponse.json({ error: apiMessage }, { status: 422 });
+      return NextResponse.json({ error: apiMessage, debug }, { status: 422 });
     }
 
     // Mark the invitation used BEFORE returning — so re-submits are blocked
