@@ -31,6 +31,8 @@ export default function EnrollPage() {
   const { token } = useParams<{ token: string }>();
   const [status, setStatus]           = useState<'loading' | 'ready' | 'invalid' | 'expired' | 'used' | 'success' | 'add-deps' | 'error'>('loading');
   const [errorMsg, setErrorMsg]       = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [errorDebug, setErrorDebug]   = useState<Record<string, any> | null>(null);
   const [invitation, setInvitation]   = useState<InvitationMeta | null>(null);
   const [genders, setGenders]         = useState<ListItem[]>([]);
   const [maritalStatuses, setMarital] = useState<ListItem[]>([]);
@@ -156,6 +158,7 @@ export default function EnrollPage() {
       const data = await res.json();
       if (!res.ok || data.error) {
         setErrorMsg(data.error ?? 'Enrolment failed. Please try again.');
+        setErrorDebug(data.debug ?? null);
         setStatus('error');
         setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       } else {
@@ -495,12 +498,22 @@ export default function EnrollPage() {
         )}
 
         {status === 'error' && (
-          <div ref={errorRef} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '16px 18px', marginBottom: 20, color: '#DC2626', fontSize: 13, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <AlertCircle style={{ width: 18, height: 18, flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <p style={{ fontWeight: 700, marginBottom: 2 }}>Submission failed</p>
-              <p>{errorMsg || 'An error occurred. Please try again or contact HR.'}</p>
+          <div ref={errorRef} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '16px 18px', marginBottom: 20, color: '#DC2626', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <AlertCircle style={{ width: 18, height: 18, flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <p style={{ fontWeight: 700, marginBottom: 2 }}>Submission failed</p>
+                <p>{errorMsg || 'An error occurred. Please try again or contact HR.'}</p>
+              </div>
             </div>
+            {errorDebug && (
+              <div style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px' }}>
+                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Debug — Prognosis request/response</p>
+                <pre style={{ fontSize: 11, color: '#131C4E', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 260, overflowY: 'auto', margin: 0 }}>
+                  {JSON.stringify(errorDebug, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         )}
 
