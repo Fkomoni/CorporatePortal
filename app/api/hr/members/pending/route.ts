@@ -120,6 +120,20 @@ export interface PendingGroup {
   members: PendingMemberRow[];
 }
 
+// Invitations HR has sent but the staff member/dependant hasn't used yet —
+// they haven't registered with Prognosis at all, so they can't appear in
+// ViewPortalRegisteredMembersPerGroup_pendingActivation. Surfaced separately
+// so HR can see who still needs to act, and delete/resend the link.
+export interface PendingInvitation {
+  token: string;
+  email: string;
+  employeeCode: string;
+  schemeName: string;
+  inviteType: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -309,7 +323,39 @@ export async function GET(req: Request) {
 
     const groupList = [...groups.values()].sort((a, b) => (b.registrationDate ?? '').localeCompare(a.registrationDate ?? ''));
 
-    return NextResponse.json({ groups: groupList, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
+    // Invitations HR sent that haven't been used (or expired) yet — the
+    // member/dependant hasn't registered at all, so they show as a distinct
+    // "Awaiting Enrolment" row rather than mixed into the Prognosis-derived list.
+    let invitations: PendingInvitation[] = [];
+    try {
+      const invRows = await prisma.memberInvitation.findMany({
+        where: { groupId, used: false, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: 'desc' },
+      });
+      invitations = invRows
+        .filter((inv) => {
+          if (!fromDate && !toDate) return true;
+          if (fromDate && inv.createdAt < fromDate) return false;
+          if (toDate) {
+            const endOfDay = new Date(toDate); endOfDay.setHours(23, 59, 59, 999);
+            if (inv.createdAt > endOfDay) return false;
+          }
+          return true;
+        })
+        .map((inv) => ({
+          token: inv.token,
+          email: inv.email,
+          employeeCode: inv.employeeCode,
+          schemeName: inv.schemeName,
+          inviteType: inv.inviteType,
+          createdAt: inv.createdAt.toISOString().slice(0, 10),
+          expiresAt: inv.expiresAt.toISOString(),
+        }));
+    } catch (e) {
+      console.warn('[hr/members/pending] Failed to fetch unused invitations:', e);
+    }
+
+    return NextResponse.json({ groups: groupList, invitations, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
   } catch (err) {
     console.error('[hr/members/pending] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch pending enrolees' }, { status: 500 });

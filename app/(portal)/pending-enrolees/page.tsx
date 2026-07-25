@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ClipboardCheck, Check, X, RefreshCw, Calendar } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { useToast } from '@/components/ui/Toast';
-import type { PendingGroup } from '@/app/api/hr/members/pending/route';
+import type { PendingGroup, PendingInvitation } from '@/app/api/hr/members/pending/route';
 
 interface BeneficiaryRow {
   rowId: string;
@@ -55,6 +55,8 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
 export default function PendingEnroleesPage() {
   const { toast } = useToast();
   const [groups, setGroups] = useState<PendingGroup[]>([]);
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
+  const [invitationBusy, setInvitationBusy] = useState<string | null>(null); // token being deleted/resent
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [from, setFrom] = useState('');
@@ -89,6 +91,7 @@ export default function PendingEnroleesPage() {
       .then((d) => {
         if (d.error) { setError(d.error); return; }
         setGroups(d.groups ?? []);
+        setInvitations(d.invitations ?? []);
       })
       .catch(() => setError('Failed to load pending enrolees'))
       .finally(() => setLoading(false));
@@ -193,6 +196,39 @@ export default function PendingEnroleesPage() {
     setDeclineDate('');
   }
 
+  async function handleResendInvitation(token: string, email: string) {
+    setInvitationBusy(token);
+    try {
+      const res = await fetch('/api/hr/members/pending/invitations/resend', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { toast(data.error ?? 'Failed to resend link', 'error'); return; }
+      toast(data.emailSent ? `Enrolment link resent to ${email}.` : 'Link refreshed, but email could not be sent.', data.emailSent ? 'success' : 'info');
+    } catch {
+      toast('Failed to resend link', 'error');
+    } finally {
+      setInvitationBusy(null);
+    }
+  }
+
+  async function handleDeleteInvitation(token: string) {
+    setInvitationBusy(token);
+    try {
+      const res = await fetch('/api/hr/members/pending/invitations/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { toast(data.error ?? 'Failed to delete invitation', 'error'); return; }
+      setInvitations((prev) => prev.filter((inv) => inv.token !== token));
+      toast('Invitation deleted.', 'success');
+    } catch {
+      toast('Failed to delete invitation', 'error');
+    } finally {
+      setInvitationBusy(null);
+    }
+  }
+
   const inputStyle: React.CSSProperties = { height: 40, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none' };
 
   const decliningCifs = decliningCif === 'bulk'
@@ -235,7 +271,50 @@ export default function PendingEnroleesPage() {
           <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{error}</div>
         )}
 
-        {!loading && !error && rows.length === 0 && (
+        {!loading && !error && invitations.length > 0 && (
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #F0F1F5' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Awaiting Enrolment</p>
+              <p style={{ fontSize: 11.5, color: '#9CA3B8', marginTop: 2 }}>Invited but haven&apos;t used their self-enrolment link yet.</p>
+            </div>
+            <div style={{ minWidth: 900 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.6fr 1fr 0.8fr 0.7fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span>Email</span>
+                <span>Employee Code</span>
+                <span>Type</span>
+                <span>Scheme</span>
+                <span>Invited On</span>
+                <span>Status</span>
+                <span>Actions</span>
+              </div>
+              {invitations.map((inv) => {
+                const busy = invitationBusy === inv.token;
+                return (
+                  <div key={inv.token} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.6fr 1fr 0.8fr 0.7fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: '#131C4E' }}>{inv.email}</span>
+                    <span>{inv.employeeCode}</span>
+                    <span>{inv.inviteType === 'dependent' ? 'Dependant' : 'Principal'}</span>
+                    <span>{inv.schemeName}</span>
+                    <span>{inv.createdAt}</span>
+                    <span style={{ color: '#D97706', fontWeight: 600 }}>Awaiting Enrolment</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => handleDeleteInvitation(inv.token)} disabled={busy}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 9, background: '#FEF2F2', cursor: busy ? 'wait' : 'pointer' }}>
+                        <X style={{ width: 11, height: 11 }} /> Delete
+                      </button>
+                      <button onClick={() => handleResendInvitation(inv.token, inv.email)} disabled={busy}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 9, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', cursor: busy ? 'wait' : 'pointer' }}>
+                        <RefreshCw style={{ width: 11, height: 11 }} /> {busy ? '…' : 'Resend Link'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && rows.length === 0 && invitations.length === 0 && (
           <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', padding: '48px 40px', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <ClipboardCheck style={{ width: 26, height: 26, color: '#059669' }} strokeWidth={1.5} />

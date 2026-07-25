@@ -31,7 +31,9 @@ export type AuditAction =
   | 'VIEW_CORPORATES'
   | 'VIEW_CORPORATE_DETAIL'
   | 'SEND_SIGNUP_EMAIL'
-  | 'VIEW_PORTAL_SETTINGS';
+  | 'VIEW_PORTAL_SETTINGS'
+  | 'DELETE_PENDING_INVITATION'
+  | 'RESEND_PENDING_INVITATION';
 
 interface AuditContext {
   session: Session;
