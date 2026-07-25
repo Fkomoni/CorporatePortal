@@ -84,6 +84,7 @@ export async function POST(req: Request) {
     parentCif?: string;
     maxDependents?: number;
     startDate?: string;
+    backdateAcknowledged?: boolean;
   };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
@@ -113,6 +114,10 @@ export async function POST(req: Request) {
   const chosenStart = new Date(startDate); chosenStart.setHours(0, 0, 0, 0);
   if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
     return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+  }
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  if (chosenStart < todayStart && !body.backdateAcknowledged) {
+    return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });
   }
 
   const groupId = session.user.companyId ?? '';

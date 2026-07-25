@@ -176,6 +176,38 @@ function firstOfMonthIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+function todayIsoDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function isBackdated(dateStr: string): boolean {
+  return !!dateStr && dateStr < todayIsoDate();
+}
+
+function BackdateWarningModal({ onAgree, onCancel }: { onAgree: () => void; onCancel: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,33,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 480, width: '100%', padding: '28px 28px 24px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+        <p style={{ fontSize: 16, fontWeight: 800, color: '#DC2626', marginBottom: 12 }}>⚠️ WARNING: BACKDATED ENROLMENT</p>
+        <p style={{ fontSize: 13.5, color: '#374151', lineHeight: 1.7, marginBottom: 20 }}>
+          Backdating a member&apos;s enrolment does <strong>NOT</strong> make any medical expenses incurred before the actual enrolment date eligible for reimbursement or approval.
+          Leadway HMO will not refund or settle any claims, treatments, admissions, or medications obtained prior to the member&apos;s valid enrolment date.
+          Please proceed only if you understand and accept these conditions.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={onAgree} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: '#DC2626', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+            I Understand, Agree &amp; Proceed
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, principals }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[]; principals: Member[] }) {
   const [mode, setMode]             = useState<'individual' | 'bulk'>(initialMode ?? 'individual');
   const [step, setStep]             = useState<1 | 2 | 3>(1);
@@ -194,6 +226,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [bulkDragOver, setBulkDragOver] = useState(false);
   const bulkFileRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showBackdateModal, setShowBackdateModal] = useState(false);
+  const [backdateAgreed, setBackdateAgreed] = useState(false);
   const [formError, setFormError]   = useState('');
   const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string; cifNumber?: string | null; isNewWithDeps?: boolean; schemeId?: string; schemeName?: string; empCode?: string } | null>(null);
   // Dep state for "new staff + dependants" success screen
@@ -455,8 +489,18 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const focusOn  = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { e.currentTarget.style.borderColor = '#F56B22'; };
   const focusOff = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { e.currentTarget.style.borderColor = '#E5E7F1'; };
 
-  async function handleSubmit() {
+  async function handleSubmit(agreedOverride = false) {
     if (submitting) return;
+    const agreed = backdateAgreed || agreedOverride;
+    const relevantBackdateDate =
+      mode === 'individual' && actionType === 'link' ? linkStartDate
+      : mode === 'individual' && actionType === 'form' && memberType !== 'existing' ? startDate
+      : '';
+    if (relevantBackdateDate && isBackdated(relevantBackdateDate) && !agreed) {
+      setShowBackdateModal(true);
+      return;
+    }
+    if (agreedOverride) setBackdateAgreed(true);
     setSubmitting(true);
     setFormError('');
     try {
@@ -490,6 +534,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             schemeName: isDepLink && selectedPrincipal ? (depScheme?.schemeName ?? selectedPrincipal.plan) : (selectedScheme?.schemeName ?? ''),
             scope: linkScope,
             startDate: linkStartDate,
+            backdateAcknowledged: agreed,
             ...(isDepLink && selectedPrincipal ? {
               inviteType: 'dependent',
               parentCif: String(selectedPrincipal.cifNumber ?? principalProfile?.cifNumber ?? ''),
@@ -585,6 +630,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             employeeCode: empCode, preExistingCondition: preExisting || 'None',
             enrolleePicture: photoBase64, enrolleePictureType: photoType,
             startDate: startDate || undefined,
+            backdateAcknowledged: agreed,
           }),
         });
         const data = await res.json();
@@ -1448,7 +1494,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               Cancel
             </button>
             {!(mode === 'individual' && actionType === 'link' && generatedUrl) && !(mode === 'bulk' && bulkStep === 'done') && (
-              <button onClick={mode === 'bulk' && bulkStep === 'review' ? submitBulkRows : handleSubmit} disabled={submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)}
+              <button onClick={() => (mode === 'bulk' && bulkStep === 'review' ? submitBulkRows() : handleSubmit())} disabled={submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)}
                 style={{ height: 44, padding: '0 28px', fontSize: 14, fontWeight: 700, color: '#fff', background: (submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)) ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', border: 'none', borderRadius: 14, cursor: (submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)) ? 'not-allowed' : 'pointer', boxShadow: (submitting || (mode === 'bulk' && bulkStep === 'review' && bulkSelected.size === 0)) ? 'none' : '0 3px 12px rgba(245,107,34,0.35)' }}>
                 {submitLabel}
               </button>
@@ -1466,6 +1512,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           </div>
         )}
       </div>
+      {showBackdateModal && (
+        <BackdateWarningModal
+          onCancel={() => setShowBackdateModal(false)}
+          onAgree={() => { setShowBackdateModal(false); handleSubmit(true); }}
+        />
+      )}
     </>
   );
 }
@@ -1650,6 +1702,8 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const [sendIdSentTo, setSendIdSentTo]     = useState('');
   const [idCopied, setIdCopied]             = useState(false);
   const [depSubmitting, setDepSubmitting]   = useState(false);
+  const [showDepBackdateModal, setShowDepBackdateModal] = useState(false);
+  const [depBackdateAgreed, setDepBackdateAgreed] = useState(false);
   const [depError, setDepError]             = useState('');
   const [depGeneratedUrl, setDepGeneratedUrl] = useState('');
   const [showTerminateConfirm, setShowTerminateConfirm] = useState(false);
@@ -1982,8 +2036,14 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   // fall back to local schemeId/name-matching if that fetch hasn't landed yet.
   const resolvedSchemeId = profileSchemeId || member.schemeId || memberScheme?.schemeId || '';
 
-  async function handleDepSubmit() {
+  async function handleDepSubmit(agreedOverride = false) {
     if (depSubmitting) return;
+    const agreed = depBackdateAgreed || agreedOverride;
+    if (depAction === 'link' && depLinkStartDate && isBackdated(depLinkStartDate) && !agreed) {
+      setShowDepBackdateModal(true);
+      return;
+    }
+    if (agreedOverride) setDepBackdateAgreed(true);
     setDepError('');
     setDepSubmitting(true);
     try {
@@ -2045,6 +2105,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             maxDependents: depMaxCount,
             scope: 'self-dependent',
             startDate: depLinkStartDate,
+            backdateAcknowledged: agreed,
           }),
         });
         const data = await res.json();
@@ -2869,7 +2930,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 {depGeneratedUrl ? 'Done' : 'Cancel'}
               </button>
               {!depGeneratedUrl && (
-                <button onClick={handleDepSubmit} disabled={depSubmitting}
+                <button onClick={() => handleDepSubmit()} disabled={depSubmitting}
                   style={{ flex: 2, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', background: depSubmitting ? '#F0F1F5' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 14, cursor: depSubmitting ? 'not-allowed' : 'pointer', boxShadow: depSubmitting ? 'none' : '0 2px 8px rgba(16,185,129,0.28)' }}>
                   {depSubmitting ? 'Please wait…' : depAction === 'form' ? 'Add Dependent' : 'Generate & Send Link'}
                 </button>
@@ -2878,6 +2939,12 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           </div>
         )}
       </div>
+      {showDepBackdateModal && (
+        <BackdateWarningModal
+          onCancel={() => setShowDepBackdateModal(false)}
+          onAgree={() => { setShowDepBackdateModal(false); handleDepSubmit(true); }}
+        />
+      )}
     </>
   );
 }

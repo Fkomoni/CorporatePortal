@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendBackdateAlert } from '@/lib/backdate-alert';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -321,6 +322,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         });
       } catch (e) {
         console.warn('[enroll/token] Failed to record link registration source:', e);
+      }
+    }
+
+    if (invitation.startDate) {
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const chosenStart = new Date(invitation.startDate); chosenStart.setHours(0, 0, 0, 0);
+      if (chosenStart < todayStart) {
+        const relationshipText = (isDependent || isSelfDepAdd) ? 'Dependant' : 'Principal';
+        void sendBackdateAlert({
+          memberName: `${String(body.firstName ?? '')} ${String(body.surname ?? '')}`.trim(),
+          membershipNo: enrolleeId,
+          cifNumber: cifNumber as string | number | null,
+          relationship: relationshipText,
+          employeeCode: invitation.employeeCode,
+          schemeName: invitation.schemeName,
+          registeredBy: invitation.createdBy,
+          registrationDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+          backdatedTo: chosenStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+          email: (isDependent || isSelfDepAdd) ? String(body.email ?? '') : invitation.email,
+          mobile: String(body.mobile ?? ''),
+          dateOfBirth: String(body.dateOfBirth ?? ''),
+          gender: String(body.sexId ?? '') === '2' ? 'Female' : 'Male',
+        });
       }
     }
 

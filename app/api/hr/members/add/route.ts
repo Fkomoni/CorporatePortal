@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
+import { sendBackdateAlert } from '@/lib/backdate-alert';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -66,6 +67,7 @@ export interface AddMemberPayload {
   enrolleePicture?: string;
   enrolleePictureType?: string;
   startDate?: string;
+  backdateAcknowledged?: boolean;
 }
 
 export async function POST(req: Request) {
@@ -87,11 +89,16 @@ export async function POST(req: Request) {
 
   // Cover can only be backdated to the 1st of the current month at the
   // earliest — HR must not be able to back-register cover further than that.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isBackdated = !!body.startDate && new Date(body.startDate) < today;
   if (body.startDate) {
     const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
     const chosenStart = new Date(body.startDate); chosenStart.setHours(0, 0, 0, 0);
     if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
       return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+    }
+    if (isBackdated && !body.backdateAcknowledged) {
+      return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });
     }
   }
 
@@ -218,6 +225,22 @@ export async function POST(req: Request) {
       });
       autoApproved = approveResult.success;
       if (!approveResult.success) console.warn(`[hr/members/add] Auto-approve failed for CIF ${cifNumber}:`, approveResult.error);
+    }
+
+    if (isBackdated) {
+      void sendBackdateAlert({
+        memberName: `${firstName} ${surname}`.trim(),
+        membershipNo: enrolleeId,
+        cifNumber: cifNumber as string | number | null,
+        relationship: 'Principal',
+        companyName: session.user.companyName ?? undefined,
+        employeeCode,
+        schemeName,
+        registeredBy: session.user.email ?? '',
+        registrationDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+        backdatedTo: new Date(body.startDate!).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+        email, mobile, dateOfBirth, gender: sexId === '2' ? 'Female' : 'Male',
+      });
     }
 
     return NextResponse.json({
