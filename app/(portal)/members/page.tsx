@@ -1531,6 +1531,161 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   );
 }
 
+/* ── Solo bulk actions: single-select Send Invite Link / Request Correction ── */
+function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member; schemes: PolicyScheme[]; onClose: () => void; onSent: () => void }) {
+  const { toast } = useToast();
+  const scheme = resolveMemberScheme(member, schemes);
+  const [email, setEmail] = useState(member.email ?? '');
+  const [maxDeps, setMaxDeps] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [backdateAgreed, setBackdateAgreed] = useState(false);
+  const [showBackdate, setShowBackdate] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(agreedOverride = false) {
+    if (submitting) return;
+    const agreed = backdateAgreed || agreedOverride;
+    setError('');
+    if (!email.trim()) { setError('Email is required.'); return; }
+    if (!startDate) { setError('Cover start date is required.'); return; }
+    if (startDate < firstOfMonthIso()) { setError('Cover start date cannot be earlier than the 1st of this month.'); return; }
+    if (isBackdated(startDate) && !agreed) { setShowBackdate(true); return; }
+    if (agreedOverride) setBackdateAgreed(true);
+    if (!member.cifNumber) { setError('Could not find this staff member\'s CIF number. Please try again from their Member 360 profile.'); return; }
+    if (!scheme) { setError('Could not resolve this staff member\'s scheme. Please try again from their Member 360 profile.'); return; }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/hr/members/invite', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(), employeeCode: member.employeeId, schemeId: scheme.schemeId, schemeName: scheme.schemeName,
+          inviteType: 'dependent', parentCif: String(member.cifNumber), maxDependents: maxDeps, scope: 'self-dependent',
+          startDate, backdateAcknowledged: agreed,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error ?? 'Failed to generate link'); return; }
+      toast(data.emailSent ? `Dependant invite link sent to ${email}.` : 'Link generated — email could not be sent.', 'success');
+      onSent();
+    } catch {
+      setError('Failed to generate link. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = { width: '100%', height: 40, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,33,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 440, width: '100%', padding: '24px 24px 20px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
+        <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Send Dependant Invite Link</p>
+        <p style={{ fontSize: 12.5, color: '#9CA3B8', marginBottom: 18 }}>{member.firstName} {member.lastName} · {member.employeeId}</p>
+
+        {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, marginBottom: 14 }}>{error}</div>}
+
+        <div style={{ marginBottom: 14 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Send Link To (Email) *</p>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="e.g. john.doe@company.com" style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Dependants Allowed</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => setMaxDeps((n) => Math.max(1, n - 1))} style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', fontWeight: 700 }}>−</button>
+            <span style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', minWidth: 20, textAlign: 'center' }}>{maxDeps}</span>
+            <button onClick={() => setMaxDeps((n) => n + 1)} style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #E5E7F1', background: '#fff', cursor: 'pointer', fontWeight: 700 }}>+</button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date *</p>
+          <input type="date" value={startDate} min={firstOfMonthIso()} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} disabled={submitting} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => submit()} disabled={submitting}
+            style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: submitting ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: submitting ? '#9CA3B8' : '#fff', fontSize: 13.5, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+            {submitting ? 'Sending…' : 'Generate & Send Link'}
+          </button>
+        </div>
+      </div>
+
+      {showBackdate && (
+        <BackdateWarningModal
+          onCancel={() => setShowBackdate(false)}
+          onAgree={() => { setShowBackdate(false); submit(true); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SoloCorrectionModal({ member, onClose }: { member: Member; onClose: () => void }) {
+  const { toast } = useToast();
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+
+  async function submit() {
+    if (submitting) return;
+    if (!description.trim()) { setError('Please describe what needs correcting.'); return; }
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/hr/members/request-correction', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enrolleeId: member.employeeId, cifNumber: member.cifNumber, memberName: `${member.firstName} ${member.lastName}`, description: description.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error ?? 'Failed to send correction request'); return; }
+      setSent(true);
+      toast('Correction request sent to Leadway Health support.', 'success');
+    } catch {
+      setError('Failed to send correction request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,33,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 440, width: '100%', padding: '24px 24px 20px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
+        {sent ? (
+          <>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Correction request sent</p>
+            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18 }}>Leadway Health support has been notified about {member.firstName} {member.lastName}&apos;s record. They&apos;ll follow up once it's updated.</p>
+            <button onClick={onClose} style={{ height: 40, padding: '0 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#059669,#10B981)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Done</button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Request a Correction</p>
+            <p style={{ fontSize: 12.5, color: '#9CA3B8', marginBottom: 18 }}>{member.firstName} {member.lastName} · {member.employeeId}</p>
+            {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, marginBottom: 14 }}>{error}</div>}
+            <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>What needs correcting? *</p>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
+              placeholder="e.g. Date of birth is wrong — should be 14/03/1990, not 14/03/1998."
+              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: 18 }} />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={onClose} disabled={submitting} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={submit} disabled={submitting || !description.trim()}
+                style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: (submitting || !description.trim()) ? '#E5E7F1' : 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: (submitting || !description.trim()) ? '#9CA3B8' : '#fff', fontSize: 13.5, fontWeight: 700, cursor: (submitting || !description.trim()) ? 'not-allowed' : 'pointer' }}>
+                {submitting ? 'Sending…' : 'Send Request'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── E-Card ──────────────────────────────────────────────────────────── */
 function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; memberEmail: string | null; onClose: () => void }) {
   const { toast } = useToast();
@@ -2981,6 +3136,8 @@ export default function MembersPage() {
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const [bulkBusy, setBulkBusy] = useState<string | null>(null); // label of the bulk action currently running
   const [bulkCardMembers, setBulkCardMembers] = useState<Member[]>([]);
+  const [showSoloInvite, setShowSoloInvite] = useState<Member | null>(null);
+  const [showSoloCorrection, setShowSoloCorrection] = useState<Member | null>(null);
   const { toast } = useToast();
 
   // Policy schemes — used for dependant limit validation and plan dropdown in AddMemberModal
@@ -3217,13 +3374,26 @@ export default function MembersPage() {
             setTimeout(() => window.print(), 50);
           }
 
+          const soloMember = selectedMembers.length === 1 ? selectedMembers[0] : null;
+          const soloIsPrincipal = soloMember?.type === 'Principal';
+
           const actions: { label: string; Icon: typeof Plus; color: string; bg: string; border: string; enabled: boolean; disabledReason?: string; onClick?: () => void }[] = [
             { label: 'Approve Additions', Icon: Plus, color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', enabled: hasPending, disabledReason: 'No pending members selected — use the Pending Enrolees page to approve.' },
             { label: 'Send Enrolee IDs', Icon: Send, color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE', enabled: hasEmail, disabledReason: 'None of the selected members have an email on file.', onClick: bulkSendEnroleeIds },
             { label: 'Download E-Cards', Icon: CreditCard, color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD', enabled: true, onClick: bulkDownloadECards },
             { label: 'Export List', Icon: ArrowDownToLine, color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', enabled: true, onClick: bulkExportList },
-            { label: 'Send Invite Links', Icon: Link2, color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', enabled: false, disabledReason: 'Not available in bulk yet — use Add Member → Send Link for one staff member at a time.' },
-            { label: 'Request Correction', Icon: FileText, color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', enabled: false, disabledReason: 'Not available yet.' },
+            {
+              label: 'Send Invite Links', Icon: Link2, color: '#D97706', bg: '#FFFBEB', border: '#FDE68A',
+              enabled: !!soloMember && soloIsPrincipal,
+              disabledReason: soloMember ? 'Dependant invite links are per principal — select the staff member, not a dependant.' : 'Select exactly one staff member to send a dependant invite link.',
+              onClick: soloMember ? () => setShowSoloInvite(soloMember) : undefined,
+            },
+            {
+              label: 'Request Correction', Icon: FileText, color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE',
+              enabled: !!soloMember,
+              disabledReason: 'Select exactly one member to request a correction for.',
+              onClick: soloMember ? () => setShowSoloCorrection(soloMember) : undefined,
+            },
           ];
 
           return (
@@ -3425,6 +3595,25 @@ export default function MembersPage() {
           .bulk-ecard-print-area { display: flex !important; flex-direction: column; align-items: center; position: fixed !important; top: 0; left: 50%; transform: translateX(-50%); }
         }
       `}</style>
+
+      {showSoloInvite && (
+        <SoloInviteModal
+          member={showSoloInvite}
+          schemes={schemes}
+          onClose={() => setShowSoloInvite(null)}
+          onSent={() => {
+            setShowSoloInvite(null);
+            toast('Need to flag something else on this member? Use Request Correction next.', 'info');
+          }}
+        />
+      )}
+
+      {showSoloCorrection && (
+        <SoloCorrectionModal
+          member={showSoloCorrection}
+          onClose={() => setShowSoloCorrection(null)}
+        />
+      )}
     </div>
   );
 }

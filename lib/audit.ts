@@ -33,7 +33,8 @@ export type AuditAction =
   | 'SEND_SIGNUP_EMAIL'
   | 'VIEW_PORTAL_SETTINGS'
   | 'DELETE_PENDING_INVITATION'
-  | 'RESEND_PENDING_INVITATION';
+  | 'RESEND_PENDING_INVITATION'
+  | 'REQUEST_MEMBER_CORRECTION';
 
 interface AuditContext {
   session: Session;
