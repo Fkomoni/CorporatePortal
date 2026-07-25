@@ -46,7 +46,7 @@ export interface UpdateInfoPayload {
   enrolleeId: string;
   cifNumber?: string | number;
   isPrincipal?: boolean;
-  sexId?: string;        // "1" Female, "2" Male — dependants only
+  sexId?: string;        // "1" Male, "2" Female
   dateOfBirth?: string;
   mobile?: string;
   email?: string;
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
   const hasChange = isPrincipal
-    ? Boolean(dateOfBirth || mobile || email || address || photo || nin)
+    ? Boolean(sexId || dateOfBirth || mobile || email || address || photo || nin)
     : Boolean(sexId || dateOfBirth || mobile || email || nin);
   if (!hasChange) {
     return NextResponse.json({ error: 'Change at least one field.' }, { status: 400 });
@@ -195,7 +195,7 @@ export async function POST(req: Request) {
       DateOfBirth: dateOfBirth ? dateOnly(dateOfBirth) : dateOnly(row['Member_DateOfBirth']),
       startdate: dateOnly(row['Member_Entry_date']),
       employmentdate: dateOnly(row['Member_Entry_date']),
-      Sex_ID: !isPrincipal && sexId ? sexId : sexIdFromBio(row['Member_Gender']),
+      Sex_ID: sexId || sexIdFromBio(row['Member_Gender']),
       MaritalStatus: maritalStatusId(row),
       EmailAdress: email || s(row['Member_EmailAddress_One']),
       Home_Phone: s(row['Member_Phone_Three']),

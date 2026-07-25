@@ -1978,6 +1978,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
   const [bioStaffId, setBioStaffId]         = useState<string | null>(member.staffId || null);
   const [bioEmail, setBioEmail]             = useState<string | null>(member.email || null);
+  const [bioDob, setBioDob]                 = useState<string | null>(member.dateOfBirth || null);
   // Authoritative schemeId straight from Prognosis — GetGroupPremium rarely
   // carries one, so name-matching against local `schemes` can still miss.
   const [profileSchemeId, setProfileSchemeId] = useState<string | null>(null);
@@ -1995,6 +1996,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       .then((d) => {
         if (d.phone) setBioPhone(d.phone);
         if (d.staffId) setBioStaffId(d.staffId);
+        if (d.dateOfBirth) setBioDob(d.dateOfBirth);
         if (d.email) {
           setBioEmail(d.email);
           // If HR opened "Add Dependent" and clicked before this biodata
@@ -2152,7 +2154,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
     if (editSubmitting) return;
     setEditError('');
     const hasChange = isPrincipalMember
-      ? Boolean(editDob || editMobile || editEmail || editAddress || editPhotoB64 || editNin)
+      ? Boolean(editSexId || editDob || editMobile || editEmail || editAddress || editPhotoB64 || editNin)
       : Boolean(editSexId || editDob || editMobile || editEmail || editNin);
     if (!hasChange) {
       setEditError('Change at least one field.'); return;
@@ -2166,7 +2168,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           enrolleeId: member.employeeId,
           cifNumber: member.cifNumber,
           isPrincipal: isPrincipalMember,
-          sexId: !isPrincipalMember ? (editSexId || undefined) : undefined,
+          sexId: editSexId || undefined,
           dateOfBirth: editDob || undefined,
           mobile: editMobile || undefined,
           email: editEmail || undefined,
@@ -2338,7 +2340,10 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               { Icon: Phone,    value: bioPhone || member.phone },
               { Icon: Mail,     value: bioEmail || member.email },
               { Icon: MapPin,   value: member.location },
-              { Icon: Calendar, value: `Enrolled ${new Date(member.enrollmentDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}` },
+              // enrollmentDate is Prognosis's cover-effective/start date, not
+              // the date the registration was actually submitted — label it
+              // accordingly rather than "Enrolled", which reads as the latter.
+              { Icon: Calendar, value: `Cover Start: ${new Date(member.enrollmentDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}` },
             ].map(({ Icon, value }) => (
               <div key={value} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 24, height: 24, borderRadius: 6, background: '#F7F8FA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -2570,7 +2575,9 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             <button
               onClick={() => {
                 setEditSexId(member.gender === 'Female' ? '2' : member.gender === 'Male' ? '1' : '');
-                setEditDob(member.dateOfBirth || '');
+                const dobSource = bioDob || member.dateOfBirth || '';
+                const dobParsed = dobSource ? new Date(dobSource) : null;
+                setEditDob(dobParsed && !isNaN(dobParsed.getTime()) ? dobParsed.toISOString().slice(0, 10) : '');
                 setEditMobile(bioPhone || '');
                 setEditEmail(bioEmail || '');
                 setEditAddress('');
@@ -2689,7 +2696,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Edit {member.firstName} {member.lastName}</p>
             <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>
               {isPrincipalMember
-                ? 'Only passport photo, phone, email, date of birth and address can be updated here.'
+                ? 'Only passport photo, gender, phone, email, date of birth and address can be updated here.'
                 : 'Only gender, date of birth, phone and email can be updated here.'}
             </p>
 
@@ -2712,17 +2719,15 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-              {!isPrincipalMember && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Gender</label>
-                  <select value={editSexId} onChange={(e) => setEditSexId(e.target.value)}
-                    style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
-                    <option value="">Select</option>
-                    <option value="1">Male</option>
-                    <option value="2">Female</option>
-                  </select>
-                </div>
-              )}
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Gender</label>
+                <select value={editSexId} onChange={(e) => setEditSexId(e.target.value)}
+                  style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
+                  <option value="">Select</option>
+                  <option value="1">Male</option>
+                  <option value="2">Female</option>
+                </select>
+              </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Date of Birth</label>
                 <input type="date" value={editDob} onChange={(e) => setEditDob(e.target.value)}
@@ -3340,18 +3345,28 @@ export default function MembersPage() {
         {/* Bulk actions */}
         {selected.length > 0 && (() => {
           const selectedMembers = liveMembers.filter((m) => selected.includes(m.id));
-          const hasEmail = selectedMembers.some((m) => m.email);
           const hasPending = selectedMembers.some((m) => m.status === 'Pending');
 
           async function bulkSendEnroleeIds() {
             setBulkBusy('Send Enrolee IDs');
             let sent = 0, skipped = 0;
             for (const m of selectedMembers) {
-              if (!m.email) { skipped++; continue; }
+              // The members list often doesn't carry email at all — fall
+              // back to the live Prognosis profile before giving up on this
+              // member, same fix already applied to the dependent-link forms.
+              let email = m.email;
+              if (!email) {
+                try {
+                  const res = await fetch(`/api/hr/members/enrollee-profile?enrolleeId=${encodeURIComponent(m.employeeId)}`);
+                  const data = await res.json();
+                  if (data.email) email = data.email;
+                } catch { /* fall through to skip */ }
+              }
+              if (!email) { skipped++; continue; }
               try {
                 const res = await fetch('/api/hr/members/send-enrolee-id', {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ email: m.email, enroleeId: m.employeeId, memberName: `${m.firstName} ${m.lastName}`, schemeName: m.plan }),
+                  body: JSON.stringify({ email, enroleeId: m.employeeId, memberName: `${m.firstName} ${m.lastName}`, schemeName: m.plan }),
                 });
                 if (res.ok) sent++; else skipped++;
               } catch { skipped++; }
@@ -3379,7 +3394,7 @@ export default function MembersPage() {
 
           const actions: { label: string; Icon: typeof Plus; color: string; bg: string; border: string; enabled: boolean; disabledReason?: string; onClick?: () => void }[] = [
             { label: 'Approve Additions', Icon: Plus, color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', enabled: hasPending, disabledReason: 'No pending members selected — use the Pending Enrolees page to approve.' },
-            { label: 'Send Enrolee IDs', Icon: Send, color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE', enabled: hasEmail, disabledReason: 'None of the selected members have an email on file.', onClick: bulkSendEnroleeIds },
+            { label: 'Send Enrolee IDs', Icon: Send, color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE', enabled: true, onClick: bulkSendEnroleeIds },
             { label: 'Download E-Cards', Icon: CreditCard, color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD', enabled: true, onClick: bulkDownloadECards },
             { label: 'Export List', Icon: ArrowDownToLine, color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', enabled: true, onClick: bulkExportList },
             {
