@@ -3193,7 +3193,7 @@ export default function MembersPage() {
         {/* Members / Beneficiaries table */}
         <div style={{ ...card }}>
           <div className="grid items-center border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 80px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} title="Select all" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }} onClick={toggleAll} title="Click to select all">
               <span className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest select-none">
@@ -3216,7 +3216,7 @@ export default function MembersPage() {
               <div
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '36px 1fr 80px 132px 118px 76px 108px 120px 96px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
+                style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
                 onClick={() => setActiveMember({ member: m, index: globalIndex })}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />
@@ -3226,8 +3226,8 @@ export default function MembersPage() {
                   )}
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
                 </div>
-                <span className="text-[11px] text-[#131C4E] font-mono">{m.staffId || '—'}</span>
-                <span className="text-[11px] text-[#131C4E] font-mono font-semibold">{m.employeeId}</span>
+                <span className="text-[11px] text-[#131C4E] font-mono" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.staffId || undefined}>{m.staffId || '—'}</span>
+                <span className="text-[11px] text-[#131C4E] font-mono font-semibold" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.employeeId}</span>
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[11px]" style={{ color: isDependant ? '#6366F1' : '#9CA3B8', fontWeight: isDependant ? 600 : 400 }}>{m.type}</span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
