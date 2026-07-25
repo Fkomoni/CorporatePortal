@@ -62,22 +62,36 @@ async function callWithRetry(url: string, body: string): Promise<Response> {
   return res;
 }
 
+async function callDecide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: DecisionOptions, userEmail: string): Promise<{ res: Response; text: string; r: Record<string, unknown> }> {
+  const requestBody = JSON.stringify({
+    CifNumber: Number(opts.cifNumber) || opts.cifNumber,
+    rejectionreason: opts.reason,
+    terminationdate: toIsoDateTime(opts.effectiveDate || todayDdMmYyyy()),
+    useremail: userEmail,
+  });
+  const url = `${BASE}/api/CorporatePortal/${endpoint}`;
+  console.log(`[${endpoint}] → POST ${url} body=${requestBody}`);
+  const res = await callWithRetry(url, requestBody);
+  const text = await res.text();
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch { raw = text; }
+  console.log(`[${endpoint}] ← HTTP ${res.status}: ${text.slice(0, 2000)}`);
+  return { res, text, r: raw as Record<string, unknown> };
+}
+
 async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: DecisionOptions): Promise<ApproveResult> {
   try {
-    const requestBody = JSON.stringify({
-      CifNumber: Number(opts.cifNumber) || opts.cifNumber,
-      rejectionreason: opts.reason,
-      terminationdate: toIsoDateTime(opts.effectiveDate || todayDdMmYyyy()),
-      useremail: opts.userEmail,
-    });
-    const url = `${BASE}/api/CorporatePortal/${endpoint}`;
-    console.log(`[${endpoint}] → POST ${url} body=${requestBody}`);
-    const res = await callWithRetry(url, requestBody);
-    const text = await res.text();
-    let raw: unknown;
-    try { raw = JSON.parse(text); } catch { raw = text; }
-    const r = raw as Record<string, unknown>;
-    console.log(`[${endpoint}] ← HTTP ${res.status}: ${text.slice(0, 2000)}`);
+    let { res, text, r } = await callDecide(endpoint, opts, opts.userEmail);
+
+    // Prognosis validates useremail against ITS OWN known accounts, not the
+    // portal's HR user list — many HR logins (especially newer/self-registered
+    // ones) come back "Invalid user." even though they're perfectly valid on
+    // our side. Retry once using the service account Prognosis does recognise,
+    // rather than fail an approval purely over this mismatch.
+    if (res.status === 400 && /invalid user/i.test(text) && process.env.PROGNOSIS_USERNAME) {
+      console.warn(`[${endpoint}] "${opts.userEmail}" rejected as invalid user — retrying with service account`);
+      ({ res, text, r } = await callDecide(endpoint, opts, process.env.PROGNOSIS_USERNAME));
+    }
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');
