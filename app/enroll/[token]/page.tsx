@@ -317,6 +317,11 @@ export default function EnrollPage() {
               Successfully enrolled on <strong>{invitation?.schemeName ?? 'your health plan'}</strong>.<br />
               Keep your member ID(s) safe — you will need them at any Leadway Health provider.
             </p>
+            {invitation?.startDate && (
+              <p style={{ fontSize: 13, color: '#059669', fontWeight: 700, marginTop: 10 }}>
+                Cover starts {formatIsoDateLong(invitation.startDate)}
+              </p>
+            )}
           </div>
 
           {/* Enrolled members list */}
@@ -343,6 +348,14 @@ export default function EnrollPage() {
             ))}
           </div>
 
+          {allEnrolled.some((m) => m.enrolleeId) && (
+            <button
+              onClick={() => window.print()}
+              style={{ width: '100%', height: 48, borderRadius: 14, border: '1.5px solid #BBF7D0', background: '#fff', color: '#059669', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>
+              Print / Save e-ID Card{allEnrolled.length > 1 ? 's' : ''} as PDF
+            </button>
+          )}
+
           {canAddMore && (
             <button
               onClick={resetForm}
@@ -356,6 +369,49 @@ export default function EnrollPage() {
               ? 'The HR team will be notified of this enrolment.'
               : 'Your HR team will follow up with your physical member card and further details.'}
           </p>
+
+          {/* Print-only e-ID cards — hidden on screen, shown via window.print() */}
+          <div className="ecard-print-area" style={{ display: 'none' }}>
+            {allEnrolled.filter((m) => m.enrolleeId).map((m, i) => (
+              <div key={i} style={{
+                width: 380, height: 240, borderRadius: 18, background: '#fff',
+                border: '5px solid #F56B22', position: 'relative', overflow: 'hidden',
+                padding: '16px 18px', boxSizing: 'border-box', marginBottom: 20,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/leadway-logo.jpeg" alt="Leadway Health" style={{ height: 78, objectFit: 'contain' }} />
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 13, fontWeight: 900, color: '#131C4E', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15 }}>{m.name || '—'}</p>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', marginTop: 2 }}>{m.role}</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                  <div>
+                    <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Member No.</p>
+                    <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', fontFamily: 'monospace' }}>{m.enrolleeId}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheme</p>
+                    <p style={{ fontSize: 12.5, fontWeight: 700, color: '#131C4E' }}>{invitation?.schemeName}</p>
+                  </div>
+                  {invitation?.startDate && (
+                    <div>
+                      <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cover Start Date</p>
+                      <p style={{ fontSize: 12.5, fontWeight: 700, color: '#131C4E' }}>{formatIsoDateLong(invitation.startDate)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <style jsx global>{`
+            @media print {
+              body * { visibility: hidden; }
+              .ecard-print-area, .ecard-print-area * { visibility: visible; }
+              .ecard-print-area { display: flex !important; flex-direction: column; align-items: center; position: fixed !important; top: 0; left: 50%; transform: translateX(-50%); }
+            }
+          `}</style>
         </div>
       </div>
     );
