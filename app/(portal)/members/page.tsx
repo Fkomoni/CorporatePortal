@@ -440,6 +440,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         setPrincipalProfile(data);
         if (data.schemeId) setSelectedSchemeId(data.schemeId);
         if (data.employeeCode) setEmpCode(data.employeeCode);
+        // The members list often doesn't carry email — fall back to the
+        // live Prognosis profile so the dependent-link form doesn't force
+        // HR to retype an email that already exists on record.
+        if (data.email && !p.email) setLinkEmail(data.email);
       }
     } catch { /* use local data as fallback */ }
     finally { setProfileLoading(false); }
