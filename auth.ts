@@ -267,7 +267,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           companyId: access.companyId,
           companyName: access.companyName,
           policyNumber: access.policyNumber,
-          role: staffUser.role,
+          // staffUser.role is Leadway's internal AD/Prognosis role (officer,
+          // supervisor, medical_director, admin) — it has nothing to do with
+          // the portal's own HR role vocabulary (Admin/HR Manager/Finance/
+          // Viewer). Internal staff already passed a stronger gate to get
+          // here (AD login + an explicit per-client grant in
+          // StaffClientAccess), so they get full HR-admin access to the
+          // client they're acting for, regardless of their internal title.
+          role: 'hr_admin',
           isInternalStaff: true,
         };
       },
