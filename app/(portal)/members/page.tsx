@@ -1835,7 +1835,14 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       .then((d) => {
         if (d.phone) setBioPhone(d.phone);
         if (d.staffId) setBioStaffId(d.staffId);
-        if (d.email) setBioEmail(d.email);
+        if (d.email) {
+          setBioEmail(d.email);
+          // If HR opened "Add Dependent" and clicked before this biodata
+          // fetch resolved, depLinkEmail was seeded blank and never gets
+          // another chance to fill in — top it up here too, but only if
+          // it's still empty so we never overwrite something HR typed.
+          setDepLinkEmail((prev) => prev || d.email);
+        }
         if (d.photo) setAvatarPreview(`data:${d.photoType || 'image/jpeg'};base64,${d.photo}`);
       })
       .catch(() => { /* silently ignore */ });
