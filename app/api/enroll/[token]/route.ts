@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
+import { resolveZoneForRegion } from '@/lib/geo-zone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -169,6 +170,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   try {
     const svcToken = await getServiceToken();
 
+    // Postal_Town_ID was previously hardcoded to 1 (Abia), so the state the
+    // member actually selected never reached Prognosis — regionid is
+    // Prognosis's real field for state (per GetRegion/GetStates), driven by
+    // whichever region the member/dependant chose in the State dropdown.
+    const resolvedRegionId = body.postalTownId ? (Number(body.postalTownId) || body.postalTownId) : 1;
+    const resolvedZone = await resolveZoneForRegion(BASE, svcToken, body.postalTownId as string | number | undefined).catch(() => null);
+    if (resolvedZone) console.log(`[enroll/token] Resolved zone "${resolvedZone}" for regionid=${resolvedRegionId}`);
+
     let apiUrl: string;
     let apiBody: unknown;
 
@@ -181,7 +190,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         groupid: Number(invitation.groupId) || invitation.groupId,
         schemeid: Number(invitation.schemeId) || invitation.schemeId,
         Scheme: invitation.schemeName,
-        regionid: 1,
+        regionid: resolvedRegionId,
         Parent_Cif: Number(resolvedParentCif),
         FirstName: body.firstName,
         Surname: body.surname,
@@ -207,6 +216,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         cadre: '',
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
+        ...(resolvedZone ? { GeopoliticalZone: resolvedZone } : {}),
         // Self-service link submissions must wait for HR approval — Activated
         // is the same field UpdateBeneficiary/TerminateBeneficiary use to flag
         // a beneficiary's active state, so we ask Prognosis not to activate
@@ -224,7 +234,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         groupid: Number(invitation.groupId) || invitation.groupId,
         schemeid: Number(invitation.schemeId) || invitation.schemeId,
         Scheme: invitation.schemeName,
-        regionid: 1,
+        regionid: resolvedRegionId,
         Parent_Cif: 0,
         FirstName: body.firstName,
         Surname: body.surname,
@@ -250,6 +260,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         cadre: body.cadre ?? '',
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
+        ...(resolvedZone ? { GeopoliticalZone: resolvedZone } : {}),
         // See note above — same reasoning applies to a principal self-enrolling
         // via their own link.
         Activated: false,

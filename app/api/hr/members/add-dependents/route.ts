@@ -4,6 +4,7 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { getPrincipalFamily, findDuplicateDependent, getSchemeMaxFamilySize } from '@/lib/dependent-checks';
 import { prisma } from '@/lib/prisma';
+import { resolveZoneForRegion } from '@/lib/geo-zone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -122,11 +123,16 @@ export async function POST(req: Request) {
       console.warn('[hr/members/add-dependents] Dependent dedup/family-size check failed, proceeding without it:', e);
     }
 
-    const addBeneficiary = dependents.map((dep) => ({
+    const depZones = await Promise.all(
+      dependents.map((dep) => resolveZoneForRegion(BASE, token, dep.regionId).catch(() => null)),
+    );
+
+    const addBeneficiary = dependents.map((dep, i) => ({
       groupid: Number(groupId) || groupId,
       schemeid: Number(schemeId) || schemeId,
       Scheme: schemeName,
       regionid: dep.regionId ? (Number(dep.regionId) || dep.regionId) : 1,
+      ...(depZones[i] ? { GeopoliticalZone: depZones[i] } : {}),
       Parent_Cif: parentCif,
       FirstName: dep.firstName,
       Surname: dep.surname,

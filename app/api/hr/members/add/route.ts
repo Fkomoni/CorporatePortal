@@ -4,6 +4,7 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 import { prisma } from '@/lib/prisma';
+import { resolveZoneForRegion } from '@/lib/geo-zone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -119,17 +120,21 @@ export async function POST(req: Request) {
       console.warn('[hr/members/add] Duplicate check failed, proceeding without it:', e);
     }
 
+    // regionid is Prognosis's real field for state (GetStates returns
+    // {RegionID, RegionName} — "region" is Prognosis's word for state).
+    // body.stateId is what the State dropdown actually sets; body.regionId
+    // is only a fallback in case a caller already resolved it that way.
+    const resolvedRegionId = body.regionId
+      ? (Number(body.regionId) || body.regionId)
+      : body.stateId ? (Number(body.stateId) || body.stateId) : 1;
+    const resolvedZone = await resolveZoneForRegion(BASE, token, body.regionId ?? body.stateId).catch(() => null);
+    if (resolvedZone) console.log(`[hr/members/add] Resolved zone "${resolvedZone}" for regionid=${resolvedRegionId}`);
+
     const payload = {
       groupid: Number(groupId) || groupId,
       schemeid: Number(schemeId) || schemeId,
       Scheme: schemeName,
-      // regionid is Prognosis's real field for state (GetStates returns
-      // {RegionID, RegionName} — "region" is Prognosis's word for state).
-      // body.stateId is what the State dropdown actually sets; body.regionId
-      // is only a fallback in case a caller already resolved it that way.
-      regionid: body.regionId
-        ? (Number(body.regionId) || body.regionId)
-        : body.stateId ? (Number(body.stateId) || body.stateId) : 1,
+      regionid: resolvedRegionId,
       Parent_Cif: 0,
       FirstName: firstName,
       Surname: surname,
@@ -151,6 +156,7 @@ export async function POST(req: Request) {
       EnrolleePicture: body.enrolleePicture ?? '',
       EnrolleePictureType: body.enrolleePictureType ?? '',
       registrationsource: 'Web Portal',
+      ...(resolvedZone ? { GeopoliticalZone: resolvedZone } : {}),
       // HR is registering this member directly (not via a self-enrolment
       // link) — the plan should be active immediately, not queued pending.
       Activated: true,
