@@ -81,7 +81,7 @@ export async function GET(req: Request) {
     const schemeName = str(row, 'Member_Plan', 'SchemeName', 'Scheme_Name', 'Scheme', 'PlanName', 'Plan', 'ProductName');
     const groupId    = str(row, 'Client_GroupID', 'GroupId', 'Group_Id', 'Groupid', 'groupid', 'GroupID', 'CompanyId', 'Company_Id');
     const employeeCode = str(row, 'Member_staffid', 'EmployeeCode', 'Employee_Code', 'EmployeeNo', 'Employeecode', 'employeecode');
-    const emailRaw = str(row, 'Member_Email', 'EmailAdress', 'EmailAddress', 'Email', 'email');
+    const emailRaw = str(row, 'Member_EmailAddress_One', 'Member_EmailAddress_Two', 'Member_Email', 'EmailAdress', 'EmailAddress', 'Email', 'email', 'EmailAddr');
     const email = emailRaw && emailRaw.toLowerCase() !== 'noemail.com' ? emailRaw : '';
 
     console.log(`[enrollee-profile] ${logTag(session.user.email)} resolved → cifNumber=${cifNumber} schemeId=${schemeId} schemeName=${schemeName} groupId=${groupId} email=${email}`);
