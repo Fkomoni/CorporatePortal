@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { moduleForPath, canAccessModule } from '@/lib/roles';
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -35,6 +36,16 @@ export default auth((req) => {
   // Staff trying to reach portal → redirect to admin
   if (isPortalRoute && isLoggedIn && loginType === 'staff') {
     return NextResponse.redirect(new URL('/admin/corporates', req.url));
+  }
+
+  // HR user whose role doesn't grant access to this module (e.g. a Finance
+  // role hitting /members) → bounce to dashboard rather than leak the page.
+  if (isPortalRoute && isLoggedIn && loginType !== 'staff') {
+    const role = (session?.user as { role?: string })?.role;
+    const module = moduleForPath(pathname);
+    if (module && !canAccessModule(role, module)) {
+      return NextResponse.redirect(new URL('/dashboard?denied=1', req.url));
+    }
   }
 
   // Already logged in HR user hitting /login → dashboard

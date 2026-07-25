@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { isAdminRole } from '@/lib/roles';
+import { isAdminRole, canAccessModule, moduleForPath } from '@/lib/roles';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -186,7 +186,13 @@ export function Sidebar() {
       {/* Main nav */}
       <nav className="flex-1 overflow-y-auto" style={{ paddingTop: 6, paddingBottom: 4 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {mainNav.filter((item) => !item.adminOnly || isAdminRole(userRole)).map(({ adminOnly: _adminOnly, ...item }) => (
+          {mainNav
+            .filter((item) => !item.adminOnly || isAdminRole(userRole))
+            .filter((item) => {
+              const mod = moduleForPath(item.href);
+              return !mod || canAccessModule(userRole, mod);
+            })
+            .map(({ adminOnly: _adminOnly, ...item }) => (
             <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
           ))}
         </div>
