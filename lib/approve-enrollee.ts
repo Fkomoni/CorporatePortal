@@ -86,11 +86,13 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
     // Prognosis validates useremail against ITS OWN known accounts, not the
     // portal's HR user list — many HR logins (especially newer/self-registered
     // ones) come back "Invalid user." even though they're perfectly valid on
-    // our side. Retry once using the service account Prognosis does recognise,
-    // rather than fail an approval purely over this mismatch.
-    if (res.status === 400 && /invalid user/i.test(text) && process.env.PROGNOSIS_USERNAME) {
-      console.warn(`[${endpoint}] "${opts.userEmail}" rejected as invalid user — retrying with service account`);
-      ({ res, text, r } = await callDecide(endpoint, opts, process.env.PROGNOSIS_USERNAME));
+    // our side. The Prognosis service-login account (PROGNOSIS_USERNAME) is
+    // also NOT a valid useremail here — confirmed in production logs, it gets
+    // the same "Invalid user." rejection — so only retry with an explicit,
+    // confirmed-valid fallback account if one has been configured.
+    if (res.status === 400 && /invalid user/i.test(text) && process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL) {
+      console.warn(`[${endpoint}] "${opts.userEmail}" rejected as invalid user — retrying with configured fallback account`);
+      ({ res, text, r } = await callDecide(endpoint, opts, process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL));
     }
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
