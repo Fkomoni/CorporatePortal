@@ -151,6 +151,9 @@ export async function POST(req: Request) {
       cadre: '',
       EnrolleePicture: dep.enrolleePicture ?? '',
       EnrolleePictureType: dep.enrolleePictureType ?? '',
+      // HR is adding this dependant directly (not via a self-enrolment
+      // link) — the plan should be active immediately, not queued pending.
+      Activated: true,
     }));
 
     const requestBody = { AddBeneficiary: addBeneficiary };

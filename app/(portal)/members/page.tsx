@@ -1403,6 +1403,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         </select>
                       </div>
                     )}
+
+                    {memberType !== 'existing' && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; earliest is the 1st of this month)</span></p>
+                        <input type="date" value={startDate} min={firstOfMonthIso()} onChange={(e) => setStartDate(e.target.value)}
+                          style={{ ...inputStyle, maxWidth: 260 }} onFocus={focusOn} onBlur={focusOff} />
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -1421,13 +1429,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       onFocus={focusOn} onBlur={focusOff} />
                   </div>
 
-                  {memberType !== 'existing' && (
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; earliest is the 1st of this month)</span></p>
-                      <input type="date" value={startDate} min={firstOfMonthIso()} onChange={(e) => setStartDate(e.target.value)}
-                        style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
-                    </div>
-                  )}
                 </div>
               )}
             </>

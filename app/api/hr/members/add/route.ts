@@ -143,6 +143,9 @@ export async function POST(req: Request) {
       EnrolleePicture: body.enrolleePicture ?? '',
       EnrolleePictureType: body.enrolleePictureType ?? '',
       registrationsource: 'Web Portal',
+      // HR is registering this member directly (not via a self-enrolment
+      // link) — the plan should be active immediately, not queued pending.
+      Activated: true,
       ...(body.startDate ? { Fromdate: body.startDate, StartDate: body.startDate } : {}),
     };
 
