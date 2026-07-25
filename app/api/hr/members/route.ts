@@ -84,8 +84,12 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
 
 function mapStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
   const s = raw.toLowerCase();
-  if (s.includes('active') || s === '1' || s === 'true') return 'Active';
+  // Check termination/cancellation keywords FIRST — Prognosis's status text
+  // for a member mid-termination can read "Active - Pending Termination" or
+  // similar, which contains "active" too. Checking that substring first
+  // would misclassify an already-terminated-in-progress member as Active.
   if (s.includes('terminat') || s.includes('cancel') || s.includes('inactive') || s.includes('deleted')) return 'Terminated';
+  if (s.includes('active') || s === '1' || s === 'true') return 'Active';
   return 'Pending';
 }
 
@@ -234,22 +238,26 @@ function inferCategory(row: Record<string, unknown>): string {
 // Confirmed real fields: cif_number, Enrolleeid, firstname, surname,
 // Member_DateOfBirth, IsDependant, parentcif, EmailAdress, Phone, Gender,
 // Scheme/SchemeName, MembershipNo/Suffix.
+async function fetchBeneficiariesByStatus(base: string, token: string, groupId: string, memberstatus: string): Promise<Record<string, unknown>[]> {
+  const url = `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+  const text = await res.text();
+  console.log(`[hr/members/fallback] GET ${url} → HTTP ${res.status}: ${text.slice(0, 800)}`);
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch { raw = null; }
+  const rows = Array.isArray((raw as Record<string, unknown>)?.result)
+    ? (raw as Record<string, unknown>).result as Record<string, unknown>[]
+    : Array.isArray((raw as Record<string, unknown>)?.Result)
+      ? (raw as Record<string, unknown>).Result as Record<string, unknown>[]
+      : Array.isArray(raw) ? raw as Record<string, unknown>[] : [];
+  return rows.map((r) => ({ ...r, _memberstatus: memberstatus }));
+}
+
 async function fetchBeneficiariesFallback(base: string, token: string, groupId: string): Promise<Record<string, unknown>[]> {
-  const fetchStatus = async (memberstatus: string) => {
-    const url = `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=${memberstatus}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
-    const text = await res.text();
-    console.log(`[hr/members/fallback] GET ${url} → HTTP ${res.status}: ${text.slice(0, 800)}`);
-    let raw: unknown;
-    try { raw = JSON.parse(text); } catch { raw = null; }
-    const rows = Array.isArray((raw as Record<string, unknown>)?.result)
-      ? (raw as Record<string, unknown>).result as Record<string, unknown>[]
-      : Array.isArray((raw as Record<string, unknown>)?.Result)
-        ? (raw as Record<string, unknown>).Result as Record<string, unknown>[]
-        : Array.isArray(raw) ? raw as Record<string, unknown>[] : [];
-    return rows.map((r) => ({ ...r, _memberstatus: memberstatus }));
-  };
-  const [active, inactive] = await Promise.all([fetchStatus('active'), fetchStatus('inactive')]);
+  const [active, inactive] = await Promise.all([
+    fetchBeneficiariesByStatus(base, token, groupId, 'active'),
+    fetchBeneficiariesByStatus(base, token, groupId, 'inactive'),
+  ]);
   return [...active, ...inactive];
 }
 
@@ -392,6 +400,20 @@ export async function GET(req: Request) {
       console.log(`[hr/members] groupId=${groupId} GetGroupMembers/GetGroupPremium empty, fallback rows=${fallbackRows.length}`);
     }
 
+    // GetGroupMembers/GetGroupPremium are active-roster/billing sources — they
+    // never carry terminated members at all, so a terminated member simply
+    // vanished from this list with no way for HR to ever see them again.
+    // ClientPlanBeneficiariesNoPagitation?memberstatus=inactive is confirmed
+    // to return them — always fetch it and merge in below.
+    let terminatedRows: Record<string, unknown>[] = [];
+    if (!usedFallback) {
+      try {
+        terminatedRows = await fetchBeneficiariesByStatus(BASE, token, String(groupId), 'inactive');
+      } catch (e) {
+        console.warn(`[hr/members] Failed to fetch terminated members for groupId=${groupId}:`, e);
+      }
+    }
+
     // Build premium lookup keyed by enrollee ID
     const premiumByEnrollee: Map<string, Record<string, unknown>> = new Map();
     for (const r of premiumRows) {
@@ -509,6 +531,16 @@ export async function GET(req: Request) {
         }
         return base;
       });
+
+    // Merge in terminated members fetched separately above — primary/premium
+    // sources never carry them, so without this they'd never appear here at
+    // all regardless of the Status filter. Dedup below prefers whichever
+    // record already exists over this one only when the existing one is
+    // itself Active (a member terminated after being enriched above should
+    // still end up Terminated, not silently re-marked Active).
+    if (!useFallbackMapping && terminatedRows.length > 0) {
+      members.push(...terminatedRows.map((row, i) => mapFallbackRow(row, i)));
+    }
 
     // Dedupe by enrolleeId — GetGroupPremium can return multiple rows per member
     // (e.g. one per renewal/premium period), which otherwise renders as duplicate

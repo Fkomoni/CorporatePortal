@@ -66,8 +66,10 @@ function extractDate(row: Record<string, unknown>): Date | null {
 // actually require HR approval; "Active" dependants already went through.
 function classifyStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
   const s = raw.toLowerCase();
-  if (s.includes('active') || s === '1' || s === 'true') return 'Active';
+  // Termination keywords checked first — see mapStatus() in
+  // app/api/hr/members/route.ts for why order matters here.
   if (s.includes('terminat') || s.includes('cancel') || s.includes('inactive') || s.includes('deleted')) return 'Terminated';
+  if (s.includes('active') || s === '1' || s === 'true') return 'Active';
   return 'Pending';
 }
 
