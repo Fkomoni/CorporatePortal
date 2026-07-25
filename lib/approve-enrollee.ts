@@ -77,14 +77,22 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
     const r = raw as Record<string, unknown>;
-    console.log(`[${endpoint}] ← HTTP ${res.status}: ${text.slice(0, 500)}`);
+    console.log(`[${endpoint}] ← HTTP ${res.status}: ${text.slice(0, 2000)}`);
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');
-    const recordsUpdated = Number(r?.recordsUpdated ?? r?.RecordsUpdated ?? 0) || undefined;
+    const recordsUpdatedRaw = r?.recordsUpdated ?? r?.RecordsUpdated;
+    const recordsUpdated = recordsUpdatedRaw != null ? Number(recordsUpdatedRaw) : undefined;
 
     if (!res.ok || (apiStatus && !['success', '200', 'ok', 'true'].includes(apiStatus))) {
       return { success: false, error: apiMessage || `${endpoint} failed (${res.status})` };
+    }
+    // Prognosis can return HTTP 200 + status:"success" while recordsUpdated
+    // is explicitly 0 — nothing on their side actually changed even though
+    // it reads as a success. Treat that as a failure so HR isn't told a
+    // member was approved when Prognosis silently no-op'd it.
+    if (recordsUpdated === 0) {
+      return { success: false, error: apiMessage || `${endpoint} reported success but updated no records — the member's status was not changed on Prognosis.` };
     }
     return { success: true, message: apiMessage, recordsUpdated };
   } catch (err) {

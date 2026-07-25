@@ -641,7 +641,8 @@ export default function EnrollPage() {
                 </SelectField>
               )}
               {isDependent && (
-                <Field label="Dependent's Email" value={depEmail} onChange={setDepEmail} type="email" placeholder="e.g. amaka@example.com" />
+                <Field label="Dependent's Email" value={depEmail} onChange={setDepEmail} type="email" placeholder="e.g. amaka@example.com"
+                  pattern="[^\s@]+@[^\s@]+\.[^\s@]+" title="Enter a valid email address, e.g. amaka@example.com" />
               )}
             </div>
           </div>
