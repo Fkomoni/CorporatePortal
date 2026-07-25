@@ -3035,12 +3035,18 @@ export default function MembersPage() {
   const availablePlans    = ['All Plans',   ...Array.from(new Set(sourceList.map((m) => m.plan))).sort()];
   const availableStatuses = ['All Status',  ...Array.from(new Set(sourceList.map((m) => m.status))).sort()];
 
-  const filtered = sourceList.filter((m) => {
+  const filteredUnsorted = sourceList.filter((m) => {
     const q = search.toLowerCase();
     return (!q || `${m.firstName} ${m.lastName}`.toLowerCase().includes(q) || m.employeeId.toLowerCase().includes(q) || m.phone.includes(q))
       && (!planFilter || m.plan === planFilter)
       && (!statusFilter || m.status === statusFilter);
   });
+
+  // Newest enrolments first — Enrolee ID's numeric prefix (before the "/")
+  // increases with registration order, so a higher number means a newer
+  // member (e.g. 26103467/0 was enrolled after 21000645/0).
+  const enroleeIdNum = (m: Member) => parseInt(String(m.employeeId).split('/')[0], 10) || 0;
+  const filtered = [...filteredUnsorted].sort((a, b) => enroleeIdNum(b) - enroleeIdNum(a));
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage   = Math.min(page, totalPages - 1);
