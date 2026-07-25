@@ -15,9 +15,20 @@ interface InvitationMeta {
   inviteType: string;
   parentCif?: string;
   maxDependents: number;
+  startDate?: string | null;
   usedCount: number;
   remainingSlots: number;
   expiresAt: string;
+}
+
+const PHONE_RE = /^0\d{10}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function formatIsoDateLong(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 
@@ -133,6 +144,26 @@ export default function EnrollPage() {
         setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
         return;
       }
+    }
+
+    const effectiveEmail = (isDependent || principalCifNumber) ? (depEmail || invitation.email) : invitation.email;
+    if ((isDependent ? depEmail : true) && !EMAIL_RE.test(effectiveEmail)) {
+      setErrorMsg('Please enter a valid email address (e.g. name@example.com).');
+      setStatus('error');
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
+    }
+    if (!PHONE_RE.test(mobile)) {
+      setErrorMsg('Please enter a valid 11-digit mobile number starting with 0 (e.g. 08012345678).');
+      setStatus('error');
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
+    }
+    if (mobile2 && !PHONE_RE.test(mobile2)) {
+      setErrorMsg('Please enter a valid 11-digit alternative mobile number starting with 0 (e.g. 07012345678).');
+      setStatus('error');
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
     }
 
     setSubmitting(true);
@@ -458,6 +489,14 @@ export default function EnrollPage() {
           </p>
         </div>
 
+        {/* HR-fixed cover start date — read-only, member cannot change it */}
+        {invitation?.startDate && (
+          <div style={{ background: '#F7F8FC', border: '1px solid #E5E7F1', borderRadius: 14, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <p style={{ fontSize: 12.5, color: '#6B7280' }}>Cover start date <span style={{ color: '#9CA3B8' }}>(set by your HR team)</span></p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{formatIsoDateLong(invitation.startDate)}</p>
+          </div>
+        )}
+
         {/* Previously enrolled list for dependent flow */}
         {isDependent && depEnrolled.length > 0 && (
           <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 14, padding: '14px 18px', marginBottom: 16 }}>
@@ -562,7 +601,7 @@ export default function EnrollPage() {
                 </SelectField>
               )}
               {isDependent && (
-                <Field label="Dependent's Email" value={depEmail} onChange={setDepEmail} type="email" placeholder="e.g. amaka@gmail.com" />
+                <Field label="Dependent's Email" value={depEmail} onChange={setDepEmail} type="email" placeholder="e.g. amaka@example.com" />
               )}
             </div>
           </div>
@@ -571,8 +610,10 @@ export default function EnrollPage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Contact Details</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Field label={isDependent ? 'Mobile Number' : 'Mobile Number *'} value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" required={!isDependent} />
-              <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel" />
+              <Field label={isDependent ? 'Mobile Number' : 'Mobile Number *'} value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" required={!isDependent}
+                pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678" />
+              <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel"
+                pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 07012345678" />
               <SelectField label="State of Residence *" value={postalTownId} onChange={setStateId} required>
                 <option value="">Select state</option>
                 {states.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
@@ -612,9 +653,10 @@ export default function EnrollPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', required }: {
+function Field({ label, value, onChange, placeholder, type = 'text', required, pattern, title, maxLength }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; type?: string; required?: boolean;
+  pattern?: string; title?: string; maxLength?: number;
 }) {
   return (
     <div>
@@ -622,6 +664,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', required }:
       <input
         type={type} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} required={required}
+        pattern={pattern} title={title} maxLength={maxLength}
         style={inputStyle}
         onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
         onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }}

@@ -231,6 +231,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [linkEmail, setLinkEmail]     = useState('');
   const [linkEmpCode, setLinkEmpCode] = useState('');
   const [linkMaxDeps, setLinkMaxDeps] = useState(1);
+  const [linkStartDate, setLinkStartDate] = useState('');
   const [generatedUrl, setGeneratedUrl] = useState('');
 
   // Principal picker (for "Existing staff's dependent" flow)
@@ -463,6 +464,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!linkEmail || !linkEmpCode) {
           setFormError('Staff email and employee code are required.'); return;
         }
+        if (!linkStartDate) {
+          setFormError('Cover start date is required.'); return;
+        }
+        if (linkStartDate < firstOfMonthIso()) {
+          setFormError('Cover start date cannot be earlier than the 1st of this month.'); return;
+        }
         if (memberType === 'existing' && !selectedPrincipal) {
           setFormError('Please search and select the staff member this dependent link is for.'); return;
         }
@@ -482,6 +489,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             schemeId: isDepLink && selectedPrincipal ? (depScheme?.schemeId ?? selectedPrincipal.schemeId ?? selectedSchemeId) : selectedSchemeId,
             schemeName: isDepLink && selectedPrincipal ? (depScheme?.schemeName ?? selectedPrincipal.plan) : (selectedScheme?.schemeName ?? ''),
             scope: linkScope,
+            startDate: linkStartDate,
             ...(isDepLink && selectedPrincipal ? {
               inviteType: 'dependent',
               parentCif: String(selectedPrincipal.cifNumber ?? principalProfile?.cifNumber ?? ''),
@@ -1204,11 +1212,17 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           placeholder="e.g. EMP-9988" style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                       </div>
                     )}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Cover Start Date *</p>
+                      <input type="date" value={linkStartDate} min={firstOfMonthIso()} onChange={(e) => setLinkStartDate(e.target.value)}
+                        style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                    </div>
                   </div>
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 16 }}>
                     {memberType === 'existing'
                       ? "The dependent enrolment link will be tied to this staff member's record."
                       : 'The link is tied to this email + employee code. Staff must verify both to enrol — preventing misuse.'}
+                    {' '}The cover start date is set by you and cannot be changed by the staff member.
                   </p>
 
                   {generatedUrl && (
@@ -1717,6 +1731,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   // Link tab state
   const [depMaxCount, setDepMaxCount]       = useState(1);
   const [depLinkEmail, setDepLinkEmail]     = useState(member.email ?? '');
+  const [depLinkStartDate, setDepLinkStartDate] = useState('');
 
   // Biodata: enriched phone + staffId + email fetched from GetEnrolleeBioDataByEnrolleeID
   const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
@@ -1985,6 +2000,8 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       } else {
         // Send link
         if (!depLinkEmail) { setDepError('Member email is required to send the link.'); return; }
+        if (!depLinkStartDate) { setDepError('Cover start date is required.'); return; }
+        if (depLinkStartDate < firstOfMonthIso()) { setDepError('Cover start date cannot be earlier than the 1st of this month.'); return; }
         const res = await fetch('/api/hr/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1997,6 +2014,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             parentCif: String(member.cifNumber ?? ''),
             maxDependents: depMaxCount,
             scope: 'self-dependent',
+            startDate: depLinkStartDate,
           }),
         });
         const data = await res.json();
@@ -2747,6 +2765,15 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                       style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
+                  </div>
+
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date</p>
+                    <input type="date" value={depLinkStartDate} min={firstOfMonthIso()} onChange={(e) => setDepLinkStartDate(e.target.value)}
+                      style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
+                    <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 6 }}>Fixed by you — the dependant cannot change it.</p>
                   </div>
 
                   <div style={{ padding: '12px 14px', background: '#ECFDF5', borderRadius: 12, border: '1px solid #BBF7D0' }}>

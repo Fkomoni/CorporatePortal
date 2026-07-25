@@ -111,6 +111,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         inviteType: invitation.inviteType,
         parentCif: invitation.parentCif,
         maxDependents: invitation.maxDependents,
+        startDate: invitation.startDate,
         usedCount: invitation.usedCount,
         remainingSlots,
         expiresAt: invitation.expiresAt,
@@ -211,6 +212,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         // this one immediately. HR's own direct Add Dependent stays untouched
         // (unset there) and keeps auto-activating as before.
         Activated: false,
+        // Cover start date is fixed by HR at invite-creation time — the
+        // member's own submitted body has no say over it.
+        ...(invitation.startDate ? { Fromdate: invitation.startDate, StartDate: invitation.startDate } : {}),
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddDependentsOnly`;
       apiBody = { AddBeneficiary: [depPayload] };
@@ -248,6 +252,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         // See note above — same reasoning applies to a principal self-enrolling
         // via their own link.
         Activated: false,
+        // Cover start date is fixed by HR at invite-creation time — the
+        // member's own submitted body has no say over it.
+        ...(invitation.startDate ? { Fromdate: invitation.startDate, StartDate: invitation.startDate } : {}),
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddPrincipalOnly`;
       apiBody = payload;

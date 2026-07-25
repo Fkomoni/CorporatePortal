@@ -83,6 +83,7 @@ export async function POST(req: Request) {
     inviteType?: 'principal' | 'dependent';
     parentCif?: string;
     maxDependents?: number;
+    startDate?: string;
   };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
     inviteType = 'principal',
     parentCif,
     maxDependents = 1,
+    startDate,
   } = body;
 
   if (!email || !employeeCode || !schemeId) {
@@ -101,6 +103,16 @@ export async function POST(req: Request) {
   }
   if (inviteType === 'dependent' && !parentCif) {
     return NextResponse.json({ error: 'parentCif is required for dependent invitations' }, { status: 400 });
+  }
+  if (!startDate) {
+    return NextResponse.json({ error: 'startDate is required' }, { status: 400 });
+  }
+  // Cover can only be backdated to the 1st of the current month at the
+  // earliest — same rule enforced on HR's own direct Add Member flow.
+  const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
+  const chosenStart = new Date(startDate); chosenStart.setHours(0, 0, 0, 0);
+  if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
+    return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
   }
 
   const groupId = session.user.companyId ?? '';
@@ -146,6 +158,7 @@ export async function POST(req: Request) {
       inviteType,
       parentCif: parentCif ?? null,
       maxDependents,
+      startDate,
       expiresAt,
       createdBy: session.user.email ?? '',
     },

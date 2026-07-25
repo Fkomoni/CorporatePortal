@@ -169,6 +169,7 @@ model MemberInvitation {
   inviteType    String    @default("principal") // "principal" | "dependent"
   parentCif     String?   // CIF of principal — required for inviteType=dependent
   maxDependents Int       @default(1)
+  startDate     String?   // Cover start date (yyyy-mm-dd), set by HR — the member cannot change it
   usedCount     Int       @default(0)
   used          Boolean   @default(false)
   usedAt        DateTime?

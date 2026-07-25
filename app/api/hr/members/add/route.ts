@@ -7,6 +7,15 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// approveEnrollee expects dd/mm/yyyy; startDate arrives as an ISO date (yyyy-mm-dd).
+function toDdMmYyyy(isoDate: string): string {
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
@@ -200,6 +209,9 @@ export async function POST(req: Request) {
         cifNumber: cifNumber as string | number,
         reason: 'Active',
         userEmail: session.user.email ?? '',
+        // Activate on the cover start date HR chose, not today, so a
+        // future-dated start doesn't go live early.
+        effectiveDate: body.startDate ? toDdMmYyyy(body.startDate) : undefined,
       });
       autoApproved = approveResult.success;
       if (!approveResult.success) console.warn(`[hr/members/add] Auto-approve failed for CIF ${cifNumber}:`, approveResult.error);
