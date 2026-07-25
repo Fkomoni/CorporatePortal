@@ -1225,9 +1225,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
                   {/* Dependent count picker — for dep links and new-staff-with-deps links */}
                   {(memberType === 'existing' || linkScope === 'self-dependent') && (() => {
+                    // Don't fall back to schemes[0] here (unlike selectedScheme
+                    // elsewhere) — until HR actually picks a plan, there's no
+                    // real limit to show, so this stays null and the size
+                    // picker below falls back to a sane default (8) instead
+                    // of an arbitrary/possibly-zero plan's family size.
                     const depScheme = memberType === 'existing' && selectedPrincipal
                       ? resolveScheme(selectedPrincipal)
-                      : selectedScheme ?? null;
+                      : schemes.find((s) => s.schemeId === selectedSchemeId) ?? null;
                     const depSchemeMaxFamily = depScheme?.maxFamilySize ?? 8;
                     const principalCurrentDeps = memberType === 'existing' ? (selectedPrincipal?.dependants ?? 0) : 0;
                     const depSlotsLeft = Math.max(0, depSchemeMaxFamily - 1 - principalCurrentDeps);
