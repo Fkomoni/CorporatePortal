@@ -265,13 +265,17 @@ export async function GET(req: Request) {
     // recorded in link_registrations at submission time; anything pending
     // that ISN'T in there came straight from the Enrolee mobile app.
     const linkCifSet = new Set<string>();
+    const linkCifDates = new Map<string, string>();
     if (pendingBeneficiaries.length > 0) {
       try {
         const linkRows = await prisma.linkRegistration.findMany({
           where: { cifNumber: { in: pendingBeneficiaries.map((r) => r.cifNumber) } },
-          select: { cifNumber: true },
+          select: { cifNumber: true, createdAt: true },
         });
-        for (const row of linkRows) linkCifSet.add(row.cifNumber);
+        for (const row of linkRows) {
+          linkCifSet.add(row.cifNumber);
+          linkCifDates.set(row.cifNumber, row.createdAt.toISOString().slice(0, 10));
+        }
       } catch (e) {
         console.warn('[hr/members/pending] Failed to look up link registration sources:', e);
       }
@@ -290,10 +294,16 @@ export async function GET(req: Request) {
       const g = groups.get(r.parentCif)!;
       const { _date, _principalHint, ...member } = r;
       void _date; void _principalHint;
-      g.members.push({ ...member, registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App' });
+      // Prognosis's own date field on this endpoint reflects the plan's
+      // effective/start date, not when the registration was actually
+      // submitted — for anything that came through our portal (link or HR
+      // direct), we recorded the real submission timestamp ourselves, so
+      // prefer that over Prognosis's field.
+      const trueDate = linkCifDates.get(r.cifNumber) ?? member.registrationDate;
+      g.members.push({ ...member, registrationDate: trueDate, registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App' });
       g.memberCount++;
-      if (!g.registrationDate || (r.registrationDate && r.registrationDate < g.registrationDate)) {
-        g.registrationDate = r.registrationDate ?? g.registrationDate;
+      if (!g.registrationDate || (trueDate && trueDate < g.registrationDate)) {
+        g.registrationDate = trueDate ?? g.registrationDate;
       }
     }
 

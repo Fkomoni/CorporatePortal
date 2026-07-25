@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { getPrincipalFamily, findDuplicateDependent, getSchemeMaxFamilySize } from '@/lib/dependent-checks';
+import { prisma } from '@/lib/prisma';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -197,6 +198,22 @@ export async function POST(req: Request) {
         enrolleeId: membershipNo ? `${membershipNo}/${suffix}` : '',
       };
     });
+
+    // Record each CIF as portal-sourced (true submission timestamp) regardless
+    // of auto-approve outcome — see add/route.ts for why this matters if it
+    // ends up stuck in Pending Enrolees.
+    for (const dep of enrolled) {
+      if (!dep.cifNumber) continue;
+      try {
+        await prisma.linkRegistration.upsert({
+          where: { cifNumber: dep.cifNumber },
+          create: { cifNumber: dep.cifNumber, groupId: String(groupId) || null },
+          update: {},
+        });
+      } catch (e) {
+        console.warn('[hr/members/add-dependents] Failed to record registration source:', e);
+      }
+    }
 
     // HR-initiated registrations should not sit in Prognosis's pending queue —
     // auto-approve immediately rather than waiting on manual insurer action.

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
+import { prisma } from '@/lib/prisma';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -208,6 +209,23 @@ export async function POST(req: Request) {
         console.log(`[hr/members/add] CIF lookup for ${enrolleeId}: ${cifNumber}`);
       } catch (e) {
         console.warn('[hr/members/add] CIF lookup failed:', e);
+      }
+    }
+
+    // Record this CIF as portal-sourced (with the true submission timestamp)
+    // regardless of whether auto-approve below succeeds — if it ever ends up
+    // stuck in Pending Enrolees (e.g. auto-approve failed), this is what lets
+    // that list show "Corporate Portal" instead of "Enrolee App" and the
+    // actual registration date instead of Prognosis's plan-start-date field.
+    if (cifNumber) {
+      try {
+        await prisma.linkRegistration.upsert({
+          where: { cifNumber: String(cifNumber) },
+          create: { cifNumber: String(cifNumber), groupId: String(groupId) || null },
+          update: {},
+        });
+      } catch (e) {
+        console.warn('[hr/members/add] Failed to record registration source:', e);
       }
     }
 
