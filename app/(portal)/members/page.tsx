@@ -2979,6 +2979,8 @@ export default function MembersPage() {
   const [showAddModal, setShowAddModal]   = useState<false | 'individual' | 'bulk'>(false);
   const [viewBeneficiaries, setViewBeneficiaries] = useState(false);
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null); // label of the bulk action currently running
+  const [bulkCardMembers, setBulkCardMembers] = useState<Member[]>([]);
   const { toast } = useToast();
 
   // Policy schemes — used for dependant limit validation and plan dropdown in AddMemberModal
@@ -3179,32 +3181,81 @@ export default function MembersPage() {
         )}
 
         {/* Bulk actions */}
-        {selected.length > 0 && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #FFD8C0', boxShadow: '0 4px 16px rgba(245,107,34,0.10)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800 }}>{selected.length}</div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>member{selected.length > 1 ? 's' : ''} selected</span>
+        {selected.length > 0 && (() => {
+          const selectedMembers = liveMembers.filter((m) => selected.includes(m.id));
+          const hasEmail = selectedMembers.some((m) => m.email);
+          const hasPending = selectedMembers.some((m) => m.status === 'Pending');
+
+          async function bulkSendEnroleeIds() {
+            setBulkBusy('Send Enrolee IDs');
+            let sent = 0, skipped = 0;
+            for (const m of selectedMembers) {
+              if (!m.email) { skipped++; continue; }
+              try {
+                const res = await fetch('/api/hr/members/send-enrolee-id', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: m.email, enroleeId: m.employeeId, memberName: `${m.firstName} ${m.lastName}`, schemeName: m.plan }),
+                });
+                if (res.ok) sent++; else skipped++;
+              } catch { skipped++; }
+            }
+            setBulkBusy(null);
+            toast(`Sent to ${sent} member${sent !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — no email on file)` : ''}.`, sent ? 'success' : 'error');
+          }
+
+          function bulkExportList() {
+            exportToXls(selectedMembers.map((m) => ({
+              'Enrolee ID': m.employeeId, 'Staff ID': m.staffId ?? '', 'First Name': m.firstName, 'Last Name': m.lastName,
+              'Gender': m.gender, 'DOB': m.dateOfBirth, 'Phone': m.phone, 'Email': m.email, 'Plan': m.plan,
+              'Type': m.type, 'Status': m.status, 'Location': m.location,
+            })), 'members-export-selected');
+            toast(`Exported ${selectedMembers.length} member${selectedMembers.length !== 1 ? 's' : ''}.`, 'success');
+          }
+
+          function bulkDownloadECards() {
+            setBulkCardMembers(selectedMembers);
+            setTimeout(() => window.print(), 50);
+          }
+
+          const actions: { label: string; Icon: typeof Plus; color: string; bg: string; border: string; enabled: boolean; disabledReason?: string; onClick?: () => void }[] = [
+            { label: 'Approve Additions', Icon: Plus, color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', enabled: hasPending, disabledReason: 'No pending members selected — use the Pending Enrolees page to approve.' },
+            { label: 'Send Enrolee IDs', Icon: Send, color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE', enabled: hasEmail, disabledReason: 'None of the selected members have an email on file.', onClick: bulkSendEnroleeIds },
+            { label: 'Download E-Cards', Icon: CreditCard, color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD', enabled: true, onClick: bulkDownloadECards },
+            { label: 'Export List', Icon: ArrowDownToLine, color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', enabled: true, onClick: bulkExportList },
+            { label: 'Send Invite Links', Icon: Link2, color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', enabled: false, disabledReason: 'Not available in bulk yet — use Add Member → Send Link for one staff member at a time.' },
+            { label: 'Request Correction', Icon: FileText, color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', enabled: false, disabledReason: 'Not available yet.' },
+          ];
+
+          return (
+            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #FFD8C0', boxShadow: '0 4px 16px rgba(245,107,34,0.10)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800 }}>{selected.length}</div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>member{selected.length > 1 ? 's' : ''} selected</span>
+              </div>
+              <div style={{ width: 1, height: 24, background: '#F0F1F5', flexShrink: 0, margin: '0 4px' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, flexWrap: 'wrap' }}>
+                {actions.map(({ label, Icon, color, bg, border, enabled, disabledReason, onClick }) => {
+                  const busy = bulkBusy === label;
+                  const disabled = !enabled || bulkBusy !== null;
+                  return (
+                    <button key={label}
+                      title={!enabled ? disabledReason : undefined}
+                      onClick={onClick ?? (() => {})}
+                      disabled={disabled}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', fontSize: 12, fontWeight: 600, borderRadius: 14,
+                        border: `1px solid ${enabled ? border : '#EDEEF2'}`, background: enabled ? bg : '#F7F8FA', color: enabled ? color : '#C4C9D9',
+                        cursor: disabled ? (enabled ? 'wait' : 'not-allowed') : 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.7 : 1,
+                      }}>
+                      <Icon style={{ width: 13, height: 13 }} /> {busy ? `${label}…` : label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={() => setSelected([])} style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 8, flexShrink: 0 }}>✕ Clear</button>
             </div>
-            <div style={{ width: 1, height: 24, background: '#F0F1F5', flexShrink: 0, margin: '0 4px' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, flexWrap: 'wrap' }}>
-              {[
-                { label: 'Approve Additions',   Icon: Plus,            color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
-                { label: 'Send Enrolee IDs',     Icon: Send,            color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE' },
-                { label: 'Download E-Cards',     Icon: CreditCard,      color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD' },
-                { label: 'Export List',          Icon: ArrowDownToLine, color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0' },
-                { label: 'Send Invite Links',    Icon: Link2,           color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
-                { label: 'Request Correction',   Icon: FileText,        color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
-              ].map(({ label, Icon, color, bg, border }) => (
-                <button key={label}
-                  onClick={() => toast(`${label} action applied to ${selected.length} member${selected.length > 1 ? 's' : ''}.`, 'info')}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', fontSize: 12, fontWeight: 600, borderRadius: 14, border: `1px solid ${border}`, background: bg, color, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  <Icon style={{ width: 13, height: 13 }} /> {label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setSelected([])} style={{ fontSize: 12, fontWeight: 500, color: '#9CA3B8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 8, flexShrink: 0 }}>✕ Clear</button>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Members / Beneficiaries table */}
         <div style={{ ...card }}>
@@ -3335,6 +3386,45 @@ export default function MembersPage() {
           principals={principals}
         />
       )}
+
+      {/* Print-only e-cards for the "Download E-Cards" bulk action */}
+      {bulkCardMembers.length > 0 && (
+        <div className="bulk-ecard-print-area" style={{ display: 'none' }}>
+          {bulkCardMembers.map((m) => (
+            <div key={m.id} style={{
+              width: 380, height: 240, borderRadius: 18, background: '#fff',
+              border: '5px solid #F56B22', position: 'relative', overflow: 'hidden',
+              padding: '16px 18px', boxSizing: 'border-box', marginBottom: 20,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/leadway-logo.jpeg" alt="Leadway Health" style={{ height: 78, objectFit: 'contain' }} />
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: 13, fontWeight: 900, color: '#131C4E', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15 }}>{m.firstName} {m.lastName}</p>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', marginTop: 2 }}>{m.type}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                <div>
+                  <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Member No.</p>
+                  <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', fontFamily: 'monospace' }}>{m.employeeId}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plan</p>
+                  <p style={{ fontSize: 12.5, fontWeight: 700, color: '#131C4E' }}>{m.plan}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          .bulk-ecard-print-area, .bulk-ecard-print-area * { visibility: visible; }
+          .bulk-ecard-print-area { display: flex !important; flex-direction: column; align-items: center; position: fixed !important; top: 0; left: 50%; transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }
