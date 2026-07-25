@@ -516,6 +516,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!firstName || !surname || !dob || !sexId || !relId) {
           setFormError('Please fill all required fields: First Name, Surname, Date of Birth, Gender and Relationship.'); return;
         }
+        if (!photoBase64) { setFormError('Passport photo is required.'); return; }
+        const depRelText = (relationshipOptions.find((r) => r.value === relId)?.text ?? '').toLowerCase();
+        if (depRelText.includes('spouse') && !mobile) {
+          setFormError('Mobile number is required for a spouse.'); return;
+        }
         // Use live profile from Prognosis API; fall back to local member data
         const profile = principalProfile;
         const resolvedCif        = profile?.cifNumber || selectedPrincipal.cifNumber || '';
@@ -565,6 +570,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !postalId) {
           setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State/Town.'); return;
         }
+        if (!photoBase64) { setFormError('Passport photo is required.'); return; }
         if (startDate && startDate < firstOfMonthIso()) {
           setFormError('Cover start date cannot be earlier than the 1st of this month.'); return;
         }
@@ -1325,7 +1331,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         : <Camera style={{ width: 22, height: 22, color: '#C4C9D9' }} />}
                     </div>
                     <div>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Passport Photo <span style={{ color: '#B0B7C9', fontWeight: 400 }}>(optional)</span></p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Passport Photo *</p>
                       <button type="button" onClick={() => photoRef.current?.click()}
                         style={{ height: 32, padding: '0 14px', fontSize: 12, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 8, background: '#FFF5EF', cursor: 'pointer' }}>
                         {photoBase64 ? 'Change' : 'Upload Photo'}
@@ -1728,6 +1734,22 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const [depRelId, setDepRelId]             = useState('');
   const [depMarital, setDepMarital]         = useState('');
   const [depAddress, setDepAddress]         = useState('');
+  const [depPhotoBase64, setDepPhotoB64]    = useState('');
+  const [depPhotoType, setDepPhotoType]     = useState('');
+  const depPhotoRef = useRef<HTMLInputElement>(null);
+  function handleDepPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [header, base64] = result.split(',');
+      const mimeMatch = header.match(/data:([^;]+);/);
+      setDepPhotoB64(base64 ?? '');
+      setDepPhotoType(mimeMatch?.[1] ?? file.type);
+    };
+    reader.readAsDataURL(file);
+  }
 
   // Link tab state
   const [depMaxCount, setDepMaxCount]       = useState(1);
@@ -1970,6 +1992,11 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           setDepError('Please fill all required fields: First Name, Last Name, Date of Birth, Gender, State and Relationship.');
           return;
         }
+        if (!depPhotoBase64) { setDepError('Passport photo is required.'); return; }
+        const depRelText = (relationshipOptions.find((r) => r.value === depRelId)?.text ?? '').toLowerCase();
+        if (depRelText.includes('spouse') && !depMobile) {
+          setDepError('Mobile number is required for a spouse.'); return;
+        }
         const res = await fetch('/api/hr/members/add-dependents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1990,6 +2017,8 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               postalTownId: depStateId,
               address: depAddress,
               relationshipId: depRelId,
+              enrolleePicture: depPhotoBase64,
+              enrolleePictureType: depPhotoType,
             }],
           }),
         });
@@ -2714,6 +2743,21 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                           <option key={r.value} value={r.value}>{r.text}</option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div onClick={() => depPhotoRef.current?.click()} style={{ width: 56, height: 56, borderRadius: '50%', border: '2px dashed #D1D5DB', background: '#F7F8FC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      {depPhotoBase64
+                        ? <img src={`data:${depPhotoType};base64,${depPhotoBase64}`} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <Camera style={{ width: 18, height: 18, color: '#C4C9D9' }} />}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Passport Photo *</p>
+                      <button type="button" onClick={() => depPhotoRef.current?.click()}
+                        style={{ height: 32, padding: '0 12px', fontSize: 12, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 8, background: '#FFF5EF', cursor: 'pointer' }}>
+                        {depPhotoBase64 ? 'Change' : 'Upload Photo'}
+                      </button>
+                      <input ref={depPhotoRef} type="file" accept="image/jpeg,image/png" style={{ display: 'none' }} onChange={handleDepPhoto} />
                     </div>
                   </div>
                   <div>

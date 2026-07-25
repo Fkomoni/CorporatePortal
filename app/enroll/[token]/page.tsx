@@ -146,6 +146,13 @@ export default function EnrollPage() {
       }
     }
 
+    if (!photoBase64) {
+      setErrorMsg('Passport photo is required.');
+      setStatus('error');
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
+    }
+
     const effectiveEmail = (isDependent || principalCifNumber) ? (depEmail || invitation.email) : invitation.email;
     if ((isDependent ? depEmail : true) && !EMAIL_RE.test(effectiveEmail)) {
       setErrorMsg('Please enter a valid email address (e.g. name@example.com).');
@@ -153,7 +160,19 @@ export default function EnrollPage() {
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
     }
-    if (!PHONE_RE.test(mobile)) {
+    // Mobile is compulsory for the principal and a spouse dependant — optional
+    // for other dependants (e.g. children).
+    const isPrincipalFlow = !isDependent && !principalCifNumber;
+    const relationshipText = relationships.find((r) => r.value === relationshipId)?.text?.toLowerCase() ?? '';
+    const isSpouse = relationshipText.includes('spouse');
+    const mobileRequired = isPrincipalFlow || isSpouse;
+    if (mobileRequired && !mobile) {
+      setErrorMsg('Mobile number is required.');
+      setStatus('error');
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
+    }
+    if (mobile && !PHONE_RE.test(mobile)) {
       setErrorMsg('Please enter a valid 11-digit mobile number starting with 0 (e.g. 08012345678).');
       setStatus('error');
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
@@ -446,8 +465,29 @@ export default function EnrollPage() {
                   </select>
                 </div>
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Mobile</p>
-                  <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="e.g. 08012345678" style={inputStyle} />
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+                    Mobile{(relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse') ? ' *' : ''}
+                  </p>
+                  <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="e.g. 08012345678"
+                    pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678"
+                    required={(relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse')}
+                    style={inputStyle} />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 20 }}>
+                <div style={{ width: 72, height: 72, borderRadius: 14, background: '#F7F8FC', border: '2px dashed #E5E7F1', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {photoBase64
+                    ? <img src={`data:${photoType};base64,${photoBase64}`} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Upload style={{ width: 20, height: 20, color: '#C4C9D9' }} />}
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Passport Photo *</p>
+                  <button type="button" onClick={() => fileRef.current?.click()}
+                    style={{ height: 34, padding: '0 14px', fontSize: 12, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 8, background: '#FFF5EF', cursor: 'pointer' }}>
+                    {photoBase64 ? 'Change Photo' : 'Upload Photo'}
+                  </button>
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png" style={{ display: 'none' }} onChange={handlePhoto} />
                 </div>
               </div>
             </div>
@@ -560,7 +600,7 @@ export default function EnrollPage() {
 
           {/* Photo */}
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>Passport Photo</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>Passport Photo *</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ width: 80, height: 80, borderRadius: 16, background: '#F7F8FC', border: '2px dashed #E5E7F1', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {photoBase64
@@ -572,7 +612,7 @@ export default function EnrollPage() {
                   style={{ height: 36, padding: '0 16px', fontSize: 13, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 10, background: '#FFF5EF', cursor: 'pointer' }}>
                   {photoBase64 ? 'Change Photo' : 'Upload Photo'}
                 </button>
-                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 6 }}>JPG or PNG, max 2 MB</p>
+                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 6 }}>JPG or PNG, max 2 MB — required</p>
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png" style={{ display: 'none' }} onChange={handlePhoto} />
               </div>
             </div>
@@ -610,7 +650,10 @@ export default function EnrollPage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Contact Details</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Field label={isDependent ? 'Mobile Number' : 'Mobile Number *'} value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" required={!isDependent}
+              <Field
+                label={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse') ? 'Mobile Number *' : 'Mobile Number'}
+                value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel"
+                required={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse')}
                 pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678" />
               <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel"
                 pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 07012345678" />
