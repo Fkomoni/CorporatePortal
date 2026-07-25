@@ -1624,68 +1624,6 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
   );
 }
 
-function SoloCorrectionModal({ member, onClose }: { member: Member; onClose: () => void }) {
-  const { toast } = useToast();
-  const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
-
-  async function submit() {
-    if (submitting) return;
-    if (!description.trim()) { setError('Please describe what needs correcting.'); return; }
-    setError('');
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/hr/members/request-correction', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          enrolleeId: member.employeeId, cifNumber: member.cifNumber, memberName: `${member.firstName} ${member.lastName}`, description: description.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) { setError(data.error ?? 'Failed to send correction request'); return; }
-      setSent(true);
-      toast('Correction request sent to Leadway Health support.', 'success');
-    } catch {
-      setError('Failed to send correction request. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,33,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 440, width: '100%', padding: '24px 24px 20px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
-        {sent ? (
-          <>
-            <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Correction request sent</p>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18 }}>Leadway Health support has been notified about {member.firstName} {member.lastName}&apos;s record. They&apos;ll follow up once it's updated.</p>
-            <button onClick={onClose} style={{ height: 40, padding: '0 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#059669,#10B981)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Done</button>
-          </>
-        ) : (
-          <>
-            <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Request a Correction</p>
-            <p style={{ fontSize: 12.5, color: '#9CA3B8', marginBottom: 18 }}>{member.firstName} {member.lastName} · {member.employeeId}</p>
-            {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, marginBottom: 14 }}>{error}</div>}
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>What needs correcting? *</p>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
-              placeholder="e.g. Date of birth is wrong — should be 14/03/1990, not 14/03/1998."
-              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: 18 }} />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={onClose} disabled={submitting} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={submit} disabled={submitting || !description.trim()}
-                style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: (submitting || !description.trim()) ? '#E5E7F1' : 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: (submitting || !description.trim()) ? '#9CA3B8' : '#fff', fontSize: 13.5, fontWeight: 700, cursor: (submitting || !description.trim()) ? 'not-allowed' : 'pointer' }}>
-                {submitting ? 'Sending…' : 'Send Request'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ── E-Card ──────────────────────────────────────────────────────────── */
 function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; memberEmail: string | null; onClose: () => void }) {
   const { toast } = useToast();
@@ -1854,7 +1792,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[] }) {
+function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -2009,6 +1947,31 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       })
       .catch(() => { /* silently ignore */ });
   }, [member.employeeId]);
+
+  function openEditSheet() {
+    setEditSexId(member.gender === 'Female' ? '2' : member.gender === 'Male' ? '1' : '');
+    const dobSource = bioDob || member.dateOfBirth || '';
+    const dobParsed = dobSource ? new Date(dobSource) : null;
+    setEditDob(dobParsed && !isNaN(dobParsed.getTime()) ? dobParsed.toISOString().slice(0, 10) : '');
+    setEditMobile(bioPhone || '');
+    setEditEmail(bioEmail || '');
+    setEditAddress('');
+    setEditPhotoB64('');
+    setEditPhotoType('');
+    setEditNin('');
+    setEditNeedsNin(false);
+    setEditError('');
+    setShowEdit(true);
+  }
+
+  // "Request Correction" (single member selected in the bulk toolbar) routes
+  // straight here instead of a separate email-request flow — HR can just
+  // make the fix themselves via the same Edit sheet.
+  useEffect(() => {
+    if (autoOpenEdit) openEditSheet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenEdit]);
+
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
   const status = statusColors[member.status] ?? { bg: '#F1F5F9', text: '#475569', dot: '#9CA3B8' };
@@ -2573,21 +2536,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           {/* Row 2 — Edit / E-Card / Terminate */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={() => {
-                setEditSexId(member.gender === 'Female' ? '2' : member.gender === 'Male' ? '1' : '');
-                const dobSource = bioDob || member.dateOfBirth || '';
-                const dobParsed = dobSource ? new Date(dobSource) : null;
-                setEditDob(dobParsed && !isNaN(dobParsed.getTime()) ? dobParsed.toISOString().slice(0, 10) : '');
-                setEditMobile(bioPhone || '');
-                setEditEmail(bioEmail || '');
-                setEditAddress('');
-                setEditPhotoB64('');
-                setEditPhotoType('');
-                setEditNin('');
-                setEditNeedsNin(false);
-                setEditError('');
-                setShowEdit(true);
-              }}
+              onClick={openEditSheet}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: '#EEF2FF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               Edit Member
             </button>
@@ -3135,14 +3084,13 @@ export default function MembersPage() {
   const [planFilter, setPlanFilter]       = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
   const [selected, setSelected]           = useState<string[]>([]);
-  const [activeMember, setActiveMember]   = useState<{ member: Member; index: number } | null>(null);
+  const [activeMember, setActiveMember]   = useState<{ member: Member; index: number; autoOpenEdit?: boolean } | null>(null);
   const [showAddModal, setShowAddModal]   = useState<false | 'individual' | 'bulk'>(false);
   const [viewBeneficiaries, setViewBeneficiaries] = useState(false);
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const [bulkBusy, setBulkBusy] = useState<string | null>(null); // label of the bulk action currently running
   const [bulkCardMembers, setBulkCardMembers] = useState<Member[]>([]);
   const [showSoloInvite, setShowSoloInvite] = useState<Member | null>(null);
-  const [showSoloCorrection, setShowSoloCorrection] = useState<Member | null>(null);
   const { toast } = useToast();
 
   // Policy schemes — used for dependant limit validation and plan dropdown in AddMemberModal
@@ -3404,10 +3352,10 @@ export default function MembersPage() {
               onClick: soloMember ? () => setShowSoloInvite(soloMember) : undefined,
             },
             {
-              label: 'Request Correction', Icon: FileText, color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE',
+              label: 'Edit Member', Icon: FileText, color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE',
               enabled: !!soloMember,
-              disabledReason: 'Select exactly one member to request a correction for.',
-              onClick: soloMember ? () => setShowSoloCorrection(soloMember) : undefined,
+              disabledReason: 'Select exactly one member to edit.',
+              onClick: soloMember ? () => setActiveMember({ member: soloMember, index: liveMembers.findIndex((m) => m.id === soloMember.id), autoOpenEdit: true }) : undefined,
             },
           ];
 
@@ -3559,6 +3507,7 @@ export default function MembersPage() {
           stats={memberStatsMap[activeMember.member.employeeId]}
           maxFamilySize={maxFamilySize}
           schemes={schemes}
+          autoOpenEdit={activeMember.autoOpenEdit}
         />
       )}
 
@@ -3618,15 +3567,8 @@ export default function MembersPage() {
           onClose={() => setShowSoloInvite(null)}
           onSent={() => {
             setShowSoloInvite(null);
-            toast('Need to flag something else on this member? Use Request Correction next.', 'info');
+            toast('Need to fix something else on this member? Use Edit Member next.', 'info');
           }}
-        />
-      )}
-
-      {showSoloCorrection && (
-        <SoloCorrectionModal
-          member={showSoloCorrection}
-          onClose={() => setShowSoloCorrection(null)}
         />
       )}
     </div>
