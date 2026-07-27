@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
-import { resolveZoneForRegion } from '@/lib/geo-zone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -175,8 +174,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     // Prognosis's real field for state (per GetRegion/GetStates), driven by
     // whichever region the member/dependant chose in the State dropdown.
     const resolvedRegionId = body.postalTownId ? (Number(body.postalTownId) || body.postalTownId) : 1;
-    const resolvedZone = await resolveZoneForRegion(BASE, svcToken, body.postalTownId as string | number | undefined).catch(() => null);
-    if (resolvedZone) console.log(`[enroll/token] Resolved zone "${resolvedZone}" for regionid=${resolvedRegionId}`);
+    const nin = String(body.nin ?? '').trim();
+    if (nin && !/^\d{11}$/.test(nin)) {
+      return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
+    }
 
     let apiUrl: string;
     let apiBody: unknown;
@@ -192,31 +193,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         Scheme: invitation.schemeName,
         regionid: resolvedRegionId,
         Parent_Cif: Number(resolvedParentCif),
+        MemberShipNo: '',
         FirstName: body.firstName,
         Surname: body.surname,
         othernames: body.otherNames ?? '',
         DateOfBirth: body.dateOfBirth,
         Sex_ID: body.sexId,
         MaritalStatus: body.maritalStatus ?? '',
+        titleid: 0,
         EmailAdress: body.email ?? invitation.email,
         Home_Phone: '',
         Work_Phone: '',
         Mobile: body.mobile ?? '',
         Mobile2: '',
-        Hospital: '',
+        Hospital: '0',
         Postal_Phone: '',
         Postal_Town_ID: body.postalTownId,
         Physical_Add1: body.address ?? '',
+        surburb_id: 0,
         Relationship_ID: body.relationshipId,
         BloodGroup: '',
         genotype: '',
         employeecode: invitation.employeeCode,
         DeviceID: '',
+        OfflineID: '',
+        idTypeID: '0',
         PreExistingCondition: body.preExistingCondition ?? 'None',
         cadre: '',
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
-        ...(resolvedZone ? { GeopoliticalZone: resolvedZone } : {}),
+        NIN: nin,
         // Self-service link submissions must wait for HR approval — Activated
         // is the same field UpdateBeneficiary/TerminateBeneficiary use to flag
         // a beneficiary's active state, so we ask Prognosis not to activate
@@ -225,6 +231,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         Activated: false,
         // Cover start date is fixed by HR at invite-creation time — the
         // member's own submitted body has no say over it.
+        startdate: invitation.startDate ?? '',
         ...(invitation.startDate ? { Fromdate: invitation.startDate, StartDate: invitation.startDate } : {}),
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddDependentsOnly`;
@@ -236,36 +243,45 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         Scheme: invitation.schemeName,
         regionid: resolvedRegionId,
         Parent_Cif: 0,
+        MemberShipNo: '',
         FirstName: body.firstName,
         Surname: body.surname,
         othernames: body.otherNames ?? '',
         DateOfBirth: body.dateOfBirth,
         Sex_ID: body.sexId,
         MaritalStatus: body.maritalStatus ?? '',
+        titleid: 0,
+        // Prognosis's confirmed AddPrincipalOnly shape uses "1" for the
+        // principal's own Relationship_ID (previously sent as "30", a
+        // dependent-type relationship — corrected per their updated docs).
+        Relationship_ID: '1',
         EmailAdress: invitation.email,
         Home_Phone: body.homePhone ?? '',
         Work_Phone: body.workPhone ?? '',
         Mobile: body.mobile,
         Mobile2: body.mobile2 ?? '',
-        Hospital: body.hospital ?? '',
+        Hospital: body.hospital ?? '0',
         Postal_Phone: '',
         Postal_Town_ID: body.postalTownId,
         Physical_Add1: body.address ?? '',
-        Relationship_ID: '30',
+        surburb_id: 0,
         BloodGroup: '',
         genotype: '',
         employeecode: invitation.employeeCode,
         DeviceID: '',
+        OfflineID: '',
+        idTypeID: '0',
         PreExistingCondition: body.preExistingCondition ?? 'None',
         cadre: body.cadre ?? '',
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
-        ...(resolvedZone ? { GeopoliticalZone: resolvedZone } : {}),
+        NIN: nin,
         // See note above — same reasoning applies to a principal self-enrolling
         // via their own link.
         Activated: false,
         // Cover start date is fixed by HR at invite-creation time — the
         // member's own submitted body has no say over it.
+        startdate: invitation.startDate ?? '',
         ...(invitation.startDate ? { Fromdate: invitation.startDate, StartDate: invitation.startDate } : {}),
       };
       apiUrl = `${BASE}/api/CorporatePortal/AddPrincipalOnly`;

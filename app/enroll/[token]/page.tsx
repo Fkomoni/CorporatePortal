@@ -70,6 +70,7 @@ export default function EnrollPage() {
   const [mobile2, setMobile2]             = useState('');
   const [postalTownId, setStateId]        = useState('');
   const [address, setAddress]             = useState('');
+  const [nin, setNin]                     = useState('');
   const [preExisting, setPreExisting]     = useState('');
   const [relationshipId, setRelationship] = useState('');
   const [depEmail, setDepEmail]           = useState('');
@@ -118,7 +119,7 @@ export default function EnrollPage() {
   function resetForm() {
     setFirstName(''); setSurname(''); setOtherNames(''); setDob('');
     setSexId(''); setMarital2(''); setMobile(''); setMobile2('');
-    setStateId(''); setAddress(''); setPreExisting(''); setRelationship('');
+    setStateId(''); setAddress(''); setPreExisting(''); setRelationship(''); setNin('');
     setDepEmail(''); setPhoto(''); setPhotoType('');
     setErrorMsg(''); setStatus('ready');
   }
@@ -184,6 +185,12 @@ export default function EnrollPage() {
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
     }
+    if (nin && !/^\d{11}$/.test(nin)) {
+      setErrorMsg('NIN must be exactly 11 digits.');
+      setStatus('error');
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -192,7 +199,7 @@ export default function EnrollPage() {
         employeeCode: invitation.employeeCode,
         firstName, surname, otherNames, dateOfBirth, sexId,
         maritalStatus, mobile, mobile2, postalTownId, address,
-        relationshipId,
+        relationshipId, nin,
         preExistingCondition: preExisting || 'None',
         enrolleePicture: photoBase64,
         enrolleePictureType: photoType,
@@ -224,7 +231,7 @@ export default function EnrollPage() {
             // More slots — reset form and stay on page so member can add next dependent
             setFirstName(''); setSurname(''); setOtherNames(''); setDob('');
             setSexId(''); setMarital2(''); setMobile(''); setMobile2('');
-            setStateId(''); setAddress(''); setPreExisting(''); setRelationship('');
+            setStateId(''); setAddress(''); setPreExisting(''); setRelationship(''); setNin('');
             setDepEmail(''); setPhoto(''); setPhotoType('');
             setErrorMsg('');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -718,6 +725,8 @@ export default function EnrollPage() {
                 <option value="">Select state</option>
                 {states.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
               </SelectField>
+              <Field label="NIN" value={nin} onChange={(v) => setNin(v.replace(/\D/g, '').slice(0, 11))} placeholder="e.g. 12345678901"
+                pattern="\d{11}" maxLength={11} title="Enter your 11-digit National Identification Number" />
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Home Address" value={address} onChange={setAddress} placeholder="e.g. 12 Adeola Odeku Street, Victoria Island" />
               </div>

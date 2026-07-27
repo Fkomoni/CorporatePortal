@@ -4,7 +4,6 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 import { prisma } from '@/lib/prisma';
-import { resolveZoneForRegion } from '@/lib/geo-zone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -70,6 +69,7 @@ export interface AddMemberPayload {
   enrolleePictureType?: string;
   startDate?: string;
   backdateAcknowledged?: boolean;
+  nin?: string;
 }
 
 export async function POST(req: Request) {
@@ -87,6 +87,9 @@ export async function POST(req: Request) {
   const { schemeId, schemeName, firstName, surname, dateOfBirth, sexId, email, mobile, postalTownId, employeeCode } = body;
   if (!schemeId || !firstName || !surname || !dateOfBirth || !sexId || !email || !mobile || !postalTownId || !employeeCode) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+  if (body.nin && !/^\d{11}$/.test(body.nin)) {
+    return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
 
   // Cover can only be backdated to the 1st of the current month at the
@@ -127,8 +130,6 @@ export async function POST(req: Request) {
     const resolvedRegionId = body.regionId
       ? (Number(body.regionId) || body.regionId)
       : body.stateId ? (Number(body.stateId) || body.stateId) : 1;
-    const resolvedZone = await resolveZoneForRegion(BASE, token, body.regionId ?? body.stateId).catch(() => null);
-    if (resolvedZone) console.log(`[hr/members/add] Resolved zone "${resolvedZone}" for regionid=${resolvedRegionId}`);
 
     const payload = {
       groupid: Number(groupId) || groupId,
@@ -136,30 +137,44 @@ export async function POST(req: Request) {
       Scheme: schemeName,
       regionid: resolvedRegionId,
       Parent_Cif: 0,
+      MemberShipNo: '',
       FirstName: firstName,
       Surname: surname,
       othernames: body.otherNames ?? '',
       DateOfBirth: dateOfBirth,
       Sex_ID: sexId,
       MaritalStatus: body.maritalStatus ?? '',
+      titleid: 0,
+      // Prognosis's confirmed AddPrincipalOnly/AddFamily shape uses "1" for
+      // the principal's own Relationship_ID (previously sent as "30", which
+      // is a dependent-type relationship — corrected per their updated docs).
+      Relationship_ID: '1',
       EmailAdress: email,
+      Home_Phone: '',
+      Work_Phone: '',
       Mobile: mobile,
       Mobile2: body.mobile2 ?? '',
+      Hospital: '0',
+      Postal_Phone: '',
       Postal_Town_ID: postalTownId,
       Physical_Add1: body.address ?? '',
-      Relationship_ID: '30',
+      surburb_id: 0,
       BloodGroup: body.bloodGroup ?? '',
       genotype: body.genotype ?? '',
       employeecode: employeeCode,
       cadre: body.cadre ?? '',
+      DeviceID: '',
+      OfflineID: '',
+      idTypeID: '0',
       PreExistingCondition: body.preExistingCondition ?? 'None',
       EnrolleePicture: body.enrolleePicture ?? '',
       EnrolleePictureType: body.enrolleePictureType ?? '',
       registrationsource: 'Web Portal',
-      ...(resolvedZone ? { GeopoliticalZone: resolvedZone } : {}),
+      NIN: body.nin ?? '',
       // HR is registering this member directly (not via a self-enrolment
       // link) — the plan should be active immediately, not queued pending.
       Activated: true,
+      startdate: body.startDate ?? '',
       ...(body.startDate ? { Fromdate: body.startDate, StartDate: body.startDate } : {}),
     };
 

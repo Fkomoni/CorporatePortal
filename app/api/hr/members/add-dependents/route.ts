@@ -4,7 +4,6 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { getPrincipalFamily, findDuplicateDependent, getSchemeMaxFamilySize } from '@/lib/dependent-checks';
 import { prisma } from '@/lib/prisma';
-import { resolveZoneForRegion } from '@/lib/geo-zone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -52,6 +51,7 @@ export interface Dependent {
   preExistingCondition?: string;
   enrolleePicture?: string;
   enrolleePictureType?: string;
+  nin?: string;
 }
 
 export interface AddDependentsPayload {
@@ -123,41 +123,48 @@ export async function POST(req: Request) {
       console.warn('[hr/members/add-dependents] Dependent dedup/family-size check failed, proceeding without it:', e);
     }
 
-    const depZones = await Promise.all(
-      dependents.map((dep) => resolveZoneForRegion(BASE, token, dep.regionId).catch(() => null)),
-    );
+    for (const dep of dependents) {
+      if (dep.nin && !/^\d{11}$/.test(dep.nin)) {
+        return NextResponse.json({ error: `NIN for ${dep.firstName} ${dep.surname} must be exactly 11 digits.` }, { status: 400 });
+      }
+    }
 
-    const addBeneficiary = dependents.map((dep, i) => ({
+    const addBeneficiary = dependents.map((dep) => ({
       groupid: Number(groupId) || groupId,
       schemeid: Number(schemeId) || schemeId,
       Scheme: schemeName,
       regionid: dep.regionId ? (Number(dep.regionId) || dep.regionId) : 1,
-      ...(depZones[i] ? { GeopoliticalZone: depZones[i] } : {}),
       Parent_Cif: parentCif,
+      MemberShipNo: '',
       FirstName: dep.firstName,
       Surname: dep.surname,
       othernames: dep.otherNames ?? '',
       DateOfBirth: dep.dateOfBirth,
       Sex_ID: dep.sexId,
       MaritalStatus: dep.maritalStatus ?? '',
+      titleid: 0,
+      Relationship_ID: dep.relationshipId,
       EmailAdress: dep.email ?? '',
       Home_Phone: '',
       Work_Phone: '',
       Mobile: dep.mobile ?? '',
       Mobile2: '',
-      Hospital: '',
+      Hospital: '0',
       Postal_Phone: '',
       Postal_Town_ID: dep.postalTownId,
       Physical_Add1: dep.address ?? '',
-      Relationship_ID: dep.relationshipId,
+      surburb_id: 0,
       BloodGroup: '',
       genotype: '',
       employeecode: employeeCode,
       DeviceID: '',
+      OfflineID: '',
+      idTypeID: '0',
       PreExistingCondition: dep.preExistingCondition ?? 'None',
       cadre: '',
       EnrolleePicture: dep.enrolleePicture ?? '',
       EnrolleePictureType: dep.enrolleePictureType ?? '',
+      NIN: dep.nin ?? '',
       // HR is adding this dependant directly (not via a self-enrolment
       // link) — the plan should be active immediately, not queued pending.
       Activated: true,

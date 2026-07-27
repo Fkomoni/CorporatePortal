@@ -291,6 +291,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [townId, setTownId]         = useState('');
   const [address, setAddress]       = useState('');
   const [preExisting, setPreExist]  = useState('');
+  const [nin, setNin]               = useState('');
   const [startDate, setStartDate]   = useState('');
   const [photoBase64, setPhotoB64]  = useState('');
   const [photoType, setPhotoType]   = useState('');
@@ -593,7 +594,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               // never-populated fields left over from an LGA picker that was
               // never wired up, so using them here silently dropped the state.
               regionId: stateId, postalTownId: stateId, relationshipId: relId,
-              address,
+              address, nin: nin || undefined,
               preExistingCondition: preExisting || 'None',
               enrolleePicture: photoBase64, enrolleePictureType: photoType,
             }],
@@ -633,6 +634,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             postalTownId: postalId, stateId, regionId: stateId, address,
             employeeCode: empCode, preExistingCondition: preExisting || 'None',
             enrolleePicture: photoBase64, enrolleePictureType: photoType,
+            nin: nin || undefined,
             startDate: startDate || undefined,
             backdateAcknowledged: agreed,
           }),
@@ -1423,6 +1425,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       { label: 'Mobile *',        value: mobile,     set: setMobile,     ph: '08012345678',   type: 'tel' },
                       { label: 'Alt. Mobile',     value: mobile2,    set: setMobile2,    ph: '07012345678',   type: 'tel' },
                       { label: 'Date of Birth *', value: dob,        set: setDob,        ph: '',              type: 'date' },
+                      { label: 'NIN',             value: nin,        set: (v: string) => setNin(v.replace(/\D/g, '').slice(0, 11)), ph: 'e.g. 12345678901' },
                     ].map((f) => (
                       <div key={f.label}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>

@@ -43,7 +43,7 @@ export interface RelationshipOption { text: string; value: string; }
 export interface GenderOption       { text: string; value: string; }
 export interface MaritalOption      { text: string; value: string; }
 export interface StateOption        { text: string; value: string; }
-export interface RegionOption       { text: string; value: string; }
+export interface RegionOption       { text: string; value: string; zone?: string; }
 export interface TownOption         { text: string; value: string; regionId: string; }
 
 function toArr(raw: unknown): Record<string, unknown>[] {
@@ -139,11 +139,15 @@ export async function GET(req: Request) {
       return { text: String(r.Text ?? r.text ?? '').trim(), value: String(r.Value ?? r.value ?? '') };
     }).filter((s) => s.text && s.value);
 
-    // Regions → [{RegionID, RegionName}] (try several key patterns)
+    // Regions → GetRegion now returns StateId/State (renamed from
+    // RegionID/RegionName) plus ZoneId/Zone — Prognosis derives the
+    // geopolitical zone from the state automatically, so we just surface it
+    // for display; older key names kept as fallback during the transition.
     const regionRows = toArr((regionsRaw as Record<string,unknown>)?.result ?? (regionsRaw as Record<string,unknown>)?.data ?? regionsRaw ?? []);
     const regions: RegionOption[] = regionRows.map((r) => ({
-      value: String(r.RegionID ?? r.regionid ?? r.Region_ID ?? r.Id ?? r.id ?? ''),
-      text:  String(r.RegionName ?? r.regionname ?? r.Region_Name ?? r.Name ?? r.name ?? ''),
+      value: String(r.StateId ?? r.StateID ?? r.RegionID ?? r.regionid ?? r.Region_ID ?? r.Id ?? r.id ?? ''),
+      text:  String(r.State ?? r.RegionName ?? r.regionname ?? r.Region_Name ?? r.Name ?? r.name ?? ''),
+      zone:  String(r.Zone ?? r.ZoneName ?? r.zone ?? '') || undefined,
     })).filter((r) => r.value && r.text);
 
     const payload = { relationships, genders, maritalStatuses, states, regions };
