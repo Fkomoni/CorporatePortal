@@ -297,6 +297,13 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [photoType, setPhotoType]   = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
 
+  // Add dependants at the same time as the principal — submitted together
+  // via AddFamily in one atomic call instead of principal-then-dependents.
+  interface FamilyDepDraft { firstName: string; surname: string; dob: string; sexId: string; relationshipId: string; mobile: string; email: string; }
+  const blankFamilyDep = (): FamilyDepDraft => ({ firstName: '', surname: '', dob: '', sexId: '', relationshipId: '', mobile: '', email: '' });
+  const [addDepsNow, setAddDepsNow] = useState(false);
+  const [familyDeps, setFamilyDeps] = useState<FamilyDepDraft[]>([]);
+
   // ── Bulk helpers ─────────────────────────────────────────────────────────
   function parseBulkFile(file: File) {
     const reader = new FileReader();
@@ -624,6 +631,48 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (startDate && startDate < firstOfMonthIso()) {
           setFormError('Cover start date cannot be earlier than the 1st of this month.'); return;
         }
+
+        const activeDeps = addDepsNow ? familyDeps.filter((d) => d.firstName || d.surname || d.dob) : [];
+        if (activeDeps.length > 0) {
+          for (const d of activeDeps) {
+            if (!d.firstName || !d.surname || !d.dob || !d.sexId || !d.relationshipId) {
+              setFormError('Every dependant needs First Name, Surname, Date of Birth, Gender and Relationship.'); return;
+            }
+          }
+          const res = await fetch('/api/hr/members/add-family', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '',
+              employeeCode: empCode,
+              principal: {
+                firstName, surname, otherNames, dateOfBirth: dob, sexId, maritalStatus, email, mobile, mobile2,
+                postalTownId: postalId, regionId: stateId, address, preExistingCondition: preExisting || 'None',
+                enrolleePicture: photoBase64, enrolleePictureType: photoType, nin: nin || undefined,
+              },
+              dependents: activeDeps.map((d) => ({
+                firstName: d.firstName, surname: d.surname, dateOfBirth: d.dob, sexId: d.sexId,
+                relationshipId: d.relationshipId, mobile: d.mobile || undefined, email: d.email || undefined,
+                postalTownId: postalId, regionId: stateId,
+              })),
+              startDate: startDate || undefined,
+              backdateAcknowledged: agreed,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add family'); return; }
+          const principalRow = data.enrolled?.find((m: { isPrincipal: boolean }) => m.isPrincipal);
+          const memberId = principalRow?.enrolleeId || principalRow?.membershipNo || '';
+          if (email && memberId) {
+            fetch('/api/hr/members/send-enrolee-id', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedScheme?.schemeName }),
+            }).catch(() => {});
+          }
+          setEnrollResult({ name: `${firstName} ${surname}`, memberId, cifNumber: principalRow?.cifNumber ?? null, isNewWithDeps: false, schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', empCode });
+          return;
+        }
+
         const res = await fetch('/api/hr/members/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1492,6 +1541,57 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'vertical' }}
                       onFocus={focusOn} onBlur={focusOff} />
                   </div>
+
+                  {memberType !== 'existing' && (
+                    <div style={{ borderTop: '1px solid #F0F1F5', paddingTop: 16 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: addDepsNow ? 14 : 0 }}>
+                        <input type="checkbox" checked={addDepsNow}
+                          onChange={(e) => { setAddDepsNow(e.target.checked); if (e.target.checked && familyDeps.length === 0) setFamilyDeps([blankFamilyDep()]); }} />
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: '#131C4E' }}>Add dependants now too</span>
+                        <span style={{ fontSize: 11, color: '#9CA3B8' }}>— registers everyone together in one submission</span>
+                      </label>
+
+                      {addDepsNow && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {familyDeps.map((dep, i) => (
+                            <div key={i} style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', padding: 14 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Dependant {i + 1}</span>
+                                <button type="button" onClick={() => setFamilyDeps((prev) => prev.filter((_, j) => j !== i))}
+                                  style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer' }}>Remove</button>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                <input value={dep.firstName} placeholder="First Name *" style={inputStyle}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, firstName: e.target.value } : d))} />
+                                <input value={dep.surname} placeholder="Surname *" style={inputStyle}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, surname: e.target.value } : d))} />
+                                <input type="date" value={dep.dob} placeholder="Date of Birth *" style={inputStyle}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, dob: e.target.value } : d))} />
+                                <select value={dep.sexId} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, sexId: e.target.value } : d))}>
+                                  <option value="">Gender *</option>
+                                  {genders.map((g) => <option key={g.value} value={g.value}>{g.text}</option>)}
+                                </select>
+                                <select value={dep.relationshipId} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, relationshipId: e.target.value } : d))}>
+                                  <option value="">Relationship *</option>
+                                  {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                                </select>
+                                <input value={dep.mobile} placeholder="Mobile (optional)" type="tel" style={inputStyle}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, mobile: e.target.value } : d))} />
+                                <input value={dep.email} placeholder="Email (optional)" type="email" style={inputStyle}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, email: e.target.value } : d))} />
+                              </div>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => setFamilyDeps((prev) => [...prev, blankFamilyDep()])}
+                            style={{ alignSelf: 'flex-start', height: 34, padding: '0 14px', fontSize: 12, fontWeight: 600, color: '#3A4382', border: '1.5px solid #C7D2FE', borderRadius: 10, background: '#EEF2FF', cursor: 'pointer' }}>
+                            + Add Another Dependant
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 </div>
               )}
