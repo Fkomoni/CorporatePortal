@@ -9,9 +9,11 @@
 // is presumably a shared DTO on Prognosis's side rather than a doc typo:
 //   POST /api/CorporatePortal/RejectEnrollees
 //   POST /api/CorporatePortal/ApproveEnrollees
-//     { "CifNumber": 0, "rejectionreason": "string", "terminationdate": "<ISO datetime>", "useremail": "string" }
-// Each operates on a single member's own CIF, not a family/parentCif, so every
-// beneficiary, principal included, must be decided on individually.
+//     { "CifNumber": 0, "rejectionreason": "string", "terminationdate": "yyyy-mm-dd", "useremail": "string" }
+// terminationdate is a bare date (e.g. "2026-07-27"), not a full ISO
+// datetime — confirmed from a working example. Each call operates on a
+// single member's own CIF, not a family/parentCif, so every beneficiary,
+// principal included, must be decided on individually.
 import { getServiceToken } from '@/lib/corporate-welcome';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -32,12 +34,12 @@ export interface DecisionOptions {
   effectiveDate?: string; // dd/mm/yyyy — defaults to today
 }
 
-// dd/mm/yyyy -> ISO datetime string, matching Swagger's example
-// ("2026-07-13T13:48:03.914Z").
-function toIsoDateTime(ddMmYyyy: string): string {
+// dd/mm/yyyy -> plain yyyy-mm-dd, matching the confirmed working example
+// ("terminationdate": "2026-07-27") — a bare date, not a full ISO datetime.
+function toIsoDate(ddMmYyyy: string): string {
   const m = ddMmYyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   const d = m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : new Date();
-  return d.toISOString();
+  return d.toISOString().slice(0, 10);
 }
 
 function todayDdMmYyyy(): string {
@@ -66,7 +68,7 @@ async function callDecide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts
   const requestBody = JSON.stringify({
     CifNumber: Number(opts.cifNumber) || opts.cifNumber,
     rejectionreason: opts.reason,
-    terminationdate: toIsoDateTime(opts.effectiveDate || todayDdMmYyyy()),
+    terminationdate: toIsoDate(opts.effectiveDate || todayDdMmYyyy()),
     useremail: userEmail,
   });
   const url = `${BASE}/api/CorporatePortal/${endpoint}`;
