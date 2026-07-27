@@ -155,14 +155,23 @@ export async function GET(req: Request) {
 
   try {
     const token = await getServiceToken();
-    const res = await fetch(`${BASE}/api/CorporatePortal/ViewPortalRegisteredMembersPerGroup_pendingActivation?groupId=${encodeURIComponent(groupId)}`, {
+    // ViewMembersByStatus with statusIds=2,8,11,12 — confirmed to cover the
+    // same "pending" buckets as the old ViewPortalRegisteredMembersPerGroup_
+    // pendingActivation endpoint, plus it now also returns StateId/State/
+    // ZoneId/Zone per row. Row shape is otherwise expected to match the
+    // legacy endpoint (same underlying member view) — logging the raw
+    // response below so the field-name guesses here can be corrected if not.
+    const res = await fetch(`${BASE}/api/CorporatePortal/ViewMembersByStatus?groupId=${encodeURIComponent(groupId)}&statusIds=2,8,11,12`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
     if (!res.ok) {
       const text = await res.text();
       return NextResponse.json({ error: `Prognosis error ${res.status}: ${text.slice(0, 200)}` }, { status: 502 });
     }
-    const raw = await res.json().catch(() => null);
+    const rawText = await res.text();
+    console.log(`[hr/members/pending] ViewMembersByStatus groupId=${groupId} → HTTP ${res.status}: ${rawText.slice(0, 2000)}`);
+    let raw: unknown;
+    try { raw = JSON.parse(rawText); } catch { raw = null; }
     const allRows = toArr(raw);
 
     // Dedupe by Cif_Number — ViewMembersPerGroup can return the same member more
