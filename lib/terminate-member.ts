@@ -1,5 +1,9 @@
 // Shared call to Prognosis's TerminateMember — used by the immediate HR
-// action and the scheduled-termination cron job.
+// action and the scheduled-termination cron job (kept only for rows already
+// queued before TerminateMember was confirmed to accept a future
+// terminationdate directly; new terminations no longer need scheduling).
+// Confirmed shape (same DTO family as Approve/RejectEnrollees):
+//   { CifNumber, rejectionreason, terminationdate: "yyyy-mm-dd", useremail }
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
@@ -36,11 +40,22 @@ export interface TerminateResult {
   error?: string;
 }
 
-export async function callTerminateMember(cifNumber: string): Promise<TerminateResult> {
+export interface TerminateOptions {
+  reason: string;
+  terminationDate: string; // yyyy-mm-dd
+  userEmail: string;
+}
+
+export async function callTerminateMember(cifNumber: string, opts: TerminateOptions): Promise<TerminateResult> {
   try {
     let token = await getServiceToken();
 
-    const requestBody = JSON.stringify({ CifNumber: Number(cifNumber) || cifNumber });
+    const requestBody = JSON.stringify({
+      CifNumber: Number(cifNumber) || cifNumber,
+      rejectionreason: opts.reason,
+      terminationdate: opts.terminationDate,
+      useremail: opts.userEmail,
+    });
     const url = `${BASE}/api/CorporatePortal/TerminateMember`;
     console.log(`[TerminateMember] → POST ${url} body=${requestBody}`);
 

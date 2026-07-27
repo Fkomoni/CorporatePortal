@@ -26,7 +26,11 @@ export async function GET(req: Request) {
   const results: { id: string; cifNumber: string; success: boolean; error?: string }[] = [];
 
   for (const item of due) {
-    const result = await callTerminateMember(item.cifNumber);
+    const result = await callTerminateMember(item.cifNumber, {
+      reason: 'Scheduled termination',
+      terminationDate: item.effectiveDate.toISOString().slice(0, 10),
+      userEmail: item.requestedBy,
+    });
     await prisma.scheduledTermination.update({
       where: { id: item.id },
       data: {

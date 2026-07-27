@@ -1,11 +1,12 @@
-// Terminates a member's cover. Prognosis's TerminateMember takes no date
-// parameter, so:
-//   - effective date = today  → call TerminateMember immediately
-//   - effective date = future → hold it in ScheduledTermination; the
-//     /api/cron/process-terminations job sends it to Prognosis on that date
+// Terminates a member's cover. TerminateMember is now confirmed to accept
+// terminationdate directly (today or future-dated) alongside a reason and
+// the acting user's email — so every termination is sent to Prognosis
+// immediately and Prognosis handles the actual effective timing itself.
+// (ScheduledTermination/the process-terminations cron predate this and are
+// kept only to finish any rows already queued from before this endpoint
+// accepted a date — new requests no longer need local scheduling.)
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { isAdminRole } from '@/lib/roles';
 import { callTerminateMember } from '@/lib/terminate-member';
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { cifNumber?: string | number; effectiveDate?: string; memberName?: string };
+  let body: { cifNumber?: string | number; effectiveDate?: string; memberName?: string; reason?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -30,9 +31,11 @@ export async function POST(req: Request) {
   const cifNumber = String(body.cifNumber ?? '').trim();
   const effectiveDate = String(body.effectiveDate ?? '').trim();
   const memberName = body.memberName;
+  const reason = String(body.reason ?? '').trim();
 
   if (!cifNumber) return NextResponse.json({ error: 'CIF number is required.' }, { status: 400 });
   if (!effectiveDate) return NextResponse.json({ error: 'Effective date is required.' }, { status: 400 });
+  if (!reason) return NextResponse.json({ error: 'A reason for termination is required.' }, { status: 400 });
 
   // Only today or a future date is allowed — no backdated terminations
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -41,45 +44,22 @@ export async function POST(req: Request) {
   if (chosen < today) return NextResponse.json({ error: 'Effective date must be today or a future date.' }, { status: 400 });
 
   const groupId = session.user.companyId ?? null;
+  const userEmail = session.user.email ?? '';
 
-  console.log(`[members/terminate] ${logTag(session.user.email)} cifNumber=${cifNumber} effectiveDate=${effectiveDate} memberName=${memberName ?? ''}`);
+  console.log(`[members/terminate] ${logTag(userEmail)} cifNumber=${cifNumber} effectiveDate=${effectiveDate} memberName=${memberName ?? ''}`);
 
-  // Future date → schedule it, don't call Prognosis yet
-  if (chosen > today) {
-    try {
-      const scheduled = await prisma.scheduledTermination.create({
-        data: {
-          cifNumber, memberName, groupId,
-          effectiveDate: chosen,
-          requestedBy: session.user.email ?? '',
-        },
-      });
-      console.log(`[members/terminate] ${logTag(session.user.email)} scheduled cifNumber=${cifNumber} for ${effectiveDate} (scheduledId=${scheduled.id})`);
-      void logAudit({ session, action: 'SCHEDULE_TERMINATION', resource: 'members', request: req,
-        details: { cifNumber, effectiveDate, memberName } });
-      return NextResponse.json({
-        success: true, scheduled: true, scheduledId: scheduled.id,
-        message: `Termination scheduled for ${effectiveDate}.`,
-      });
-    } catch (err) {
-      console.error('[members/terminate] schedule error:', err);
-      return NextResponse.json({ error: 'Failed to schedule termination.' }, { status: 500 });
-    }
-  }
-
-  // Today → terminate immediately
-  const result = await callTerminateMember(cifNumber);
+  const result = await callTerminateMember(cifNumber, { reason, terminationDate: effectiveDate, userEmail });
 
   if (!result.success) {
-    console.log(`[members/terminate] ${logTag(session.user.email)} FAILED cifNumber=${cifNumber} error=${result.error}`);
+    console.log(`[members/terminate] ${logTag(userEmail)} FAILED cifNumber=${cifNumber} error=${result.error}`);
     void logAudit({ session, action: 'TERMINATE_MEMBER_FAILED', resource: 'members', request: req,
-      details: { cifNumber, effectiveDate, memberName, error: result.error } });
+      details: { cifNumber, effectiveDate, memberName, reason, error: result.error } });
     return NextResponse.json({ error: result.error ?? 'Termination failed' }, { status: 422 });
   }
 
-  console.log(`[members/terminate] ${logTag(session.user.email)} SUCCESS cifNumber=${cifNumber}`);
+  console.log(`[members/terminate] ${logTag(userEmail)} SUCCESS cifNumber=${cifNumber}`);
   void logAudit({ session, action: 'TERMINATE_MEMBER', resource: 'members', request: req,
-    details: { cifNumber, effectiveDate, memberName } });
+    details: { cifNumber, effectiveDate, memberName, reason } });
 
   if (groupId) cacheBust(`members-${groupId}`);
 

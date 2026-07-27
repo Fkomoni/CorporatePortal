@@ -2181,6 +2181,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       }
       return;
     }
+    if (!termReason.trim()) { setTermError('Please enter a reason for termination.'); return; }
     setTermError('');
     setTerminating(true);
     try {
@@ -2190,6 +2191,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
         body: JSON.stringify({
           cifNumber: member.cifNumber,
           effectiveDate: termDate,
+          reason: termReason.trim(),
           memberName: `${member.firstName} ${member.lastName}`,
         }),
       });
@@ -2690,7 +2692,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
                   {termDate === todayIso
                     ? "This ends the member's cover immediately and cannot be undone."
-                    : "This schedules the member's cover to end on the chosen date. You can cancel it any time before then."}
+                    : "This sets the member's cover to end on the chosen future date and cannot be undone."}
                 </p>
               </div>
             </div>
@@ -2709,7 +2711,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </div>
             )}
 
-            {member.cifNumber && member.type === 'Dependant' && (
+            {member.cifNumber && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Reason for Termination</label>
                 <textarea value={termReason} onChange={(e) => setTermReason(e.target.value)} rows={2}
