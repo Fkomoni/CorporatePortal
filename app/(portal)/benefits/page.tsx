@@ -66,16 +66,6 @@ export default function BenefitsPage() {
   const [categories, setCategories] = useState<BenefitCategory[]>([]);
   const [bensLoading, setBensLoading] = useState(false);
   const [bensError, setBensError]     = useState('');
-  const [benefitFilter, setBenefitFilter] = useState('');
-
-  // Confirmed valid `benefit` query values for GetSchemeBenefits
-  const BENEFIT_TYPES = [
-    { value: 'Dental', label: 'Dental' },
-    { value: 'LensFrames', label: 'Lens & Frames' },
-    { value: 'ChronicMedicines', label: 'Chronic Medicines' },
-    { value: 'Surgery', label: 'Surgery' },
-    { value: 'MajorDisease', label: 'Major Disease' },
-  ];
 
   // Providers
   const [providers, setProviders]         = useState<Provider[]>([]);
@@ -97,11 +87,10 @@ export default function BenefitsPage() {
       .finally(() => setSchemesLoading(false));
   }, []);
 
-  const loadBenefits = useCallback((schemeId: string, benefit = '') => {
+  const loadBenefits = useCallback((schemeId: string) => {
     if (!schemeId) return;
     setBensLoading(true); setBensError('');
-    const qs = benefit ? `&benefit=${encodeURIComponent(benefit)}` : '';
-    fetch(`/api/hr/benefits/scheme-benefits?schemeId=${encodeURIComponent(schemeId)}${qs}`)
+    fetch(`/api/hr/benefits/scheme-benefits?schemeId=${encodeURIComponent(schemeId)}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.error) { setBensError(d.error); return; }
@@ -130,16 +119,10 @@ export default function BenefitsPage() {
 
   useEffect(() => {
     if (activeSchemeId) {
-      loadBenefits(activeSchemeId, benefitFilter);
+      loadBenefits(activeSchemeId);
       loadProviders(activeSchemeId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSchemeId, loadBenefits, loadProviders]);
-
-  useEffect(() => {
-    if (activeSchemeId) loadBenefits(activeSchemeId, benefitFilter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [benefitFilter]);
 
   // Provider filters
   const [search, setSearch]       = useState('');
@@ -220,15 +203,6 @@ export default function BenefitsPage() {
         {/* ── PLANS TAB ── */}
         {activeTab === 'plans' && (
           <>
-            {!schemesLoading && schemes.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <select value={benefitFilter} onChange={(e) => setBenefitFilter(e.target.value)}
-                  style={{ height: 40, padding: '0 32px 0 14px', fontSize: 13, fontWeight: 600, border: '1px solid #E5E7F1', borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
-                  <option value="">All Benefit Types</option>
-                  {BENEFIT_TYPES.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-                </select>
-              </div>
-            )}
             {bensLoading && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
                 {[1,2,3,4].map((i) => (
