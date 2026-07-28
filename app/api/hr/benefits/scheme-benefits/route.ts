@@ -64,6 +64,43 @@ interface BenefitRow {
   IsPrincipal?: boolean;
   WaitingPeriod?: number;
   IsExcluded?: boolean;
+  DeptCode?: string | null;
+}
+
+// Confirmed valid `benefit` query values for GetSchemeBenefits. Prognosis only
+// populates the `Benefit` name on a row when this param is passed — an
+// unfiltered call returns every row with Benefit:"" and is useless for
+// building categories, so we fetch all 5 confirmed types and merge them.
+// ChronicMedicines and Surgery both come back tagged Benefit:"Major Disease
+// Benefit" (distinguished only by DeptCode CHMEDS/SURG), while MajorDisease
+// returns the full superset including those same rows — so we claim rows for
+// Chronic Medications / Surgery first (by RowId) and only let the remaining,
+// unclaimed rows fall through as "Major Disease Benefit".
+const BENEFIT_QUERIES: { param: string; label: string }[] = [
+  { param: 'Dental', label: 'Dentistry' },
+  { param: 'LensFrames', label: 'Lens and Frames' },
+  { param: 'ChronicMedicines', label: 'Chronic Medications' },
+  { param: 'Surgery', label: 'Surgery' },
+  { param: 'MajorDisease', label: 'Major Disease Benefit' },
+];
+
+async function fetchBenefit(token: string, schemeId: string, benefitParam: string, memberType?: string | null): Promise<BenefitRow[]> {
+  const qs = new URLSearchParams({ schemeId, benefit: benefitParam });
+  if (memberType) qs.set('memberType', memberType);
+  const res = await fetch(
+    `${BASE}/api/EnrolleeProfile/GetSchemeBenefits?${qs.toString()}`,
+    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+  );
+  const text = await res.text();
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch {
+    throw new Error(`Non-JSON response for benefit=${benefitParam} (${res.status}): ${text.slice(0, 200)}`);
+  }
+  const r = raw as Record<string, unknown>;
+  return Array.isArray(r?.result) ? r.result as BenefitRow[]
+    : Array.isArray(r?.Result) ? r.Result as BenefitRow[]
+    : Array.isArray(raw) ? raw as BenefitRow[]
+    : [];
 }
 
 export async function GET(req: Request) {
@@ -75,41 +112,33 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const schemeId = searchParams.get('schemeId');
-  const benefit = searchParams.get('benefit'); // optional single-benefit filter
   const memberType = searchParams.get('memberType'); // optional
   if (!schemeId) return NextResponse.json({ error: 'schemeId is required' }, { status: 400 });
 
   try {
     const token = await getServiceToken();
-    const qs = new URLSearchParams({ schemeId });
-    if (benefit) qs.set('benefit', benefit);
-    if (memberType) qs.set('memberType', memberType);
 
-    const res = await fetch(
-      `${BASE}/api/EnrolleeProfile/GetSchemeBenefits?${qs.toString()}`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    const results = await Promise.all(
+      BENEFIT_QUERIES.map(({ param }) => fetchBenefit(token, schemeId, param, memberType)),
     );
-    const text = await res.text();
-    let raw: unknown;
-    try { raw = JSON.parse(text); } catch {
-      throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 200)}`);
-    }
 
-    const r = raw as Record<string, unknown>;
-    const rows: BenefitRow[] = Array.isArray(r?.result) ? r.result as BenefitRow[]
-      : Array.isArray(r?.Result) ? r.Result as BenefitRow[]
-      : Array.isArray(raw) ? raw as BenefitRow[]
-      : [];
-
-    // One row per (Benefit, MemberType) — consolidate to one card per Benefit,
-    // preferring the principal's own row as the representative limit/waiting
-    // period since that's what HR cares about at a glance.
+    const claimedRowIds = new Set<number>();
     const byBenefit = new Map<string, BenefitRow[]>();
-    for (const row of rows) {
-      const name = String(row.Benefit ?? '').trim();
-      if (!name) continue;
-      if (!byBenefit.has(name)) byBenefit.set(name, []);
-      byBenefit.get(name)!.push(row);
+    let totalRows = 0;
+
+    for (let i = 0; i < BENEFIT_QUERIES.length; i++) {
+      const { label } = BENEFIT_QUERIES[i];
+      const rows = results[i];
+      totalRows += rows.length;
+      const group = byBenefit.get(label) ?? [];
+      for (const row of rows) {
+        if (row.RowId != null) {
+          if (claimedRowIds.has(row.RowId)) continue;
+          claimedRowIds.add(row.RowId);
+        }
+        group.push(row);
+      }
+      if (group.length > 0) byBenefit.set(label, group);
     }
 
     const categories: BenefitCategory[] = [...byBenefit.entries()].map(([name, group]) => {
@@ -125,7 +154,7 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({ categories, rawSample: rows.slice(0, 3), totalRows: rows.length });
+    return NextResponse.json({ categories, totalRows });
   } catch (err) {
     console.error('[hr/benefits/scheme-benefits] Error:', err);
     return NextResponse.json(
