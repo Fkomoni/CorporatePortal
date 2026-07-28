@@ -39,9 +39,13 @@ export interface BenefitCategory {
   excluded: string[];
 }
 
+// Limit is often a bare number (e.g. 50000) but can also be a word like
+// "Unlimited" — only currency-format it when it's actually numeric.
 function formatLimit(raw: unknown): string {
+  if (raw == null || raw === '') return '';
   const n = Number(raw);
-  if (!raw || isNaN(n) || n === 0) return '';
+  if (isNaN(n)) return String(raw).trim();
+  if (n === 0) return '';
   return `₦${n.toLocaleString('en-NG')}`;
 }
 
@@ -49,6 +53,17 @@ function formatWaitingPeriod(raw: unknown): string | null {
   const n = Number(raw);
   if (!raw || isNaN(n) || n === 0) return null;
   return `${n} day${n === 1 ? '' : 's'}`;
+}
+
+interface BenefitRow {
+  RowId?: number;
+  Benefit?: string;
+  Limit?: unknown;
+  MemberTypeId?: number;
+  MemberType?: string;
+  IsPrincipal?: boolean;
+  WaitingPeriod?: number;
+  IsExcluded?: boolean;
 }
 
 export async function GET(req: Request) {
@@ -60,12 +75,18 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const schemeId = searchParams.get('schemeId');
+  const benefit = searchParams.get('benefit'); // optional single-benefit filter
+  const memberType = searchParams.get('memberType'); // optional
   if (!schemeId) return NextResponse.json({ error: 'schemeId is required' }, { status: 400 });
 
   try {
     const token = await getServiceToken();
+    const qs = new URLSearchParams({ schemeId });
+    if (benefit) qs.set('benefit', benefit);
+    if (memberType) qs.set('memberType', memberType);
+
     const res = await fetch(
-      `${BASE}/api/CorporatePortal/GetSchemeBenefits?schemeId=${schemeId}&languageId=1`,
+      `${BASE}/api/EnrolleeProfile/GetSchemeBenefits?${qs.toString()}`,
       { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
     );
     const text = await res.text();
@@ -74,94 +95,37 @@ export async function GET(req: Request) {
       throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 200)}`);
     }
 
-    // Unwrap {status, data} envelope or bare array
-    const arr: unknown[] = Array.isArray(raw) ? raw
-      : Array.isArray((raw as Record<string,unknown>)?.data) ? (raw as Record<string,unknown>).data as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.Data) ? (raw as Record<string,unknown>).Data as unknown[]
-      : Array.isArray((raw as Record<string,unknown>)?.result) ? (raw as Record<string,unknown>).result as unknown[]
+    const r = raw as Record<string, unknown>;
+    const rows: BenefitRow[] = Array.isArray(r?.result) ? r.result as BenefitRow[]
+      : Array.isArray(r?.Result) ? r.Result as BenefitRow[]
+      : Array.isArray(raw) ? raw as BenefitRow[]
       : [];
 
-    const categoryMap = new Map<string, BenefitCategory>();
-    // Track seen (category, benefitName) pairs to deduplicate across member-type/age-band rows
-    const seenItems = new Set<string>();
-
-    // Synthetic categories extracted from specific DEPARTMENT names within Inpatient/Outpatient.
-    // Maps a display name → keywords that match the DEPARTMENT field.
-    const SYNTHETIC: Record<string, { keywords: string[]; codes: string[] }> = {
-      'Surgery':            { keywords: ['surg'],                    codes: ['SURG'] },
-      'External Devices':   { keywords: ['device', 'appliance'],     codes: ['EXTDEV'] },
-      'Chronic Medications':{ keywords: ['chronic'],                 codes: ['CHRNM', 'CHRONIC'] },
-    };
-    const syntheticMap = new Map<string, BenefitCategory>();
-
-    for (const r of arr) {
-      if (!r || typeof r !== 'object') continue;
-      const row = r as Record<string, unknown>;
-
-      // Real API fields: SERVICE = category name, DEPARTMENT = benefit item, LIMIT = ₦ limit
-      const category = (
-        String(row['SERVICE'] ?? row['Service'] ?? row['Category'] ?? row['BenefitCategory'] ?? row['ServiceType'] ?? '').trim()
-      ) || 'General';
-
-      const department = (
-        String(row['DEPARTMENT'] ?? row['Department'] ?? row['BenefitName'] ?? row['Name'] ?? row['Description'] ?? '').trim()
-      );
-
-      const deptCode = String(row['DepartmentCode'] ?? row['DEPARTMENTCODE'] ?? row['Dept_Code'] ?? '').trim().toUpperCase();
-
-      const limitStr = formatLimit(row['LIMIT'] ?? row['Limit'] ?? row['BenefitLimit'] ?? row['Amount']);
-      const waitStr  = formatWaitingPeriod(row['WaitingPeriod'] ?? row['waiting_period'] ?? row['WaitPeriod']);
-
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, { category, limit: '', waitingPeriod: null, covered: [], excluded: [] });
-      }
-
-      const cat = categoryMap.get(category)!;
-      if (!cat.limit && limitStr) cat.limit = limitStr;
-      if (!cat.waitingPeriod && waitStr) cat.waitingPeriod = waitStr;
-
-      // Deduplicate benefit items across member-type / age-band rows (M+1, M+2, age bands, etc.)
-      if (department) {
-        const key = `${category}||${department}`;
-        if (!seenItems.has(key)) {
-          seenItems.add(key);
-          cat.covered.push(department);
-        }
-      }
-
-      // Check if this DEPARTMENT row matches any synthetic category
-      const deptLower = department.toLowerCase();
-      for (const [synthName, { keywords, codes }] of Object.entries(SYNTHETIC)) {
-        const matches = codes.includes(deptCode) || keywords.some((kw) => deptLower.includes(kw));
-        if (!matches) continue;
-
-        if (!syntheticMap.has(synthName)) {
-          syntheticMap.set(synthName, { category: synthName, limit: '', waitingPeriod: null, covered: [], excluded: [] });
-        }
-        const synthCat = syntheticMap.get(synthName)!;
-        if (!synthCat.limit && limitStr) synthCat.limit = limitStr;
-        if (!synthCat.waitingPeriod && waitStr) synthCat.waitingPeriod = waitStr;
-
-        // Try to find a sub-item field within this department row
-        const subItem = String(
-          row['BENEFIT'] ?? row['Benefit'] ?? row['BenefitItem'] ?? row['BenefitDescription'] ??
-          row['Item'] ?? row['Coverage'] ?? row['ITEM'] ?? row['SUB_DEPARTMENT'] ?? ''
-        ).trim();
-
-        if (subItem) {
-          const synthKey = `${synthName}||${subItem}`;
-          if (!seenItems.has(synthKey)) {
-            seenItems.add(synthKey);
-            synthCat.covered.push(subItem);
-          }
-        }
-      }
+    // One row per (Benefit, MemberType) — consolidate to one card per Benefit,
+    // preferring the principal's own row as the representative limit/waiting
+    // period since that's what HR cares about at a glance.
+    const byBenefit = new Map<string, BenefitRow[]>();
+    for (const row of rows) {
+      const name = String(row.Benefit ?? '').trim();
+      if (!name) continue;
+      if (!byBenefit.has(name)) byBenefit.set(name, []);
+      byBenefit.get(name)!.push(row);
     }
 
-    // Merge synthetic categories into the main list (append at end)
-    const categories = [...categoryMap.values(), ...syntheticMap.values()];
+    const categories: BenefitCategory[] = [...byBenefit.entries()].map(([name, group]) => {
+      const nonExcluded = group.filter((g) => !g.IsExcluded);
+      const representative = nonExcluded.find((g) => g.IsPrincipal) ?? nonExcluded[0] ?? group[0];
+      const isFullyExcluded = nonExcluded.length === 0;
+      return {
+        category: name,
+        limit: isFullyExcluded ? '' : formatLimit(representative?.Limit),
+        waitingPeriod: isFullyExcluded ? null : formatWaitingPeriod(representative?.WaitingPeriod),
+        covered: [],
+        excluded: isFullyExcluded ? ['Not covered on this plan'] : [],
+      };
+    });
 
-    return NextResponse.json({ categories, rawSample: arr.slice(0, 3), totalRows: arr.length });
+    return NextResponse.json({ categories, rawSample: rows.slice(0, 3), totalRows: rows.length });
   } catch (err) {
     console.error('[hr/benefits/scheme-benefits] Error:', err);
     return NextResponse.json(
