@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { ArrowDownToLine, Users, Activity, Search, Building2, CreditCard } from 'lucide-react';
 import { exportToXls } from '@/lib/exportXls';
 import { TopBar } from '@/components/layout/TopBar';
+import { useToast } from '@/components/ui/Toast';
+import { friendlyError } from '@/lib/user-facing-error';
 import { ReportsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 
 const ALL_REPORTS = [
@@ -21,27 +23,39 @@ export default function ReportsPage() {
   const [to, setTo] = useState('2026-06-30');
   const [plan, setPlan] = useState('');
   const [vis, setVis] = useState<ReportsVis>(DEFAULTS.reports);
+  const { toast } = useToast();
+
   useEffect(() => { setVis(getVis('reports')); }, []);
 
   const visibleReports = ALL_REPORTS.filter((r) => vis[r.visKey]);
 
   const downloadReport = useCallback(async (id: number) => {
+    // Every exit path below must tell the user something: a bare `return` on a
+    // failed fetch made the Download button look inert.
+    try {
     if (id === 1) {
       // Membership report → members list
       const res = await fetch('/api/hr/members');
-      if (!res.ok) return;
-      const { members } = await res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.error) { toast(friendlyError(body.error), 'error'); return; }
+      const { members } = body;
       exportToXls((members ?? []).map((m: Record<string, unknown>) => ({ 'Enrolee ID': m.employeeId, 'Staff ID': m.staffId ?? '', 'First Name': m.firstName, 'Last Name': m.lastName, 'Gender': m.gender, 'DOB': m.dateOfBirth, 'Phone': m.phone, 'Email': m.email, 'Plan': m.plan, 'Type': m.type, 'Status': m.status, 'Location': m.location })), 'membership-report');
     } else if (id === 2 || id === 3 || id === 4) {
       // Utilization / Claims Analysis / Provider → claims list
       const res = await fetch('/api/hr/claims');
-      if (!res.ok) return;
-      const { claims } = await res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.error) { toast(friendlyError(body.error), 'error'); return; }
+      const { claims } = body;
       exportToXls((claims ?? []).map((c: Record<string, unknown>) => ({ 'Claim ID': c.claimRef, 'Member': c.memberName, 'Enrolee ID': c.employeeId, 'Diagnosis': c.icdDescription, 'Provider': c.provider, 'State': c.providerState, 'Category': c.category, 'Amt Claimed': c.amtClaimed, 'Amt Paid': c.amount, 'Status': c.status, 'Date': c.submittedDate })), `${ALL_REPORTS.find(r => r.id === id)?.title.replace(/\s+/g, '-').toLowerCase()}-report`);
     } else {
-      alert('This report is not yet available for download.');
+      toast('This report is not yet available for download.', 'info');
+      return;
     }
-  }, []);
+    toast('Report downloaded.', 'success');
+    } catch {
+      toast('Could not download this report. Please try again.', 'error');
+    }
+  }, [toast]);
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>

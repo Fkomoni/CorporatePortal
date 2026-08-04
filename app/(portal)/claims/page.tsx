@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, ArrowDownToLine, Filter, TrendingUp, Clock, XCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { LoadErrorBanner } from '@/components/LoadErrorBanner';
+import { friendlyError } from '@/lib/user-facing-error';
 import { ClaimsVisibility, DEFAULT_CLAIMS_VISIBILITY, getClaimsVisibility } from '@/lib/claims-visibility';
 import type { LiveClaim, ClaimsStats } from '@/app/api/hr/claims/route';
 import { exportToXls } from '@/lib/exportXls';
@@ -59,19 +61,29 @@ export default function ClaimsPage() {
   const [claims, setClaims]       = useState<LiveClaim[]>([]);
   const [stats, setStats]         = useState<ClaimsStats | null>(null);
   const [loading, setLoading]     = useState(true);
+  // A swallowed failure here showed an empty claims table, which reads as
+  // "no claims" rather than "we couldn't reach Prognosis".
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { setVis(getClaimsVisibility()); }, []);
 
-  useEffect(() => {
+  const loadClaims = useCallback(() => {
+    setLoading(true); setLoadError('');
     fetch('/api/hr/claims')
       .then((r) => r.json())
       .then((d) => {
+        if (d.error) { setLoadError(friendlyError(d.error)); return; }
         if (d.claims) setClaims(d.claims);
         if (d.stats)  setStats(d.stats);
       })
-      .catch(() => {})
+      .catch(() => setLoadError(friendlyError(null)))
       .finally(() => setLoading(false));
   }, []);
+
+  // Loading on mount unavoidably sets state from an effect; the rule is about
+  // avoiding cascading renders, which a single fetch-on-mount does not cause.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadClaims(); }, [loadClaims]);
 
   const filtered = claims.filter((c) => {
     const q = search.toLowerCase();
@@ -114,6 +126,8 @@ export default function ClaimsPage() {
       <TopBar title="Claims" subtitle={stats?.policyStart && stats?.policyEnd ? `Policy ${new Date(stats.policyStart + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(stats.policyEnd + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})}` : 'Claims Register · Spend Analysis'} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {loadError && <LoadErrorBanner message={loadError} onRetry={loadClaims} />}
 
         {/* SUMMARY STRIP */}
         {vis.showSummaryCards && (

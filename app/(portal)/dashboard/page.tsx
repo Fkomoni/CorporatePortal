@@ -1,7 +1,7 @@
 'use client';
 
 import { TrendingDown, UserPlus } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { DashboardVis, DEFAULTS, getVis } from '@/lib/module-visibility';
@@ -9,6 +9,8 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { TopBar } from '@/components/layout/TopBar';
+import { LoadErrorBanner } from '@/components/LoadErrorBanner';
+import { friendlyError } from '@/lib/user-facing-error';
 
 const PROVIDER_GRADS = [
   'linear-gradient(135deg,#131C4E,#3A4382)',
@@ -103,13 +105,25 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [showAllProviders, setShowAllProviders] = useState(false);
   const [pendingEnrolmentCount, setPendingEnrolmentCount] = useState<number | null>(null);
+  // Without this the dashboard renders zeros on a failed load, which reads as
+  // "no members" rather than "we couldn't reach Prognosis".
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
+    setLoadError('');
     fetch('/api/hr/dashboard-stats')
       .then((r) => r.json())
-      .then((d) => { if (d.stats) setStats(d.stats); })
-      .catch(() => {});
+      .then((d) => {
+        if (d.error) { setLoadError(friendlyError(d.error)); return; }
+        if (d.stats) setStats(d.stats);
+      })
+      .catch(() => setLoadError(friendlyError(null)));
   }, []);
+
+  // Loading on mount unavoidably sets state from an effect; the rule is about
+  // avoiding cascading renders, which a single fetch-on-mount does not cause.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   useEffect(() => {
     fetch('/api/hr/members/pending')
@@ -149,6 +163,8 @@ export default function DashboardPage() {
       <TopBar title="Overview" subtitle={topBarSubtitle || undefined} showQuickActions />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {loadError && <LoadErrorBanner message={loadError} onRetry={loadStats} />}
 
         {/* ── ROW 1: GREETING + HEALTH SCORE ── */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>

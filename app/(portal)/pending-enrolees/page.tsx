@@ -5,6 +5,7 @@ import { ClipboardCheck, Check, X, RefreshCw, Calendar } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
+import { friendlyError } from '@/lib/user-facing-error';
 import type { PendingGroup, PendingInvitation } from '@/app/api/hr/members/pending/route';
 
 interface BeneficiaryRow {
@@ -99,12 +100,12 @@ export default function PendingEnroleesPage() {
     fetch(`/api/hr/members/pending?${qs.toString()}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.error) { setError(d.error); return; }
+        if (d.error) { setError(friendlyError(d.error)); return; }
         setGroups(d.groups ?? []);
         setInvitations(d.invitations ?? []);
         setPolicyYearStart(d.policyYearStart ?? '');
       })
-      .catch(() => setError('Failed to load pending enrolees'))
+      .catch(() => setError(friendlyError(null, 'Failed to load pending enrolees.')))
       .finally(() => setLoading(false));
   }, [from, to]);
 

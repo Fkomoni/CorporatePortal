@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { digitsOnly, validateMobile } from '@/lib/phone';
 import { isValidEmail, validateEmail } from '@/lib/email';
+import { friendlyError } from '@/lib/user-facing-error';
 import { exportToXls } from '@/lib/exportXls';
 
 
