@@ -44,6 +44,9 @@ export interface ApproveResult {
   /** Set when the decision only went through under the fallback account, so
    *  callers can record that Prognosis attributed it to someone else. */
   usedFallbackEmail?: string;
+  /** Prognosis failed internally (5xx) rather than refusing the decision —
+   *  nothing was changed and the same request is worth retrying later. */
+  transient?: boolean;
 }
 
 export interface DecisionOptions {
@@ -148,6 +151,18 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
           error: alsoTriedFallback
             ? `Prognosis does not recognise "${opts.userEmail}" or the fallback account as authorised users, so it will not record this decision. This is an account setup issue, not a problem with this member — ask Leadway to register an HR email on Prognosis.`
             : `Prognosis does not recognise "${opts.userEmail}" as an authorised user, so it will not record this decision. This is an account setup issue, not a problem with this member — ask Leadway to register this HR email on Prognosis.`,
+        };
+      }
+      // A 5xx is Prognosis failing internally, not a decision being refused —
+      // their generic body ("An error has occurred.", or a raw SQL Server
+      // connection error) says nothing actionable and reads as though something
+      // is wrong with this member. Retrying later usually just works.
+      if (res.status >= 500) {
+        console.error(`[${endpoint}] Prognosis ${res.status} for cif=${opts.cifNumber} — treating as transient: ${text.slice(0, 300)}`);
+        return {
+          success: false,
+          transient: true,
+          error: `Leadway's system is temporarily unavailable and could not record this decision. Nothing has been changed — please try again in a few minutes.`,
         };
       }
       return { success: false, error: apiMessage || `${endpoint} failed (${res.status})` };
