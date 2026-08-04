@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, ShieldCheck, BarChart3, Users, FileText } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, BarChart3, Users, FileText, Building2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail]       = useState('');
@@ -445,6 +445,32 @@ export default function LoginPage() {
               ) : otpStep ? 'Verify & Sign In →' : 'Sign in to Corporate Portal →'}
             </button>
           </form>
+
+          {/* Leadway's own staff sign in to a different console, so this is a
+              real alternative route rather than a footnote — give it the weight
+              of a secondary action. Hidden during OTP/reset to keep those
+              flows single-purpose. */}
+          {!otpStep && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0 18px' }}>
+                <div style={{ flex: 1, height: 1, background: '#EDEEF2' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#B8BFD0', letterSpacing: '0.08em' }}>OR</span>
+                <div style={{ flex: 1, height: 1, background: '#EDEEF2' }} />
+              </div>
+
+              <a href="/admin/login"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  width: '100%', height: 46, borderRadius: 10, boxSizing: 'border-box',
+                  border: '1.5px solid #E5E7F1', background: '#fff',
+                  color: '#131C4E', fontSize: 14, fontWeight: 700, textDecoration: 'none',
+                }}>
+                <Building2 style={{ width: 16, height: 16, color: '#131C4E' }} />
+                Leadway Staff Login
+                <span aria-hidden="true">→</span>
+              </a>
+            </>
+          )}
           </>
           )}
 
@@ -452,11 +478,6 @@ export default function LoginPage() {
             Protected by Leadway Health security. Your data is encrypted and secure.
           </p>
 
-          <p style={{ fontSize: 12, textAlign: 'center', marginTop: 12, color: '#B8BFD0' }}>
-            <a href="/admin/login" style={{ color: '#F56B22', fontWeight: 600, textDecoration: 'none' }}>
-              Leadway staff login →
-            </a>
-          </p>
         </div>
       </div>
 
