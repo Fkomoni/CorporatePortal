@@ -113,6 +113,17 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
     const recordsUpdated = recordsUpdatedRaw != null ? Number(recordsUpdatedRaw) : undefined;
 
     if (!res.ok || (apiStatus && !['success', '200', 'ok', 'true'].includes(apiStatus))) {
+      // "Invalid user." means Prognosis doesn't recognise the acting user's
+      // email — nothing to do with the member being approved, and it affects
+      // principals and dependants alike. Say so, because the raw message sends
+      // people looking at the wrong thing.
+      if (/invalid user/i.test(text)) {
+        console.error(`[${endpoint}] Prognosis does not recognise "${opts.userEmail}" as a user${process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL ? ' (and the configured fallback was also rejected)' : ' and no PROGNOSIS_APPROVAL_FALLBACK_EMAIL is configured'}.`);
+        return {
+          success: false,
+          error: `Prognosis does not recognise "${opts.userEmail}" as an authorised user, so it will not record this decision. This is an account setup issue, not a problem with this member — ask Leadway to register this HR email on Prognosis (or configure an approved fallback account).`,
+        };
+      }
       return { success: false, error: apiMessage || `${endpoint} failed (${res.status})` };
     }
     // Prognosis can return HTTP 200 + status:"success" while recordsUpdated
