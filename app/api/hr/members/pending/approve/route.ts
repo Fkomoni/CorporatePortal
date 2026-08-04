@@ -103,17 +103,20 @@ export async function POST(req: Request) {
   );
   const failures = results.filter((r) => !r.success);
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
+  // Prognosis may have attributed the decision to the fallback account rather
+  // than the HR user who clicked — keep the real actor in our own audit trail.
+  const attributedTo = results.find((r) => r.usedFallbackEmail)?.usedFallbackEmail ?? null;
 
   console.log(`[pending/approve] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);
 
   void logAudit({
     session, request: req, resource: 'members',
     action: failures.length === 0 ? 'APPROVE_PENDING_ENROLEE' : 'APPROVE_PENDING_ENROLEE_FAILED',
-    details: { parentCif, principalName: body.principalName, beneficiaryName: body.beneficiaryName, relationship: body.relationship, cifNumbers, effectiveDate, recordsUpdated, errors: failures.map((f) => f.error) },
+    details: { parentCif, principalName: body.principalName, beneficiaryName: body.beneficiaryName, relationship: body.relationship, cifNumbers, effectiveDate, recordsUpdated, prognosisAttributedTo: attributedTo, errors: failures.map((f) => f.error) },
   });
 
   if (failures.length > 0) {
     return NextResponse.json({ error: failures[0].error ?? 'Approval failed', failedCifs: failures.length }, { status: 422 });
   }
-  return NextResponse.json({ success: true, recordsUpdated, duplicateWarning });
+  return NextResponse.json({ success: true, recordsUpdated, duplicateWarning, attributedTo });
 }

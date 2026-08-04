@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     cifNumbers.map((cifNumber) => rejectEnrollee({ cifNumber, reason, userEmail, effectiveDate: terminationDate })),
   );
   const failures = results.filter((r) => !r.success);
+  const attributedTo = results.find((r) => r.usedFallbackEmail)?.usedFallbackEmail ?? null;
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
 
   console.log(`[pending/reject] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
   void logAudit({
     session, request: req, resource: 'members',
     action: failures.length === 0 ? 'REJECT_PENDING_ENROLEE' : 'REJECT_PENDING_ENROLEE_FAILED',
-    details: { parentCif, principalName: body.principalName, beneficiaryName: body.beneficiaryName, relationship: body.relationship, reason, cifNumbers, terminationDate, recordsUpdated, errors: failures.map((f) => f.error) },
+    details: { parentCif, principalName: body.principalName, beneficiaryName: body.beneficiaryName, relationship: body.relationship, reason, cifNumbers, terminationDate, prognosisAttributedTo: attributedTo, recordsUpdated, errors: failures.map((f) => f.error) },
   });
 
   if (failures.length > 0) return NextResponse.json({ error: failures[0].error ?? 'Rejection failed', failedCifs: failures.length }, { status: 422 });

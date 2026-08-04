@@ -20,11 +20,30 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// Prognosis validates useremail against its OWN user list, and rejects anything
+// it doesn't know with "Invalid user." — including HR accounts that are
+// perfectly valid on our side. Confirmed by probing with a nonexistent CIF so
+// useremail is evaluated in isolation: f-komoni-mbaekwe@leadway.com and
+// komonifa@yahoo.com are accepted; the Prognosis service account, a corporate
+// contact address, an empty string, and africaterminal@yopmail.com are not.
+//
+// INTERIM MEASURE: without a fallback, HR accounts Prognosis doesn't know
+// cannot approve anyone at all. So a decision that would otherwise be refused
+// is retried once under this known-good account. Prognosis then records the
+// fallback as the acting user, NOT the HR user who actually clicked — our own
+// audit log keeps the real one (see usedFallbackEmail below). Remove this
+// default once the real HR emails are registered with Prognosis.
+const FALLBACK_USER_EMAIL =
+  process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL ?? 'f-komoni-mbaekwe@leadway.com';
+
 export interface ApproveResult {
   success: boolean;
   message?: string;
   recordsUpdated?: number;
   error?: string;
+  /** Set when the decision only went through under the fallback account, so
+   *  callers can record that Prognosis attributed it to someone else. */
+  usedFallbackEmail?: string;
 }
 
 export interface DecisionOptions {
@@ -94,6 +113,7 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
     }
 
     let { res, text, r } = await callDecide(endpoint, opts, opts.userEmail);
+    let usedFallbackEmail: string | undefined;
 
     // Prognosis validates useremail against ITS OWN account list. Confirmed by
     // probing with a deliberately nonexistent CIF (so useremail is evaluated in
@@ -102,9 +122,10 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
     // and an empty string are all rejected with "Invalid user.". So this retry
     // is a last resort for the rare account Prognosis genuinely doesn't know,
     // and only fires when a confirmed-valid fallback has been configured.
-    if (res.status === 400 && /invalid user/i.test(text) && process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL) {
-      console.warn(`[${endpoint}] "${opts.userEmail}" rejected as invalid user — retrying with configured fallback account`);
-      ({ res, text, r } = await callDecide(endpoint, opts, process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL));
+    if (res.status === 400 && /invalid user/i.test(text) && FALLBACK_USER_EMAIL && FALLBACK_USER_EMAIL !== opts.userEmail) {
+      console.warn(`[${endpoint}] Prognosis rejected "${opts.userEmail}" as an unknown user — retrying as ${FALLBACK_USER_EMAIL}`);
+      ({ res, text, r } = await callDecide(endpoint, opts, FALLBACK_USER_EMAIL));
+      if (res.ok) usedFallbackEmail = FALLBACK_USER_EMAIL;
     }
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
@@ -118,10 +139,15 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
       // principals and dependants alike. Say so, because the raw message sends
       // people looking at the wrong thing.
       if (/invalid user/i.test(text)) {
-        console.error(`[${endpoint}] Prognosis does not recognise "${opts.userEmail}" as a user${process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL ? ' (and the configured fallback was also rejected)' : ' and no PROGNOSIS_APPROVAL_FALLBACK_EMAIL is configured'}.`);
+        // Reaching here means the acting user was rejected AND the fallback
+        // retry either didn't apply or was rejected too.
+        const alsoTriedFallback = FALLBACK_USER_EMAIL && FALLBACK_USER_EMAIL !== opts.userEmail;
+        console.error(`[${endpoint}] Prognosis rejected "${opts.userEmail}"${alsoTriedFallback ? ` and the fallback "${FALLBACK_USER_EMAIL}"` : ''} as unknown users.`);
         return {
           success: false,
-          error: `Prognosis does not recognise "${opts.userEmail}" as an authorised user, so it will not record this decision. This is an account setup issue, not a problem with this member — ask Leadway to register this HR email on Prognosis (or configure an approved fallback account).`,
+          error: alsoTriedFallback
+            ? `Prognosis does not recognise "${opts.userEmail}" or the fallback account as authorised users, so it will not record this decision. This is an account setup issue, not a problem with this member — ask Leadway to register an HR email on Prognosis.`
+            : `Prognosis does not recognise "${opts.userEmail}" as an authorised user, so it will not record this decision. This is an account setup issue, not a problem with this member — ask Leadway to register this HR email on Prognosis.`,
         };
       }
       return { success: false, error: apiMessage || `${endpoint} failed (${res.status})` };
@@ -133,7 +159,10 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
     if (recordsUpdated === 0) {
       return { success: false, error: apiMessage || `${endpoint} reported success but updated no records — the member's status was not changed on Prognosis.` };
     }
-    return { success: true, message: apiMessage, recordsUpdated };
+    if (usedFallbackEmail) {
+      console.warn(`[${endpoint}] cif=${opts.cifNumber} recorded on Prognosis as ${usedFallbackEmail}, not ${opts.userEmail}`);
+    }
+    return { success: true, message: apiMessage, recordsUpdated, usedFallbackEmail };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : `Failed to call ${endpoint}` };
   }
