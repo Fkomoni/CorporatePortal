@@ -15,7 +15,7 @@ import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { StatCard } from '@/components/ui/StatCard';
-import { Building2, Clock } from 'lucide-react';
+import { Building2, Clock, MoreVertical } from 'lucide-react';
 import { digitsOnly, validateMobile, mobileLengthHint } from '@/lib/phone';
 import { isValidEmail, validateEmail } from '@/lib/email';
 import { friendlyError } from '@/lib/user-facing-error';
@@ -35,6 +35,15 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   'Pending':    { bg: '#FFFBEB', text: '#D97706', dot: '#F59E0B' },
   'Terminated': { bg: '#FEF2F2', text: '#DC2626', dot: '#EF4444' },
 };
+
+// Deterministic so a member's avatar colour is stable across renders and pages,
+// rather than shuffling on every load.
+const AVATAR_TINTS = ['#B45309', '#0F766E', '#4338CA', '#BE185D', '#15803D', '#B91C1C', '#7C3AED', '#0369A1'];
+function avatarTint(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 9973;
+  return AVATAR_TINTS[h % AVATAR_TINTS.length];
+}
 
 const SUMMARY_CARD_DEFS = [
   { label: 'Active Lives',          key: 'activeCount'    as const, sub: 'Total covered lives',   color: '#4F46E5', tint: '#EEF2FF', Icon: Users       },
@@ -3557,7 +3566,7 @@ export default function MembersPage() {
         {/* Members / Beneficiaries table */}
         <div style={{ ...card }}>
           <div className="grid items-center border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} title="Select all" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }} onClick={toggleAll} title="Click to select all">
               <span className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest select-none">
@@ -3568,6 +3577,7 @@ export default function MembersPage() {
             {['Staff ID', 'Enrolee ID', 'Plan', 'Type', 'Status', 'Phone', 'Dependents Count'].map((h) => (
               <span key={h} className="text-[10.5px] font-bold uppercase">{h}</span>
             ))}
+            <span />
           </div>
 
           {paged.map((m, i) => {
@@ -3580,11 +3590,19 @@ export default function MembersPage() {
               <div
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
+                style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
                 onClick={() => setActiveMember({ member: m, index: globalIndex })}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <span style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: avatarTint(`${m.firstName}${m.lastName}`),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.02em',
+                  }}>
+                    {`${(m.firstName || '').charAt(0)}${(m.lastName || '').charAt(0)}`.toUpperCase() || '—'}
+                  </span>
                   {isDependant && viewBeneficiaries && (
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#6366F1', background: '#EEF2FF', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>DEP</span>
                   )}
@@ -3608,6 +3626,18 @@ export default function MembersPage() {
                 ) : (
                   <span style={{ fontSize: 11, color: '#C4C9D9' }}>—</span>
                 )}
+                <button
+                  title="Open member"
+                  onClick={(e) => { e.stopPropagation(); setActiveMember({ member: m, index: globalIndex }); }}
+                  style={{
+                    width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#F0F1F5'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <MoreVertical style={{ width: 15, height: 15, color: '#9CA3B8' }} />
+                </button>
               </div>
             );
           })}
