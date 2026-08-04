@@ -177,13 +177,13 @@ export default function LoginPage() {
         }}
         className="hidden lg:flex"
       >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, color: '#fff', flexShrink: 0 }}>LH</div>
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>Leadway Health</p>
-            <p style={{ fontSize: 11, color: '#7B82AA', marginTop: 1 }}>Corporate Portal</p>
-          </div>
+        {/* Logo — knockout variant: the wordmark's black is inverted to white so
+            it reads on the navy panel, while the camel keeps its own colours. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/leadway-health-logo-light.png" alt="Leadway Health" style={{ height: 46, width: 'auto', objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 30, background: 'rgba(255,255,255,0.22)' }} />
+          <p style={{ fontSize: 14, color: '#D5D9EA' }}>Corporate Portal</p>
         </div>
 
         {/* Hero copy */}
@@ -227,13 +227,12 @@ export default function LoginPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: 32 }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
 
-          {/* Mobile logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }} className="lg:hidden">
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 13, color: '#fff' }}>LH</div>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>Leadway Health</p>
-              <p style={{ fontSize: 11, color: '#9CA3B8' }}>Corporate Portal</p>
-            </div>
+          {/* Logo — shown on every size here, since the navy panel with its own
+              logo is hidden below lg. */}
+          <div style={{ marginBottom: 30 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/leadway-health-logo.png" alt="Leadway Health" style={{ height: 52, width: 'auto', objectFit: 'contain', display: 'block' }} />
+            <p style={{ fontSize: 15, color: '#6B7480', marginTop: 8 }}>Corporate Portal</p>
           </div>
 
           {/* Badge */}
