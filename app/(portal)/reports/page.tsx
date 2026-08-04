@@ -1,146 +1,478 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ArrowDownToLine, Users, Activity, Search, Building2, CreditCard } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Users, Activity, Search, Building2, CreditCard, FileSpreadsheet, FileText,
+  ChevronRight, CalendarDays, SlidersHorizontal, RotateCcw, FolderOpen, Check, X,
+} from 'lucide-react';
 import { exportToXls } from '@/lib/exportXls';
+import { exportToPdf } from '@/lib/exportPdf';
 import { TopBar } from '@/components/layout/TopBar';
 import { useToast } from '@/components/ui/Toast';
 import { friendlyError } from '@/lib/user-facing-error';
 import { ReportsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 
+type Row = Record<string, unknown>;
+type SourceKey = 'members' | 'claims';
+
 const ALL_REPORTS = [
-  { id: 1, visKey: 'showMembershipReport',    title: 'Membership Report',    desc: 'Active lives · Additions · Removals',        icon: Users      },
-  { id: 2, visKey: 'showUtilizationReport',   title: 'Utilization Report',   desc: 'Claims count · Amount · Visits',             icon: Activity   },
-  { id: 3, visKey: 'showClaimsAnalysis',      title: 'Claims Analysis',      desc: 'Top diagnoses · Providers · Categories',     icon: Search     },
-  { id: 4, visKey: 'showProviderUtilization', title: 'Provider Utilization', desc: 'Visits by provider · Spend by provider',     icon: Building2  },
-  { id: 5, visKey: 'showFinancialReport',     title: 'Financial Report',     desc: 'Invoices · Payments · Outstanding balances', icon: CreditCard },
+  { id: 1, visKey: 'showMembershipReport',    title: 'Membership Report',    desc: 'Active lives · Additions · Removals',        icon: Users,      color: '#F56B22', tint: '#FFF3E8', source: 'members' as SourceKey },
+  { id: 2, visKey: 'showUtilizationReport',   title: 'Utilization Report',   desc: 'Claims count · Amount · Visits',             icon: Activity,   color: '#10B981', tint: '#ECFDF5', source: 'claims'  as SourceKey },
+  { id: 3, visKey: 'showClaimsAnalysis',      title: 'Claims Analysis',      desc: 'Top diagnoses · Providers · Categories',     icon: Search,     color: '#7C3AED', tint: '#F5F3FF', source: 'claims'  as SourceKey },
+  { id: 4, visKey: 'showProviderUtilization', title: 'Provider Utilization', desc: 'Visits by provider · Spend by provider',     icon: Building2,  color: '#D97706', tint: '#FFFBEB', source: 'claims'  as SourceKey },
+  { id: 5, visKey: 'showFinancialReport',     title: 'Financial Report',     desc: 'Invoices · Payments · Outstanding balances', icon: CreditCard, color: '#2563EB', tint: '#EFF6FF', source: 'claims'  as SourceKey },
 ] as const;
 
-const lastGenMap: Record<number, string> = { 1: '22 Jun 2026', 2: '22 Jun 2026', 3: '20 Jun 2026', 4: '20 Jun 2026', 5: '18 Jun 2026' };
+// Column sets per source. These double as the custom-report builder's field
+// list, so a report's shape and what HR can pick from never drift apart.
+const FIELDS: Record<SourceKey, { key: string; label: string; from: (r: Row) => unknown }[]> = {
+  members: [
+    { key: 'enroleeId', label: 'Enrolee ID',  from: (r) => r.employeeId },
+    { key: 'staffId',   label: 'Staff ID',    from: (r) => r.staffId ?? '' },
+    { key: 'firstName', label: 'First Name',  from: (r) => r.firstName },
+    { key: 'lastName',  label: 'Last Name',   from: (r) => r.lastName },
+    { key: 'gender',    label: 'Gender',      from: (r) => r.gender },
+    { key: 'dob',       label: 'Date of Birth', from: (r) => r.dateOfBirth },
+    { key: 'phone',     label: 'Phone',       from: (r) => r.phone },
+    { key: 'email',     label: 'Email',       from: (r) => r.email },
+    { key: 'plan',      label: 'Plan',        from: (r) => r.plan },
+    { key: 'type',      label: 'Type',        from: (r) => r.type },
+    { key: 'status',    label: 'Status',      from: (r) => r.status },
+    { key: 'location',  label: 'Location',    from: (r) => r.location },
+    { key: 'enrolled',  label: 'Enrolled On', from: (r) => r.enrollmentDate },
+  ],
+  claims: [
+    { key: 'claimRef',   label: 'Claim ID',    from: (r) => r.claimRef },
+    { key: 'member',     label: 'Member',      from: (r) => r.memberName },
+    { key: 'enroleeId',  label: 'Enrolee ID',  from: (r) => r.employeeId },
+    { key: 'diagnosis',  label: 'Diagnosis',   from: (r) => r.icdDescription },
+    { key: 'provider',   label: 'Provider',    from: (r) => r.provider },
+    { key: 'state',      label: 'State',       from: (r) => r.providerState },
+    { key: 'category',   label: 'Category',    from: (r) => r.category },
+    { key: 'amtClaimed', label: 'Amt Claimed', from: (r) => r.amtClaimed },
+    { key: 'amtPaid',    label: 'Amt Paid',    from: (r) => r.amount },
+    { key: 'status',     label: 'Status',      from: (r) => r.status },
+    { key: 'date',       label: 'Date',        from: (r) => r.submittedDate },
+  ],
+};
+
+// Which field carries the date each source is filtered on, and which the plan.
+const FILTER_KEYS: Record<SourceKey, { date: string; plan?: string }> = {
+  members: { date: 'enrollmentDate', plan: 'plan' },
+  claims:  { date: 'submittedDate' },
+};
+
+const LAST_RUN_KEY = 'reports:lastRun';
+
+/** Accepts ISO, dd/mm/yyyy and "12 Jun 2026" — all appear across our sources. */
+function toTime(value: unknown): number | null {
+  const s = String(value ?? '').trim();
+  if (!s) return null;
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])).getTime();
+  const t = new Date(s).getTime();
+  return isNaN(t) ? null : t;
+}
 
 export default function ReportsPage() {
-  const [from, setFrom] = useState('2026-01-01');
-  const [to, setTo] = useState('2026-06-30');
+  const today = new Date();
+  const jan1 = `${today.getFullYear()}-01-01`;
+  const [from, setFrom] = useState(jan1);
+  const [to, setTo] = useState(today.toISOString().slice(0, 10));
   const [plan, setPlan] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({ from: jan1, to: today.toISOString().slice(0, 10), plan: '' });
   const [vis, setVis] = useState<ReportsVis>(DEFAULTS.reports);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [plans, setPlans] = useState<string[]>([]);
+  const [lastRun, setLastRun] = useState<Record<string, string>>({});
   const { toast } = useToast();
+
+  // Custom report builder
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderSource, setBuilderSource] = useState<SourceKey>('members');
+  const [builderName, setBuilderName] = useState('Custom report');
+  const [builderCols, setBuilderCols] = useState<string[]>(FIELDS.members.slice(0, 6).map((f) => f.key));
+  const [builderBusy, setBuilderBusy] = useState(false);
 
   useEffect(() => { setVis(getVis('reports')); }, []);
 
-  const visibleReports = ALL_REPORTS.filter((r) => vis[r.visKey]);
-
-  const downloadReport = useCallback(async (id: number) => {
-    // Every exit path below must tell the user something: a bare `return` on a
-    // failed fetch made the Download button look inert.
+  // "Updated" reflects when this browser last generated each report. Previously
+  // these were hardcoded dates, which claimed a freshness nobody had produced.
+  // Reading persisted state / loading a filter list on mount: a single
+  // fetch-on-mount doesn't cause the cascading renders this rule guards against.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
     try {
-    if (id === 1) {
-      // Membership report → members list
-      const res = await fetch('/api/hr/members');
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || body.error) { toast(friendlyError(body.error), 'error'); return; }
-      const { members } = body;
-      exportToXls((members ?? []).map((m: Record<string, unknown>) => ({ 'Enrolee ID': m.employeeId, 'Staff ID': m.staffId ?? '', 'First Name': m.firstName, 'Last Name': m.lastName, 'Gender': m.gender, 'DOB': m.dateOfBirth, 'Phone': m.phone, 'Email': m.email, 'Plan': m.plan, 'Type': m.type, 'Status': m.status, 'Location': m.location })), 'membership-report');
-    } else if (id === 2 || id === 3 || id === 4) {
-      // Utilization / Claims Analysis / Provider → claims list
-      const res = await fetch('/api/hr/claims');
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || body.error) { toast(friendlyError(body.error), 'error'); return; }
-      const { claims } = body;
-      exportToXls((claims ?? []).map((c: Record<string, unknown>) => ({ 'Claim ID': c.claimRef, 'Member': c.memberName, 'Enrolee ID': c.employeeId, 'Diagnosis': c.icdDescription, 'Provider': c.provider, 'State': c.providerState, 'Category': c.category, 'Amt Claimed': c.amtClaimed, 'Amt Paid': c.amount, 'Status': c.status, 'Date': c.submittedDate })), `${ALL_REPORTS.find(r => r.id === id)?.title.replace(/\s+/g, '-').toLowerCase()}-report`);
-    } else {
-      toast('This report is not yet available for download.', 'info');
-      return;
-    }
-    toast('Report downloaded.', 'success');
+      const raw = localStorage.getItem(LAST_RUN_KEY);
+      if (raw) setLastRun(JSON.parse(raw));
+    } catch { /* absent or unreadable is fine */ }
+  }, []);
+
+  // Plan list for the filter, taken from the members actually on the scheme.
+  // Reading persisted state / loading a filter list on mount: a single
+  // fetch-on-mount doesn't cause the cascading renders this rule guards against.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    fetch('/api/hr/members?skipClaims=1')
+      .then((r) => r.json())
+      .then((d) => {
+        const names = [...new Set(((d.members ?? []) as Row[]).map((m) => String(m.plan ?? '')).filter(Boolean))].sort();
+        setPlans(names);
+      })
+      .catch(() => { /* the filter just shows All Plans */ });
+  }, []);
+
+  const visibleReports = useMemo(() => ALL_REPORTS.filter((r) => vis[r.visKey]), [vis]);
+
+  const markRun = useCallback((id: number | string) => {
+    const stamp = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    setLastRun((prev) => {
+      const next = { ...prev, [String(id)]: stamp };
+      try { localStorage.setItem(LAST_RUN_KEY, JSON.stringify(next)); } catch { /* non-fatal */ }
+      return next;
+    });
+  }, []);
+
+  /** Fetches a source and applies the *applied* filters — the ones behind the
+   *  Apply Filters button, not whatever is mid-edit in the inputs. */
+  const loadRows = useCallback(async (source: SourceKey): Promise<Row[] | null> => {
+    const url = source === 'members' ? '/api/hr/members?skipClaims=1' : '/api/hr/claims';
+    const res = await fetch(url);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.error) { toast(friendlyError(body.error), 'error'); return null; }
+    const raw: Row[] = (source === 'members' ? body.members : body.claims) ?? [];
+
+    const keys = FILTER_KEYS[source];
+    const fromT = appliedFilters.from ? new Date(appliedFilters.from).getTime() : null;
+    const toT = appliedFilters.to ? new Date(appliedFilters.to).getTime() + 86_399_999 : null;
+
+    return raw.filter((r) => {
+      // Rows with no usable date are kept rather than silently dropped — losing
+      // them would understate the report without saying so.
+      const t = toTime(r[keys.date]);
+      if (t != null) {
+        if (fromT != null && t < fromT) return false;
+        if (toT != null && t > toT) return false;
+      }
+      if (appliedFilters.plan && keys.plan && String(r[keys.plan] ?? '') !== appliedFilters.plan) return false;
+      return true;
+    });
+  }, [appliedFilters, toast]);
+
+  const project = (rows: Row[], source: SourceKey, cols?: string[]): Row[] => {
+    const fields = FIELDS[source].filter((f) => !cols || cols.includes(f.key));
+    return rows.map((r) => Object.fromEntries(fields.map((f) => [f.label, f.from(r)])));
+  };
+
+  const filterMeta = () => {
+    const m = [`Period: ${appliedFilters.from || '—'} to ${appliedFilters.to || '—'}`];
+    if (appliedFilters.plan) m.push(`Plan: ${appliedFilters.plan}`);
+    return m;
+  };
+
+  const runReport = useCallback(async (id: number, format: 'xls' | 'pdf') => {
+    const def = ALL_REPORTS.find((r) => r.id === id);
+    if (!def) return;
+    setBusyId(id);
+    try {
+      const rows = await loadRows(def.source);
+      if (!rows) return;
+      if (rows.length === 0) {
+        toast('No rows matched the selected period and plan — adjust the filters and try again.', 'info');
+        return;
+      }
+      const out = project(rows, def.source);
+      const slug = def.title.replace(/\s+/g, '-').toLowerCase();
+      if (format === 'xls') {
+        exportToXls(out, slug);
+        toast(`${def.title} exported (${rows.length.toLocaleString()} rows).`, 'success');
+      } else {
+        const ok = exportToPdf(out, slug, { title: def.title, subtitle: def.desc, meta: filterMeta() });
+        if (!ok) { toast('Your browser blocked the PDF window. Allow pop-ups for this site and try again.', 'error'); return; }
+        toast(`${def.title} ready to save as PDF.`, 'success');
+      }
+      markRun(id);
     } catch {
-      toast('Could not download this report. Please try again.', 'error');
+      toast('Could not build this report. Please try again.', 'error');
+    } finally {
+      setBusyId(null);
     }
-  }, [toast]);
+  }, [loadRows, markRun, toast]);
+
+  const runCustom = useCallback(async (format: 'xls' | 'pdf') => {
+    if (builderCols.length === 0) { toast('Pick at least one column for your report.', 'error'); return; }
+    setBuilderBusy(true);
+    try {
+      const rows = await loadRows(builderSource);
+      if (!rows) return;
+      if (rows.length === 0) {
+        toast('No rows matched the selected period and plan — adjust the filters and try again.', 'info');
+        return;
+      }
+      const out = project(rows, builderSource, builderCols);
+      const slug = (builderName.trim() || 'custom-report').replace(/\s+/g, '-').toLowerCase();
+      if (format === 'xls') {
+        exportToXls(out, slug);
+        toast(`${builderName.trim() || 'Custom report'} exported (${rows.length.toLocaleString()} rows).`, 'success');
+      } else {
+        const ok = exportToPdf(out, slug, {
+          title: builderName.trim() || 'Custom report',
+          subtitle: `${builderSource === 'members' ? 'Membership' : 'Claims'} · ${builderCols.length} columns`,
+          meta: filterMeta(),
+        });
+        if (!ok) { toast('Your browser blocked the PDF window. Allow pop-ups for this site and try again.', 'error'); return; }
+        toast('Custom report ready to save as PDF.', 'success');
+      }
+      markRun('custom');
+    } catch {
+      toast('Could not build your report. Please try again.', 'error');
+    } finally {
+      setBuilderBusy(false);
+    }
+  }, [builderCols, builderName, builderSource, loadRows, markRun, toast]);
+
+  const inputStyle: React.CSSProperties = {
+    height: 44, padding: '0 12px', fontSize: 13, border: '1px solid #EDEEF2',
+    borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none',
+    boxSizing: 'border-box', width: '100%',
+  };
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#6B7480', marginBottom: 6, display: 'block' };
+  const card: React.CSSProperties = {
+    background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2',
+    boxShadow: '0 1px 3px rgba(19,28,78,0.04)',
+  };
+
+  const dirty = from !== appliedFilters.from || to !== appliedFilters.to || plan !== appliedFilters.plan;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Insights & Reports" subtitle="Analytics · Exports · Trends" />
-      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-            {[
-              { label: 'From', type: 'date', value: from, onChange: setFrom },
-              { label: 'To',   type: 'date', value: to,   onChange: setTo },
-            ].map(({ label, type, value, onChange }) => (
-              <div key={label}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</p>
-                <input
-                  type={type}
-                  value={value}
-                  onChange={(e) => onChange(e.target.value)}
-                  style={{ height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
-                />
-              </div>
-            ))}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Plan</p>
-              <select
-                value={plan}
-                onChange={(e) => setPlan(e.target.value)}
-                style={{ height: 42, padding: '0 32px 0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B8BFD0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
-              >
+
+      <div style={{ padding: '8px 30px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Filters */}
+        <div style={{ ...card, padding: '18px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 170 }}>
+              <label style={labelStyle}>From</label>
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inputStyle} />
+            </div>
+            <div style={{ minWidth: 170 }}>
+              <label style={labelStyle}>To</label>
+              <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={inputStyle} />
+            </div>
+            <div style={{ minWidth: 190 }}>
+              <label style={labelStyle}>Plan</label>
+              <select value={plan} onChange={(e) => setPlan(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
                 <option value="">All Plans</option>
-                <option>Plus Plan</option>
-                <option>Pro Plan</option>
-                <option>Max Plan</option>
-                <option>Promax Plan</option>
-                <option>Magnum Plan</option>
+                {plans.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
+
             <div style={{ flex: 1 }} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-              <button
-                style={{ height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 24, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', whiteSpace: 'nowrap' }}
-              >
-                Apply
-              </button>
-              <button
-                onClick={() => { setFrom('2026-01-01'); setTo('2026-06-30'); setPlan(''); }}
-                style={{ height: 42, padding: '0 18px', fontSize: 13, fontWeight: 500, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >
-                Reset
-              </button>
-            </div>
+
+            <button
+              onClick={() => setAppliedFilters({ from, to, plan })}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 20px',
+                fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12,
+                background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', cursor: 'pointer',
+                boxShadow: dirty ? '0 2px 10px rgba(245,107,34,0.32)' : 'none',
+              }}>
+              <SlidersHorizontal style={{ width: 15, height: 15 }} /> Apply Filters
+            </button>
+            <button
+              onClick={() => {
+                setFrom(jan1); setTo(today.toISOString().slice(0, 10)); setPlan('');
+                setAppliedFilters({ from: jan1, to: today.toISOString().slice(0, 10), plan: '' });
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px',
+                fontSize: 13, fontWeight: 700, color: '#6B7480', background: '#fff',
+                border: '1px solid #EDEEF2', borderRadius: 12, cursor: 'pointer',
+              }}>
+              <RotateCcw style={{ width: 15, height: 15 }} /> Reset
+            </button>
           </div>
+
+          {dirty && (
+            <p style={{ fontSize: 11.5, color: '#D97706', marginTop: 10 }}>
+              Filters changed — press Apply Filters so exports use them.
+            </p>
+          )}
         </div>
-        {visibleReports.length === 0 && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '64px 24px', textAlign: 'center', color: '#9CA3B8', fontSize: 14 }}>
-            No reports are currently enabled. Contact your Leadway administrator.
-          </div>
-        )}
-        <div className="grid grid-cols-1 gap-4">
-          {visibleReports.map((r) => {
-            const Icon = r.icon;
-            return (
-              <div key={r.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 20, transition: 'box-shadow 0.15s' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon style={{ width: 22, height: 22, color: '#F56B22' }} strokeWidth={1.75} /></div>
-                <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.01em' }}>{r.title}</p>
-                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>{r.desc}</p>
-                </div>
-                <p style={{ fontSize: 11, color: '#C4C9D9', flexShrink: 0 }} className="hidden md:block">Last generated: <span style={{ color: '#9CA3B8', fontWeight: 600 }}>{lastGenMap[r.id]}</span></p>
-                {vis.showExports && (
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => downloadReport(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
-                      <ArrowDownToLine style={{ width: 12, height: 12 }} /> XLS
-                    </button>
-                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
-                      <ArrowDownToLine style={{ width: 12, height: 12 }} /> PDF
-                    </button>
-                  </div>
-                )}
+
+        {/* Report list */}
+        {visibleReports.map((r) => {
+          const Icon = r.icon;
+          const updated = lastRun[String(r.id)];
+          const busy = busyId === r.id;
+          return (
+            <div key={r.id} style={{ ...card, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 18 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 14, background: r.tint, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon style={{ width: 22, height: 22, color: r.color }} strokeWidth={1.9} />
               </div>
-            );
-          })}
+
+              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+                <p style={{ fontSize: 15.5, fontWeight: 800, color: '#131C4E' }}>{r.title}</p>
+                <p style={{ fontSize: 12.5, color: '#9CA3B8', marginTop: 3 }}>{r.desc}</p>
+              </div>
+
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 12,
+                background: '#F7F8FC', flexShrink: 0,
+              }}>
+                <CalendarDays style={{ width: 14, height: 14, color: '#9CA3B8' }} />
+                <div>
+                  <p style={{ fontSize: 10, color: '#9CA3B8', fontWeight: 600 }}>{updated ? 'Last exported' : 'Not yet exported'}</p>
+                  {updated && <p style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>{updated}</p>}
+                </div>
+              </div>
+
+              <button
+                onClick={() => runReport(r.id, 'xls')}
+                disabled={busy}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 16px',
+                  fontSize: 12.5, fontWeight: 700, color: '#15803D', background: '#F0FDF4',
+                  border: '1px solid #BBF7D0', borderRadius: 12, cursor: busy ? 'wait' : 'pointer', flexShrink: 0,
+                }}>
+                <FileSpreadsheet style={{ width: 15, height: 15 }} /> Export XLS
+              </button>
+              <button
+                onClick={() => runReport(r.id, 'pdf')}
+                disabled={busy}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 16px',
+                  fontSize: 12.5, fontWeight: 700, color: '#DC2626', background: '#FEF2F2',
+                  border: '1px solid #FECACA', borderRadius: 12, cursor: busy ? 'wait' : 'pointer', flexShrink: 0,
+                }}>
+                <FileText style={{ width: 15, height: 15 }} /> Export PDF
+              </button>
+
+              <ChevronRight style={{ width: 18, height: 18, color: '#C4C9D9', flexShrink: 0 }} />
+            </div>
+          );
+        })}
+
+        {/* Custom report builder */}
+        <div style={{ ...card, padding: builderOpen ? '20px 22px' : '18px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{
+              width: 46, height: 46, borderRadius: 13, background: '#EEF2FF', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <FolderOpen style={{ width: 21, height: 21, color: '#4F46E5' }} strokeWidth={1.9} />
+            </div>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 800, color: '#131C4E' }}>Need a custom report?</p>
+              <p style={{ fontSize: 12.5, color: '#9CA3B8', marginTop: 3 }}>
+                Choose the data and the columns you want, then export it as XLS or PDF.
+              </p>
+            </div>
+            <button
+              onClick={() => setBuilderOpen((v) => !v)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 18px',
+                fontSize: 13, fontWeight: 700, color: builderOpen ? '#6B7480' : '#fff',
+                background: builderOpen ? '#fff' : 'linear-gradient(135deg,#F56B22,#FF8C4B)',
+                border: builderOpen ? '1px solid #EDEEF2' : 'none',
+                borderRadius: 12, cursor: 'pointer', flexShrink: 0,
+              }}>
+              {builderOpen ? <><X style={{ width: 15, height: 15 }} /> Close</> : <>Build custom report →</>}
+            </button>
+          </div>
+
+          {builderOpen && (
+            <div style={{ marginTop: 20, borderTop: '1px solid #F0F1F5', paddingTop: 20 }}>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 18 }}>
+                <div style={{ minWidth: 230 }}>
+                  <label style={labelStyle}>Report name</label>
+                  <input value={builderName} onChange={(e) => setBuilderName(e.target.value)} placeholder="e.g. Q3 membership by plan" style={inputStyle} />
+                </div>
+                <div style={{ minWidth: 200 }}>
+                  <label style={labelStyle}>Data</label>
+                  <select
+                    value={builderSource}
+                    onChange={(e) => {
+                      const next = e.target.value as SourceKey;
+                      setBuilderSource(next);
+                      // Columns belong to a source, so reset to that source's defaults.
+                      setBuilderCols(FIELDS[next].slice(0, 6).map((f) => f.key));
+                    }}
+                    style={{ ...inputStyle, cursor: 'pointer' }}>
+                    <option value="members">Membership</option>
+                    <option value="claims">Claims</option>
+                  </select>
+                </div>
+              </div>
+
+              <label style={labelStyle}>Columns ({builderCols.length} selected)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {FIELDS[builderSource].map((f) => {
+                  const on = builderCols.includes(f.key);
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => setBuilderCols((prev) => on ? prev.filter((k) => k !== f.key) : [...prev, f.key])}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px',
+                        fontSize: 12.5, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+                        color: on ? '#F56B22' : '#6B7480',
+                        background: on ? '#FFF3E8' : '#fff',
+                        border: `1px solid ${on ? '#FFD5B8' : '#EDEEF2'}`,
+                      }}>
+                      {on && <Check style={{ width: 13, height: 13 }} />}
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+                <button onClick={() => setBuilderCols(FIELDS[builderSource].map((f) => f.key))}
+                  style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Select all
+                </button>
+                <button onClick={() => setBuilderCols([])}
+                  style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Clear
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => runCustom('xls')}
+                  disabled={builderBusy || builderCols.length === 0}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7, height: 44, padding: '0 18px',
+                    fontSize: 13, fontWeight: 700, color: '#15803D', background: '#F0FDF4',
+                    border: '1px solid #BBF7D0', borderRadius: 12,
+                    cursor: builderBusy || builderCols.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: builderCols.length === 0 ? 0.6 : 1,
+                  }}>
+                  <FileSpreadsheet style={{ width: 15, height: 15 }} /> {builderBusy ? 'Building…' : 'Export XLS'}
+                </button>
+                <button
+                  onClick={() => runCustom('pdf')}
+                  disabled={builderBusy || builderCols.length === 0}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7, height: 44, padding: '0 18px',
+                    fontSize: 13, fontWeight: 700, color: '#DC2626', background: '#FEF2F2',
+                    border: '1px solid #FECACA', borderRadius: 12,
+                    cursor: builderBusy || builderCols.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: builderCols.length === 0 ? 0.6 : 1,
+                  }}>
+                  <FileText style={{ width: 15, height: 15 }} /> {builderBusy ? 'Building…' : 'Export PDF'}
+                </button>
+                <p style={{ fontSize: 11.5, color: '#9CA3B8' }}>
+                  Uses the period and plan applied above.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
