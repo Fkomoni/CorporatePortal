@@ -453,9 +453,8 @@ export default function LoginPage() {
           </p>
 
           <p style={{ fontSize: 12, textAlign: 'center', marginTop: 12, color: '#B8BFD0' }}>
-            Leadway staff?{' '}
             <a href="/admin/login" style={{ color: '#F56B22', fontWeight: 600, textDecoration: 'none' }}>
-              Staff portal login →
+              Leadway staff login →
             </a>
           </p>
         </div>
