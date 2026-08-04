@@ -4,6 +4,8 @@
 // terminationdate directly; new terminations no longer need scheduling).
 // Confirmed shape (same DTO family as Approve/RejectEnrollees):
 //   { CifNumber, rejectionreason, terminationdate: "yyyy-mm-dd", useremail }
+import { PROGNOSIS_ACTING_USER_EMAIL } from '@/lib/prognosis-acting-user';
+
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
@@ -50,11 +52,18 @@ export async function callTerminateMember(cifNumber: string, opts: TerminateOpti
   try {
     let token = await getServiceToken();
 
+    // Filed under the known-good account rather than the acting HR user, whose
+    // email Prognosis may not recognise — see PROGNOSIS_ACTING_USER_EMAIL. The
+    // real actor is logged here and audited by the caller.
+    if (opts.userEmail?.trim() && opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL) {
+      console.log(`[TerminateMember] cif=${cifNumber} requested by ${opts.userEmail}, filed on Prognosis as ${PROGNOSIS_ACTING_USER_EMAIL}`);
+    }
+
     const requestBody = JSON.stringify({
       CifNumber: Number(cifNumber) || cifNumber,
       rejectionreason: opts.reason,
       terminationdate: opts.terminationDate,
-      useremail: opts.userEmail,
+      useremail: PROGNOSIS_ACTING_USER_EMAIL,
     });
     const url = `${BASE}/api/CorporatePortal/TerminateMember`;
     console.log(`[TerminateMember] → POST ${url} body=${requestBody}`);
@@ -83,6 +92,25 @@ export async function callTerminateMember(cifNumber: string, opts: TerminateOpti
     const apiMessage = String(r?.message ?? r?.Message ?? '');
 
     if (!res.ok || (apiStatus && apiStatus !== 'success')) {
+      // Every termination is filed under one account, so "Invalid user." means
+      // that account has stopped being accepted — terminations are down for
+      // everyone, not just this member or this HR user.
+      if (/invalid user/i.test(text)) {
+        console.error(`[TerminateMember] Prognosis no longer accepts the acting account "${PROGNOSIS_ACTING_USER_EMAIL}" — all terminations will fail until this is resolved.`);
+        return {
+          success: false,
+          error: 'Prognosis is not accepting the account this portal files terminations under, so it will not record this. This affects all terminations, not just this member — please contact Leadway.',
+        };
+      }
+      // A 5xx is Prognosis failing internally, not the termination being
+      // refused. Nothing was written, and retrying later usually works.
+      if (res.status >= 500) {
+        console.error(`[TerminateMember] Prognosis ${res.status} for cif=${cifNumber} — treating as transient: ${text.slice(0, 300)}`);
+        return {
+          success: false,
+          error: "Leadway's system is temporarily unavailable and could not record this termination. Nothing has been changed — please try again in a few minutes.",
+        };
+      }
       return { success: false, error: apiMessage || `Termination failed (${res.status})` };
     }
     return { success: true, message: apiMessage || 'Member terminated successfully.' };

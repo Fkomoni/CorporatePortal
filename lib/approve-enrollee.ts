@@ -15,29 +15,12 @@
 // single member's own CIF, not a family/parentCif, so every beneficiary,
 // principal included, must be decided on individually.
 import { getServiceToken } from '@/lib/corporate-welcome';
+import { PROGNOSIS_ACTING_USER_EMAIL } from '@/lib/prognosis-acting-user';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
-// Prognosis validates useremail against its OWN user list and refuses anything
-// it doesn't know with "Invalid user." — including HR logins that are perfectly
-// valid on our side. Probing with a nonexistent CIF, so useremail is judged in
-// isolation, showed f-komoni-mbaekwe@leadway.com and komonifa@yahoo.com are
-// accepted while the Prognosis service account, a corporate contact address, an
-// empty string, and africaterminal@yopmail.com are not.
-//
-// INTERIM MEASURE: every decision is therefore filed under this one known-good
-// account rather than the HR user who made it. Sending the real HR email first
-// and only retrying on rejection was tried, but it costs an extra round-trip on
-// every decision for accounts Prognosis will never accept.
-//
-// Consequence: on Prognosis, ALL approvals and rejections appear to come from
-// this account. The HR user who actually clicked is preserved in our own audit
-// log (see prognosisUserEmail below). Remove this once the real HR emails are
-// registered with Prognosis, and pass the acting user through again.
-const APPROVAL_USER_EMAIL =
-  process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL ?? 'f-komoni-mbaekwe@leadway.com';
 
 export interface ApproveResult {
   success: boolean;
@@ -109,11 +92,11 @@ async function callDecide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts
 async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: DecisionOptions): Promise<ApproveResult> {
   try {
     // Filed under the known-good account, not the acting HR user — see
-    // APPROVAL_USER_EMAIL. The real actor is logged here and audited by callers.
-    if (opts.userEmail?.trim() && opts.userEmail !== APPROVAL_USER_EMAIL) {
-      console.log(`[${endpoint}] cif=${opts.cifNumber} requested by ${opts.userEmail}, filed on Prognosis as ${APPROVAL_USER_EMAIL}`);
+    // PROGNOSIS_ACTING_USER_EMAIL. The real actor is logged here and audited by callers.
+    if (opts.userEmail?.trim() && opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL) {
+      console.log(`[${endpoint}] cif=${opts.cifNumber} requested by ${opts.userEmail}, filed on Prognosis as ${PROGNOSIS_ACTING_USER_EMAIL}`);
     }
-    const { res, text, r } = await callDecide(endpoint, opts, APPROVAL_USER_EMAIL);
+    const { res, text, r } = await callDecide(endpoint, opts, PROGNOSIS_ACTING_USER_EMAIL);
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');
@@ -126,10 +109,10 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
       // principals and dependants alike. Say so, because the raw message sends
       // people looking at the wrong thing.
       if (/invalid user/i.test(text)) {
-        // Every decision goes under APPROVAL_USER_EMAIL, so this means that one
+        // Every decision goes under PROGNOSIS_ACTING_USER_EMAIL, so this means that one
         // account has stopped being accepted — approvals are down for everyone,
         // not just this member or this HR user.
-        console.error(`[${endpoint}] Prognosis no longer accepts the approval account "${APPROVAL_USER_EMAIL}" — all approvals/rejections will fail until this is resolved.`);
+        console.error(`[${endpoint}] Prognosis no longer accepts the approval account "${PROGNOSIS_ACTING_USER_EMAIL}" — all approvals/rejections will fail until this is resolved.`);
         return {
           success: false,
           error: `Prognosis is not accepting the account this portal files approvals under, so it will not record this decision. This affects all approvals, not just this member — please contact Leadway.`,
@@ -160,7 +143,7 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
       success: true,
       message: apiMessage,
       recordsUpdated,
-      prognosisUserEmail: opts.userEmail !== APPROVAL_USER_EMAIL ? APPROVAL_USER_EMAIL : undefined,
+      prognosisUserEmail: opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL ? PROGNOSIS_ACTING_USER_EMAIL : undefined,
     };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : `Failed to call ${endpoint}` };
