@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ClipboardCheck, Check, X, RefreshCw, Calendar } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { useToast } from '@/components/ui/Toast';
+import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import type { PendingGroup, PendingInvitation } from '@/app/api/hr/members/pending/route';
 
 interface BeneficiaryRow {
@@ -22,6 +23,9 @@ interface BeneficiaryRow {
   email: string;
   schemeName: string;
   registrationSource: 'Corporate Portal' | 'Enrolee App';
+  // Cover start date HR chose when issuing the invitation — the date approval
+  // should default to, so it isn't silently reset to the day HR approves.
+  coverStartDate: string | null;
 }
 
 function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
@@ -46,6 +50,7 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
         email: g.email,
         schemeName: m.schemeName || g.schemeName || '—',
         registrationSource: m.registrationSource,
+        coverStartDate: m.coverStartDate ?? null,
       });
     }
   }
@@ -68,6 +73,11 @@ export default function PendingEnroleesPage() {
   const [approvingCif, setApprovingCif] = useState<string | null>(null); // null = not approving; 'bulk' = approving current selection
   const [approveDate, setApproveDate] = useState(''); // effective date, yyyy-mm-dd
   const [busyCif, setBusyCif] = useState<string | null>(null); // parentCif or 'bulk'
+  const [showBackdateModal, setShowBackdateModal] = useState(false);
+  const [backdateAgreed, setBackdateAgreed] = useState(false);
+  // Earliest effective date HR may approve with — start of the group's current
+  // policy year, from the API. Cover can't begin before the group was rated.
+  const [policyYearStart, setPolicyYearStart] = useState('');
 
   // Prognosis needs an explicit dd/mm/yyyy effective/termination date for
   // every approve/reject decision — it drives the member's waiting period,
@@ -92,6 +102,7 @@ export default function PendingEnroleesPage() {
         if (d.error) { setError(d.error); return; }
         setGroups(d.groups ?? []);
         setInvitations(d.invitations ?? []);
+        setPolicyYearStart(d.policyYearStart ?? '');
       })
       .catch(() => setError('Failed to load pending enrolees'))
       .finally(() => setLoading(false));
@@ -128,7 +139,7 @@ export default function PendingEnroleesPage() {
     });
   }
 
-  async function approveCifs(cifs: string[], effectiveDate: string) {
+  async function approveCifs(cifs: string[], effectiveDate: string, backdateAcknowledged: boolean) {
     let updated = 0;
     let failed = 0;
     for (const cifNumber of cifs) {
@@ -137,7 +148,7 @@ export default function PendingEnroleesPage() {
         const res = await fetch('/api/hr/members/pending/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, dateOfBirth: row?.dateOfBirth, cifNumbers: [cifNumber], effectiveDate }),
+          body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, dateOfBirth: row?.dateOfBirth, cifNumbers: [cifNumber], effectiveDate, backdateAcknowledged }),
         });
         const data = await res.json();
         if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;
@@ -150,23 +161,42 @@ export default function PendingEnroleesPage() {
     ? [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.cifNumber))]
     : approvingCif ? [approvingCif] : [];
 
-  function openApproveSheet(cif: string) {
-    setApprovingCif(cif);
-    setApproveDate(todayIso());
+  // Default the effective date to the cover start date HR committed to when
+  // issuing the invitation, falling back to today when there isn't one (Enrolee
+  // App registrations, or links issued before this was tracked). For a bulk
+  // approval only use it when every selected member shares the same date.
+  function coverStartFor(cifs: string[]): string {
+    const dates = [...new Set(cifs.map((c) => rows.find((r) => r.cifNumber === c)?.coverStartDate ?? '').filter(Boolean))];
+    return dates.length === 1 ? dates[0] : '';
   }
 
-  async function handleApproveConfirm(cifs: string[]) {
+  function openApproveSheet(cif: string) {
+    setApprovingCif(cif);
+    const cifs = cif === 'bulk'
+      ? [...new Set(rows.filter((r) => selected.has(r.rowId)).map((r) => r.cifNumber))]
+      : [cif];
+    setApproveDate(coverStartFor(cifs) || todayIso());
+  }
+
+  async function handleApproveConfirm(cifs: string[], agreedOverride = false) {
     if (!approveDate) { toast('Please choose an effective date.', 'error'); return; }
-    if (approveDate < todayIso()) { toast('Effective date cannot be in the past.', 'error'); return; }
+    if (policyYearStart && approveDate < policyYearStart) {
+      toast('Effective date cannot be earlier than the start of the current policy year.', 'error'); return;
+    }
+    // Backdating is allowed so the invitation's agreed start date is honoured,
+    // but HR must accept the backdate warning first.
+    const agreed = backdateAgreed || agreedOverride;
+    if (approveDate < todayIso() && !agreed) { setShowBackdateModal(true); return; }
     const names = cifs.length > 1 ? `${cifs.length} beneficiaries` : rows.find((r) => r.cifNumber === cifs[0])?.beneficiaryName;
     setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
-    const { updated, failed } = await approveCifs(cifs, toDdMmYyyy(approveDate));
+    const { updated, failed } = await approveCifs(cifs, toDdMmYyyy(approveDate), approveDate < todayIso());
     setBusyCif(null);
     if (failed) toast(`${failed > 1 ? `${failed} approvals` : `Failed to approve ${names}`} failed. Please retry.`, failed === cifs.length ? 'error' : 'info');
     if (updated) toast(`${cifs.length > 1 ? `Approved ${updated} record${updated !== 1 ? 's' : ''}` : `${names} approved`}.`, 'success');
     removeCifNumbers(new Set(cifs));
     setApprovingCif(null);
     setApproveDate('');
+    setBackdateAgreed(false);
   }
 
   async function handleDecline(cifs: string[]) {
@@ -349,8 +379,29 @@ export default function PendingEnroleesPage() {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                   Effective date for {approvingCifs.length > 1 ? `${approvingCifs.length} beneficiaries` : 'this beneficiary'} (required)
                 </label>
-                <input type="date" value={approveDate} min={todayIso()} onChange={(e) => setApproveDate(e.target.value)}
+                <input type="date" value={approveDate} min={policyYearStart || undefined} onChange={(e) => setApproveDate(e.target.value)}
                   style={{ ...inputStyle, background: '#fff', border: '1px solid #A7F3D0' }} />
+                {(() => {
+                  const invited = coverStartFor(approvingCifs);
+                  if (invited) {
+                    return (
+                      <p style={{ fontSize: 11.5, color: '#065F46', marginTop: 6 }}>
+                        Prefilled from the cover start date set on the invitation ({toDdMmYyyy(invited)}).
+                        {approveDate !== invited && ' You have changed it.'}
+                      </p>
+                    );
+                  }
+                  return (
+                    <p style={{ fontSize: 11.5, color: '#6B7280', marginTop: 6 }}>
+                      No invitation cover start date on record for {approvingCifs.length > 1 ? 'these members' : 'this member'} — defaulted to today.
+                    </p>
+                  );
+                })()}
+                {approveDate && approveDate < todayIso() && (
+                  <p style={{ fontSize: 11.5, color: '#B45309', marginTop: 4, fontWeight: 600 }}>
+                    This is a backdated effective date — you will be asked to acknowledge the backdating terms.
+                  </p>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button onClick={() => { setApprovingCif(null); setApproveDate(''); }} disabled={busyCif !== null}
                     style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
@@ -440,6 +491,12 @@ export default function PendingEnroleesPage() {
         )}
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
+      {showBackdateModal && (
+        <BackdateWarningModal
+          onAgree={() => { setShowBackdateModal(false); setBackdateAgreed(true); handleApproveConfirm(approvingCifs, true); }}
+          onCancel={() => setShowBackdateModal(false)}
+        />
+      )}
     </div>
   );
 }

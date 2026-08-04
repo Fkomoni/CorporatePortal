@@ -5,6 +5,7 @@
 // groups them into one family itself; we don't resolve/pass a parent CIF.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -114,11 +115,17 @@ export async function POST(req: Request) {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isBackdated = !!body.startDate && new Date(body.startDate) < today;
+  // Backdating is allowed as far back as the start of the group's current policy
+  // year, subject to HR acknowledging the backdate warning (no claims settled
+  // before the valid enrolment date).
   if (body.startDate) {
-    const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
     const chosenStart = new Date(body.startDate); chosenStart.setHours(0, 0, 0, 0);
-    if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
-      return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+    if (isNaN(chosenStart.getTime())) {
+      return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
+    }
+    const policyYearStart = await getPolicyYearStart(session.user.companyId ?? '');
+    if (body.startDate < policyYearStart) {
+      return NextResponse.json({ error: `Cover start date cannot be earlier than the start of the current policy year (${formatPolicyYearStart(policyYearStart)}).` }, { status: 400 });
     }
     if (isBackdated && !body.backdateAcknowledged) {
       return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });

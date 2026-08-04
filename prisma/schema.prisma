@@ -235,6 +235,10 @@ model LinkRegistration {
   id        String   @id @default(cuid())
   cifNumber String   @unique
   groupId   String?
+  // Cover start date HR chose when issuing the invitation (yyyy-mm-dd). Carried
+  // through to the Pending Enrolees screen so approval defaults to the date HR
+  // originally committed to, rather than silently resetting to the approval day.
+  startDate String?
   createdAt DateTime @default(now())
 
   @@map("link_registrations")

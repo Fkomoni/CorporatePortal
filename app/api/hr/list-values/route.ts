@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getPolicyYearStart } from '@/lib/policy-year';
 import { cacheGet, cacheSet } from '@/lib/server-cache';
 import { logTag } from '@/lib/log-tag';
 
@@ -89,9 +90,14 @@ export async function GET(req: Request) {
 
   const CACHE_KEY = 'list-values-v2';
 
+  // Earliest date HR may backdate cover to. Per-group, so it must NOT go into
+  // the globally-cached payload below — getPolicyYearStart keeps its own
+  // per-group cache instead.
+  const policyYearStart = await getPolicyYearStart(session.user.companyId ?? '');
+
   if (!fresh) {
     const cached = cacheGet<object>(CACHE_KEY);
-    if (cached) return NextResponse.json({ ...cached, cached: true });
+    if (cached) return NextResponse.json({ ...cached, policyYearStart, cached: true });
   }
 
   try {
@@ -152,7 +158,7 @@ export async function GET(req: Request) {
 
     const payload = { relationships, genders, maritalStatuses, states, regions };
     cacheSet(CACHE_KEY, payload);
-    return NextResponse.json(payload);
+    return NextResponse.json({ ...payload, policyYearStart });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err), relationships: [], genders: [], maritalStatuses: [], states: [] },

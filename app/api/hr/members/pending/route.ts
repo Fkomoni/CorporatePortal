@@ -3,6 +3,7 @@
 // family (principal + dependants share the principal's CIF as parentCif).
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getPolicyYearStart } from '@/lib/policy-year';
 import { isAdminRole } from '@/lib/roles';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { prisma } from '@/lib/prisma';
@@ -108,6 +109,10 @@ export interface PendingMemberRow {
   terminationDate: string;
   registrationDate: string | null;
   registrationSource: 'Corporate Portal' | 'Enrolee App';
+  // Cover start date HR set on the invitation (yyyy-mm-dd), when this member
+  // registered through an HR-issued link. Null for Enrolee App registrations
+  // and for link registrations recorded before this was tracked.
+  coverStartDate?: string | null;
 }
 
 export interface PendingGroup {
@@ -291,15 +296,19 @@ export async function GET(req: Request) {
     // that ISN'T in there came straight from the Enrolee mobile app.
     const linkCifSet = new Set<string>();
     const linkCifDates = new Map<string, string>();
+    // Cover start date HR chose when issuing the invitation — approval should
+    // honour this rather than defaulting to the day HR happens to approve.
+    const linkCifStartDates = new Map<string, string>();
     if (pendingBeneficiaries.length > 0) {
       try {
         const linkRows = await prisma.linkRegistration.findMany({
           where: { cifNumber: { in: pendingBeneficiaries.map((r) => r.cifNumber) } },
-          select: { cifNumber: true, createdAt: true },
+          select: { cifNumber: true, createdAt: true, startDate: true },
         });
         for (const row of linkRows) {
           linkCifSet.add(row.cifNumber);
           linkCifDates.set(row.cifNumber, row.createdAt.toISOString().slice(0, 10));
+          if (row.startDate) linkCifStartDates.set(row.cifNumber, row.startDate);
         }
       } catch (e) {
         console.warn('[hr/members/pending] Failed to look up link registration sources:', e);
@@ -325,7 +334,12 @@ export async function GET(req: Request) {
       // direct), we recorded the real submission timestamp ourselves, so
       // prefer that over Prognosis's field.
       const trueDate = linkCifDates.get(r.cifNumber) ?? member.registrationDate;
-      g.members.push({ ...member, registrationDate: trueDate, registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App' });
+      g.members.push({
+        ...member,
+        registrationDate: trueDate,
+        registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App',
+        coverStartDate: linkCifStartDates.get(r.cifNumber) ?? null,
+      });
       g.memberCount++;
       if (!g.registrationDate || (trueDate && trueDate < g.registrationDate)) {
         g.registrationDate = trueDate ?? g.registrationDate;
@@ -366,7 +380,11 @@ export async function GET(req: Request) {
       console.warn('[hr/members/pending] Failed to fetch unused invitations:', e);
     }
 
-    return NextResponse.json({ groups: groupList, invitations, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
+    // Earliest effective date HR may approve with — the approve sheet uses it
+    // as the date picker's floor.
+    const policyYearStart = await getPolicyYearStart(groupId);
+
+    return NextResponse.json({ groups: groupList, invitations, policyYearStart, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
   } catch (err) {
     console.error('[hr/members/pending] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch pending enrolees' }, { status: 500 });

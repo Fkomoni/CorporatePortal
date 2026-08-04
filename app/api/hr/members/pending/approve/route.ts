@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { isAdminRole } from '@/lib/roles';
 import { approveEnrollee } from '@/lib/approve-enrollee';
+import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { getPrincipalFamily, findDuplicateDependent } from '@/lib/dependent-checks';
 import { logAudit } from '@/lib/audit';
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; dateOfBirth?: string; cifNumbers?: (string | number)[]; effectiveDate?: string };
+  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; dateOfBirth?: string; cifNumbers?: (string | number)[]; effectiveDate?: string; backdateAcknowledged?: boolean };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -35,10 +36,22 @@ export async function POST(req: Request) {
   if (!dmy) {
     return NextResponse.json({ error: 'effectiveDate (dd/mm/yyyy) is required' }, { status: 400 });
   }
+  // Backdating IS allowed here — a member who registered against an invitation
+  // dated (say) 1 July but only gets approved in August must still have cover
+  // effective from 1 July, otherwise the date HR committed to when issuing the
+  // link is silently lost. Two bounds apply: the date can never precede the
+  // group's current policy year (cover outside a rated period), and any past
+  // date needs HR's acknowledgement of the backdate warning (Leadway settles
+  // no claims incurred before the valid enrolment date).
   const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
   const effectiveDateVal = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-  if (effectiveDateVal < todayMidnight) {
-    return NextResponse.json({ error: 'Effective date cannot be in the past.' }, { status: 400 });
+  const effectiveIso = `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  const policyYearStart = await getPolicyYearStart(session.user.companyId ?? '');
+  if (effectiveIso < policyYearStart) {
+    return NextResponse.json({ error: `Effective date cannot be earlier than the start of the current policy year (${formatPolicyYearStart(policyYearStart)}).` }, { status: 400 });
+  }
+  if (effectiveDateVal < todayMidnight && !body.backdateAcknowledged) {
+    return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });
   }
 
   // ApproveEnrollees operates on a single member's own CIF, not a family
