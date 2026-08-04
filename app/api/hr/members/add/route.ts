@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { genderLabelFromSexId } from '@/lib/gender';
 import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
+import { validateEmail, normalizeEmail } from '@/lib/email';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -94,8 +95,10 @@ export async function POST(req: Request) {
   if (body.nin && !/^\d{11}$/.test(body.nin)) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
-  // Reject anything that isn't a real Nigerian mobile before it reaches
-  // Prognosis, which stores whatever it's given without complaint.
+  // Reject malformed contact details before they reach Prognosis, which stores
+  // whatever it's given without complaint.
+  const emailErr = validateEmail(email, { required: true, label: 'Email' });
+  if (emailErr) return NextResponse.json({ error: emailErr }, { status: 400 });
   for (const [value, label, required] of [[mobile, 'Mobile number', true], [body.mobile2, 'Alternative mobile', false]] as const) {
     const err = validateMobile(value, { required, label });
     if (err) return NextResponse.json({ error: err }, { status: 400 });
@@ -162,7 +165,7 @@ export async function POST(req: Request) {
       // the principal's own Relationship_ID (previously sent as "30", which
       // is a dependent-type relationship — corrected per their updated docs).
       Relationship_ID: '1',
-      EmailAdress: email,
+      EmailAdress: normalizeEmail(email),
       Home_Phone: '',
       Work_Phone: '',
       Mobile: normalizeNigerianMobile(mobile),

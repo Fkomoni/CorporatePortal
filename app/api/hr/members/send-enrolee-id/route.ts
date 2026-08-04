@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { validateEmail } from '@/lib/email';
 import { renderEmailTemplate } from '@/lib/email-template';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -48,6 +49,11 @@ export async function POST(req: Request) {
   if (!email || !enroleeId || !memberName) {
     return NextResponse.json({ error: 'email, enroleeId and memberName are required' }, { status: 400 });
   }
+  // Prognosis answers a malformed address with HTTP 200 and
+  // "fail: Invalid email address format", so send nothing rather than
+  // report a delivery that never happened.
+  const emailErr = validateEmail(email, { required: true, label: 'Email' });
+  if (emailErr) return NextResponse.json({ error: emailErr }, { status: 400 });
 
   const html = renderEmailTemplate({
     category: 'Member Services',

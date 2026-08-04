@@ -13,6 +13,7 @@ import { cacheBust } from '@/lib/server-cache';
 import { logAudit } from '@/lib/audit';
 import { sexIdFromText } from '@/lib/gender';
 import { validateMobile, normalizeNigerianMobile as normalizePhone } from '@/lib/phone';
+import { validateEmail, normalizeEmail } from '@/lib/email';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -125,8 +126,9 @@ export async function POST(req: Request) {
 
   const { enrolleeId, isPrincipal, sexId, dateOfBirth, mobile, email, address, photo, photoType, nin } = body;
   if (!enrolleeId) return NextResponse.json({ error: 'enrolleeId is required' }, { status: 400 });
-  const mobErr = validateMobile(mobile, { label: 'Mobile number' });
-  if (mobErr) return NextResponse.json({ error: mobErr }, { status: 400 });
+  const contactErr = validateEmail(email, { label: 'Email' })
+    ?? validateMobile(mobile, { label: 'Mobile number' });
+  if (contactErr) return NextResponse.json({ error: contactErr }, { status: 400 });
   if (nin && !/^\d{11}$/.test(nin)) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
@@ -185,7 +187,7 @@ export async function POST(req: Request) {
       employmentdate: dateOnly(row['Member_Entry_date']),
       Sex_ID: sexId || sexIdFromText(row['Member_Gender']),
       MaritalStatus: maritalStatusId(row),
-      EmailAdress: email || s(row['Member_EmailAddress_One']),
+      EmailAdress: email ? normalizeEmail(email) : s(row['Member_EmailAddress_One']),
       Home_Phone: s(row['Member_Phone_Three']),
       Work_Phone: s(row['Member_Phone_Four']),
       Mobile: mobile ? normalizePhone(mobile) : normalizePhone(row['Member_Phone_One']),

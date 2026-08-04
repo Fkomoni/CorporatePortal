@@ -7,6 +7,7 @@
 // Prognosis the same way.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { isValidEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { logAudit } from '@/lib/audit';
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
   if (!name || !email) {
     return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 });
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!isValidEmail(email)) {
     return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
   }
 

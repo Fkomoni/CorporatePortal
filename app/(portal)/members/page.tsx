@@ -14,6 +14,7 @@ import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { digitsOnly, validateMobile } from '@/lib/phone';
+import { isValidEmail, validateEmail } from '@/lib/email';
 import { exportToXls } from '@/lib/exportXls';
 
 
@@ -330,7 +331,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!mobile)       errors.push('Mobile required');
         if (!employeeCode) errors.push('Employee Code required');
         if (dob && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$|^\d{4}-\d{2}-\d{2}$/.test(dob)) errors.push('DOB must be DD/MM/YYYY');
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Invalid email');
+        if (email && !isValidEmail(email)) errors.push('Invalid email');
         return { idx, firstName, surname, otherNames, dob, gender, email, mobile, employeeCode, errors };
       });
       setBulkRows(rows);
@@ -628,9 +629,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !postalId) {
           setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State/Town.'); return;
         }
-        const mobErr = validateMobile(mobile, { required: true, label: 'Mobile' })
+        const contactErr = validateEmail(email, { required: true, label: 'Email' })
+          ?? validateMobile(mobile, { required: true, label: 'Mobile' })
           ?? validateMobile(mobile2, { label: 'Alt. Mobile' });
-        if (mobErr) { setFormError(mobErr); return; }
+        if (contactErr) { setFormError(contactErr); return; }
         if (!photoBase64) { setFormError('Passport photo is required.'); return; }
 
         const activeDeps = addDepsNow ? familyDeps.filter((d) => d.firstName || d.surname || d.dob) : [];
@@ -639,8 +641,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             if (!d.firstName || !d.surname || !d.dob || !d.sexId || !d.relationshipId) {
               setFormError('Every dependant needs First Name, Surname, Date of Birth, Gender and Relationship.'); return;
             }
-            const depMobErr = validateMobile(d.mobile, { label: `Mobile for ${d.firstName} ${d.surname}`.trim() });
-            if (depMobErr) { setFormError(depMobErr); return; }
+            const who = `${d.firstName} ${d.surname}`.trim();
+            const depContactErr = validateEmail(d.email, { label: `Email for ${who}` })
+              ?? validateMobile(d.mobile, { label: `Mobile for ${who}` });
+            if (depContactErr) { setFormError(depContactErr); return; }
           }
           const res = await fetch('/api/hr/members/add-family', {
             method: 'POST',

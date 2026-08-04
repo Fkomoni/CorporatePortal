@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
+import { validateEmail, normalizeEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
 import { renderEmailTemplate } from '@/lib/email-template';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
@@ -103,6 +104,10 @@ export async function POST(req: Request) {
   if (!email || !employeeCode || !schemeId) {
     return NextResponse.json({ error: 'email, employeeCode and schemeId are required' }, { status: 400 });
   }
+  // The whole point of an invitation is that it lands in an inbox — a malformed
+  // address means the staff member silently never receives their link.
+  const emailErr = validateEmail(email, { required: true, label: 'Staff email' });
+  if (emailErr) return NextResponse.json({ error: emailErr }, { status: 400 });
   if (inviteType === 'dependent' && !parentCif) {
     return NextResponse.json({ error: 'parentCif is required for dependent invitations' }, { status: 400 });
   }

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, Upload } from 'lucide-react';
 import { digitsOnly, validateMobile } from '@/lib/phone';
+import { isValidEmail } from '@/lib/email';
 
 interface ListItem { text: string; value: string; }
 
@@ -22,7 +23,6 @@ interface InvitationMeta {
   expiresAt: string;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatIsoDateLong(iso?: string | null): string {
   if (!iso) return '';
@@ -155,7 +155,7 @@ export default function EnrollPage() {
     }
 
     const effectiveEmail = (isDependent || principalCifNumber) ? (depEmail || invitation.email) : invitation.email;
-    if ((isDependent ? depEmail : true) && !EMAIL_RE.test(effectiveEmail)) {
+    if ((isDependent ? depEmail : true) && !isValidEmail(effectiveEmail)) {
       setErrorMsg('Please enter a valid email address (e.g. name@example.com).');
       setStatus('error');
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);

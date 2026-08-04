@@ -7,6 +7,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
+import { validateEmail, normalizeEmail } from '@/lib/email';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -112,11 +113,12 @@ export async function POST(req: Request) {
     if (m.nin && !/^\d{11}$/.test(m.nin)) {
       return NextResponse.json({ error: `NIN for ${m.firstName} ${m.surname} must be exactly 11 digits.` }, { status: 400 });
     }
-    // The principal must have a usable mobile; dependants' are optional.
+    // The principal must have a usable email and mobile; dependants' are optional.
     const who = `${m.firstName} ${m.surname}`.trim();
-    const mobErr = validateMobile(m.mobile, { required: m === principal, label: `Mobile number for ${who}` })
+    const contactErr = validateEmail(m.email, { required: m === principal, label: `Email for ${who}` })
+      ?? validateMobile(m.mobile, { required: m === principal, label: `Mobile number for ${who}` })
       ?? validateMobile(m.mobile2, { label: `Alternative mobile for ${who}` });
-    if (mobErr) return NextResponse.json({ error: mobErr }, { status: 400 });
+    if (contactErr) return NextResponse.json({ error: contactErr }, { status: 400 });
   }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -170,7 +172,7 @@ export async function POST(req: Request) {
       MaritalStatus: m.maritalStatus ?? '',
       titleid: 0,
       Relationship_ID: isPrincipal ? '1' : String(m.relationshipId),
-      EmailAdress: m.email ?? '',
+      EmailAdress: normalizeEmail(m.email),
       Home_Phone: '',
       Work_Phone: '',
       Mobile: normalizeNigerianMobile(m.mobile),

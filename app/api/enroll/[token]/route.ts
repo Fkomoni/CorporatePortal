@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
+import { validateEmail, normalizeEmail } from '@/lib/email';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -178,6 +179,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const nin = String(body.nin ?? '').trim();
     // A staff member filling their own form must not be able to submit letters
     // or a malformed number — the field is only optional for non-spouse dependants.
+    const emailErr = validateEmail(body.email, { required: !isDependent, label: 'Email' });
+    if (emailErr) return NextResponse.json({ error: emailErr }, { status: 400 });
     const mobErr = validateMobile(body.mobile, { required: !isDependent, label: 'Mobile number' })
       ?? validateMobile(body.mobile2, { label: 'Alternative mobile' });
     if (mobErr) return NextResponse.json({ error: mobErr }, { status: 400 });

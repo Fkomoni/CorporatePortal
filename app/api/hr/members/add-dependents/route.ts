@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
+import { validateEmail, normalizeEmail } from '@/lib/email';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { getPrincipalFamily, findDuplicateDependent, getSchemeMaxFamilySize } from '@/lib/dependent-checks';
@@ -125,9 +126,11 @@ export async function POST(req: Request) {
     }
 
     for (const dep of dependents) {
-      // Dependant mobile is optional, but must be valid when supplied.
-      const depMobErr = validateMobile(dep.mobile, { label: `Mobile number for ${`${dep.firstName ?? ''} ${dep.surname ?? ''}`.trim()}` });
-      if (depMobErr) return NextResponse.json({ error: depMobErr }, { status: 400 });
+      // Dependant email/mobile are optional, but must be valid when supplied.
+      const depWho = `${dep.firstName ?? ''} ${dep.surname ?? ''}`.trim();
+      const depContactErr = validateEmail(dep.email, { label: `Email for ${depWho}` })
+        ?? validateMobile(dep.mobile, { label: `Mobile number for ${depWho}` });
+      if (depContactErr) return NextResponse.json({ error: depContactErr }, { status: 400 });
       if (dep.nin && !/^\d{11}$/.test(dep.nin)) {
         return NextResponse.json({ error: `NIN for ${dep.firstName} ${dep.surname} must be exactly 11 digits.` }, { status: 400 });
       }
