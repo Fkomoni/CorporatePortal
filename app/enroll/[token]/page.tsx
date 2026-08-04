@@ -52,8 +52,12 @@ export default function EnrollPage() {
   const [relationships, setRelationships] = useState<ListItem[]>([]);
   const [submitting, setSubmitting]   = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ enrolleeId: string; membershipNo: string } | null>(null);
-  const [principalRecord, setPrincipalRecord] = useState<{ enrolleeId: string; name: string } | null>(null);
-  const [depEnrolled, setDepEnrolled] = useState<Array<{ enrolleeId: string; name: string }>>([]);
+  // The passport photo is captured per member at the moment enrolment succeeds:
+  // photoBase64/photoType are reset between dependants, so by the time the
+  // success screen renders the e-ID cards they no longer hold anyone's photo.
+  interface EnrolledRecord { enrolleeId: string; name: string; photo?: string; photoType?: string }
+  const [principalRecord, setPrincipalRecord] = useState<EnrolledRecord | null>(null);
+  const [depEnrolled, setDepEnrolled] = useState<EnrolledRecord[]>([]);
   const [remainingSlots, setRemainingSlots] = useState(1);
   const [principalCifNumber, setPrincipalCifNumber] = useState<string | null>(null);
   const [existingDependants, setExistingDeps] = useState<{ name: string; relationship: string; status: string; dob: string }[]>([]);
@@ -220,7 +224,7 @@ export default function EnrollPage() {
         if (isDependent || principalCifNumber) {
           // Dependent enrolment (or self-dep add after principal)
           const newRemaining = Math.max(0, remainingSlots - 1);
-          setDepEnrolled(prev => [...prev, { enrolleeId, name }]);
+          setDepEnrolled(prev => [...prev, { enrolleeId, name, photo: photoBase64, photoType }]);
           setRemainingSlots(newRemaining);
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
           if (newRemaining > 0) {
@@ -238,11 +242,12 @@ export default function EnrollPage() {
           // Principal enrolled for self+dep scope — transition to dependent form
           setPrincipalCifNumber(String(data.cifNumber));
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
-          setPrincipalRecord({ enrolleeId, name });
+          setPrincipalRecord({ enrolleeId, name, photo: photoBase64, photoType });
           resetForm();
           setStatus('add-deps');
         } else {
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
+          setPrincipalRecord({ enrolleeId, name, photo: photoBase64, photoType });
           setStatus('success');
         }
       }
@@ -279,7 +284,7 @@ export default function EnrollPage() {
     const canAddMore = isDependent && remainingSlots > 0;
 
     // Build the full list of enrolled members to display
-    const allEnrolled: Array<{ name: string; enrolleeId: string; role: string }> = [];
+    const allEnrolled: Array<EnrolledRecord & { role: string }> = [];
     if (principalRecord) {
       allEnrolled.push({ ...principalRecord, role: 'Staff Member' });
     }
@@ -389,7 +394,14 @@ export default function EnrollPage() {
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', marginTop: 2 }}>{m.role}</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                <div style={{ display: 'flex', gap: 14, marginTop: 14 }}>
+                  <div style={{ width: 76, height: 90, borderRadius: 10, overflow: 'hidden', border: '2px solid #E5E7F1', background: '#F7F8FC', flexShrink: 0 }}>
+                    {m.photo
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={`data:${m.photoType || 'image/jpeg'};base64,${m.photo}`} alt="passport" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : null}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
                   <div>
                     <p style={{ fontSize: 8.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Member No.</p>
                     <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', fontFamily: 'monospace' }}>{m.enrolleeId}</p>
@@ -404,6 +416,7 @@ export default function EnrollPage() {
                       <p style={{ fontSize: 12.5, fontWeight: 700, color: '#131C4E' }}>{formatIsoDateLong(invitation.startDate)}</p>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             ))}
