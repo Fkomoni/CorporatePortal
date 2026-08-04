@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
 
-  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; dateOfBirth?: string; cifNumbers?: (string | number)[]; effectiveDate?: string };
+  let body: { parentCif?: string | number; principalName?: string; beneficiaryName?: string; relationship?: string; dateOfBirth?: string; cifNumbers?: (string | number)[]; effectiveDate?: string; backdateAcknowledged?: boolean };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -35,10 +35,15 @@ export async function POST(req: Request) {
   if (!dmy) {
     return NextResponse.json({ error: 'effectiveDate (dd/mm/yyyy) is required' }, { status: 400 });
   }
+  // Backdating IS allowed here — a member who registered against an invitation
+  // dated (say) 1 July but only gets approved in August must still have cover
+  // effective from 1 July, otherwise the date HR committed to when issuing the
+  // link is silently lost. HR must acknowledge the backdate warning first
+  // (Leadway settles no claims incurred before the valid enrolment date).
   const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
   const effectiveDateVal = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-  if (effectiveDateVal < todayMidnight) {
-    return NextResponse.json({ error: 'Effective date cannot be in the past.' }, { status: 400 });
+  if (effectiveDateVal < todayMidnight && !body.backdateAcknowledged) {
+    return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });
   }
 
   // ApproveEnrollees operates on a single member's own CIF, not a family

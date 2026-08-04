@@ -108,12 +108,12 @@ export async function POST(req: Request) {
   if (!startDate) {
     return NextResponse.json({ error: 'startDate is required' }, { status: 400 });
   }
-  // Cover can only be backdated to the 1st of the current month at the
-  // earliest — same rule enforced on HR's own direct Add Member flow.
-  const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
+  // Cover may be backdated to any past date — HR just has to acknowledge the
+  // backdate warning first (Leadway settles no claims incurred before the
+  // member's valid enrolment date). Same rule as HR's direct Add Member flow.
   const chosenStart = new Date(startDate); chosenStart.setHours(0, 0, 0, 0);
-  if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
-    return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+  if (isNaN(chosenStart.getTime())) {
+    return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
   }
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   if (chosenStart < todayStart && !body.backdateAcknowledged) {

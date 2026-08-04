@@ -92,15 +92,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
 
-  // Cover can only be backdated to the 1st of the current month at the
-  // earliest — HR must not be able to back-register cover further than that.
+  // Cover may be backdated to any past date, but HR must acknowledge the
+  // backdate warning first — Leadway settles no claims incurred before the
+  // member's valid enrolment date.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isBackdated = !!body.startDate && new Date(body.startDate) < today;
   if (body.startDate) {
-    const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
     const chosenStart = new Date(body.startDate); chosenStart.setHours(0, 0, 0, 0);
-    if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
-      return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+    if (isNaN(chosenStart.getTime())) {
+      return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
     }
     if (isBackdated && !body.backdateAcknowledged) {
       return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });

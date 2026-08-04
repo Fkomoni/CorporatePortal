@@ -114,11 +114,12 @@ export async function POST(req: Request) {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isBackdated = !!body.startDate && new Date(body.startDate) < today;
+  // Backdating to any past date is allowed, subject to HR acknowledging the
+  // backdate warning (no claims settled before the valid enrolment date).
   if (body.startDate) {
-    const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
     const chosenStart = new Date(body.startDate); chosenStart.setHours(0, 0, 0, 0);
-    if (isNaN(chosenStart.getTime()) || chosenStart < firstOfMonth) {
-      return NextResponse.json({ error: 'Cover start date cannot be earlier than the 1st of this month.' }, { status: 400 });
+    if (isNaN(chosenStart.getTime())) {
+      return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
     }
     if (isBackdated && !body.backdateAcknowledged) {
       return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });

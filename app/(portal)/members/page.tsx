@@ -12,6 +12,7 @@ import type { Member } from '@/lib/types';
 import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
+import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { exportToXls } from '@/lib/exportXls';
 
 
@@ -169,13 +170,9 @@ interface ListItem { text: string; value: string; }
 
 
 /* ── Add Member Modal ────────────────────────────────────────────────── */
-// HR can only backdate a new member's cover to the 1st of the current month
-// at the earliest — never earlier, so cover can't be silently back-registered.
-function firstOfMonthIso(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-}
-
+// Cover may be backdated to any past date. There is no earliest-date floor —
+// HR just has to acknowledge the backdate warning (BackdateWarningModal), which
+// states Leadway settles no claims incurred before the valid enrolment date.
 function todayIsoDate(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -183,29 +180,6 @@ function todayIsoDate(): string {
 
 function isBackdated(dateStr: string): boolean {
   return !!dateStr && dateStr < todayIsoDate();
-}
-
-function BackdateWarningModal({ onAgree, onCancel }: { onAgree: () => void; onCancel: () => void }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,33,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 480, width: '100%', padding: '28px 28px 24px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-        <p style={{ fontSize: 16, fontWeight: 800, color: '#DC2626', marginBottom: 12 }}>⚠️ WARNING: BACKDATED ENROLMENT</p>
-        <p style={{ fontSize: 13.5, color: '#374151', lineHeight: 1.7, marginBottom: 20 }}>
-          Backdating a member&apos;s enrolment does <strong>NOT</strong> make any medical expenses incurred before the actual enrolment date eligible for reimbursement or approval.
-          Leadway HMO will not refund or settle any claims, treatments, admissions, or medications obtained prior to the member&apos;s valid enrolment date.
-          Please proceed only if you understand and accept these conditions.
-        </p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button onClick={onAgree} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: '#DC2626', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
-            I Understand, Agree &amp; Proceed
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, principals }: { initialMode?: 'individual' | 'bulk'; onClose: () => void; relationshipOptions: RelationshipOption[]; schemes: PolicyScheme[]; principals: Member[] }) {
@@ -523,9 +497,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!linkStartDate) {
           setFormError('Cover start date is required.'); return;
         }
-        if (linkStartDate < firstOfMonthIso()) {
-          setFormError('Cover start date cannot be earlier than the 1st of this month.'); return;
-        }
         if (memberType === 'existing' && !selectedPrincipal) {
           setFormError('Please search and select the staff member this dependent link is for.'); return;
         }
@@ -628,9 +599,6 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State/Town.'); return;
         }
         if (!photoBase64) { setFormError('Passport photo is required.'); return; }
-        if (startDate && startDate < firstOfMonthIso()) {
-          setFormError('Cover start date cannot be earlier than the 1st of this month.'); return;
-        }
 
         const activeDeps = addDepsNow ? familyDeps.filter((d) => d.firstName || d.surname || d.dob) : [];
         if (activeDeps.length > 0) {
@@ -1326,7 +1294,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     )}
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Cover Start Date *</p>
-                      <input type="date" value={linkStartDate} min={firstOfMonthIso()} onChange={(e) => setLinkStartDate(e.target.value)}
+                      <input type="date" value={linkStartDate}  onChange={(e) => setLinkStartDate(e.target.value)}
                         style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                     </div>
                   </div>
@@ -1519,8 +1487,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
                     {memberType !== 'existing' && (
                       <div style={{ gridColumn: '1 / -1' }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; earliest is the 1st of this month)</span></p>
-                        <input type="date" value={startDate} min={firstOfMonthIso()} onChange={(e) => setStartDate(e.target.value)}
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; may be backdated)</span></p>
+                        <input type="date" value={startDate}  onChange={(e) => setStartDate(e.target.value)}
                           style={{ ...inputStyle, maxWidth: 260 }} onFocus={focusOn} onBlur={focusOff} />
                       </div>
                     )}
@@ -1652,7 +1620,6 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
     setError('');
     if (!email.trim()) { setError('Email is required.'); return; }
     if (!startDate) { setError('Cover start date is required.'); return; }
-    if (startDate < firstOfMonthIso()) { setError('Cover start date cannot be earlier than the 1st of this month.'); return; }
     if (isBackdated(startDate) && !agreed) { setShowBackdate(true); return; }
     if (agreedOverride) setBackdateAgreed(true);
     if (!member.cifNumber) { setError('Could not find this staff member\'s CIF number. Please try again from their Member 360 profile.'); return; }
@@ -1705,7 +1672,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
 
         <div style={{ marginBottom: 18 }}>
           <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date *</p>
-          <input type="date" value={startDate} min={firstOfMonthIso()} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+          <input type="date" value={startDate}  onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
         </div>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -2332,7 +2299,6 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
         // Send link
         if (!depLinkEmail) { setDepError('Member email is required to send the link.'); return; }
         if (!depLinkStartDate) { setDepError('Cover start date is required.'); return; }
-        if (depLinkStartDate < firstOfMonthIso()) { setDepError('Cover start date cannot be earlier than the 1st of this month.'); return; }
         const res = await fetch('/api/hr/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3105,7 +3071,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date</p>
-                    <input type="date" value={depLinkStartDate} min={firstOfMonthIso()} onChange={(e) => setDepLinkStartDate(e.target.value)}
+                    <input type="date" value={depLinkStartDate}  onChange={(e) => setDepLinkStartDate(e.target.value)}
                       style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />

@@ -344,8 +344,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       try {
         await prisma.linkRegistration.upsert({
           where: { cifNumber: String(cifNumber) },
-          create: { cifNumber: String(cifNumber), groupId: String(invitation.groupId ?? '') || null },
-          update: {},
+          create: {
+            cifNumber: String(cifNumber),
+            groupId: String(invitation.groupId ?? '') || null,
+            // Preserve the cover start date HR chose on the invitation so
+            // approval can default to it instead of the approval day.
+            startDate: invitation.startDate ?? null,
+          },
+          update: { startDate: invitation.startDate ?? null },
         });
       } catch (e) {
         console.warn('[enroll/token] Failed to record link registration source:', e);
