@@ -6,6 +6,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
+import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -111,6 +112,11 @@ export async function POST(req: Request) {
     if (m.nin && !/^\d{11}$/.test(m.nin)) {
       return NextResponse.json({ error: `NIN for ${m.firstName} ${m.surname} must be exactly 11 digits.` }, { status: 400 });
     }
+    // The principal must have a usable mobile; dependants' are optional.
+    const who = `${m.firstName} ${m.surname}`.trim();
+    const mobErr = validateMobile(m.mobile, { required: m === principal, label: `Mobile number for ${who}` })
+      ?? validateMobile(m.mobile2, { label: `Alternative mobile for ${who}` });
+    if (mobErr) return NextResponse.json({ error: mobErr }, { status: 400 });
   }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -167,8 +173,8 @@ export async function POST(req: Request) {
       EmailAdress: m.email ?? '',
       Home_Phone: '',
       Work_Phone: '',
-      Mobile: m.mobile ?? '',
-      Mobile2: m.mobile2 ?? '',
+      Mobile: normalizeNigerianMobile(m.mobile),
+      Mobile2: normalizeNigerianMobile(m.mobile2),
       Hospital: '0',
       Postal_Phone: '',
       Postal_Town_ID: m.postalTownId ?? '0',

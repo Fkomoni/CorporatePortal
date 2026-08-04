@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, Upload } from 'lucide-react';
+import { digitsOnly, validateMobile } from '@/lib/phone';
 
 interface ListItem { text: string; value: string; }
 
@@ -21,7 +22,6 @@ interface InvitationMeta {
   expiresAt: string;
 }
 
-const PHONE_RE = /^0\d{10}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatIsoDateLong(iso?: string | null): string {
@@ -173,14 +173,10 @@ export default function EnrollPage() {
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
     }
-    if (mobile && !PHONE_RE.test(mobile)) {
-      setErrorMsg('Please enter a valid 11-digit mobile number starting with 0 (e.g. 08012345678).');
-      setStatus('error');
-      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-      return;
-    }
-    if (mobile2 && !PHONE_RE.test(mobile2)) {
-      setErrorMsg('Please enter a valid 11-digit alternative mobile number starting with 0 (e.g. 07012345678).');
+    const mobileErr = validateMobile(mobile, { label: 'Mobile number' })
+      ?? validateMobile(mobile2, { label: 'Alternative mobile' });
+    if (mobileErr) {
+      setErrorMsg(mobileErr);
       setStatus('error');
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
@@ -716,16 +712,16 @@ export default function EnrollPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field
                 label={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse') ? 'Mobile Number *' : 'Mobile Number'}
-                value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel"
+                value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" numeric
                 required={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse')}
                 pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678" />
-              <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel"
+              <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel" numeric
                 pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 07012345678" />
               <SelectField label="State of Residence *" value={postalTownId} onChange={setStateId} required>
                 <option value="">Select state</option>
                 {states.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
               </SelectField>
-              <Field label="NIN" value={nin} onChange={(v) => setNin(v.replace(/\D/g, '').slice(0, 11))} placeholder="e.g. 12345678901"
+              <Field label="NIN" value={nin} onChange={(v) => setNin(v.slice(0, 11))} placeholder="e.g. 12345678901" numeric
                 pattern="\d{11}" maxLength={11} title="Enter your 11-digit National Identification Number" />
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Home Address" value={address} onChange={setAddress} placeholder="e.g. 12 Adeola Odeku Street, Victoria Island" />
@@ -762,16 +758,21 @@ export default function EnrollPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', required, pattern, title, maxLength }: {
+function Field({ label, value, onChange, placeholder, type = 'text', required, pattern, title, maxLength, numeric }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; type?: string; required?: boolean;
   pattern?: string; title?: string; maxLength?: number;
+  // Digits only: non-digits are dropped as they're typed (or pasted), rather
+  // than relying on `pattern`, which browsers only enforce on native submit.
+  numeric?: boolean;
 }) {
   return (
     <div>
       <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{label}</p>
       <input
-        type={type} value={value} onChange={(e) => onChange(e.target.value)}
+        type={type} value={value}
+        onChange={(e) => onChange(numeric ? digitsOnly(e.target.value) : e.target.value)}
+        inputMode={numeric ? 'numeric' : undefined}
         placeholder={placeholder} required={required}
         pattern={pattern} title={title} maxLength={maxLength}
         style={inputStyle}

@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { cacheBust } from '@/lib/server-cache';
 import { logAudit } from '@/lib/audit';
 import { sexIdFromText } from '@/lib/gender';
+import { validateMobile, normalizeNigerianMobile as normalizePhone } from '@/lib/phone';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -71,14 +72,6 @@ function dateOnly(v: unknown): string {
   const match = str.match(/^\d{4}-\d{2}-\d{2}/);
   return match ? match[0] : '';
 }
-// Normalize any Nigerian mobile format (0805..., 234805..., +234805...) to +234805...
-function normalizePhone(v: unknown): string {
-  const digits = s(v).replace(/[^\d]/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('234')) return `+${digits}`;
-  if (digits.startsWith('0')) return `+234${digits.slice(1)}`;
-  return `+234${digits}`;
-}
 // Bio may return a label or numeric ID; write endpoint wants "1"-"4" as a string.
 function maritalStatusId(row: Record<string, unknown>): string {
   const raw = s(row['Member_MaritalStatusID']) || s(row['Member_maritalstatusDescr']);
@@ -132,6 +125,8 @@ export async function POST(req: Request) {
 
   const { enrolleeId, isPrincipal, sexId, dateOfBirth, mobile, email, address, photo, photoType, nin } = body;
   if (!enrolleeId) return NextResponse.json({ error: 'enrolleeId is required' }, { status: 400 });
+  const mobErr = validateMobile(mobile, { label: 'Mobile number' });
+  if (mobErr) return NextResponse.json({ error: mobErr }, { status: 400 });
   if (nin && !/^\d{11}$/.test(nin)) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }

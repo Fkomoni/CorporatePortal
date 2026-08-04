@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { genderLabelFromSexId } from '@/lib/gender';
+import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -93,6 +94,12 @@ export async function POST(req: Request) {
   if (body.nin && !/^\d{11}$/.test(body.nin)) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
+  // Reject anything that isn't a real Nigerian mobile before it reaches
+  // Prognosis, which stores whatever it's given without complaint.
+  for (const [value, label, required] of [[mobile, 'Mobile number', true], [body.mobile2, 'Alternative mobile', false]] as const) {
+    const err = validateMobile(value, { required, label });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+  }
 
   // Cover may be backdated, but never earlier than the start of the group's
   // current policy year, and HR must acknowledge the backdate warning first —
@@ -158,8 +165,8 @@ export async function POST(req: Request) {
       EmailAdress: email,
       Home_Phone: '',
       Work_Phone: '',
-      Mobile: mobile,
-      Mobile2: body.mobile2 ?? '',
+      Mobile: normalizeNigerianMobile(mobile),
+      Mobile2: normalizeNigerianMobile(body.mobile2),
       Hospital: '0',
       Postal_Phone: '',
       Postal_Town_ID: postalTownId,

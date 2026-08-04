@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -175,6 +176,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     // whichever region the member/dependant chose in the State dropdown.
     const resolvedRegionId = body.postalTownId ? (Number(body.postalTownId) || body.postalTownId) : 1;
     const nin = String(body.nin ?? '').trim();
+    // A staff member filling their own form must not be able to submit letters
+    // or a malformed number — the field is only optional for non-spouse dependants.
+    const mobErr = validateMobile(body.mobile, { required: !isDependent, label: 'Mobile number' })
+      ?? validateMobile(body.mobile2, { label: 'Alternative mobile' });
+    if (mobErr) return NextResponse.json({ error: mobErr }, { status: 400 });
     if (nin && !/^\d{11}$/.test(nin)) {
       return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
     }
@@ -204,7 +210,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         EmailAdress: body.email ?? invitation.email,
         Home_Phone: '',
         Work_Phone: '',
-        Mobile: body.mobile ?? '',
+        Mobile: normalizeNigerianMobile(body.mobile),
         Mobile2: '',
         Hospital: '0',
         Postal_Phone: '',
@@ -258,8 +264,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         EmailAdress: invitation.email,
         Home_Phone: body.homePhone ?? '',
         Work_Phone: body.workPhone ?? '',
-        Mobile: body.mobile,
-        Mobile2: body.mobile2 ?? '',
+        Mobile: normalizeNigerianMobile(body.mobile),
+        Mobile2: normalizeNigerianMobile(body.mobile2),
         Hospital: body.hospital ?? '0',
         Postal_Phone: '',
         Postal_Town_ID: body.postalTownId,

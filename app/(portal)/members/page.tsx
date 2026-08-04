@@ -13,6 +13,7 @@ import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
+import { digitsOnly, validateMobile } from '@/lib/phone';
 import { exportToXls } from '@/lib/exportXls';
 
 
@@ -627,6 +628,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (!selectedSchemeId || !firstName || !surname || !empCode || !email || !mobile || !dob || !sexId || !postalId) {
           setFormError('Please fill all required fields: Plan, First Name, Surname, Employee Code, Email, Mobile, Date of Birth, Gender and State/Town.'); return;
         }
+        const mobErr = validateMobile(mobile, { required: true, label: 'Mobile' })
+          ?? validateMobile(mobile2, { label: 'Alt. Mobile' });
+        if (mobErr) { setFormError(mobErr); return; }
         if (!photoBase64) { setFormError('Passport photo is required.'); return; }
 
         const activeDeps = addDepsNow ? familyDeps.filter((d) => d.firstName || d.surname || d.dob) : [];
@@ -635,6 +639,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             if (!d.firstName || !d.surname || !d.dob || !d.sexId || !d.relationshipId) {
               setFormError('Every dependant needs First Name, Surname, Date of Birth, Gender and Relationship.'); return;
             }
+            const depMobErr = validateMobile(d.mobile, { label: `Mobile for ${d.firstName} ${d.surname}`.trim() });
+            if (depMobErr) { setFormError(depMobErr); return; }
           }
           const res = await fetch('/api/hr/members/add-family', {
             method: 'POST',
@@ -853,7 +859,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       ] as Array<{label:string;value:string;set:(v:string)=>void;ph:string;type?:string}>).map((f) => (
                         <div key={f.label}>
                           <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{f.label}</p>
-                          <input type={f.type ?? 'text'} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph} style={depInputStyle} />
+                          <input type={f.type ?? 'text'} value={f.value}
+                            onChange={(e) => f.set(f.type === 'tel' ? digitsOnly(e.target.value) : e.target.value)}
+                            inputMode={f.type === 'tel' ? 'numeric' : undefined}
+                            maxLength={f.type === 'tel' ? 11 : undefined}
+                            placeholder={f.ph} style={depInputStyle} />
                         </div>
                       ))}
                       <div>
@@ -1481,11 +1491,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       { label: 'Mobile *',        value: mobile,     set: setMobile,     ph: '08012345678',   type: 'tel' },
                       { label: 'Alt. Mobile',     value: mobile2,    set: setMobile2,    ph: '07012345678',   type: 'tel' },
                       { label: 'Date of Birth *', value: dob,        set: setDob,        ph: '',              type: 'date' },
-                      { label: 'NIN',             value: nin,        set: (v: string) => setNin(v.replace(/\D/g, '').slice(0, 11)), ph: 'e.g. 12345678901' },
+                      { label: 'NIN',             value: nin,        set: (v: string) => setNin(digitsOnly(v).slice(0, 11)), ph: 'e.g. 12345678901' },
                     ].map((f) => (
                       <div key={f.label}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
-                        <input type={f.type ?? 'text'} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph}
+                        <input type={f.type ?? 'text'} value={f.value}
+                          onChange={(e) => f.set(f.type === 'tel' ? digitsOnly(e.target.value) : e.target.value)}
+                          inputMode={f.type === 'tel' ? 'numeric' : undefined}
+                          maxLength={f.type === 'tel' ? 11 : undefined}
+                          placeholder={f.ph}
                           style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                       </div>
                     ))}
@@ -1584,8 +1598,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                                   <option value="">Relationship *</option>
                                   {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
                                 </select>
-                                <input value={dep.mobile} placeholder="Mobile (optional)" type="tel" style={inputStyle}
-                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, mobile: e.target.value } : d))} />
+                                <input value={dep.mobile} placeholder="Mobile (optional)" type="tel" inputMode="numeric" maxLength={11} style={inputStyle}
+                                  onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, mobile: digitsOnly(e.target.value) } : d))} />
                                 <input value={dep.email} placeholder="Email (optional)" type="email" style={inputStyle}
                                   onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, email: e.target.value } : d))} />
                               </div>
@@ -2798,7 +2812,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Phone Number</label>
-                <input type="tel" value={editMobile} onChange={(e) => setEditMobile(e.target.value)}
+                <input type="tel" value={editMobile} onChange={(e) => setEditMobile(digitsOnly(e.target.value))} inputMode="numeric" maxLength={11}
                   style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div>
@@ -2817,7 +2831,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               {editNeedsNin && (
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>NIN required to save</label>
-                  <input value={editNin} onChange={(e) => setEditNin(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  <input value={editNin} onChange={(e) => setEditNin(digitsOnly(e.target.value).slice(0, 11))} inputMode="numeric" maxLength={11}
                     placeholder="Prognosis has no NIN on file for this member — enter their 11-digit NIN"
                     style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #FDE68A', borderRadius: 10, background: '#FFFBEB', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
@@ -2997,7 +3011,11 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                     ] as Array<{label:string;value:string;set:(v:string)=>void;ph:string;type?:string}>).map((f) => (
                       <div key={f.label}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</p>
-                        <input type={f.type ?? 'text'} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.ph}
+                        <input type={f.type ?? 'text'} value={f.value}
+                          onChange={(e) => f.set(f.type === 'tel' ? digitsOnly(e.target.value) : e.target.value)}
+                          inputMode={f.type === 'tel' ? 'numeric' : undefined}
+                          maxLength={f.type === 'tel' ? 11 : undefined}
+                          placeholder={f.ph}
                           style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                           onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
                           onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
