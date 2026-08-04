@@ -234,16 +234,18 @@ export async function POST(req: Request) {
     // parentCif, so every newly added dependant must be approved individually.
     const userEmail = session.user.email ?? '';
     let autoApproved = enrolled.length > 0;
+    let approveError: string | null = null;
     for (const dep of enrolled) {
       if (!dep.cifNumber) { autoApproved = false; continue; }
       const approveResult = await approveEnrollee({ cifNumber: dep.cifNumber, reason: 'Active', userEmail });
       if (!approveResult.success) {
         autoApproved = false;
-        console.warn(`[hr/members/add-dependents] Auto-approve failed for CIF ${dep.cifNumber}:`, approveResult.error);
+        approveError = approveResult.error ?? 'Unknown error';
+        console.error(`[hr/members/add-dependents] Auto-approve FAILED for CIF ${dep.cifNumber}: ${approveError}`);
       }
     }
 
-    return NextResponse.json({ success: true, enrolled, autoApproved });
+    return NextResponse.json({ success: true, enrolled, autoApproved, approveError });
   } catch (err) {
     console.error('[hr/members/add-dependents] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to add dependents' }, { status: 500 });

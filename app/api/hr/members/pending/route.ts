@@ -46,6 +46,8 @@ function extractDate(row: Record<string, unknown>): Date | null {
     'EnrolmentDate', 'Enrolment_Date', 'EnrollmentDate', 'Enrollment_Date',
     'AppRegistrationDate', 'RegDate', 'Reg_Date', 'DateOfRegistration',
     'Dateregistered', 'Date_Registered_On', 'RegisteredDate',
+    // ClientPlanBeneficiariesNoPagitation's field (ISO, e.g. "2026-06-29T00:00:00")
+    'dateenrolled', 'DateEnrolled',
   );
   if (!raw) return null;
   // Prognosis sends this as dd/mm/yyyy (e.g. "12/07/2026" = 12 July 2026).
@@ -104,6 +106,46 @@ function computeAge(dobRaw: string): number | null {
   const monthDiff = now.getMonth() - d.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) age--;
   return age >= 0 && age < 130 ? age : null;
+}
+
+// ViewMembersByStatus omits several fields the Pending Enrolees screen needs
+// (relationship, gender, staff ID, scheme, registration date, and the full
+// enrolee ID). ClientPlanBeneficiariesNoPagitation carries all of them and is
+// confirmed to include portal-registered/pending members, so one group-level
+// call enriches every pending row — no per-member requests.
+//
+// The memberstatus param makes no difference on this endpoint (active and
+// inactive return an identical row set), so it's fetched once.
+async function fetchBeneficiaryDetails(base: string, token: string, groupId: string): Promise<Map<string, Record<string, unknown>>> {
+  const byCif = new Map<string, Record<string, unknown>>();
+  try {
+    const res = await fetch(
+      `${base}/api/CorporateProfile/ClientPlanBeneficiariesNoPagitation?group_id=${encodeURIComponent(groupId)}&memberstatus=active`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    );
+    if (!res.ok) {
+      console.warn(`[hr/members/pending] Enrichment fetch failed: HTTP ${res.status}`);
+      return byCif;
+    }
+    const raw = await res.json().catch(() => null);
+    for (const row of toArr(raw)) {
+      const cif = str(row, 'cif_number', 'Cif_Number', 'CifNumber');
+      if (cif) byCif.set(cif, row);
+    }
+  } catch (e) {
+    console.warn('[hr/members/pending] Enrichment fetch failed:', e);
+  }
+  return byCif;
+}
+
+// sex_id is the reliable gender field here — the sibling `Gender` column comes
+// back as padded junk ("B         "). 1 = Male, 2 = Female, matching the Sex_ID
+// convention the Add Member / enrolment payloads use.
+function sexFromId(raw: unknown): string {
+  const v = String(raw ?? '').trim();
+  if (v === '1') return 'Male';
+  if (v === '2') return 'Female';
+  return '';
 }
 
 export interface PendingMemberRow {
@@ -187,10 +229,10 @@ export async function GET(req: Request) {
     // ZoneId, Zone, MemberStatusId, MemberStatus, StatusCode, StatusColorCode,
     // MembershipStartDate, Termdate.
     //
-    // Notably ABSENT (the legacy endpoint supplied these, so the lookups below
-    // fall through to blanks / suffix-derived values): Relationship, Sex/Gender,
-    // EmployeeCode, Scheme, and any registration-date field. Registration date
-    // is recovered from our own link_registrations rows where we have them.
+    // Notably ABSENT: Relationship, Sex/Gender, EmployeeCode, Scheme, any
+    // registration-date field, and a populated MembershipNo (it comes back ""
+    // for pending members). All of those are filled in from
+    // ClientPlanBeneficiariesNoPagitation — see fetchBeneficiaryDetails.
     const res = await fetch(`${BASE}/api/CorporatePortal/ViewMembersByStatus?groupId=${encodeURIComponent(groupId)}&statusIds=2,8,11,12`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
@@ -203,6 +245,9 @@ export async function GET(req: Request) {
     let raw: unknown;
     try { raw = JSON.parse(rawText); } catch { raw = null; }
     const allRows = toArr(raw);
+
+    // Fields ViewMembersByStatus doesn't return, keyed by CIF.
+    const details = await fetchBeneficiaryDetails(BASE, token, String(groupId));
 
     // Dedupe by Cif_Number — ViewMembersPerGroup can return the same member more
     // than once (e.g. one row per scheme/policy period), which otherwise renders
@@ -222,6 +267,9 @@ export async function GET(req: Request) {
     const rows = [...dedupedByCif.values()];
 
     const normalized: (PendingMemberRow & { _date: Date | null; _principalHint: string })[] = rows.map((row) => {
+      // Confirmed-present fields come from the row itself; the rest are filled
+      // from ClientPlanBeneficiariesNoPagitation, keyed by this member's CIF.
+      const d = details.get(str(row, 'cif_number', 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber')) ?? {};
       // ViewPortalRegisteredMembersPerGroup_pendingActivation uses its own
       // (differently-cased) field names from ViewMembersPerGroup — e.g.
       // "cif_number", "Membershipno", "Registrationdate", lowercase "scheme",
@@ -233,7 +281,10 @@ export async function GET(req: Request) {
       const firstName = str(row, 'firstname', 'FirstName', 'First_Name');
       const surname = str(row, 'member', 'Surname', 'surname', 'LastName');
       const otherName = str(row, 'Othername', 'OtherName', 'Other_Name');
-      const membershipNoBase = str(row, 'Membershipno', 'MembershipNo', 'Membership_No', 'MembershipNumber');
+      // VMBS returns MembershipNo as "" for pending members; the enrichment row
+      // carries the real, fully-qualified enrolee ID.
+      const membershipNoBase = str(row, 'Membershipno', 'MembershipNo', 'Membership_No', 'MembershipNumber')
+        || str(d, 'Enrolleeid', 'EnrolleeId', 'enrolleeid');
       const suffix = str(row, 'suffix', 'Suffix');
       // Prognosis's membership number is only unique per-family; the full
       // enrolee identifier is "<membershipNo>/<suffix>" (e.g. 25231697/0) —
@@ -245,7 +296,10 @@ export async function GET(req: Request) {
       const dob = str(row, 'DOB', 'DateOfBirth', 'Date_Of_Birth');
       // Relationship is now returned directly by Prognosis (e.g. "Main member", "Spouse", "Child") —
       // trim stray whitespace/tabs and only fall back to Suffix-based inference if it's missing.
-      const relationshipRaw = str(row, 'Relationship', 'Member_Relationship', 'RelationshipType').replace(/\s+/g, ' ').trim();
+      const relationshipRaw = (
+        str(row, 'Relationship', 'Member_Relationship', 'RelationshipType')
+        || str(d, 'RelationshipToPrincipal', 'Relationship')
+      ).replace(/\s+/g, ' ').trim();
       const relationship = relationshipRaw
         ? (/main\s*member/i.test(relationshipRaw) ? 'Principal' : relationshipRaw)
         : (isPrincipal ? 'Principal' : (suffix ? `Dependant (${suffix})` : 'Dependant'));
@@ -262,11 +316,11 @@ export async function GET(req: Request) {
         relationship,
         dateOfBirth: dob,
         age: computeAge(dob),
-        sex: str(row, 'Sex', 'Gender', 'Sex_ID'),
-        email: str(row, 'EmailAdress', 'Email', 'EmailAddress'),
-        mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber'),
-        employeeCode: str(row, 'EmployeeCode', 'Employee_Code', 'employeecode'),
-        schemeName: str(row, 'scheme', 'Scheme', 'SchemeName', 'Scheme_Name'),
+        sex: str(row, 'Sex', 'Gender', 'Sex_ID') || sexFromId(d['sex_id']),
+        email: str(row, 'EmailAdress', 'Email', 'EmailAddress') || str(d, 'EmailAdress', 'Email'),
+        mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber') || str(d, 'Phone', 'Mobile'),
+        employeeCode: str(row, 'EmployeeCode', 'Employee_Code', 'employeecode') || str(d, 'staffid', 'StaffId'),
+        schemeName: str(row, 'scheme', 'Scheme', 'SchemeName', 'Scheme_Name') || str(d, 'plantype', 'PlanType'),
         status: classifyStatus(str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus')),
         terminationDate: str(row, 'Termdate', 'TermDate', 'Term_Date'),
         // Confirmed field on ViewMembersByStatus: the cover start date the
@@ -276,7 +330,10 @@ export async function GET(req: Request) {
         coverStartDate: toIsoDateOnly(str(row, 'MembershipStartDate', 'Membershipstartdate', 'StartDate')),
         registrationDate: null,
         registrationSource: 'Enrolee App' as const,
-        _date: extractDate(row),
+        // dateenrolled is the only registration-date field available on either
+        // endpoint; our own link_registrations timestamp still wins where we
+        // have it (see the trueDate note below).
+        _date: extractDate(row) ?? extractDate(d),
         // "PrincipalMember" gives the principal's first name even on a
         // dependant-only row — used purely as a header fallback below when
         // no actual principal row is present in this snapshot.

@@ -266,6 +266,7 @@ export async function POST(req: Request) {
     // same as add/route.ts and add-dependents/route.ts.
     const userEmail = session.user.email ?? '';
     let autoApproved = true;
+    let approveError: string | null = null;
     for (const m of enrolled) {
       if (!m.cifNumber) { autoApproved = false; continue; }
       const approveResult = await approveEnrollee({
@@ -276,7 +277,8 @@ export async function POST(req: Request) {
       });
       if (!approveResult.success) {
         autoApproved = false;
-        console.warn(`[hr/members/add-family] Auto-approve failed for CIF ${m.cifNumber}:`, approveResult.error);
+        approveError = approveResult.error ?? 'Unknown error';
+        console.error(`[hr/members/add-family] Auto-approve FAILED for CIF ${m.cifNumber}: ${approveError}`);
       }
     }
 
@@ -297,7 +299,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, enrolled, autoApproved });
+    return NextResponse.json({ success: true, enrolled, autoApproved, approveError });
   } catch (err) {
     console.error('[hr/members/add-family] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to add family' }, { status: 500 });

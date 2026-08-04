@@ -604,6 +604,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         });
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add dependent'); return; }
+          // The member was created but Prognosis did not approve/activate them —
+          // tell HR explicitly rather than showing an unqualified success.
+          if (data.autoApproved === false) {
+            toast(`Member created, but activation on Prognosis failed${data.approveError ? `: ${data.approveError}` : ''}. Approve them from Pending Enrolees.`, 'error');
+          }
         const enrolled = data.enrolled?.[0];
         const memberId = enrolled?.enrolleeId || enrolled?.membershipNo || '';
         // Fire email to dependent (non-blocking)
@@ -653,6 +658,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           });
           const data = await res.json();
           if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add family'); return; }
+          // The member was created but Prognosis did not approve/activate them —
+            // tell HR explicitly rather than showing an unqualified success.
+            if (data.autoApproved === false) {
+              toast(`Member created, but activation on Prognosis failed${data.approveError ? `: ${data.approveError}` : ''}. Approve them from Pending Enrolees.`, 'error');
+            }
           const principalRow = data.enrolled?.find((m: { isPrincipal: boolean }) => m.isPrincipal);
           const memberId = principalRow?.enrolleeId || principalRow?.membershipNo || '';
           if (email && memberId) {
@@ -682,6 +692,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         });
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add member'); return; }
+          // The member was created but Prognosis did not approve/activate them —
+          // tell HR explicitly rather than showing an unqualified success.
+          if (data.autoApproved === false) {
+            toast(`Member created, but activation on Prognosis failed${data.approveError ? `: ${data.approveError}` : ''}. Approve them from Pending Enrolees.`, 'error');
+          }
         const memberId = data.enrolleeId || data.membershipNo || data.fullEnrolleeId || '';
         // Fire email to new member (non-blocking)
         if (email && memberId) {

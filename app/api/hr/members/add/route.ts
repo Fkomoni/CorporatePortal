@@ -258,6 +258,7 @@ export async function POST(req: Request) {
     // HR-initiated registrations should not sit in Prognosis's pending queue —
     // auto-approve immediately rather than waiting on manual insurer action.
     let autoApproved = false;
+    let approveError: string | null = null;
     if (cifNumber) {
       const approveResult = await approveEnrollee({
         cifNumber: cifNumber as string | number,
@@ -268,7 +269,12 @@ export async function POST(req: Request) {
         effectiveDate: body.startDate ? toDdMmYyyy(body.startDate) : undefined,
       });
       autoApproved = approveResult.success;
-      if (!approveResult.success) console.warn(`[hr/members/add] Auto-approve failed for CIF ${cifNumber}:`, approveResult.error);
+      if (!approveResult.success) {
+        approveError = approveResult.error ?? 'Unknown error';
+        // Loud: the member exists but is NOT approved, and HR must be told —
+        // this failing quietly is what previously hid a broken approval path.
+        console.error(`[hr/members/add] Auto-approve FAILED for CIF ${cifNumber}: ${approveError}`);
+      }
     }
 
     if (isBackdated) {
@@ -292,6 +298,7 @@ export async function POST(req: Request) {
       cifNumber,
       enrolleeId,  // MembershipNo/Suffix e.g. "26307209/0"
       autoApproved,
+      approveError,
     });
   } catch (err) {
     console.error('[hr/members/add] Error:', err);

@@ -83,15 +83,25 @@ async function callDecide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts
 
 async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: DecisionOptions): Promise<ApproveResult> {
   try {
+    // An empty useremail is rejected by Prognosis as "Invalid user." — the exact
+    // same message a genuinely unknown account gets, which previously made this
+    // look like Prognosis refusing valid HR logins. It isn't: probing confirmed
+    // real HR emails ARE accepted, while '' is not. Fail fast with a message
+    // that says what's actually wrong instead of sending a blank and guessing.
+    if (!opts.userEmail?.trim()) {
+      console.error(`[${endpoint}] Refusing to call Prognosis with an empty useremail (cif=${opts.cifNumber}) — the acting user's email is missing from the session.`);
+      return { success: false, error: 'Your account has no email address on file, which Prognosis requires to record this decision. Please contact support.' };
+    }
+
     let { res, text, r } = await callDecide(endpoint, opts, opts.userEmail);
 
-    // Prognosis validates useremail against ITS OWN known accounts, not the
-    // portal's HR user list — many HR logins (especially newer/self-registered
-    // ones) come back "Invalid user." even though they're perfectly valid on
-    // our side. The Prognosis service-login account (PROGNOSIS_USERNAME) is
-    // also NOT a valid useremail here — confirmed in production logs, it gets
-    // the same "Invalid user." rejection — so only retry with an explicit,
-    // confirmed-valid fallback account if one has been configured.
+    // Prognosis validates useremail against ITS OWN account list. Confirmed by
+    // probing with a deliberately nonexistent CIF (so useremail is evaluated in
+    // isolation): HR portal logins are accepted, whereas the Prognosis
+    // service-login account (PROGNOSIS_USERNAME), a corporate contact address,
+    // and an empty string are all rejected with "Invalid user.". So this retry
+    // is a last resort for the rare account Prognosis genuinely doesn't know,
+    // and only fires when a confirmed-valid fallback has been configured.
     if (res.status === 400 && /invalid user/i.test(text) && process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL) {
       console.warn(`[${endpoint}] "${opts.userEmail}" rejected as invalid user — retrying with configured fallback account`);
       ({ res, text, r } = await callDecide(endpoint, opts, process.env.PROGNOSIS_APPROVAL_FALLBACK_EMAIL));
