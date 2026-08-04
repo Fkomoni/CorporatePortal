@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ArrowDownToLine, Filter, TrendingUp, Clock, XCircle } from 'lucide-react';
+import { Search, ArrowDownToLine, ReceiptText, TrendingUp, Clock, XCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { StatCard } from '@/components/ui/StatCard';
+import { exportToPdf } from '@/lib/exportPdf';
 import { LoadErrorBanner } from '@/components/LoadErrorBanner';
 import { friendlyError } from '@/lib/user-facing-error';
 import { ClaimsVisibility, DEFAULT_CLAIMS_VISIBILITY, getClaimsVisibility } from '@/lib/claims-visibility';
@@ -94,32 +96,50 @@ export default function ClaimsPage() {
 
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0);
 
-  const summaryCards = stats ? [
+  // Cards keep their shape while loading so the strip doesn't jump; StatCard
+  // renders "…" for the value whenever `loading` is set.
+  const summaryCards = [
     {
       label: 'Total Billed',
-      value: fmt(stats.totalBilledAmount),
-      sub: `${stats.totalClaims} claim${stats.totalClaims !== 1 ? 's' : ''} submitted`,
-      color: '#6366F1', bg: '#EEF2FF', Icon: Filter,
+      value: stats ? fmt(stats.totalBilledAmount) : '—',
+      sub: stats ? `${stats.totalClaims} claim${stats.totalClaims !== 1 ? 's' : ''} submitted` : 'Claims submitted',
+      color: '#6366F1', tint: '#EEF2FF', icon: ReceiptText,
     },
     {
       label: 'Total Paid YTD',
-      value: fmt(stats.totalPaidAmount),
-      sub: `${stats.paidCount} claim${stats.paidCount !== 1 ? 's' : ''} settled`,
-      color: '#10B981', bg: '#ECFDF5', Icon: TrendingUp,
+      value: stats ? fmt(stats.totalPaidAmount) : '—',
+      sub: stats ? `${stats.paidCount} claim${stats.paidCount !== 1 ? 's' : ''} settled` : 'Claims settled',
+      color: '#10B981', tint: '#ECFDF5', icon: TrendingUp,
     },
     {
       label: 'Processing',
-      value: fmt(stats.processingAmount),
-      sub: `${stats.processingCount} claim${stats.processingCount !== 1 ? 's' : ''} pending`,
-      color: '#F59E0B', bg: '#FFFBEB', Icon: Clock,
+      value: stats ? fmt(stats.processingAmount) : '—',
+      sub: stats ? `${stats.processingCount} claim${stats.processingCount !== 1 ? 's' : ''} pending` : 'Claims pending',
+      color: '#F59E0B', tint: '#FFFBEB', icon: Clock,
     },
     {
       label: 'Rejected Amount',
-      value: fmt(stats.rejectedAmount),
+      value: stats ? fmt(stats.rejectedAmount) : '—',
       sub: 'Portion of paid claims not reimbursed',
-      color: '#EF4444', bg: '#FEF2F2', Icon: XCircle,
+      color: '#EF4444', tint: '#FEF2F2', icon: XCircle,
     },
-  ] : null;
+  ];
+
+  // One row shape for both exports so the XLS and the PDF never drift apart.
+  const exportRows = () => filtered.map((c) => ({
+    'Claim ID': c.claimRef,
+    'Member': c.memberName,
+    'Enrolee ID': c.employeeId,
+    'Diagnosis': c.icdDescription,
+    'Provider': c.provider,
+    'State': c.providerState,
+    'Category': c.category,
+    'Amt Claimed (₦)': c.amtClaimed,
+    'Amt Paid (₦)': c.amount,
+    'Status': c.status,
+    'Date': c.submittedDate,
+    'Case ID': c.caseId ?? '',
+  }));
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -132,19 +152,17 @@ export default function ClaimsPage() {
         {/* SUMMARY STRIP */}
         {vis.showSummaryCards && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-            {(summaryCards ?? [
-              { label: 'Total Billed',    value: '…', sub: '',                  color: '#6366F1', bg: '#EEF2FF', Icon: Filter    },
-              { label: 'Total Paid YTD', value: '…', sub: '',                  color: '#10B981', bg: '#ECFDF5', Icon: TrendingUp },
-              { label: 'Processing',     value: '…', sub: '',                  color: '#F59E0B', bg: '#FFFBEB', Icon: Clock      },
-              { label: 'Rejected Amount', value: '…', sub: 'Portion of paid claims not reimbursed', color: '#EF4444', bg: '#FEF2F2', Icon: XCircle },
-            ]).map((s) => (
-              <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
-                <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>
-                  {loading ? '…' : vis.showAmounts ? s.value : '—'}
-                </p>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{s.label}</p>
-                <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{s.sub}</p>
-              </div>
+            {summaryCards.map((s) => (
+              <StatCard
+                key={s.label}
+                label={s.label}
+                sub={s.sub}
+                value={vis.showAmounts ? s.value : '—'}
+                icon={s.icon}
+                color={s.color}
+                tint={s.tint}
+                loading={loading}
+              />
             ))}
           </div>
         )}
@@ -178,10 +196,23 @@ export default function ClaimsPage() {
               )}
               {vis.showExports && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => exportToXls(filtered.map((c) => ({ 'Claim ID': c.claimRef, 'Member': c.memberName, 'Enrolee ID': c.employeeId, 'Diagnosis': c.icdDescription, 'Provider': c.provider, 'State': c.providerState, 'Category': c.category, 'Amt Claimed (₦)': c.amtClaimed, 'Amt Paid (₦)': c.amount, 'Status': c.status, 'Date': c.submittedDate, 'Case ID': c.caseId ?? '' })), 'claims-export')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
+                  <button onClick={() => exportToXls(exportRows(), 'claims-export')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(21,128,61,0.10)' }}>
                     <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
                   </button>
-                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
+                  <button onClick={() => {
+                    // This button previously had no handler at all — HR clicked
+                    // it and nothing happened.
+                    const ok = exportToPdf(exportRows(), 'claims-export', {
+                      title: 'Claims Register',
+                      subtitle: [catFilter, statusFilter].filter(Boolean).join(' · ') || 'All categories and statuses',
+                      meta: [
+                        `Claims: ${filtered.length}`,
+                        vis.showAmounts ? `Total paid: ${fmt(filteredTotal)}` : '',
+                        search ? `Search: "${search}"` : '',
+                      ].filter(Boolean),
+                    });
+                    if (!ok) alert('Allow pop-ups for this site to export a PDF.');
+                  }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg,#FFF5EF,#FFE8D6)', color: '#C2410C', border: '1px solid #FDBA74', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(194,65,12,0.10)' }}>
                     <ArrowDownToLine style={{ width: 13, height: 13 }} /> PDF
                   </button>
                 </div>

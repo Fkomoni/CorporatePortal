@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingDown, UserPlus } from 'lucide-react';
+import { TrendingDown, UserPlus, Users, Activity, Gauge, Wallet } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -9,6 +9,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { TopBar } from '@/components/layout/TopBar';
+import { StatCard } from '@/components/ui/StatCard';
 import { LoadErrorBanner } from '@/components/LoadErrorBanner';
 import { friendlyError } from '@/lib/user-facing-error';
 
@@ -250,7 +251,7 @@ export default function DashboardPage() {
         {/* ── ROW 2: 4 KPI CARDS ── */}
         {vis.showKpiCards && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-          {([
+          {[
             {
               value: fmtLives(activeLives),
               label: 'Active Lives',
@@ -258,36 +259,43 @@ export default function DashboardPage() {
                 ? `▲ ${newThisMonth} added in ${newThisMonthLabel ?? 'this month'}`
                 : principalLives !== null && dependantLives !== null
                   ? `${principalLives.toLocaleString()} staff · ${dependantLives.toLocaleString()} dependants`
-                  : '▲ Covered lives',
-              subColor: '#10B981', rail: '#10B981',
+                  : 'Covered lives',
+              icon: Users, color: '#10B981', tint: '#ECFDF5',
+              onClick: () => router.push('/members'),
             },
             {
               value: utilizationRatePct !== null ? `${utilizationRatePct}%` : '—',
               label: 'Utilization Rate',
-              sub: membersUtilized !== null ? `${membersUtilized.toLocaleString()} members utilized` : '—',
-              subColor: '#9CA3B8', rail: '#3B82F6',
+              sub: membersUtilized !== null ? `${membersUtilized.toLocaleString()} members utilized` : 'Members utilized',
+              icon: Activity, color: '#3B82F6', tint: '#EFF6FF',
             },
             {
               value: lossRatioPct !== null ? `${lossRatioPct}%` : '—',
               label: 'Loss Ratio',
-              sub: riskStatus === 'Healthy' ? '⬤ Healthy' : riskStatus === 'Watchlist' ? '⬤ Watchlist' : riskStatus === 'High Risk' ? '⬤ High Risk' : riskStatus === 'Critical' ? '⬤ Critical' : '—',
-              subColor: riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : riskStatus === 'High Risk' || riskStatus === 'Critical' ? '#EF4444' : '#9CA3B8',
-              rail: riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : '#EF4444',
+              sub: riskStatus ?? 'Risk status pending',
+              icon: Gauge,
+              color: riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : riskStatus ? '#EF4444' : '#6B7480',
+              tint: riskStatus === 'Healthy' ? '#ECFDF5' : riskStatus === 'Watchlist' ? '#FFFBEB' : riskStatus ? '#FEF2F2' : '#F3F4F8',
             },
             {
-              value: totalPremium !== null ? fmtNaira(totalPremium) : '—',
+              value: vis.showAmounts && totalPremium !== null ? fmtNaira(totalPremium) : '—',
               label: 'Annual Premium',
               sub: 'Total scheme premium',
-              subColor: '#EF4444', rail: '#EF4444', sm: true,
+              icon: Wallet, color: '#F56B22', tint: '#FFF5EF',
+              onClick: () => router.push('/finance'),
             },
-          ] as { value: string; label: string; sub: string; subColor: string; rail: string; sm?: boolean }[]).map((k) => (
-            <div key={k.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${k.rail}` }}>
-              <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 12, letterSpacing: '0.01em' }}>{k.label}</p>
-              <p style={{ fontSize: k.sm ? 28 : 36, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>
-                {(k.label.includes('Premium')) ? (vis.showAmounts ? k.value : '—') : k.value}
-              </p>
-              <p style={{ fontSize: 12, fontWeight: 500, color: k.subColor }}>{k.sub}</p>
-            </div>
+          ].map((k) => (
+            <StatCard
+              key={k.label}
+              label={k.label}
+              sub={k.sub}
+              value={k.value}
+              icon={k.icon}
+              color={k.color}
+              tint={k.tint}
+              loading={stats === null && !loadError}
+              onClick={k.onClick}
+            />
           ))}
         </div>
         )}
