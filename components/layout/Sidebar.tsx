@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { isAdminRole, canAccessModule, moduleForPath } from '@/lib/roles';
@@ -20,24 +21,59 @@ import {
   UserCheck,
   ClipboardList,
   ClipboardCheck,
+  Building2,
+  CalendarDays,
 } from 'lucide-react';
 
-const mainNav = [
-  { href: '/dashboard',    label: 'Overview',            icon: LayoutDashboard },
-  { href: '/members',      label: 'People',               icon: Users },
-  { href: '/pending-enrolees', label: 'Pending Enrolees',  icon: ClipboardCheck, adminOnly: true },
-  { href: '/benefits',     label: 'Benefits',             icon: ShieldCheck },
-  { href: '/finance',      label: 'Finance',              icon: CreditCard },
-  { href: '/wellness',        label: 'Wellness',             icon: Heart },
-  { href: '/pre-employment', label: 'Pre-employment',       icon: UserCheck },
-  { href: '/reports',        label: 'Insights & Reports',   icon: Lightbulb },
-  { href: '/claims',       label: 'Claims',               icon: FileText },
-  { href: '/service-desk', label: 'Service Desk',         icon: MessageSquare, badge: 4 },
-];
-
-const bottomNav = [
-  { href: '/audit-logs',     label: 'Audit Log',      icon: ClipboardList, adminOnly: true },
-  { href: '/administration', label: 'Administration', icon: Settings },
+// Grouped so the sidebar reads as sections rather than one long list. Wellness
+// and Pre-employment are kept under SERVICES: they aren't in the design's
+// groups, but both are working pages and dropping them from the nav would be
+// the only way to reach them gone.
+const NAV_GROUPS: Array<{
+  section: string;
+  items: Array<{ href: string; label: string; icon: React.ElementType; badge?: number; adminOnly?: boolean }>;
+}> = [
+  {
+    section: 'Dashboard',
+    items: [{ href: '/dashboard', label: 'Overview', icon: LayoutDashboard }],
+  },
+  {
+    section: 'Membership',
+    items: [
+      { href: '/members', label: 'People', icon: Users },
+      { href: '/pending-enrolees', label: 'Pending Enrolments', icon: ClipboardCheck, adminOnly: true },
+      { href: '/benefits', label: 'Benefits', icon: ShieldCheck },
+    ],
+  },
+  {
+    section: 'Finance',
+    items: [
+      { href: '/finance', label: 'Finance', icon: CreditCard },
+      { href: '/claims', label: 'Claims', icon: FileText },
+    ],
+  },
+  {
+    section: 'Analytics',
+    items: [{ href: '/reports', label: 'Insights & Reports', icon: Lightbulb }],
+  },
+  {
+    section: 'Services',
+    items: [
+      { href: '/wellness', label: 'Wellness', icon: Heart },
+      { href: '/pre-employment', label: 'Pre-employment', icon: UserCheck },
+    ],
+  },
+  {
+    section: 'Support',
+    items: [{ href: '/service-desk', label: 'Service Desk', icon: MessageSquare, badge: 4 }],
+  },
+  {
+    section: 'Administration',
+    items: [
+      { href: '/audit-logs', label: 'Audit Log', icon: ClipboardList, adminOnly: true },
+      { href: '/administration', label: 'Administration', icon: Settings },
+    ],
+  },
 ];
 
 function NavLink({ href, label, icon: Icon, badge, isActive }: {
@@ -47,63 +83,38 @@ function NavLink({ href, label, icon: Icon, badge, isActive }: {
   return (
     <Link
       href={href}
-      className="flex items-center group"
+      className="flex items-center"
       style={{
         gap: 12,
-        padding: '11px 14px',
-        borderRadius: 12,
-        margin: '0 8px',
-        background: isActive
-          ? 'linear-gradient(135deg, #FFF3E8 0%, #FFF8F2 100%)'
-          : 'transparent',
-        boxShadow: isActive ? '0 1px 6px rgba(245,107,34,0.10)' : 'none',
-        border: isActive ? '1px solid rgba(245,107,34,0.12)' : '1px solid transparent',
+        padding: '10px 12px',
+        borderRadius: 10,
+        margin: '0 12px',
+        background: isActive ? 'linear-gradient(135deg,#F56B22,#E85D10)' : 'transparent',
+        boxShadow: isActive ? '0 2px 10px rgba(245,107,34,0.35)' : 'none',
         textDecoration: 'none',
-        transition: 'all 0.15s ease',
+        transition: 'background 0.15s ease',
       }}
-      onMouseEnter={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.background = '#F7F8FC';
-          e.currentTarget.style.border = '1px solid #EDEEF2';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.border = '1px solid transparent';
-        }
-      }}
+      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
     >
       <Icon
-        style={{
-          width: 20,
-          height: 20,
-          flexShrink: 0,
-          color: isActive ? '#F56B22' : '#A8B0C2',
-          transition: 'color 0.15s',
-        }}
-        strokeWidth={isActive ? 2.1 : 1.7}
+        style={{ width: 18, height: 18, flexShrink: 0, color: isActive ? '#fff' : '#8B93B5' }}
+        strokeWidth={isActive ? 2.2 : 1.8}
       />
-      <span
-        className="flex-1 truncate"
-        style={{
-          fontSize: 14,
-          fontWeight: isActive ? 600 : 500,
-          color: isActive ? '#F56B22' : '#6B7480',
-          letterSpacing: isActive ? '-0.01em' : '0',
-          transition: 'color 0.15s',
-        }}
-      >
+      <span className="flex-1 truncate" style={{
+        fontSize: 13.5,
+        fontWeight: isActive ? 700 : 500,
+        color: isActive ? '#fff' : '#C2C8DE',
+      }}>
         {label}
       </span>
       {badge !== undefined && (
         <span style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          minWidth: 20, height: 20, padding: '0 5px',
-          borderRadius: 99, fontSize: 10.5, fontWeight: 700,
-          background: isActive ? '#F56B22' : '#F56B22',
-          color: '#fff',
-          boxShadow: '0 1px 4px rgba(245,107,34,0.35)',
+          minWidth: 20, height: 20, padding: '0 6px',
+          borderRadius: 99, fontSize: 10.5, fontWeight: 800,
+          background: isActive ? 'rgba(255,255,255,0.25)' : '#F56B22',
+          color: '#fff', flexShrink: 0,
         }}>
           {badge}
         </span>
@@ -122,108 +133,160 @@ export function Sidebar() {
   const companyId: string = user?.companyId ?? '';
   const userName: string = session?.user?.name ?? '';
   const userRole: string = user?.role ?? 'HR Administrator';
-  const companyInitials = companyName
-    .split(' ')
-    .map((w: string) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const roleLabel = userRole === 'hr_admin' ? 'HR Administrator' : userRole;
+
+  const initials = (value: string) => value
+    .split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
+  // Policy period and headcount for the client chip. dashboard-stats is cached
+  // server-side, so this is cheap even though the sidebar is on every page.
+  const [policyPeriod, setPolicyPeriod] = useState<string | null>(null);
+  const [activeLives, setActiveLives] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/hr/dashboard-stats')
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d?.stats) return;
+        setPolicyPeriod(d.stats.policyPeriod ?? null);
+        setActiveLives(typeof d.stats.activeLives === 'number' ? d.stats.activeLives : null);
+      })
+      .catch(() => { /* the chip just omits these lines */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const isActive = (href: string) =>
     pathname === href || (pathname?.startsWith(href + '/') ?? false);
 
   return (
     <aside
-      className="fixed top-0 left-0 h-screen w-[220px] flex flex-col z-40"
-      style={{ background: '#fff', borderRight: '1px solid #EDEEF2' }}
+      className="fixed top-0 left-0 h-screen w-[240px] flex flex-col z-40"
+      style={{ background: '#101A44' }}
     >
-      {/* Logo */}
-      <div style={{ padding: '16px 14px 14px', borderBottom: '1px solid #EDEEF2' }}>
+      {/* Logo — knockout variant so the wordmark reads on navy. */}
+      <div style={{ padding: '18px 16px 14px' }}>
         <Image
-          src="/leadway-health-logo.png"
+          src="/leadway-health-logo-light.png"
           alt="Leadway Health"
           width={1178}
           height={390}
-          style={{ objectFit: 'contain', objectPosition: 'left center', width: '100%', height: 'auto', maxHeight: 52, display: 'block' }}
+          style={{ objectFit: 'contain', objectPosition: 'left center', width: 'auto', height: 34, display: 'block' }}
           priority
         />
+        <p style={{ fontSize: 11.5, color: '#8B93B5', marginTop: 8 }}>Corporate Portal</p>
       </div>
 
-      {/* Client chip */}
-      <div
-        className="mx-3 mt-4 mb-2 cursor-pointer"
-        style={{
-          background: '#F7F8FC',
-          borderRadius: 10,
-          border: '1px solid #EDEEF2',
-          padding: '9px 12px',
-        }}
-      >
-        <div className="flex items-center gap-2.5">
+      {/* Client chip — company, plan, policy period and headcount at a glance. */}
+      <div style={{
+        margin: '4px 12px 18px', padding: '12px 13px', borderRadius: 12,
+        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <div style={{
             width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg,#131C4E,#3A4382)',
+            background: 'rgba(255,255,255,0.10)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 800, fontSize: 10,
           }}>
-            {companyInitials || 'CO'}
+            <Building2 style={{ width: 15, height: 15, color: '#F56B22' }} />
           </div>
-          <div style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden' }}>
-            <p style={{
-              fontSize: 12, fontWeight: 600, color: '#131C4E', lineHeight: '1.3',
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-              overflow: 'hidden', wordBreak: 'break-word',
-            }}>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', lineHeight: 1.3, wordBreak: 'break-word' }}>
               {companyName}
             </p>
-            <p style={{ fontSize: 10, color: '#B8BFD0', marginTop: 2 }}>{companyId || '—'}</p>
+            <p style={{ fontSize: 10.5, color: '#8B93B5', marginTop: 2 }}>{companyId || '—'}</p>
           </div>
-          <ChevronDown style={{ width: 13, height: 13, color: '#C8CDD9', flexShrink: 0 }} />
+          <ChevronDown style={{ width: 13, height: 13, color: '#8B93B5', flexShrink: 0, marginTop: 2 }} />
         </div>
+
+        {(policyPeriod || activeLives != null) && (
+          <>
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '11px 0 9px' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {policyPeriod && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CalendarDays style={{ width: 12, height: 12, color: '#8B93B5', flexShrink: 0 }} />
+                  <p style={{ fontSize: 10.5, color: '#C2C8DE' }}>{policyPeriod}</p>
+                </div>
+              )}
+              {activeLives != null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Users style={{ width: 12, height: 12, color: '#8B93B5', flexShrink: 0 }} />
+                  <p style={{ fontSize: 10.5, color: '#C2C8DE' }}>{activeLives.toLocaleString()} members</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Main nav */}
-      <nav className="flex-1 overflow-y-auto" style={{ paddingTop: 6, paddingBottom: 4 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {mainNav
+      {/* Grouped nav */}
+      <nav className="flex-1 overflow-y-auto" style={{ paddingBottom: 8 }}>
+        {NAV_GROUPS.map((group) => {
+          const items = group.items
             .filter((item) => !item.adminOnly || isAdminRole(userRole))
             .filter((item) => {
               const mod = moduleForPath(item.href);
               return !mod || canAccessModule(userRole, mod);
-            })
-            .map(({ adminOnly: _adminOnly, ...item }) => (
-            <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div style={{ margin: '12px 16px', height: 1, background: '#F0F1F6' }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {bottomNav.filter((item) => !item.adminOnly || isAdminRole(userRole)).map(({ adminOnly: _adminOnly, ...item }) => (
-            <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
-          ))}
-        </div>
+            });
+          if (items.length === 0) return null;
+          return (
+            <div key={group.section} style={{ marginBottom: 16 }}>
+              <p style={{
+                fontSize: 10, fontWeight: 700, color: '#6C769E',
+                textTransform: 'uppercase', letterSpacing: '0.1em',
+                padding: '0 24px', marginBottom: 8,
+              }}>
+                {group.section}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {items.map(({ adminOnly: _adminOnly, ...item }) => (
+                  <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </nav>
 
-      {/* User footer */}
-      <div style={{ borderTop: '1px solid #EDEEF2', padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', lineHeight: '1.3' }}>{userName || 'User'}</p>
-            <p style={{ fontSize: 11, color: '#B8BFD0', marginTop: 3 }}>{userRole === 'hr_admin' ? 'HR Administrator' : userRole}</p>
+      {/* User chip */}
+      <div style={{ padding: '0 12px 12px' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 12px', borderRadius: 12,
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+            background: 'linear-gradient(135deg,#F56B22,#FF8C4B)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 800, fontSize: 11,
+          }}>
+            {initials(userName) || 'U'}
+          </div>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', lineHeight: 1.3 }} className="truncate">
+              {userName || 'User'}
+            </p>
+            <p style={{ fontSize: 10.5, color: '#8B93B5', marginTop: 1 }} className="truncate">{roleLabel}</p>
           </div>
           <button
             title="Log out"
             onClick={() => signOut({ callbackUrl: '/login' })}
-            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.borderColor = '#EDEEF2'; }}
+            style={{
+              width: 28, height: 28, borderRadius: 8, flexShrink: 0, cursor: 'pointer',
+              border: '1px solid rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.05)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.20)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
           >
-            <LogOut style={{ width: 14, height: 14, color: '#EF4444' }} strokeWidth={2} />
+            <LogOut style={{ width: 13, height: 13, color: '#FCA5A5' }} strokeWidth={2} />
           </button>
         </div>
+
+        <p style={{ fontSize: 9.5, color: '#5A6390', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
+          © {new Date().getFullYear()} Leadway Health Limited.<br />All rights reserved.
+        </p>
       </div>
     </aside>
   );
