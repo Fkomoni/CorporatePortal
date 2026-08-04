@@ -11,6 +11,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { cacheBust } from '@/lib/server-cache';
 import { logAudit } from '@/lib/audit';
+import { sexIdFromText } from '@/lib/gender';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -46,7 +47,7 @@ export interface UpdateInfoPayload {
   enrolleeId: string;
   cifNumber?: string | number;
   isPrincipal?: boolean;
-  sexId?: string;        // "1" Male, "2" Female
+  sexId?: string;        // Prognosis Sex_ID — see lib/gender.ts (1 = Male, 2 = Female)
   dateOfBirth?: string;
   mobile?: string;
   email?: string;
@@ -77,14 +78,6 @@ function normalizePhone(v: unknown): string {
   if (digits.startsWith('234')) return `+${digits}`;
   if (digits.startsWith('0')) return `+234${digits.slice(1)}`;
   return `+234${digits}`;
-}
-// Bio returns "Male"/"Female" text; write endpoint wants "1"=Female, "2"=Male.
-function sexIdFromBio(genderText: unknown): string {
-  const g = s(genderText).toLowerCase();
-  if (g === '1' || g === '2') return g;
-  if (g.startsWith('f')) return '1';
-  if (g.startsWith('m')) return '2';
-  return '';
 }
 // Bio may return a label or numeric ID; write endpoint wants "1"-"4" as a string.
 function maritalStatusId(row: Record<string, unknown>): string {
@@ -195,7 +188,7 @@ export async function POST(req: Request) {
       DateOfBirth: dateOfBirth ? dateOnly(dateOfBirth) : dateOnly(row['Member_DateOfBirth']),
       startdate: dateOnly(row['Member_Entry_date']),
       employmentdate: dateOnly(row['Member_Entry_date']),
-      Sex_ID: sexId || sexIdFromBio(row['Member_Gender']),
+      Sex_ID: sexId || sexIdFromText(row['Member_Gender']),
       MaritalStatus: maritalStatusId(row),
       EmailAdress: email || s(row['Member_EmailAddress_One']),
       Home_Phone: s(row['Member_Phone_Three']),

@@ -4,6 +4,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPolicyYearStart } from '@/lib/policy-year';
+import { genderLabelFromSexId } from '@/lib/gender';
 import { isAdminRole } from '@/lib/roles';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { prisma } from '@/lib/prisma';
@@ -138,15 +139,6 @@ async function fetchBeneficiaryDetails(base: string, token: string, groupId: str
   return byCif;
 }
 
-// sex_id is the reliable gender field here — the sibling `Gender` column comes
-// back as padded junk ("B         "). 1 = Male, 2 = Female, matching the Sex_ID
-// convention the Add Member / enrolment payloads use.
-function sexFromId(raw: unknown): string {
-  const v = String(raw ?? '').trim();
-  if (v === '1') return 'Male';
-  if (v === '2') return 'Female';
-  return '';
-}
 
 export interface PendingMemberRow {
   cifNumber: string;
@@ -316,7 +308,7 @@ export async function GET(req: Request) {
         relationship,
         dateOfBirth: dob,
         age: computeAge(dob),
-        sex: str(row, 'Sex', 'Gender', 'Sex_ID') || sexFromId(d['sex_id']),
+        sex: str(row, 'Sex', 'Gender', 'Sex_ID') || genderLabelFromSexId(d['sex_id']),
         email: str(row, 'EmailAdress', 'Email', 'EmailAddress') || str(d, 'EmailAdress', 'Email'),
         mobile: str(row, 'Mobile', 'Mobile1', 'Phone', 'MobileNumber') || str(d, 'Phone', 'Mobile'),
         employeeCode: str(row, 'EmployeeCode', 'Employee_Code', 'employeecode') || str(d, 'staffid', 'StaffId'),

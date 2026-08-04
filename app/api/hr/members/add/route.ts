@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
+import { genderLabelFromSexId } from '@/lib/gender';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -289,7 +290,7 @@ export async function POST(req: Request) {
         registeredBy: session.user.email ?? '',
         registrationDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
         backdatedTo: new Date(body.startDate!).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
-        email, mobile, dateOfBirth, gender: sexId === '2' ? 'Female' : 'Male',
+        email, mobile, dateOfBirth, gender: genderLabelFromSexId(sexId),
       });
     }
 
