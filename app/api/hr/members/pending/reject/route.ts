@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     cifNumbers.map((cifNumber) => rejectEnrollee({ cifNumber, reason, userEmail, effectiveDate: terminationDate })),
   );
   const failures = results.filter((r) => !r.success);
-  const attributedTo = results.find((r) => r.usedFallbackEmail)?.usedFallbackEmail ?? null;
+  const attributedTo = results.find((r) => r.prognosisUserEmail)?.prognosisUserEmail ?? null;
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
 
   console.log(`[pending/reject] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);

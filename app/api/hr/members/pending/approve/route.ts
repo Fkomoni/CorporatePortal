@@ -103,9 +103,9 @@ export async function POST(req: Request) {
   );
   const failures = results.filter((r) => !r.success);
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
-  // Prognosis may have attributed the decision to the fallback account rather
-  // than the HR user who clicked — keep the real actor in our own audit trail.
-  const attributedTo = results.find((r) => r.usedFallbackEmail)?.usedFallbackEmail ?? null;
+  // Prognosis files every decision under one account, not the HR user who made
+  // it — record which, so the real actor stays traceable on our side.
+  const attributedTo = results.find((r) => r.prognosisUserEmail)?.prognosisUserEmail ?? null;
 
   console.log(`[pending/approve] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);
 
