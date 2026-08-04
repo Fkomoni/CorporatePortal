@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
 import { validateEmail, normalizeEmail } from '@/lib/email';
+import { resolveEnrolleePhoto } from '@/lib/enrollee-photo';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -391,12 +392,39 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     }
 
     // If Prognosis returned HTTP 200 with no error status, treat as success regardless of ID presence
+    // Read the photo back from Prognosis so the e-ID card shows the copy that
+    // was actually stored, resolved with the same logic as HR's Member 360 card.
+    // Only for the member just created here, so nothing extra is exposed.
+    let storedPhoto: string | null = null;
+    let storedPhotoType = 'image/jpeg';
+    if (enrolleeId) {
+      try {
+        const bioRes = await fetch(
+          `${BASE}/api/EnrolleeProfile/GetEnrolleeBioDataByEnrolleeID?enrolleeid=${encodeURIComponent(enrolleeId)}`,
+          { headers: { Authorization: `Bearer ${svcToken}`, Accept: 'application/json' } },
+        );
+        const bioRaw = await bioRes.json().catch(() => null);
+        const topLevel = (bioRaw ?? {}) as Record<string, unknown>;
+        const resultField = topLevel.result ?? topLevel.Result ?? topLevel.data ?? topLevel.Data;
+        const bioRow = ((Array.isArray(resultField) ? resultField[0] : resultField) ?? topLevel) as Record<string, unknown>;
+        const resolved = resolveEnrolleePhoto(topLevel, bioRow);
+        storedPhoto = resolved.photo;
+        storedPhotoType = resolved.photoType;
+        console.log(`[enroll/token] ${enrolleeId} photo resolved via "${resolved.source}" (${storedPhoto ? storedPhoto.length : 0} chars)`);
+      } catch (e) {
+        // The client falls back to the photo it just uploaded.
+        console.warn(`[enroll/token] Could not read back photo for ${enrolleeId}:`, e);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       cifNumber,
       membershipNo,
       suffix,
       enrolleeId,
+      photo: storedPhoto,
+      photoType: storedPhotoType,
       autoApproved: false,
     });
   } catch (err) {

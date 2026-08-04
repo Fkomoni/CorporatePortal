@@ -224,7 +224,11 @@ export default function EnrollPage() {
         if (isDependent || principalCifNumber) {
           // Dependent enrolment (or self-dep add after principal)
           const newRemaining = Math.max(0, remainingSlots - 1);
-          setDepEnrolled(prev => [...prev, { enrolleeId, name, photo: photoBase64, photoType }]);
+          setDepEnrolled(prev => [...prev, {
+            enrolleeId, name,
+            photo: data.photo || photoBase64,
+            photoType: data.photo ? (data.photoType || 'image/jpeg') : photoType,
+          }]);
           setRemainingSlots(newRemaining);
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
           if (newRemaining > 0) {
@@ -242,12 +246,20 @@ export default function EnrollPage() {
           // Principal enrolled for self+dep scope — transition to dependent form
           setPrincipalCifNumber(String(data.cifNumber));
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
-          setPrincipalRecord({ enrolleeId, name, photo: photoBase64, photoType });
+          setPrincipalRecord({
+            enrolleeId, name,
+            photo: data.photo || photoBase64,
+            photoType: data.photo ? (data.photoType || 'image/jpeg') : photoType,
+          });
           resetForm();
           setStatus('add-deps');
         } else {
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
-          setPrincipalRecord({ enrolleeId, name, photo: photoBase64, photoType });
+          setPrincipalRecord({
+            enrolleeId, name,
+            photo: data.photo || photoBase64,
+            photoType: data.photo ? (data.photoType || 'image/jpeg') : photoType,
+          });
           setStatus('success');
         }
       }
