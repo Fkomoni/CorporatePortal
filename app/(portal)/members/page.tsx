@@ -13,7 +13,7 @@ import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
-import { digitsOnly, validateMobile } from '@/lib/phone';
+import { digitsOnly, validateMobile, mobileLengthHint } from '@/lib/phone';
 import { isValidEmail, validateEmail } from '@/lib/email';
 import { friendlyError } from '@/lib/user-facing-error';
 import { exportToXls } from '@/lib/exportXls';
@@ -869,6 +869,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                             inputMode={f.type === 'tel' ? 'numeric' : undefined}
                             maxLength={f.type === 'tel' ? 11 : undefined}
                             placeholder={f.ph} style={depInputStyle} />
+                          {f.type === 'tel' && mobileLengthHint(f.value) && (
+                            <p style={{ fontSize: 10, color: '#D97706', marginTop: 3 }}>{mobileLengthHint(f.value)}</p>
+                          )}
                         </div>
                       ))}
                       <div>
@@ -1506,6 +1509,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           maxLength={f.type === 'tel' ? 11 : undefined}
                           placeholder={f.ph}
                           style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
+                        {f.type === 'tel' && mobileLengthHint(f.value) && (
+                          <p style={{ fontSize: 10, color: '#D97706', marginTop: 3 }}>{mobileLengthHint(f.value)}</p>
+                        )}
                       </div>
                     ))}
 
@@ -1605,6 +1611,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                                 </select>
                                 <input value={dep.mobile} placeholder="Mobile (optional)" type="tel" inputMode="numeric" maxLength={11} style={inputStyle}
                                   onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, mobile: digitsOnly(e.target.value) } : d))} />
+                                {mobileLengthHint(dep.mobile) && <p style={{ fontSize: 10, color: '#D97706', gridColumn: '1 / -1' }}>{mobileLengthHint(dep.mobile)}</p>}
                                 <input value={dep.email} placeholder="Email (optional)" type="email" style={inputStyle}
                                   onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, email: e.target.value } : d))} />
                               </div>
@@ -2819,6 +2826,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Phone Number</label>
                 <input type="tel" value={editMobile} onChange={(e) => setEditMobile(digitsOnly(e.target.value))} inputMode="numeric" maxLength={11}
                   style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
+                {mobileLengthHint(editMobile) && <p style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>{mobileLengthHint(editMobile)}</p>}
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Email</label>

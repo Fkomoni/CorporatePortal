@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, Upload } from 'lucide-react';
-import { digitsOnly, validateMobile } from '@/lib/phone';
+import { digitsOnly, validateMobile, mobileLengthHint, ninLengthHint } from '@/lib/phone';
 import { isValidEmail } from '@/lib/email';
 
 interface ListItem { text: string; value: string; }
@@ -527,10 +527,11 @@ export default function EnrollPage() {
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
                     Mobile{(relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse') ? ' *' : ''}
                   </p>
-                  <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="e.g. 08012345678"
-                    pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678"
+                  <input type="tel" value={mobile} onChange={(e) => setMobile(digitsOnly(e.target.value))} placeholder="e.g. 08012345678"
+                    inputMode="numeric" pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678"
                     required={(relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse')}
                     style={inputStyle} />
+                  {mobileLengthHint(mobile) && <p style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>{mobileLengthHint(mobile)}</p>}
                 </div>
               </div>
 
@@ -712,16 +713,16 @@ export default function EnrollPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field
                 label={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse') ? 'Mobile Number *' : 'Mobile Number'}
-                value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" numeric
+                value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" numeric hint={mobileLengthHint(mobile)}
                 required={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse')}
                 pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 08012345678" />
-              <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel" numeric
+              <Field label="Alternative Mobile" value={mobile2} onChange={setMobile2} placeholder="e.g. 07012345678" type="tel" numeric hint={mobileLengthHint(mobile2)}
                 pattern="0\d{10}" maxLength={11} title="Enter an 11-digit mobile number starting with 0, e.g. 07012345678" />
               <SelectField label="State of Residence *" value={postalTownId} onChange={setStateId} required>
                 <option value="">Select state</option>
                 {states.map((s) => <option key={s.value} value={s.value}>{s.text}</option>)}
               </SelectField>
-              <Field label="NIN" value={nin} onChange={(v) => setNin(v.slice(0, 11))} placeholder="e.g. 12345678901" numeric
+              <Field label="NIN" value={nin} onChange={(v) => setNin(v.slice(0, 11))} placeholder="e.g. 12345678901" numeric hint={ninLengthHint(nin)}
                 pattern="\d{11}" maxLength={11} title="Enter your 11-digit National Identification Number" />
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Home Address" value={address} onChange={setAddress} placeholder="e.g. 12 Adeola Odeku Street, Victoria Island" />
@@ -758,13 +759,15 @@ export default function EnrollPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', required, pattern, title, maxLength, numeric }: {
+function Field({ label, value, onChange, placeholder, type = 'text', required, pattern, title, maxLength, numeric, hint }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; type?: string; required?: boolean;
   pattern?: string; title?: string; maxLength?: number;
   // Digits only: non-digits are dropped as they're typed (or pasted), rather
   // than relying on `pattern`, which browsers only enforce on native submit.
   numeric?: boolean;
+  // Live feedback while typing, e.g. "3 more digits needed".
+  hint?: string | null;
 }) {
   return (
     <div>
@@ -779,6 +782,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', required, p
         onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
         onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }}
       />
+      {hint && <p style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>{hint}</p>}
     </div>
   );
 }

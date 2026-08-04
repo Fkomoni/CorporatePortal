@@ -68,6 +68,35 @@ export function validateMobile(value: unknown, { required = false, label = 'Mobi
   return null;
 }
 
+/**
+ * Live hint while a mobile number is being typed. Returns null when the value is
+ * empty or already acceptable, so it can be rendered unconditionally.
+ *
+ * Inputs strip non-digits and cap at 11, so in practice the only way to be wrong
+ * is to stop short — say how many digits are missing rather than waiting for a
+ * submit-time rejection.
+ */
+export function mobileLengthHint(value: unknown): string | null {
+  const d = digitsOnly(String(value ?? ''));
+  if (!d) return null;
+  if (isValidNigerianMobile(d)) return null;
+  // 11 digits with the trunk '0' (08012345678), 10 without (8012345678).
+  const expected = d.startsWith('0') ? 11 : 10;
+  if (d.length < expected) {
+    const missing = expected - d.length;
+    return `${missing} more digit${missing === 1 ? '' : 's'} needed`;
+  }
+  return MOBILE_FORMAT_MESSAGE;
+}
+
+/** Live hint while a NIN is being typed. Null when empty or complete. */
+export function ninLengthHint(value: unknown): string | null {
+  const d = digitsOnly(String(value ?? ''));
+  if (!d || d.length === 11) return null;
+  const missing = 11 - d.length;
+  return `${missing} more digit${missing === 1 ? '' : 's'} needed`;
+}
+
 /** NIN is exactly 11 digits. */
 export function isValidNin(value: unknown): boolean {
   return /^\d{11}$/.test(digitsOnly(String(value ?? '')));
