@@ -74,6 +74,25 @@ function classifyStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
   return 'Pending';
 }
 
+// ViewMembersByStatus returns MembershipStartDate as "25-Jul-2026" — the cover
+// start date the member was registered with. Normalise to yyyy-mm-dd without
+// going through Date parsing, which is locale/format sensitive on this shape.
+const MONTHS: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+function toIsoDateOnly(raw: string): string | null {
+  if (!raw) return null;
+  const m = raw.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+  if (m) {
+    const mm = MONTHS[m[2].toLowerCase()];
+    if (mm) return `${m[3]}-${mm}-${m[1].padStart(2, '0')}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 // Prognosis DOB comes back as "14-Dec-1974" — parseable by Date, but guard
 // against odd formats before computing age from it.
 function computeAge(dobRaw: string): number | null {
@@ -109,9 +128,9 @@ export interface PendingMemberRow {
   terminationDate: string;
   registrationDate: string | null;
   registrationSource: 'Corporate Portal' | 'Enrolee App';
-  // Cover start date HR set on the invitation (yyyy-mm-dd), when this member
-  // registered through an HR-issued link. Null for Enrolee App registrations
-  // and for link registrations recorded before this was tracked.
+  // Cover start date the member was registered with (yyyy-mm-dd) — Prognosis's
+  // own MembershipStartDate, so it's present however the member registered.
+  // Falls back to the startDate we recorded on the HR invitation.
   coverStartDate?: string | null;
 }
 
@@ -160,12 +179,18 @@ export async function GET(req: Request) {
 
   try {
     const token = await getServiceToken();
-    // ViewMembersByStatus with statusIds=2,8,11,12 — confirmed to cover the
-    // same "pending" buckets as the old ViewPortalRegisteredMembersPerGroup_
-    // pendingActivation endpoint, plus it now also returns StateId/State/
-    // ZoneId/Zone per row. Row shape is otherwise expected to match the
-    // legacy endpoint (same underlying member view) — logging the raw
-    // response below so the field-name guesses here can be corrected if not.
+    // ViewMembersByStatus with statusIds=2,8,11,12 — covers the same "pending"
+    // buckets as the old ViewPortalRegisteredMembersPerGroup_pendingActivation
+    // endpoint. Row shape is CONFIRMED from production and is leaner than the
+    // legacy endpoint's: Cif_Number, Parent_Cif, MembershipNo, Suffix,
+    // FirstName, Surname, Othername, DOB, Email, Mobile, NIN, StateId, State,
+    // ZoneId, Zone, MemberStatusId, MemberStatus, StatusCode, StatusColorCode,
+    // MembershipStartDate, Termdate.
+    //
+    // Notably ABSENT (the legacy endpoint supplied these, so the lookups below
+    // fall through to blanks / suffix-derived values): Relationship, Sex/Gender,
+    // EmployeeCode, Scheme, and any registration-date field. Registration date
+    // is recovered from our own link_registrations rows where we have them.
     const res = await fetch(`${BASE}/api/CorporatePortal/ViewMembersByStatus?groupId=${encodeURIComponent(groupId)}&statusIds=2,8,11,12`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
@@ -244,6 +269,11 @@ export async function GET(req: Request) {
         schemeName: str(row, 'scheme', 'Scheme', 'SchemeName', 'Scheme_Name'),
         status: classifyStatus(str(row, 'Memberstatus', 'Status', 'MemberStatus', 'ApprovalStatus', 'Approval_Status', 'EnrollmentStatus')),
         terminationDate: str(row, 'Termdate', 'TermDate', 'Term_Date'),
+        // Confirmed field on ViewMembersByStatus: the cover start date the
+        // member was actually registered with ("25-Jul-2026"). Available for
+        // every pending member regardless of how they registered, so it's the
+        // primary source for the approval effective date.
+        coverStartDate: toIsoDateOnly(str(row, 'MembershipStartDate', 'Membershipstartdate', 'StartDate')),
         registrationDate: null,
         registrationSource: 'Enrolee App' as const,
         _date: extractDate(row),
@@ -338,7 +368,7 @@ export async function GET(req: Request) {
         ...member,
         registrationDate: trueDate,
         registrationSource: linkCifSet.has(r.cifNumber) ? 'Corporate Portal' : 'Enrolee App',
-        coverStartDate: linkCifStartDates.get(r.cifNumber) ?? null,
+        coverStartDate: member.coverStartDate ?? linkCifStartDates.get(r.cifNumber) ?? null,
       });
       g.memberCount++;
       if (!g.registrationDate || (trueDate && trueDate < g.registrationDate)) {
