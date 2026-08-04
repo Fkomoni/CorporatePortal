@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ClipboardCheck, Check, X, RefreshCw, Calendar } from 'lucide-react';
+import { ClipboardCheck, Check, X, RefreshCw, Calendar, Users, UserRound, MailPlus } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { StatCard } from '@/components/ui/StatCard';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { friendlyError } from '@/lib/user-facing-error';
@@ -112,6 +113,12 @@ export default function PendingEnroleesPage() {
   useEffect(() => { load(); }, [load]);
 
   const rows = useMemo(() => flattenRows(groups), [groups]);
+  // The API normalises Prognosis's "Main Member" to "Principal"; anything else
+  // is a dependant.
+  const principalCount = useMemo(
+    () => rows.filter((r) => /principal/i.test(r.relationship)).length,
+    [rows],
+  );
   const allSelected = rows.length > 0 && selected.size === rows.length;
   const someSelected = selected.size > 0 && !allSelected;
 
@@ -288,6 +295,35 @@ export default function PendingEnroleesPage() {
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <TopBar title="Pending Enrolees" subtitle="Beneficiaries enrolment awaiting your approval" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Summary strip — every figure is counted off the queue already on
+            screen, so it can never disagree with the tables below. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+          <StatCard
+            label="Awaiting Approval"
+            sub={`${groups.length} staff record${groups.length === 1 ? '' : 's'}`}
+            value={rows.length.toLocaleString()}
+            icon={ClipboardCheck} color="#F56B22" tint="#FFF5EF" loading={loading}
+          />
+          <StatCard
+            label="Principals"
+            sub="Staff pending activation"
+            value={principalCount.toLocaleString()}
+            icon={UserRound} color="#6366F1" tint="#EEF2FF" loading={loading}
+          />
+          <StatCard
+            label="Dependants"
+            sub="Spouses and children"
+            value={(rows.length - principalCount).toLocaleString()}
+            icon={Users} color="#2563EB" tint="#EFF6FF" loading={loading}
+          />
+          <StatCard
+            label="Awaiting Enrolment"
+            sub="Invited, link not used yet"
+            value={invitations.length.toLocaleString()}
+            icon={MailPlus} color="#7C3AED" tint="#F5F3FF" loading={loading}
+          />
+        </div>
 
         {/* Filters */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>

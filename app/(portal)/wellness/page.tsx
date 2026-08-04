@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
 import {
   Heart, Video, MapPin, Users, Send, CheckCircle,
-  Activity, Mail, Link2, Clock, TrendingUp, Stethoscope, Search, X,
+  Activity, Mail, Link2, Clock, TrendingUp, Stethoscope, Search, X, Info,
 } from 'lucide-react';
 import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
@@ -686,6 +686,17 @@ export default function WellnessPage() {
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+            {/* Every figure on this tab comes from the SCREENING_STATS and
+                RECENT_SCREENINGS constants. Saying so once here is better than
+                letting HR quote invented coverage numbers to their board. */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 18px', borderRadius: 14, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+              <Info style={{ width: 16, height: 16, color: '#B45309', flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 12, color: '#78350F', lineHeight: 1.6 }}>
+                <strong>Illustrative figures.</strong> Screening counts and the recent-screenings list below are sample data.
+                They will switch to live numbers once the screening feed is connected — don&apos;t report these to your board yet.
+              </p>
+            </div>
+
             {/* Stat cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
               {[
@@ -747,8 +758,12 @@ export default function WellnessPage() {
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Recent Screenings</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Latest completed annual medical screenings</p>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 99, padding: '4px 12px' }}>
-                  Live data
+                {/* These rows come from RECENT_SCREENINGS, a hardcoded
+                    constant — there is no screening backend yet. The badge
+                    said "Live data", which invited HR to act on invented
+                    names and dates. */}
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 99, padding: '4px 12px' }}>
+                  Sample data
                 </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 140px 100px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
