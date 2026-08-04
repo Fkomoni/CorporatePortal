@@ -173,6 +173,25 @@ interface ListItem { text: string; value: string; }
 // Cover may be backdated to any past date. There is no earliest-date floor —
 // HR just has to acknowledge the backdate warning (BackdateWarningModal), which
 // states Leadway settles no claims incurred before the valid enrolment date.
+// Earliest date cover may be backdated to: the start of the group's current
+// policy year, resolved server-side. Cached at module scope so the three
+// components with a cover-start-date picker share one fetch.
+let policyYearStartCache = '';
+
+function usePolicyYearStart(): string {
+  const [value, setValue] = useState(policyYearStartCache);
+  useEffect(() => {
+    if (policyYearStartCache) return;
+    fetch('/api/hr/list-values')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.policyYearStart) { policyYearStartCache = d.policyYearStart; setValue(d.policyYearStart); }
+      })
+      .catch(() => {});
+  }, []);
+  return value;
+}
+
 function todayIsoDate(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -202,6 +221,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [submitting, setSubmitting] = useState(false);
   const [showBackdateModal, setShowBackdateModal] = useState(false);
   const [backdateAgreed, setBackdateAgreed] = useState(false);
+  const policyYearStart = usePolicyYearStart();
   const [formError, setFormError]   = useState('');
   const [enrollResult, setEnrollResult] = useState<{ name: string; memberId: string; cifNumber?: string | null; isNewWithDeps?: boolean; schemeId?: string; schemeName?: string; empCode?: string } | null>(null);
   // Dep state for "new staff + dependants" success screen
@@ -482,6 +502,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       mode === 'individual' && actionType === 'link' ? linkStartDate
       : mode === 'individual' && actionType === 'form' && memberType !== 'existing' ? startDate
       : '';
+    if (relevantBackdateDate && policyYearStart && relevantBackdateDate < policyYearStart) {
+      setFormError('Cover start date cannot be earlier than the start of the current policy year.');
+      return;
+    }
     if (relevantBackdateDate && isBackdated(relevantBackdateDate) && !agreed) {
       setShowBackdateModal(true);
       return;
@@ -1294,7 +1318,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     )}
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Cover Start Date *</p>
-                      <input type="date" value={linkStartDate}  onChange={(e) => setLinkStartDate(e.target.value)}
+                      <input type="date" value={linkStartDate} min={policyYearStart || undefined} onChange={(e) => setLinkStartDate(e.target.value)}
                         style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                     </div>
                   </div>
@@ -1487,8 +1511,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
                     {memberType !== 'existing' && (
                       <div style={{ gridColumn: '1 / -1' }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; may be backdated)</span></p>
-                        <input type="date" value={startDate}  onChange={(e) => setStartDate(e.target.value)}
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; may be backdated to the start of the policy year)</span></p>
+                        <input type="date" value={startDate} min={policyYearStart || undefined} onChange={(e) => setStartDate(e.target.value)}
                           style={{ ...inputStyle, maxWidth: 260 }} onFocus={focusOn} onBlur={focusOff} />
                       </div>
                     )}
@@ -1611,6 +1635,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
   const [startDate, setStartDate] = useState('');
   const [backdateAgreed, setBackdateAgreed] = useState(false);
   const [showBackdate, setShowBackdate] = useState(false);
+  const policyYearStart = usePolicyYearStart();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -1620,6 +1645,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
     setError('');
     if (!email.trim()) { setError('Email is required.'); return; }
     if (!startDate) { setError('Cover start date is required.'); return; }
+    if (policyYearStart && startDate < policyYearStart) { setError('Cover start date cannot be earlier than the start of the current policy year.'); return; }
     if (isBackdated(startDate) && !agreed) { setShowBackdate(true); return; }
     if (agreedOverride) setBackdateAgreed(true);
     if (!member.cifNumber) { setError('Could not find this staff member\'s CIF number. Please try again from their Member 360 profile.'); return; }
@@ -1672,7 +1698,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
 
         <div style={{ marginBottom: 18 }}>
           <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date *</p>
-          <input type="date" value={startDate}  onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+          <input type="date" value={startDate} min={policyYearStart || undefined} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
         </div>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -1981,6 +2007,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const [depMaxCount, setDepMaxCount]       = useState(1);
   const [depLinkEmail, setDepLinkEmail]     = useState(member.email ?? '');
   const [depLinkStartDate, setDepLinkStartDate] = useState('');
+  const policyYearStart = usePolicyYearStart();
 
   // Biodata: enriched phone + staffId + email fetched from GetEnrolleeBioDataByEnrolleeID
   const [bioPhone, setBioPhone]             = useState<string | null>(member.phone || null);
@@ -2299,6 +2326,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
         // Send link
         if (!depLinkEmail) { setDepError('Member email is required to send the link.'); return; }
         if (!depLinkStartDate) { setDepError('Cover start date is required.'); return; }
+        if (policyYearStart && depLinkStartDate < policyYearStart) { setDepError('Cover start date cannot be earlier than the start of the current policy year.'); return; }
         const res = await fetch('/api/hr/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3071,7 +3099,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date</p>
-                    <input type="date" value={depLinkStartDate}  onChange={(e) => setDepLinkStartDate(e.target.value)}
+                    <input type="date" value={depLinkStartDate} min={policyYearStart || undefined} onChange={(e) => setDepLinkStartDate(e.target.value)}
                       style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />

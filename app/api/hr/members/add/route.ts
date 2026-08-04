@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
@@ -92,15 +93,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
   }
 
-  // Cover may be backdated to any past date, but HR must acknowledge the
-  // backdate warning first — Leadway settles no claims incurred before the
-  // member's valid enrolment date.
+  // Cover may be backdated, but never earlier than the start of the group's
+  // current policy year, and HR must acknowledge the backdate warning first —
+  // Leadway settles no claims incurred before the valid enrolment date.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isBackdated = !!body.startDate && new Date(body.startDate) < today;
   if (body.startDate) {
     const chosenStart = new Date(body.startDate); chosenStart.setHours(0, 0, 0, 0);
     if (isNaN(chosenStart.getTime())) {
       return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
+    }
+    const policyYearStart = await getPolicyYearStart(session.user.companyId ?? '');
+    if (body.startDate < policyYearStart) {
+      return NextResponse.json({ error: `Cover start date cannot be earlier than the start of the current policy year (${formatPolicyYearStart(policyYearStart)}).` }, { status: 400 });
     }
     if (isBackdated && !body.backdateAcknowledged) {
       return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });

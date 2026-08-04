@@ -3,6 +3,7 @@
 // family (principal + dependants share the principal's CIF as parentCif).
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getPolicyYearStart } from '@/lib/policy-year';
 import { isAdminRole } from '@/lib/roles';
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { prisma } from '@/lib/prisma';
@@ -379,7 +380,11 @@ export async function GET(req: Request) {
       console.warn('[hr/members/pending] Failed to fetch unused invitations:', e);
     }
 
-    return NextResponse.json({ groups: groupList, invitations, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
+    // Earliest effective date HR may approve with — the approve sheet uses it
+    // as the date picker's floor.
+    const policyYearStart = await getPolicyYearStart(groupId);
+
+    return NextResponse.json({ groups: groupList, invitations, policyYearStart, totalRows: rows.length, totalGroups: groupList.length, totalBeneficiaries: pendingBeneficiaries.length });
   } catch (err) {
     console.error('[hr/members/pending] Error:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to fetch pending enrolees' }, { status: 500 });

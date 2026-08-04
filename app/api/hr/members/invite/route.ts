@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 import { prisma } from '@/lib/prisma';
 import { renderEmailTemplate } from '@/lib/email-template';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
@@ -108,12 +109,17 @@ export async function POST(req: Request) {
   if (!startDate) {
     return NextResponse.json({ error: 'startDate is required' }, { status: 400 });
   }
-  // Cover may be backdated to any past date — HR just has to acknowledge the
-  // backdate warning first (Leadway settles no claims incurred before the
-  // member's valid enrolment date). Same rule as HR's direct Add Member flow.
+  // Cover may be backdated, but never earlier than the start of the group's
+  // current policy year, and HR must acknowledge the backdate warning first
+  // (Leadway settles no claims incurred before the valid enrolment date).
+  // Same rule as HR's direct Add Member / Add Family flows.
   const chosenStart = new Date(startDate); chosenStart.setHours(0, 0, 0, 0);
   if (isNaN(chosenStart.getTime())) {
     return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
+  }
+  const policyYearStart = await getPolicyYearStart(session.user.companyId ?? '');
+  if (startDate < policyYearStart) {
+    return NextResponse.json({ error: `Cover start date cannot be earlier than the start of the current policy year (${formatPolicyYearStart(policyYearStart)}).` }, { status: 400 });
   }
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   if (chosenStart < todayStart && !body.backdateAcknowledged) {

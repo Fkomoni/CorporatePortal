@@ -75,6 +75,9 @@ export default function PendingEnroleesPage() {
   const [busyCif, setBusyCif] = useState<string | null>(null); // parentCif or 'bulk'
   const [showBackdateModal, setShowBackdateModal] = useState(false);
   const [backdateAgreed, setBackdateAgreed] = useState(false);
+  // Earliest effective date HR may approve with — start of the group's current
+  // policy year, from the API. Cover can't begin before the group was rated.
+  const [policyYearStart, setPolicyYearStart] = useState('');
 
   // Prognosis needs an explicit dd/mm/yyyy effective/termination date for
   // every approve/reject decision — it drives the member's waiting period,
@@ -99,6 +102,7 @@ export default function PendingEnroleesPage() {
         if (d.error) { setError(d.error); return; }
         setGroups(d.groups ?? []);
         setInvitations(d.invitations ?? []);
+        setPolicyYearStart(d.policyYearStart ?? '');
       })
       .catch(() => setError('Failed to load pending enrolees'))
       .finally(() => setLoading(false));
@@ -176,6 +180,9 @@ export default function PendingEnroleesPage() {
 
   async function handleApproveConfirm(cifs: string[], agreedOverride = false) {
     if (!approveDate) { toast('Please choose an effective date.', 'error'); return; }
+    if (policyYearStart && approveDate < policyYearStart) {
+      toast('Effective date cannot be earlier than the start of the current policy year.', 'error'); return;
+    }
     // Backdating is allowed so the invitation's agreed start date is honoured,
     // but HR must accept the backdate warning first.
     const agreed = backdateAgreed || agreedOverride;
@@ -372,7 +379,7 @@ export default function PendingEnroleesPage() {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                   Effective date for {approvingCifs.length > 1 ? `${approvingCifs.length} beneficiaries` : 'this beneficiary'} (required)
                 </label>
-                <input type="date" value={approveDate} onChange={(e) => setApproveDate(e.target.value)}
+                <input type="date" value={approveDate} min={policyYearStart || undefined} onChange={(e) => setApproveDate(e.target.value)}
                   style={{ ...inputStyle, background: '#fff', border: '1px solid #A7F3D0' }} />
                 {(() => {
                   const invited = coverStartFor(approvingCifs);
