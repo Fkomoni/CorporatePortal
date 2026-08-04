@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PeopleVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
@@ -3225,7 +3226,10 @@ export default function MembersPage() {
   const [vis, setVis] = useState<PeopleVis>(DEFAULTS.people);
   useEffect(() => { setVis(getVis('people')); }, []);
 
-  const [search, setSearch]               = useState('');
+  // Seeded from ?q= so the global TopBar search lands here with the term
+  // already applied rather than appearing to do nothing.
+  const initialQuery = useSearchParams().get('q') ?? '';
+  const [search, setSearch]               = useState(initialQuery);
   const [planFilter, setPlanFilter]       = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
   const [selected, setSelected]           = useState<string[]>([]);
