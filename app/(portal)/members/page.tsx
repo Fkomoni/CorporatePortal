@@ -14,6 +14,8 @@ import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
+import { StatCard } from '@/components/ui/StatCard';
+import { Building2, Clock } from 'lucide-react';
 import { digitsOnly, validateMobile, mobileLengthHint } from '@/lib/phone';
 import { isValidEmail, validateEmail } from '@/lib/email';
 import { friendlyError } from '@/lib/user-facing-error';
@@ -35,10 +37,10 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
 };
 
 const SUMMARY_CARD_DEFS = [
-  { label: 'Active Lives',        key: 'activeCount'    as const, sub: 'Total covered lives',      color: '#131C4E', bg: '#EEF2FF', Icon: Users       },
-  { label: 'Total Number of Staff', key: 'principalCount' as const, sub: 'Active principals',        color: '#3A4382', bg: '#EEF2FF', Icon: Users       },
-  { label: 'New This Month',     key: 'newThisMonth'   as const, sub: 'Enrolments this month',    color: '#10B981', bg: '#ECFDF5', Icon: Activity    },
-  { label: 'Pending Additions',  key: 'pendingCount'   as const, sub: 'Awaiting activation',      color: '#D97706', bg: '#FFFBEB', Icon: ShieldCheck },
+  { label: 'Active Lives',          key: 'activeCount'    as const, sub: 'Total covered lives',   color: '#4F46E5', tint: '#EEF2FF', Icon: Users       },
+  { label: 'Total Number of Staff', key: 'principalCount' as const, sub: 'Active principals',     color: '#2563EB', tint: '#EFF6FF', Icon: Building2   },
+  { label: 'New This Month',        key: 'newThisMonth'   as const, sub: 'Enrolments this month', color: '#10B981', tint: '#ECFDF5', Icon: UserPlus    },
+  { label: 'Pending Additions',     key: 'pendingCount'   as const, sub: 'Awaiting activation',   color: '#D97706', tint: '#FFFBEB', Icon: Clock       },
 ];
 
 // Map an actual Prognosis scheme name to the UI plan label (mirrors server-side mapPlan)
@@ -3353,14 +3355,27 @@ export default function MembersPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {SUMMARY_CARD_DEFS.map((c) => {
             const val = pageStats ? pageStats[c.key] : null;
+            // Each figure now filters the list to what it counts, so the card is
+            // a way in rather than a read-only number.
+            const focus = () => {
+              if (c.key === 'pendingCount') { window.location.href = '/pending-enrolees'; return; }
+              setStatusFilter(c.key === 'activeCount' || c.key === 'principalCount' ? 'Active' : '');
+              setViewBeneficiaries(c.key === 'activeCount');
+              setSearch('');
+              setPage(0);
+            };
             return (
-              <div key={c.label} style={{ ...card, padding: '22px 22px 22px 20px', borderLeft: `3px solid ${c.color}` }}>
-                <p style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, color: '#131C4E' }}>
-                  {membersLoading ? '…' : val != null ? val.toLocaleString() : '—'}
-                </p>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', marginBottom: 3 }}>{c.label}</p>
-                <p style={{ fontSize: 11, fontWeight: 500, color: '#9CA3B8' }}>{c.sub}</p>
-              </div>
+              <StatCard
+                key={c.label}
+                label={c.label}
+                sub={c.sub}
+                value={val != null ? val.toLocaleString() : '—'}
+                icon={c.Icon}
+                color={c.color}
+                tint={c.tint}
+                loading={membersLoading}
+                onClick={focus}
+              />
             );
           })}
         </div>
