@@ -44,13 +44,22 @@ async function fetchFamilyByStatus(base: string, token: string, groupId: string,
     }));
 }
 
-/** All family members (active + inactive) under a principal's CIF. */
+/** All family members under a principal's CIF, deduplicated by CIF.
+ *
+ * ClientPlanBeneficiariesNoPagitation ignores the memberstatus parameter —
+ * confirmed against production, where memberstatus=active and
+ * memberstatus=inactive return an identical row set (and both include
+ * portal-registered/pending members). Fetching both therefore returned every
+ * member twice, which inflated family sizes. One call is enough; results are
+ * still deduplicated by CIF in case a member appears more than once for
+ * another reason (e.g. one row per policy period). */
 export async function getPrincipalFamily(base: string, token: string, groupId: string, parentCif: string): Promise<FamilyMember[]> {
-  const [active, inactive] = await Promise.all([
-    fetchFamilyByStatus(base, token, groupId, parentCif, 'active'),
-    fetchFamilyByStatus(base, token, groupId, parentCif, 'inactive'),
-  ]);
-  return [...active, ...inactive];
+  const rows = await fetchFamilyByStatus(base, token, groupId, parentCif, 'active');
+  const byCif = new Map<string, FamilyMember>();
+  for (const m of rows) {
+    if (m.cifNumber && !byCif.has(m.cifNumber)) byCif.set(m.cifNumber, m);
+  }
+  return [...byCif.values()];
 }
 
 export interface DuplicateDependent {

@@ -62,19 +62,31 @@ export async function sendBackdateAlert(details: BackdateAlertDetails): Promise<
 
   try {
     const token = await getServiceToken();
-    const res = await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        EmailAddress: ALERT_RECIPIENTS.join(';'),
-        CC: '', BCC: '',
-        Subject: `⚠ Backdated Enrolment — ${details.memberName} (${details.companyName || details.employeeCode})`,
-        MessageBody: html,
-        Attachments: null, Category: '', UserId: 0, ProviderId: 0, ServiceId: 0, Reference: '', TransactionType: '',
-      }),
-    });
-    const text = await res.text();
-    console.log(`[backdate-alert] SendEmailAlert → HTTP ${res.status}: ${text.slice(0, 300)}`);
+    // SendEmailAlert takes ONE address in EmailAddress. Passing a
+    // semicolon-separated list returned HTTP 200 with the body
+    // "fail: Invalid email address format", so every alert was silently
+    // dropped — Prognosis reports this failure in the body, not the status
+    // code. Send one request per recipient instead.
+    for (const recipient of ALERT_RECIPIENTS) {
+      const res = await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          EmailAddress: recipient,
+          CC: '', BCC: '',
+          Subject: `⚠ Backdated Enrolment — ${details.memberName} (${details.companyName || details.employeeCode})`,
+          MessageBody: html,
+          Attachments: null, Category: '', UserId: 0, ProviderId: 0, ServiceId: 0, Reference: '', TransactionType: '',
+        }),
+      });
+      const text = await res.text();
+      const ok = res.ok && !/fail/i.test(text);
+      if (ok) {
+        console.log(`[backdate-alert] Sent to ${recipient}`);
+      } else {
+        console.error(`[backdate-alert] FAILED for ${recipient} → HTTP ${res.status}: ${text.slice(0, 300)}`);
+      }
+    }
   } catch (e) {
     console.error('[backdate-alert] Failed to send alert email:', e);
   }

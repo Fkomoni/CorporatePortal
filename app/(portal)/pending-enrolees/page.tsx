@@ -151,7 +151,14 @@ export default function PendingEnroleesPage() {
           body: JSON.stringify({ parentCif: row?.parentCif ?? cifNumber, principalName: row?.staffName, beneficiaryName: row?.beneficiaryName, relationship: row?.relationship, dateOfBirth: row?.dateOfBirth, cifNumbers: [cifNumber], effectiveDate, backdateAcknowledged }),
         });
         const data = await res.json();
-        if (!res.ok || data.error) failed++; else updated += data.recordsUpdated ?? 1;
+        if (!res.ok || data.error) {
+          console.error(`[approve] API rejected cif=${cifNumber}: HTTP ${res.status}`, data.error ?? data);
+          failed++;
+        } else {
+          updated += data.recordsUpdated ?? 1;
+          // Approved, but worth HR's attention (e.g. a shared date of birth).
+          if (data.duplicateWarning) toast(data.duplicateWarning, 'info');
+        }
       } catch { failed++; }
     }
     return { updated, failed };
@@ -179,14 +186,25 @@ export default function PendingEnroleesPage() {
   }
 
   async function handleApproveConfirm(cifs: string[], agreedOverride = false) {
-    if (!approveDate) { toast('Please choose an effective date.', 'error'); return; }
+    // These three bail-outs never reach the server, so log them too — a toast
+    // alone makes a blocked approval look like a backend failure.
+    console.log('[approve] attempt', { cifs, approveDate, policyYearStart, today: todayIso(), backdateAgreed, agreedOverride });
+    if (!approveDate) {
+      console.warn('[approve] BLOCKED client-side: no effective date chosen');
+      toast('Please choose an effective date.', 'error'); return;
+    }
     if (policyYearStart && approveDate < policyYearStart) {
-      toast('Effective date cannot be earlier than the start of the current policy year.', 'error'); return;
+      console.warn(`[approve] BLOCKED client-side: ${approveDate} precedes policy year start ${policyYearStart}`);
+      toast(`Effective date ${toDdMmYyyy(approveDate)} is before the current policy year starts (${toDdMmYyyy(policyYearStart)}).`, 'error'); return;
     }
     // Backdating is allowed so the invitation's agreed start date is honoured,
     // but HR must accept the backdate warning first.
     const agreed = backdateAgreed || agreedOverride;
-    if (approveDate < todayIso() && !agreed) { setShowBackdateModal(true); return; }
+    if (approveDate < todayIso() && !agreed) {
+      console.log('[approve] backdated — showing acknowledgement modal');
+      setShowBackdateModal(true); return;
+    }
+    console.log('[approve] passing client checks, calling API');
     const names = cifs.length > 1 ? `${cifs.length} beneficiaries` : rows.find((r) => r.cifNumber === cifs[0])?.beneficiaryName;
     setBusyCif(cifs.length > 1 ? 'bulk' : cifs[0]);
     const { updated, failed } = await approveCifs(cifs, toDdMmYyyy(approveDate), approveDate < todayIso());
