@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   FileText, AlertTriangle, CheckCircle2, Clock, ArrowDownToLine,
   Loader2, CalendarDays, RotateCcw, TrendingUp, TrendingDown, Activity,
-  ChevronRight, Info, Circle,
+  ChevronRight, Info, Circle, CalendarClock,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
+import { StatCard } from '@/components/ui/StatCard';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface InvoiceHistory {
@@ -248,30 +249,34 @@ export default function FinancePage() {
           </div>
         )}
 
-        {/* Summary cards */}
-        {!historyLoading && history && (
+        {/* Summary cards — the shared StatCard, so Finance matches People,
+            Claims and the dashboard. It renders its own loading state, which
+            replaces the separate spinner grid that used to sit below. */}
+        {(historyLoading || history) && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             {[
-              { label: 'Total Invoiced', value: fmt(history.TotalAmount), sub: 'Current invoice total', color: '#131C4E' },
-              { label: 'Amount Paid', value: fmt(history.AmountPaid), sub: 'Received so far', color: '#059669' },
-              { label: 'Outstanding', value: fmt(history.OutstandingBalance), sub: history.OutstandingBalance ? 'Due now' : 'All clear', color: history.OutstandingBalance ? '#DC2626' : '#059669' },
-              { label: 'Next Due', value: fmtDate(history.NextDue), sub: history.Frequency ?? 'Monthly billing', color: '#7C3AED' },
+              { label: 'Total Invoiced', value: fmt(history?.TotalAmount), sub: 'Current invoice total', icon: FileText, color: '#6366F1', tint: '#EEF2FF' },
+              { label: 'Amount Paid', value: fmt(history?.AmountPaid), sub: 'Received so far', icon: CheckCircle2, color: '#059669', tint: '#ECFDF5' },
+              {
+                label: 'Outstanding',
+                value: fmt(history?.OutstandingBalance),
+                sub: history?.OutstandingBalance ? 'Due now' : 'All clear',
+                icon: AlertTriangle,
+                color: history?.OutstandingBalance ? '#DC2626' : '#059669',
+                tint: history?.OutstandingBalance ? '#FEF2F2' : '#ECFDF5',
+              },
+              { label: 'Next Due', value: fmtDate(history?.NextDue), sub: history?.Frequency ?? 'Monthly billing', icon: CalendarClock, color: '#7C3AED', tint: '#F5F3FF' },
             ].map((c) => (
-              <div key={c.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${c.color}`, padding: '20px 22px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                <p style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', color: '#131C4E', lineHeight: 1, marginBottom: 8 }}>{c.value}</p>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#131C4E', marginBottom: 2 }}>{c.label}</p>
-                <p style={{ fontSize: 11, color: '#9CA3B8' }}>{c.sub}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {historyLoading && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-            {[0,1,2,3].map((i) => (
-              <div key={i} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '20px 22px', height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Loader2 style={{ width: 20, height: 20, color: '#D1D5DB', animation: 'spin 1s linear infinite' }} />
-              </div>
+              <StatCard
+                key={c.label}
+                label={c.label}
+                sub={c.sub}
+                value={c.value}
+                icon={c.icon}
+                color={c.color}
+                tint={c.tint}
+                loading={historyLoading}
+              />
             ))}
           </div>
         )}

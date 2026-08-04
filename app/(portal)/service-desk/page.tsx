@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Paperclip, Search, MessageSquare, X } from 'lucide-react';
+import {
+  Plus, Paperclip, Search, MessageSquare, X,
+  CircleDot, Loader, Building2, UserRound, CheckCircle2,
+} from 'lucide-react';
 import { ServiceDeskVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import { TopBar } from '@/components/layout/TopBar';
+import { StatCard } from '@/components/ui/StatCard';
 import { mockTickets } from '@/lib/mock-data';
 import { useToast } from '@/components/ui/Toast';
 
@@ -33,24 +37,31 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 
 const mockSLA = ['Within SLA', 'Within SLA', 'Near SLA', 'Within SLA', 'Breached', 'Within SLA', 'Near SLA', 'Closed'];
 
-const summaryItems = [
-  { label: 'Open',             value: 4,  color: '#EF4444', bg: '#FEF2F2' },
-  { label: 'In Progress',      value: 6,  color: '#D97706', bg: '#FFFBEB' },
-  { label: 'Awaiting Leadway', value: 2,  color: '#7C3AED', bg: '#F5F3FF' },
-  { label: 'Awaiting Client',  value: 1,  color: '#2563EB', bg: '#EFF6FF' },
-  { label: 'Closed',           value: 28, color: '#64748B', bg: '#F1F5F9' },
+// Counted off the ticket list rather than hardcoded. The previous fixed
+// numbers (4 / 6 / 2 / 1 / 28) disagreed with the table right below them, so
+// the strip and the rows told two different stories.
+const SUMMARY_STATUSES: { label: string; color: string; tint: string; icon: React.ElementType }[] = [
+  { label: 'Open',             color: '#EF4444', tint: '#FEF2F2', icon: CircleDot },
+  { label: 'In Progress',      color: '#D97706', tint: '#FFFBEB', icon: Loader },
+  { label: 'Awaiting Leadway', color: '#7C3AED', tint: '#F5F3FF', icon: Building2 },
+  { label: 'Awaiting Client',  color: '#2563EB', tint: '#EFF6FF', icon: UserRound },
+  { label: 'Closed',           color: '#64748B', tint: '#F1F5F9', icon: CheckCircle2 },
 ];
 
 export default function ServiceDeskPage() {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
+  // Clicking a summary card narrows the table to that status, so the strip is
+  // a control rather than decoration.
+  const [statusFilter, setStatusFilter] = useState('');
   const [vis, setVis] = useState<ServiceDeskVis>(DEFAULTS.serviceDesk);
   useEffect(() => { setVis(getVis('serviceDesk')); }, []);
   const { toast } = useToast();
 
   const filtered = mockTickets.filter((t) => {
     const q = search.toLowerCase();
-    return !q || t.ticketId.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
+    const matchesQuery = !q || t.ticketId.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
+    return matchesQuery && (!statusFilter || t.status === statusFilter);
   });
 
   function handleSubmit() {
@@ -66,12 +77,21 @@ export default function ServiceDeskPage() {
 
         {/* SUMMARY CARDS */}
         {vis.showSummaryCards && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
-          {summaryItems.map((s) => (
-            <div key={s.label} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `3px solid ${s.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '22px 22px 22px 20px' }}>
-              <p style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: '#131C4E', letterSpacing: '-0.03em', marginBottom: 10 }}>{s.value}</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{s.label}</p>
-            </div>
-          ))}
+          {SUMMARY_STATUSES.map((s) => {
+            const count = mockTickets.filter((t) => t.status === s.label).length;
+            return (
+              <StatCard
+                key={s.label}
+                label={s.label}
+                sub={`${count} of ${mockTickets.length} tickets`}
+                value={count.toLocaleString()}
+                icon={s.icon}
+                color={s.color}
+                tint={s.tint}
+                onClick={() => setStatusFilter((cur) => (cur === s.label ? '' : s.label))}
+              />
+            );
+          })}
         </div>}
 
         {/* SEARCH + ACTION BAR */}
@@ -86,6 +106,15 @@ export default function ServiceDeskPage() {
               onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
             />
           </div>
+          {statusFilter && (
+            <button
+              onClick={() => setStatusFilter('')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 14px', fontSize: 12, fontWeight: 600, color: '#131C4E', background: '#FAFBFC', border: '1px solid #E5E7F1', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {statusFilter}
+              <X style={{ width: 13, height: 13, color: '#9CA3B8' }} />
+            </button>
+          )}
           <div style={{ flex: 1 }} />
           {vis.showNewRequest && <button
             onClick={() => setShowForm(true)}
