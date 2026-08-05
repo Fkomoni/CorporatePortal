@@ -1,6 +1,9 @@
 'use client';
 
-import { TrendingDown, UserPlus, Users, FileText, Gauge, Wallet } from 'lucide-react';
+import {
+  TrendingDown, UserPlus, Users, FileText, Gauge, Wallet,
+  Upload, CreditCard, MessageSquare, Building2, CheckCircle2, ChevronRight,
+} from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -183,6 +186,7 @@ export default function DashboardPage() {
   const invoiceOutstanding    = stats?.invoiceOutstanding   ?? null;
   const invoiceHasOutstanding = stats?.invoiceHasOutstanding ?? false;
   const invoiceNextDue        = stats?.invoiceNextDue       ?? null;
+  const invoiceReceiptNumber  = stats?.invoiceReceiptNumber ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -319,6 +323,120 @@ export default function DashboardPage() {
             </div>
           );
         })()}
+
+        {/* ── ROW 3: QUICK ACTIONS + NOTIFICATIONS ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+          {/* Quick actions — every tile lands on a real, existing flow. */}
+          <div style={{ ...card, padding: '24px 26px' }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 18 }}>Quick actions</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
+              {[
+                { label: 'Add member',      icon: UserPlus,      color: '#F56B22', onClick: () => router.push('/members?action=add') },
+                { label: 'Upload Excel',    icon: Upload,        color: '#10B981', onClick: () => router.push('/members?action=upload') },
+                { label: 'Download E-card', icon: CreditCard,    color: '#3B82F6', onClick: () => router.push('/members') },
+                { label: 'Raise request',   icon: MessageSquare, color: '#8B5CF6', onClick: () => router.push('/service-desk?new=1') },
+                { label: 'Find provider',   icon: Building2,     color: '#F56B22', onClick: () => setShowAllProviders(true) },
+              ].map((a) => {
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.label}
+                    onClick={a.onClick}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      gap: 10, padding: '18px 6px', background: '#fff',
+                      border: '1px solid #EDEEF2', borderRadius: 12, cursor: 'pointer',
+                      transition: 'border-color 0.15s, box-shadow 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.boxShadow = '0 3px 12px rgba(19,28,78,0.06)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#EDEEF2'; e.currentTarget.style.boxShadow = 'none'; }}
+                  >
+                    <Icon style={{ width: 21, height: 21, color: a.color }} strokeWidth={1.9} />
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#131C4E', lineHeight: 1.3, textAlign: 'center' }}>{a.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Notifications — derived from live signals rather than an event log,
+              so there are no fabricated timestamps; each row navigates to where
+              the work is done. */}
+          {(() => {
+            const rows: { key: string; icon: React.ElementType; color: string; tint: string; title: string; sub?: string; href: string }[] = [];
+            if (pendingEnrolmentCount !== null && pendingEnrolmentCount > 0) {
+              rows.push({
+                key: 'pending', icon: UserPlus, color: '#EF4444', tint: '#FEF2F2',
+                title: `${pendingEnrolmentCount} enrolment${pendingEnrolmentCount === 1 ? '' : 's'} awaiting approval`,
+                sub: 'Beneficiaries need your review',
+                href: '/pending-enrolees',
+              });
+            }
+            if (invoiceHasOutstanding && invoiceOutstanding !== null) {
+              const due = dueLabel(invoiceNextDue);
+              rows.push({
+                key: 'invoice', icon: FileText, color: '#D97706', tint: '#FFFBEB',
+                title: invoiceReceiptNumber
+                  ? `Invoice ${invoiceReceiptNumber} — ${due}`
+                  : `Invoice ${due.charAt(0).toLowerCase()}${due.slice(1)}`,
+                sub: vis.showAmounts ? `Amount: ₦${invoiceOutstanding.toLocaleString()}` : undefined,
+                href: '/finance',
+              });
+            }
+            if (newThisMonth !== null && newThisMonth > 0) {
+              rows.push({
+                key: 'new-members', icon: CheckCircle2, color: '#10B981', tint: '#ECFDF5',
+                title: `${newThisMonth} member${newThisMonth === 1 ? '' : 's'} added this month`,
+                sub: 'View the full list of new members',
+                href: '/members',
+              });
+            }
+            return (
+              <div style={{ ...card, padding: '24px 26px' }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 14 }}>Notifications</p>
+                {rows.length === 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0' }}>
+                    <CheckCircle2 style={{ width: 18, height: 18, color: '#10B981', flexShrink: 0 }} />
+                    <p style={{ fontSize: 12.5, color: '#9CA3B8' }}>
+                      {stats === null && !loadError ? 'Checking for updates…' : 'You’re all caught up.'}
+                    </p>
+                  </div>
+                ) : rows.map((n, i) => {
+                  const Icon = n.icon;
+                  return (
+                    <div
+                      key={n.key}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => router.push(n.href)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(n.href); } }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '11px 4px',
+                        borderBottom: i < rows.length - 1 ? '1px solid #F5F6FA' : 'none',
+                        cursor: 'pointer', borderRadius: 8,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#FAFBFC'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%', background: n.tint, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Icon style={{ width: 16, height: 16, color: n.color }} strokeWidth={1.9} />
+                      </div>
+                      <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+                        <p style={{ fontSize: 12.5, fontWeight: 600, color: '#131C4E', lineHeight: 1.35 }}>{n.title}</p>
+                        {n.sub && <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>{n.sub}</p>}
+                      </div>
+                      <ChevronRight style={{ width: 15, height: 15, color: '#C4C9D9', flexShrink: 0 }} />
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
 
         {/* ── ROW 3: LOSS RATIO (large, full-width) ── */}
         {vis.showLossRatio && (

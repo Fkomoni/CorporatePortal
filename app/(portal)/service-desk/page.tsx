@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Plus, Paperclip, Search, MessageSquare, X,
   CircleDot, Loader, Building2, UserRound, CheckCircle2,
@@ -48,8 +49,11 @@ const SUMMARY_STATUSES: { label: string; color: string; tint: string; icon: Reac
   { label: 'Closed',           color: '#64748B', tint: '#F1F5F9', icon: CheckCircle2 },
 ];
 
-export default function ServiceDeskPage() {
-  const [showForm, setShowForm] = useState(false);
+function ServiceDeskInner() {
+  // ?new=1 opens the request form straight away — the dashboard's "Raise
+  // request" quick action lands here.
+  const openFormOnLoad = useSearchParams().get('new') === '1';
+  const [showForm, setShowForm] = useState(openFormOnLoad);
   const [search, setSearch] = useState('');
   // Clicking a summary card narrows the table to that status, so the strip is
   // a control rather than decoration.
@@ -215,5 +219,15 @@ export default function ServiceDeskPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary above it to prerender —
+// same pattern as the People page.
+export default function ServiceDeskPage() {
+  return (
+    <Suspense fallback={null}>
+      <ServiceDeskInner />
+    </Suspense>
   );
 }
