@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { isAdminRole, canAccessModule, moduleForPath } from '@/lib/roles';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   LayoutDashboard,
   Users,
@@ -142,6 +141,8 @@ export function Sidebar() {
   // server-side, so this is cheap even though the sidebar is on every page.
   const [policyPeriod, setPolicyPeriod] = useState<string | null>(null);
   const [activeLives, setActiveLives] = useState<number | null>(null);
+  // Falls back to a text wordmark if the logo asset fails to load.
+  const [logoOk, setLogoOk] = useState(true);
   useEffect(() => {
     let cancelled = false;
     fetch('/api/hr/dashboard-stats')
@@ -163,16 +164,24 @@ export function Sidebar() {
       className="fixed top-0 left-0 h-screen w-[240px] flex flex-col z-40"
       style={{ background: '#101A44' }}
     >
-      {/* Logo — knockout variant so the wordmark reads on navy. */}
+      {/* Logo — served as a plain static asset (no /_next/image optimizer
+          dependency), with a text-wordmark fallback so the header can never
+          show a broken-image glyph. */}
       <div style={{ padding: '18px 16px 14px' }}>
-        <Image
-          src="/leadway-health-logo-light.png"
-          alt="Leadway Health"
-          width={1370}
-          height={453}
-          style={{ objectFit: 'contain', objectPosition: 'left center', width: 'auto', height: 36, display: 'block' }}
-          priority
-        />
+        {logoOk ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/leadway-health-logo-light.png"
+            alt="Leadway Health"
+            onError={() => setLogoOk(false)}
+            style={{ height: 36, width: 'auto', objectFit: 'contain', objectPosition: 'left center', display: 'block' }}
+          />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, height: 36 }}>
+            <span style={{ fontSize: 21, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>Leadway</span>
+            <span style={{ fontSize: 21, fontWeight: 800, color: '#F56B22', letterSpacing: '-0.02em', lineHeight: 1 }}>Health</span>
+          </div>
+        )}
         <p style={{ fontSize: 11.5, color: '#8B93B5', marginTop: 8 }}>Corporate Portal</p>
       </div>
 
