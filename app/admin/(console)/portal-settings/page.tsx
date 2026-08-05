@@ -6,7 +6,7 @@ import {
   Lightbulb, MessageSquare, Eye, EyeOff, CheckCircle,
   BarChart2, DollarSign, Download, SlidersHorizontal, List,
   Activity, Building2, Heart, Receipt, TrendingUp, Clock,
-  BarChart, Stethoscope, AlertTriangle, UserPlus, Lock, Unlock,
+  BarChart, Stethoscope, UserPlus, Lock, Unlock,
 } from 'lucide-react';
 import {
   DEFAULTS, getVis, saveVis, ModuleKey,
@@ -19,13 +19,11 @@ import {
 type Section<T> = { key: keyof T; label: string; desc: string; Icon: React.ElementType; color: string; bg: string };
 
 const DASHBOARD_SECTIONS: Section<DashboardVis>[] = [
-  { key: 'showKpiCards',       label: 'KPI Cards',           desc: 'Active Lives, Utilization Rate, Loss Ratio, Outstanding Premium', Icon: BarChart2,    color: '#2563EB', bg: '#EFF6FF' },
+  { key: 'showKpiCards',       label: 'KPI Cards',           desc: 'Active Members, Claims Paid, Loss Ratio, Outstanding Invoice',    Icon: BarChart2,    color: '#2563EB', bg: '#EFF6FF' },
   { key: 'showAmounts',        label: 'Financial Amounts (₦)', desc: 'Monetary values across all dashboard widgets',                  Icon: DollarSign,   color: '#059669', bg: '#ECFDF5' },
-  { key: 'showActionCentre',   label: 'Action Centre',        desc: 'Pending items requiring HR attention today',                     Icon: AlertTriangle, color: '#D97706', bg: '#FFFBEB' },
-  { key: 'showLossRatio',      label: 'Loss Ratio Widget',    desc: 'Large loss ratio % block with traffic-light indicator',          Icon: Activity,     color: '#EF4444', bg: '#FEF2F2' },
-  { key: 'showSpendChart',     label: 'Monthly Spend Chart',  desc: 'Area chart of monthly claims spend trend',                       Icon: TrendingUp,   color: '#8B5CF6', bg: '#F5F3FF' },
+  { key: 'showSpendChart',     label: 'Claims Spend Trend',   desc: 'Area chart of monthly claims spend trend',                       Icon: TrendingUp,   color: '#8B5CF6', bg: '#F5F3FF' },
   { key: 'showTopProviders',   label: 'Top Providers',        desc: 'Provider utilization and spend leaderboard',                     Icon: Building2,    color: '#0891B2', bg: '#ECFEFF' },
-  { key: 'showTopConditions',  label: 'Top Conditions',       desc: 'Leading diagnoses by visit count',                               Icon: Stethoscope,  color: '#BE123C', bg: '#FFF1F2' },
+  { key: 'showTopConditions',  label: 'Top Conditions',       desc: 'Leading diagnoses by claims spend',                              Icon: Stethoscope,  color: '#BE123C', bg: '#FFF1F2' },
   { key: 'showHealthInsights', label: 'Health Insights',      desc: 'AI-generated insight cards from claims data',                    Icon: Lightbulb,    color: '#D97706', bg: '#FFFBEB' },
 ];
 
