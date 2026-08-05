@@ -40,7 +40,7 @@ const NAV_GROUPS: Array<{
     section: 'Membership',
     items: [
       { href: '/members', label: 'People', icon: Users },
-      { href: '/pending-enrolees', label: 'Pending Enrolees', icon: ClipboardCheck, adminOnly: true },
+      { href: '/pending-enrolees', label: 'Pending Enrolments', icon: ClipboardCheck, adminOnly: true },
       { href: '/benefits', label: 'Benefits', icon: ShieldCheck },
     ],
   },
@@ -164,10 +164,9 @@ export function Sidebar() {
       className="fixed top-0 left-0 h-screen w-[240px] flex flex-col z-40"
       style={{ background: '#101A44' }}
     >
-      {/* Logo — served as a plain static asset rather than through next/image's
-          optimizer (/_next/image), which runs on sharp and was returning a
-          broken image on Render. If the file itself ever fails to load, we drop
-          to a text wordmark so the header can never show a broken-image glyph. */}
+      {/* Logo — served as a plain static asset (no /_next/image optimizer
+          dependency), with a text-wordmark fallback so the header can never
+          show a broken-image glyph. */}
       <div style={{ padding: '18px 16px 14px' }}>
         {logoOk ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -175,10 +174,10 @@ export function Sidebar() {
             src="/leadway-health-logo-light.png"
             alt="Leadway Health"
             onError={() => setLogoOk(false)}
-            style={{ height: 34, width: 'auto', objectFit: 'contain', objectPosition: 'left center', display: 'block' }}
+            style={{ height: 36, width: 'auto', objectFit: 'contain', objectPosition: 'left center', display: 'block' }}
           />
         ) : (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, height: 34 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, height: 36 }}>
             <span style={{ fontSize: 21, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>Leadway</span>
             <span style={{ fontSize: 21, fontWeight: 800, color: '#F56B22', letterSpacing: '-0.02em', lineHeight: 1 }}>Health</span>
           </div>

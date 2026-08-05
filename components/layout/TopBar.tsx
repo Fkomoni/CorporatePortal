@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Search, Plus, Upload, Download, Bell, HelpCircle } from 'lucide-react';
+import { Search, Bell, HelpCircle } from 'lucide-react';
 
 interface TopBarProps {
-  title: string;
+  /** Page heading. Omit on pages whose content carries its own heading (dashboard). */
+  title?: string;
   subtitle?: string;
-  showQuickActions?: boolean;
   /** Count on the bell. Omit when there is nothing to report. */
   notificationCount?: number;
 }
 
-export function TopBar({ title, subtitle, showQuickActions = false, notificationCount }: TopBarProps) {
+export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -57,27 +57,15 @@ export function TopBar({ title, subtitle, showQuickActions = false, notification
       style={{ background: '#F7F8FC', height: 84, padding: '0 30px', gap: 16 }}
     >
       <div className="flex-1 min-w-0">
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.2 }} className="truncate">
-          {title}
-        </h1>
+        {title && (
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.2 }} className="truncate">
+            {title}
+          </h1>
+        )}
         {subtitle && <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 4 }} className="truncate">{subtitle}</p>}
       </div>
 
       <div className="flex items-center" style={{ gap: 10 }}>
-        {showQuickActions && (
-          <>
-            <button className="hidden lg:flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-white transition-colors">
-              <Upload className="w-3.5 h-3.5" /> Upload Census
-            </button>
-            <button className="hidden lg:flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#3A4382] border border-[#E5E7F1] rounded-lg hover:bg-white transition-colors">
-              <Download className="w-3.5 h-3.5" /> Download Invoice
-            </button>
-            <button className="hidden lg:flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-white rounded-lg" style={{ background: '#F56B22' }}>
-              <Plus className="w-3.5 h-3.5" /> Add Member
-            </button>
-          </>
-        )}
-
         <form onSubmit={submitSearch} className="relative hidden sm:block">
           <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#9CA3B8' }} />
           <input

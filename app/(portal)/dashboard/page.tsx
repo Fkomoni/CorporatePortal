@@ -98,10 +98,8 @@ export default function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = session?.user as any;
   const companyName: string = user?.companyName ?? '';
-  const companyId: string = user?.companyId ?? '';
   const fullName: string = session?.user?.name ?? '';
   const firstName = fullName.split(' ')[0];
-  const topBarSubtitle = [companyName, companyId].filter(Boolean).join(' · ');
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [showAllProviders, setShowAllProviders] = useState(false);
@@ -161,7 +159,8 @@ export default function DashboardPage() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Overview" subtitle={topBarSubtitle || undefined} showQuickActions />
+      {/* No page title — the greeting below is the heading, as in the design. */}
+      <TopBar notificationCount={pendingEnrolmentCount ?? undefined} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
