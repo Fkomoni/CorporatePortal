@@ -96,6 +96,26 @@ export default function ReportsPage() {
 
   useEffect(() => { setVis(getVis('reports')); }, []);
 
+  // Scheme Health Score — relocated here from the dashboard when the KPI row
+  // was redesigned. dashboard-stats is served from a short server-side cache,
+  // so this costs no extra upstream calls.
+  const [health, setHealth] = useState<{ score: number; label: string; trendLabel: string | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/hr/dashboard-stats')
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d?.stats || typeof d.stats.schemeHealthScore !== 'number') return;
+        setHealth({
+          score: d.stats.schemeHealthScore,
+          label: d.stats.schemeHealthLabel ?? '',
+          trendLabel: d.stats.schemeHealthTrendLabel ?? null,
+        });
+      })
+      .catch(() => { /* the card simply doesn't render */ });
+    return () => { cancelled = true; };
+  }, []);
+
   // "Updated" reflects when this browser last generated each report. Previously
   // these were hardcoded dates, which claimed a freshness nobody had produced.
   // Reading persisted state / loading a filter list on mount: a single
@@ -249,6 +269,34 @@ export default function ReportsPage() {
       <TopBar title="Insights & Reports" subtitle="Analytics · Exports · Trends" />
 
       <div style={{ padding: '8px 30px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Scheme Health Score — the composite loss-ratio/COR/utilization score */}
+        {health && (() => {
+          const hsColor = health.label === 'Excellent' || health.label === 'Healthy' ? '#10B981'
+            : health.label === 'Watchlist' ? '#D97706'
+            : health.label === 'At Risk' ? '#F56B22'
+            : '#EF4444';
+          return (
+            <div style={{ ...card, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 24 }}>
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Scheme Health Score</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>{health.score}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: '#C4C9D9' }}>/100</span>
+                </div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: hsColor, marginTop: 4 }}>● {health.label}</p>
+              </div>
+              <div style={{ width: 1, height: 44, background: '#EDEEF2' }} />
+              <div style={{ flex: 1, maxWidth: 320 }}>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Score Trend</p>
+                <div style={{ height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ width: `${health.score}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg,${hsColor === '#10B981' ? '#10B981,#34D399' : hsColor === '#D97706' ? '#F59E0B,#FCD34D' : '#F56B22,#FF8C4B'})` }} />
+                </div>
+                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{health.trendLabel ?? 'Building trend data…'}</p>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Filters */}
         <div style={{ ...card, padding: '18px 20px' }}>

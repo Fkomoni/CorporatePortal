@@ -10,6 +10,8 @@
 export interface StatCardProps {
   label: string;
   sub?: string;
+  /** Colour for the sub line — used when it carries a delta or status tone. */
+  subColor?: string;
   /** Pre-formatted so callers control currency, thousands separators and dashes. */
   value: string;
   icon: React.ElementType;
@@ -20,6 +22,8 @@ export interface StatCardProps {
   trend?: number[] | null;
   /** Sparkline colour; defaults to the icon colour. */
   trendColor?: string;
+  /** Action row pinned to the card's bottom edge, e.g. "View members →". */
+  footer?: { label: string; onClick: () => void };
   loading?: boolean;
   onClick?: () => void;
 }
@@ -51,7 +55,7 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
 }
 
 export function StatCard({
-  label, sub, value, icon: Icon, color, tint, trend, trendColor, loading, onClick,
+  label, sub, subColor, value, icon: Icon, color, tint, trend, trendColor, footer, loading, onClick,
 }: StatCardProps) {
   const showTrend = !loading && Array.isArray(trend) && trend.length >= 2;
 
@@ -64,7 +68,7 @@ export function StatCard({
       style={{
         background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2',
         boxShadow: '0 1px 3px rgba(19,28,78,0.04)',
-        padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16,
+        display: 'flex', flexDirection: 'column',
         cursor: onClick ? 'pointer' : 'default', transition: 'box-shadow 0.15s, transform 0.15s',
       }}
       onMouseEnter={onClick ? (e) => {
@@ -76,22 +80,43 @@ export function StatCard({
         e.currentTarget.style.transform = 'none';
       } : undefined}
     >
-      <div style={{
-        width: 46, height: 46, borderRadius: 13, background: tint, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon style={{ width: 21, height: 21, color }} strokeWidth={1.9} />
+      <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16, flex: '1 1 auto' }}>
+        <div style={{
+          width: 46, height: 46, borderRadius: 13, background: tint, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon style={{ width: 21, height: 21, color }} strokeWidth={1.9} />
+        </div>
+
+        <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+          <p style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            {loading ? '…' : value}
+          </p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginTop: 5 }} className="truncate">{label}</p>
+          {sub && (
+            <p style={{ fontSize: 11, color: subColor ?? '#9CA3B8', fontWeight: subColor ? 600 : 400, marginTop: 2 }} className="truncate">
+              {sub}
+            </p>
+          )}
+        </div>
+
+        {showTrend && <Sparkline points={trend!} color={trendColor ?? color} />}
       </div>
 
-      <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-        <p style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-          {loading ? '…' : value}
-        </p>
-        <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginTop: 5 }} className="truncate">{label}</p>
-        {sub && <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }} className="truncate">{sub}</p>}
-      </div>
-
-      {showTrend && <Sparkline points={trend!} color={trendColor ?? color} />}
+      {footer && (
+        <button
+          onClick={(e) => { e.stopPropagation(); footer.onClick(); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '11px 22px', width: '100%', textAlign: 'left',
+            fontSize: 12, fontWeight: 700, color: '#F56B22',
+            background: 'none', border: 'none', borderTop: '1px solid #F1F2F7',
+            cursor: 'pointer',
+          }}
+        >
+          {footer.label} <span aria-hidden="true">→</span>
+        </button>
+      )}
     </div>
   );
 }
