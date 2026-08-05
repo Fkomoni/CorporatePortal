@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import type { Session } from 'next-auth';
 
 export type AuditAction =
+  | 'CREATE_SERVICE_REQUEST'
+  | 'UPDATE_SYSTEM_NOTICE'
   | 'VIEW_MEMBERS'
   | 'EXPORT_MEMBERS'
   | 'VIEW_CLAIMS'

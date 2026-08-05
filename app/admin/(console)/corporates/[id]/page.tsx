@@ -107,6 +107,51 @@ export default function CorporateDetailPage() {
   const [hrAccessLoading, setHrAccessLoading] = useState(false);
   const [hrAccessError, setHrAccessError]     = useState('');
 
+  // Dashboard notice — the announcement bar HR sees on their Overview page.
+  const [noticeDraft, setNoticeDraft]   = useState('');
+  const [noticeSaved, setNoticeSaved]   = useState('');
+  const [noticeBusy, setNoticeBusy]     = useState(false);
+  const groupIdForNotice = corp?.groupId ?? '';
+  useEffect(() => {
+    if (!groupIdForNotice) return;
+    let cancelled = false;
+    fetch(`/api/admin/corporates/system-notice?groupId=${encodeURIComponent(groupIdForNotice)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || typeof d.notice !== 'string') return;
+        setNoticeDraft(d.notice);
+        setNoticeSaved(d.notice);
+      })
+      .catch(() => { /* editor just starts empty */ });
+    return () => { cancelled = true; };
+  }, [groupIdForNotice]);
+
+  async function saveNotice(next: string) {
+    if (!groupIdForNotice || noticeBusy) return;
+    setNoticeBusy(true);
+    try {
+      const res = await fetch('/api/admin/corporates/system-notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: groupIdForNotice, notice: next }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setShowEmailToast({ ok: false, msg: json.error ?? 'Failed to save notice' });
+      } else {
+        setNoticeDraft(next);
+        setNoticeSaved(next);
+        setShowEmailToast({ ok: true, msg: next.trim() ? 'Dashboard notice published' : 'Dashboard notice cleared' });
+      }
+      setTimeout(() => setShowEmailToast(null), 4000);
+    } catch {
+      setShowEmailToast({ ok: false, msg: 'Network error. Please try again.' });
+      setTimeout(() => setShowEmailToast(null), 4000);
+    } finally {
+      setNoticeBusy(false);
+    }
+  }
+
   async function toggleHrAccess() {
     if (!corp || hrAccessLoading) return;
     const nextActive = !corp.hrAccountActive;
@@ -407,6 +452,38 @@ export default function CorporateDetailPage() {
                       : <div style={{ display: 'flex', gap: 6 }}>{corp.colors.map((c) => (<div key={c} style={{ width: 28, height: 28, borderRadius: 8, background: c, border: '2px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }} title={c} />))}</div>}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* DASHBOARD NOTICE */}
+            <div style={{ ...card, padding: '24px 28px' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Dashboard Notice</p>
+              <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 14 }}>
+                Shown as a notice bar on this client&rsquo;s Overview page. Leave empty to show nothing.
+              </p>
+              <textarea
+                value={noticeDraft}
+                onChange={(e) => setNoticeDraft(e.target.value)}
+                maxLength={500}
+                placeholder="e.g. Please note that all invoices are due 15 days from the invoice date."
+                style={{ width: '100%', height: 72, padding: '10px 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                <button
+                  onClick={() => saveNotice(noticeDraft)}
+                  disabled={noticeBusy || noticeDraft === noticeSaved}
+                  style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: noticeDraft === noticeSaved ? '#C4C9D9' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', cursor: noticeBusy || noticeDraft === noticeSaved ? 'default' : 'pointer' }}>
+                  {noticeBusy ? 'Saving…' : 'Publish Notice'}
+                </button>
+                {noticeSaved.trim() && (
+                  <button
+                    onClick={() => saveNotice('')}
+                    disabled={noticeBusy}
+                    style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#DC2626', border: '1px solid #FECACA', borderRadius: 12, background: '#FEF2F2', cursor: noticeBusy ? 'default' : 'pointer' }}>
+                    Clear Notice
+                  </button>
+                )}
+                <span style={{ fontSize: 11, color: '#B0B7C9', marginLeft: 'auto' }}>{noticeDraft.length}/500</span>
               </div>
             </div>
 

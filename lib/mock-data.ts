@@ -1,4 +1,4 @@
-import { Member, Invoice, Ticket, Provider, BenefitPlan, User, DashboardMetrics, MonthlySpend, TopCondition, TopProvider, Claim } from './types';
+import { Member, Invoice, Provider, BenefitPlan, User, DashboardMetrics, MonthlySpend, TopCondition, TopProvider, Claim } from './types';
 
 export const mockMembers: Member[] = [
   {
@@ -120,48 +120,6 @@ export const mockInvoices: Invoice[] = [
   },
 ];
 
-export const mockTickets: Ticket[] = [
-  {
-    id: '1', ticketId: 'TKT-001', category: 'Enrolment', subject: 'New employee batch enrolment - June 2026',
-    status: 'Open', sla: 'On Track', submittedDate: '2026-06-15', lastUpdated: '2026-06-15',
-    description: 'Please enrol the 12 new Dangote employees listed in the attached spreadsheet.'
-  },
-  {
-    id: '2', ticketId: 'TKT-002', category: 'Claims', subject: 'Claim denial appeal - Adaeze Okonkwo',
-    status: 'In Progress', sla: 'At Risk', submittedDate: '2026-06-10', lastUpdated: '2026-06-14',
-    assignee: 'Leadway Team', description: 'Appealing denial of claim for specialist consultation.'
-  },
-  {
-    id: '3', ticketId: 'TKT-003', category: 'Benefits', subject: 'Maternity benefit query - Fatima Mohammed',
-    status: 'Awaiting Leadway', sla: 'On Track', submittedDate: '2026-06-12', lastUpdated: '2026-06-13',
-    description: 'Request for clarification on maternity benefit coverage limits under Pro Plan.'
-  },
-  {
-    id: '4', ticketId: 'TKT-004', category: 'Billing', subject: 'Invoice discrepancy - INV-2026-005',
-    status: 'Open', sla: 'On Track', submittedDate: '2026-06-16', lastUpdated: '2026-06-16',
-    description: 'The invoice amount does not match our internal Dangote records.'
-  },
-  {
-    id: '5', ticketId: 'TKT-005', category: 'Provider', subject: 'Provider not accepting HMO card',
-    status: 'Open', sla: 'At Risk', submittedDate: '2026-06-08', lastUpdated: '2026-06-11',
-    description: 'St. Nicholas Hospital refusing to accept Leadway card for Dangote employee.'
-  },
-  {
-    id: '6', ticketId: 'TKT-006', category: 'Enrolment', subject: 'Termination - Emeka Obi',
-    status: 'Open', sla: 'On Track', submittedDate: '2026-06-17', lastUpdated: '2026-06-17',
-    description: 'Employee has resigned from Dangote. Please process termination of benefits.'
-  },
-  {
-    id: '7', ticketId: 'TKT-007', category: 'General', subject: 'Request for utilization report Q1 2026',
-    status: 'Closed', sla: 'On Track', submittedDate: '2026-04-02', lastUpdated: '2026-04-05',
-    description: 'Please generate utilization report for Q1 2026.'
-  },
-  {
-    id: '8', ticketId: 'TKT-008', category: 'Claims', subject: 'High cost claim authorization - Babatunde Adeyemi',
-    status: 'Awaiting Client', sla: 'On Track', submittedDate: '2026-06-14', lastUpdated: '2026-06-15',
-    assignee: 'Leadway Claims Team', description: 'Authorization required for surgical procedure exceeding annual limit.'
-  },
-];
 
 export const mockProviders: Provider[] = [
   {

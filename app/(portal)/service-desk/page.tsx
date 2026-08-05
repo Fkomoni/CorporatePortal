@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Plus, Paperclip, Search, MessageSquare, X,
@@ -9,8 +9,13 @@ import {
 import { ServiceDeskVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
-import { mockTickets } from '@/lib/mock-data';
 import { useToast } from '@/components/ui/Toast';
+
+// Row shape returned by /api/hr/service-requests.
+interface ServiceRequestRow {
+  id: string; ticketId: string; category: string; subject: string;
+  description: string; status: string; submittedDate: string; lastUpdated: string;
+}
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   'Open':            { bg: '#FEF2F2', text: '#DC2626',  dot: '#EF4444' },
@@ -18,13 +23,6 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   'Awaiting Client': { bg: '#EFF6FF', text: '#2563EB',  dot: '#3B82F6' },
   'Awaiting Leadway':{ bg: '#F5F3FF', text: '#7C3AED',  dot: '#8B5CF6' },
   'Closed':          { bg: '#F1F5F9', text: '#475569',  dot: '#94A3B8' },
-};
-
-const slaColors: Record<string, { bg: string; text: string }> = {
-  'Within SLA': { bg: '#ECFDF5', text: '#059669' },
-  'Near SLA':   { bg: '#FFFBEB', text: '#D97706' },
-  'Breached':   { bg: '#FEF2F2', text: '#DC2626' },
-  'Closed':     { bg: '#F1F5F9', text: '#94A3B8' },
 };
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
@@ -35,8 +33,6 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
   'Billing':   { bg: '#FFFBEB', text: '#D97706' },
   'Provider':  { bg: '#FFF1F2', text: '#BE123C' },
 };
-
-const mockSLA = ['Within SLA', 'Within SLA', 'Near SLA', 'Within SLA', 'Breached', 'Within SLA', 'Near SLA', 'Closed'];
 
 // Counted off the ticket list rather than hardcoded. The previous fixed
 // numbers (4 / 6 / 2 / 1 / 28) disagreed with the table right below them, so
@@ -62,15 +58,58 @@ function ServiceDeskInner() {
   useEffect(() => { setVis(getVis('serviceDesk')); }, []);
   const { toast } = useToast();
 
-  const filtered = mockTickets.filter((t) => {
+  // Real requests from Postgres — null while the first load is in flight.
+  const [requests, setRequests] = useState<ServiceRequestRow[] | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const loadRequests = useCallback(() => {
+    setLoadError('');
+    fetch('/api/hr/service-requests')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setLoadError(String(d.error)); setRequests([]); return; }
+        setRequests(Array.isArray(d.requests) ? d.requests : []);
+      })
+      .catch(() => { setLoadError('Could not load requests.'); setRequests([]); });
+  }, []);
+  // Loading on mount unavoidably sets state from an effect; the rule is about
+  // avoiding cascading renders, which a single fetch-on-mount does not cause.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadRequests(); }, [loadRequests]);
+
+  const tickets = requests ?? [];
+  const filtered = tickets.filter((t) => {
     const q = search.toLowerCase();
     const matchesQuery = !q || t.ticketId.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
     return matchesQuery && (!statusFilter || t.status === statusFilter);
   });
 
-  function handleSubmit() {
-    setShowForm(false);
-    toast('Request submitted — our team will respond within 24 hours.');
+  // New Request form
+  const [formCategory, setFormCategory] = useState('');
+  const [formSubject, setFormSubject] = useState('');
+  const [formDetails, setFormDetails] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit() {
+    if (submitting) return;
+    if (!formSubject.trim()) { toast('Please enter a subject for your request.', 'error'); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/hr/service-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: formCategory || 'General', subject: formSubject, description: formDetails }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast(json.error ?? 'Failed to submit request.', 'error'); return; }
+      setShowForm(false);
+      setFormCategory(''); setFormSubject(''); setFormDetails('');
+      toast(`Request ${json.request?.ticketId ?? ''} submitted — our team will respond within 24 hours.`);
+      loadRequests();
+    } catch {
+      toast('Network error — please try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -82,16 +121,17 @@ function ServiceDeskInner() {
         {/* SUMMARY CARDS */}
         {vis.showSummaryCards && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
           {SUMMARY_STATUSES.map((s) => {
-            const count = mockTickets.filter((t) => t.status === s.label).length;
+            const count = tickets.filter((t) => t.status === s.label).length;
             return (
               <StatCard
                 key={s.label}
                 label={s.label}
-                sub={`${count} of ${mockTickets.length} tickets`}
+                sub={`${count} of ${tickets.length} request${tickets.length === 1 ? '' : 's'}`}
                 value={count.toLocaleString()}
                 icon={s.icon}
                 color={s.color}
                 tint={s.tint}
+                loading={requests === null}
                 onClick={() => setStatusFilter((cur) => (cur === s.label ? '' : s.label))}
               />
             );
@@ -135,11 +175,9 @@ function ServiceDeskInner() {
             ))}
           </div>
 
-          {filtered.map((t, i) => {
+          {filtered.map((t) => {
             const s   = statusColors[t.status]     ?? statusColors['Closed'];
             const cat = categoryColors[t.category]  ?? categoryColors['General'];
-            const slaKey = mockSLA[i] ?? 'Within SLA';
-            const sla = slaColors[slaKey] ?? slaColors['Within SLA'];
             return (
               <div key={t.id}
                 style={{ display: 'grid', gridTemplateColumns: `110px 1fr 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
@@ -153,9 +191,9 @@ function ServiceDeskInner() {
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
                   {t.status}
                 </span>
-                {vis.showSlaColumn && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sla.bg, color: sla.text, width: 'fit-content' }}>
-                  {slaKey}
-                </span>}
+                {/* SLA tracking needs staff-side workflows that don't exist
+                    yet, so the column stays honest with a placeholder. */}
+                {vis.showSlaColumn && <span style={{ fontSize: 11, color: '#C4C9D9' }}>—</span>}
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.submittedDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
               </div>
@@ -168,8 +206,12 @@ function ServiceDeskInner() {
                 <MessageSquare style={{ width: 20, height: 20, color: '#9CA3B8' }} />
               </div>
               <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>No tickets found</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>Try adjusting your search term</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>
+                  {requests === null ? 'Loading requests…' : loadError ? 'Could not load requests' : tickets.length === 0 ? 'No requests yet' : 'No matching requests'}
+                </p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>
+                  {requests === null ? 'One moment.' : loadError ? loadError : tickets.length === 0 ? 'Raise your first request with the New Request button.' : 'Try adjusting your search term'}
+                </p>
               </div>
             </div>
           )}
@@ -188,18 +230,18 @@ function ServiceDeskInner() {
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Category</label>
-                  <select style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none' }}>
+                  <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none' }}>
                     <option value="">Select category...</option>
                     {Object.keys(categoryColors).map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Subject</label>
-                  <input style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} placeholder="Brief description..." />
+                  <input value={formSubject} onChange={(e) => setFormSubject(e.target.value)} maxLength={200} style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} placeholder="Brief description..." />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Details</label>
-                  <textarea style={{ width: '100%', height: 96, padding: '10px 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'none', boxSizing: 'border-box' }} placeholder="Describe your request..." />
+                  <textarea value={formDetails} onChange={(e) => setFormDetails(e.target.value)} maxLength={5000} style={{ width: '100%', height: 96, padding: '10px 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'none', boxSizing: 'border-box' }} placeholder="Describe your request..." />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Attachments</label>
@@ -212,7 +254,7 @@ function ServiceDeskInner() {
               </div>
               <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: '1px solid #F0F1F5' }}>
                 <button onClick={() => setShowForm(false)} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7480', border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleSubmit} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)' }}>Submit Request</button>
+                <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: submitting ? 'wait' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Submitting…' : 'Submit Request'}</button>
               </div>
             </div>
           </div>
