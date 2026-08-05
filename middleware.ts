@@ -62,5 +62,9 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|leadway-logo.jpeg).*)'],
+  // Static assets in /public must bypass auth: next/image's internal fetch of
+  // the source file carries no session cookie, and logged-out pages (login,
+  // emails) reference these too — a redirect here turns them into broken
+  // images. Excluded by extension so new assets don't need to be listed.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|gif|svg|webp|ico)$).*)'],
 };
