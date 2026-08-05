@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PeopleVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import {
@@ -3233,7 +3233,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
 
 /* ── Members Page ────────────────────────────────────────────────────── */
-export default function MembersPage() {
+function MembersPageInner() {
   const [vis, setVis] = useState<PeopleVis>(DEFAULTS.people);
   useEffect(() => { setVis(getVis('people')); }, []);
 
@@ -3766,5 +3766,13 @@ export default function MembersPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function MembersPage() {
+  return (
+    <Suspense fallback={null}>
+      <MembersPageInner />
+    </Suspense>
   );
 }
