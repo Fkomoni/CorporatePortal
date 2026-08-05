@@ -13,6 +13,10 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
+// Pending-beneficiaries count per group, for the sidebar badge (?count=1).
+const countCache = new Map<string, { expires: number; total: number }>();
+const COUNT_TTL_MS = 10 * 60 * 1000;
+
 function toArr(raw: unknown): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw as Record<string, unknown>[];
   if (raw && typeof raw === 'object') {
@@ -210,6 +214,18 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get('from'); // yyyy-mm-dd
   const to = searchParams.get('to');
+
+  // ?count=1 — badge mode. The sidebar shows a pending-enrolments count on
+  // every page; serving it from a short cache avoids hammering Prognosis.
+  // The full listing below always runs fresh, so the page itself never goes
+  // stale — the badge may lag mutations by up to the TTL, which is fine.
+  const countOnly = searchParams.get('count') === '1';
+  if (countOnly) {
+    const cached = countCache.get(groupId);
+    if (cached && Date.now() < cached.expires) {
+      return NextResponse.json({ totalBeneficiaries: cached.total });
+    }
+  }
 
   try {
     const token = await getServiceToken();
@@ -457,6 +473,11 @@ export async function GET(req: Request) {
         }));
     } catch (e) {
       console.warn('[hr/members/pending] Failed to fetch unused invitations:', e);
+    }
+
+    countCache.set(groupId, { expires: Date.now() + COUNT_TTL_MS, total: pendingBeneficiaries.length });
+    if (countOnly) {
+      return NextResponse.json({ totalBeneficiaries: pendingBeneficiaries.length });
     }
 
     // Earliest effective date HR may approve with — the approve sheet uses it

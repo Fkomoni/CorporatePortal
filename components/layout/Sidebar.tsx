@@ -141,6 +141,17 @@ export function Sidebar() {
   // server-side, so this is cheap even though the sidebar is on every page.
   const [policyPeriod, setPolicyPeriod] = useState<string | null>(null);
   const [activeLives, setActiveLives] = useState<number | null>(null);
+  // Pending-enrolments badge — ?count=1 is served from a server-side cache.
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isAdminRole(userRole)) return;
+    let cancelled = false;
+    fetch('/api/hr/members/pending?count=1')
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled && typeof d.totalBeneficiaries === 'number') setPendingCount(d.totalBeneficiaries); })
+      .catch(() => { /* no badge, nothing lost */ });
+    return () => { cancelled = true; };
+  }, [userRole]);
   // Falls back to a text wordmark if the logo asset fails to load.
   const [logoOk, setLogoOk] = useState(true);
   useEffect(() => {
@@ -248,9 +259,12 @@ export function Sidebar() {
                 {group.section}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {items.map(({ adminOnly: _adminOnly, ...item }) => (
-                  <NavLink key={item.href} {...item} isActive={isActive(item.href)} />
-                ))}
+                {items.map(({ adminOnly: _adminOnly, ...item }) => {
+                  const badge = item.href === '/pending-enrolees' && pendingCount !== null && pendingCount > 0
+                    ? pendingCount
+                    : item.badge;
+                  return <NavLink key={item.href} {...item} badge={badge} isActive={isActive(item.href)} />;
+                })}
               </div>
             </div>
           );

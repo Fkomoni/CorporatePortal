@@ -3238,14 +3238,20 @@ function MembersPageInner() {
   useEffect(() => { setVis(getVis('people')); }, []);
 
   // Seeded from ?q= so the global TopBar search lands here with the term
-  // already applied rather than appearing to do nothing.
-  const initialQuery = useSearchParams().get('q') ?? '';
+  // already applied rather than appearing to do nothing. ?action=add|upload
+  // opens the add-member modal in the matching mode — the dashboard's Quick
+  // actions tiles land here.
+  const memberSearchParams = useSearchParams();
+  const initialQuery = memberSearchParams.get('q') ?? '';
+  const initialAction = memberSearchParams.get('action');
   const [search, setSearch]               = useState(initialQuery);
   const [planFilter, setPlanFilter]       = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
   const [selected, setSelected]           = useState<string[]>([]);
   const [activeMember, setActiveMember]   = useState<{ member: Member; index: number; autoOpenEdit?: boolean } | null>(null);
-  const [showAddModal, setShowAddModal]   = useState<false | 'individual' | 'bulk'>(false);
+  const [showAddModal, setShowAddModal]   = useState<false | 'individual' | 'bulk'>(
+    initialAction === 'add' ? 'individual' : initialAction === 'upload' ? 'bulk' : false
+  );
   const [viewBeneficiaries, setViewBeneficiaries] = useState(false);
   const [relationshipOptions, setRelationshipOptions] = useState<RelationshipOption[]>([]);
   const [bulkBusy, setBulkBusy] = useState<string | null>(null); // label of the bulk action currently running
