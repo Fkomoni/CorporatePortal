@@ -3,9 +3,10 @@
 export type DashboardVis = {
   showKpiCards:       boolean; // 4 KPI stat cards
   showAmounts:        boolean; // financial figures (₦)
-  showActionCentre:   boolean; // Action Centre widget
-  showLossRatio:      boolean; // Loss Ratio section
-  showSpendChart:     boolean; // Monthly spend chart
+  // showActionCentre / showLossRatio retired with the stage-4 redesign: the
+  // Notifications card took the Action Centre's job and the loss-ratio detail
+  // moved to Insights & Reports. Stale keys in stored JSON are ignored.
+  showSpendChart:     boolean; // Claims spend trend chart
   showTopProviders:   boolean; // Top providers list
   showTopConditions:  boolean; // Top conditions list
   showHealthInsights: boolean; // AI health insights
@@ -70,8 +71,8 @@ export const DEFAULTS: {
   serviceDesk: ServiceDeskVis;
 } = {
   dashboard: {
-    showKpiCards: true, showAmounts: true, showActionCentre: true,
-    showLossRatio: true, showSpendChart: true, showTopProviders: true,
+    showKpiCards: true, showAmounts: true,
+    showSpendChart: true, showTopProviders: true,
     showTopConditions: true, showHealthInsights: true,
   },
 

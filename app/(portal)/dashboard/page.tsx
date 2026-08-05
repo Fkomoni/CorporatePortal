@@ -1,9 +1,11 @@
 'use client';
 
 import {
-  TrendingDown, UserPlus, Users, FileText, Gauge, Wallet,
+  UserPlus, Users, FileText, Gauge, Wallet,
   Upload, CreditCard, MessageSquare, Building2, CheckCircle2, ChevronRight,
+  Thermometer, Heart, Droplet, Baby, Pill, Eye, Stethoscope,
 } from 'lucide-react';
+import { mockTickets } from '@/lib/mock-data';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -136,6 +138,7 @@ export default function DashboardPage() {
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [showAllProviders, setShowAllProviders] = useState(false);
+  const [spendRange, setSpendRange] = useState<'ytd' | '3m'>('ytd');
   const [pendingEnrolmentCount, setPendingEnrolmentCount] = useState<number | null>(null);
   // Without this the dashboard renders zeros on a failed load, which reads as
   // "no members" rather than "we couldn't reach Prognosis".
@@ -168,14 +171,8 @@ export default function DashboardPage() {
   const principalLives     = stats?.principalLives     ?? null;
   const dependantLives     = stats?.dependantLives     ?? null;
   const newThisMonth       = stats?.newThisMonth       ?? null;
-  const totalPremium       = stats?.totalPremium       ?? null;
-  const earnedPremium      = stats?.earnedPremium      ?? null;
   const claimsPaid         = stats?.claimsPaid         ?? null;
-  const outstandingClaims  = stats?.outstandingClaims  ?? null;
-  const estimatedIBNR      = stats?.estimatedIBNR      ?? null;
-  const totalIncurredClaims = stats?.totalIncurredClaims ?? null;
   const lossRatioPct       = stats?.lossRatioPct       ?? null;
-  const cor                = stats?.cor                ?? null;
   const riskStatus         = stats?.riskStatus         ?? null;
   const liveTopProviders      = stats?.topProviders         ?? null;
   const liveMonthlySpend      = stats?.monthlySpend         ?? [];
@@ -208,48 +205,6 @@ export default function DashboardPage() {
             Here&rsquo;s everything happening with {companyName || 'your scheme'} today.
           </p>
         </div>
-
-        {/* ── ACTION CENTRE ── */}
-        {vis.showActionCentre && (
-        <div style={{ ...card, padding: '28px 32px' }}>
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Action Centre</p>
-            <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>Items requiring your attention today</p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-            {[
-              {
-                Icon: UserPlus, border: '#EF4444', urgency: 'Urgent',
-                title: pendingEnrolmentCount === null
-                  ? 'Checking for pending enrolments…'
-                  : pendingEnrolmentCount === 0
-                    ? 'No Beneficiaries Awaiting Approval'
-                    : `${pendingEnrolmentCount} Beneficiar${pendingEnrolmentCount === 1 ? 'y' : 'ies'} Enrolment Awaiting Approval`,
-                action: 'View List →', actionColor: '#EF4444', onClick: () => router.push('/pending-enrolees'),
-              },
-            ].map((item) => {
-              const Icon = item.Icon;
-              return (
-                <div
-                  key={item.title}
-                  style={{ padding: 18, background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', borderLeft: `4px solid ${item.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F8FC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon style={{ width: 17, height: 17, color: '#6B7480' }} strokeWidth={1.75} />
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: item.actionColor, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{item.urgency}</span>
-                  </div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', lineHeight: 1.4, marginBottom: 12 }}>{item.title}</p>
-                  <button onClick={item.onClick} style={{ fontSize: 13, fontWeight: 600, color: item.actionColor, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    {item.action}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        )}
 
         {/* ── ROW 2: 4 KPI CARDS ── */}
         {vis.showKpiCards && (() => {
@@ -438,204 +393,209 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* ── ROW 3: LOSS RATIO (large, full-width) ── */}
-        {vis.showLossRatio && (
-        <div style={{ ...card, padding: '32px 36px' }}>
-          {(() => {
-            const rs = riskStatus ?? (lossRatioPct !== null ? (lossRatioPct <= 60 ? 'Healthy' : lossRatioPct <= 80 ? 'Watchlist' : lossRatioPct <= 100 ? 'High Risk' : 'Critical') : 'Unknown');
-            const lrColor  = rs === 'Healthy' ? '#10B981' : rs === 'Watchlist' ? '#D97706' : '#EF4444';
-            const lrBg     = rs === 'Healthy' ? '#ECFDF5' : rs === 'Watchlist' ? '#FFFBEB' : '#FEF2F2';
-            const lrBorder = rs === 'Healthy' ? '#A7F3D0' : rs === 'Watchlist' ? '#FDE68A' : '#FECACA';
-            return (
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 40 }}>
-              <div>
-                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Loss Ratio (LR)</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                  <span style={{ fontSize: 44, fontWeight: 900, color: lrColor, letterSpacing: '-0.03em', lineHeight: 1 }}>{lossRatioPct ?? '—'}</span>
-                  {lossRatioPct !== null && <span style={{ fontSize: 22, fontWeight: 700, color: lrColor }}>%</span>}
-                </div>
-              </div>
-              <div>
-                <p style={{ fontSize: 12, color: '#9CA3B8', fontWeight: 500, marginBottom: 8 }}>Combined Operating Ratio (COR)</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                  <span style={{ fontSize: 44, fontWeight: 900, color: cor !== null ? lrColor : '#C4C9D9', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                    {cor !== null ? cor : '—'}
-                  </span>
-                  {cor !== null && <span style={{ fontSize: 22, fontWeight: 700, color: lrColor }}>%</span>}
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: lrBg, border: `1px solid ${lrBorder}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: lrColor }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: lrColor, display: 'inline-block' }} />
-                {rs}
-              </span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '16px 24px', maxWidth: 420 }}>
-                {([
-                  { label: 'Claims Paid',        value: fmtNaira(claimsPaid) },
-                  { label: 'Outstanding Claims', value: fmtNaira(outstandingClaims) },
-                  { label: 'Estimated IBNR',     value: fmtNaira(estimatedIBNR) },
-                  { label: 'Total Incurred',     value: fmtNaira(totalIncurredClaims) },
-                  { label: 'Earned Premium',     value: fmtNaira(earnedPremium ?? totalPremium) },
-                ] as { label: string; value: string }[]).map((m) => (
-                  <div key={m.label} style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 3 }}>{m.label}</p>
-                    <p style={{ fontSize: 18, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{vis.showAmounts ? m.value : '—'}</p>
+        {/* ── ROW 4: ANALYTICS ── */}
+        {(() => {
+          const columns: React.ReactNode[] = [];
+          const colCard: React.CSSProperties = { ...card, padding: '22px 22px 14px', display: 'flex', flexDirection: 'column', minWidth: 0 };
+          const colTitle: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: '#131C4E' };
+          const colSub: React.CSSProperties = { fontSize: 11.5, color: '#9CA3B8', marginTop: 2 };
+          const footerBtn: React.CSSProperties = {
+            display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto',
+            padding: '12px 2px 2px', fontSize: 12, fontWeight: 700, color: '#F56B22',
+            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+          };
+          const headerLink: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 };
+
+          if (vis.showSpendChart) {
+            const spend = spendRange === '3m' ? liveMonthlySpend.slice(-3) : liveMonthlySpend;
+            columns.push(
+              <div key="spend" style={colCard}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div>
+                    <p style={colTitle}>Claims Spend Trend</p>
+                    <p style={colSub}>Monthly</p>
                   </div>
-                ))}
+                  <select
+                    value={spendRange}
+                    onChange={(e) => setSpendRange(e.target.value as 'ytd' | '3m')}
+                    style={{ fontSize: 11.5, fontWeight: 600, color: '#131C4E', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 8px', background: '#fff', cursor: 'pointer' }}
+                  >
+                    <option value="ytd">YTD</option>
+                    <option value="3m">3M</option>
+                  </select>
+                </div>
+                {spend.length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
+                    {stats === null && !loadError ? 'Loading claims data…' : 'No claims data yet.'}
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={158}>
+                    <AreaChart data={spend} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#F56B22" stopOpacity={0.14} />
+                          <stop offset="100%" stopColor="#F56B22" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="month" tick={{ fontSize: 10.5, fill: '#B0B7C9' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10.5, fill: '#B0B7C9' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v}M`} width={52} />
+                      <Tooltip
+                        contentStyle={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
+                        formatter={(v) => [`₦${v}M`, 'Claims']}
+                      />
+                      <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2}
+                        fill="url(#spendGrad)" dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }}
+                        activeDot={{ r: 5, fill: '#F56B22' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+                <button style={footerBtn} onClick={() => router.push('/claims')}>View full report <span aria-hidden="true">→</span></button>
               </div>
-            </div>
-          </div>
             );
-          })()}
-          <div style={{ height: 8, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
-            <div style={{ width: `${Math.min(lossRatioPct ?? 77, 100)}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 24 }}>
-              {[
-                { label: 'Green', range: '<70%', color: '#059669' },
-                { label: '⬤ Amber', range: '70–90%', color: '#D97706' },
-                { label: 'Red', range: '>90%', color: '#DC2626' },
-              ].map((l) => (
-                <span key={l.label} style={{ fontSize: 11, fontWeight: 600, color: l.color }}>
-                  {l.label} <span style={{ fontWeight: 400, color: '#B0B7C9' }}>{l.range}</span>
-                </span>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9CA3B8' }}>
-              <TrendingDown className="w-3.5 h-3.5" strokeWidth={2} />
-              {lossRatioPct !== null ? `${lossRatioPct}% current (${riskStatus ?? '—'}) · COR ${cor !== null ? `${cor}%` : '—'}` : 'Loss ratio data loading…'}
-            </div>
-          </div>
-        </div>
-        )}
+          }
 
-        {/* ── ROW 4: CHARTS ── */}
-        {(vis.showSpendChart || vis.showTopConditions) && (
-        <div style={{ display: 'grid', gridTemplateColumns: vis.showSpendChart && vis.showTopConditions ? '3fr 2fr' : '1fr', gap: 16 }}>
-
-          {vis.showSpendChart && (() => {
-            const spend = liveMonthlySpend;
-            const first = spend[0];
-            const last = spend[spend.length - 1];
-            const ytdTotal = spend.reduce((s, m) => s + m.amount, 0);
-            const growthPct = first && first.amount > 0 && last
-              ? Math.round(((last.amount - first.amount) / first.amount) * 100)
-              : null;
-            const rangeLabel = first && last
-              ? (first.month === last.month ? first.month : `${first.month}–${last.month}`)
-              : null;
-            return (
-            <div style={{ ...card, padding: '26px 28px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Claims Spend Trend</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>{rangeLabel ? `Monthly · ${rangeLabel}` : 'Monthly'}</p>
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#F56B22' }}>{vis.showAmounts && spend.length > 0 ? `₦${ytdTotal.toFixed(1)}M` : '—'} YTD</span>
-            </div>
-            {spend.length === 0 ? (
-              <p style={{ fontSize: 12, color: '#B0B7C9', padding: '24px 0', textAlign: 'center' }}>No claims data yet.</p>
-            ) : (
-            <>
-            <ResponsiveContainer width="100%" height={148}>
-              <AreaChart data={spend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#F56B22" stopOpacity={0.14} />
-                    <stop offset="100%" stopColor="#F56B22" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#B0B7C9' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#B0B7C9' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v}M`} />
-                <Tooltip
-                  contentStyle={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                  formatter={(v) => [`₦${v}M`, 'Claims']}
-                />
-                <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2}
-                  fill="url(#spendGrad)" dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }}
-                  activeDot={{ r: 5, fill: '#F56B22' }} />
-              </AreaChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-              {first && <span style={{ fontSize: 11, color: '#9CA3B8' }}>{first.month} <strong style={{ color: '#131C4E' }}>₦{first.amount.toFixed(1)}M</strong></span>}
-              {last && last !== first && <span style={{ fontSize: 11, color: '#9CA3B8' }}>{last.month} <strong style={{ color: '#131C4E' }}>₦{last.amount.toFixed(1)}M</strong></span>}
-              {growthPct !== null && (
-                <span style={{ fontSize: 11, fontWeight: 600, color: growthPct >= 0 ? '#EF4444' : '#10B981' }}>
-                  {growthPct >= 0 ? '▲' : '▼'} {growthPct >= 0 ? '+' : ''}{growthPct}% growth
-                </span>
-              )}
-            </div>
-            </>
-            )}
-            </div>
-            );
-          })()}
-
-          {vis.showTopConditions && <div style={{ ...card, padding: '26px 28px' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Top Conditions</p>
-            <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 24 }}>By claims spend · {stats?.policyYear ?? new Date().getFullYear()}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {(stats?.topConditions && stats.topConditions.length > 0 ? stats.topConditions : []).map((item, i, arr) => {
-                const maxSpend = arr[0]?.amtPaid ?? arr[0]?.visits ?? 1;
-                const itemSpend = item.amtPaid ?? item.visits;
-                const barPct = (itemSpend / (maxSpend || 1)) * 100;
-                const fmt = (v: number) => v >= 1_000_000 ? `₦${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `₦${(v / 1_000).toFixed(0)}K` : `₦${v}`;
-                return (
-                <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 12, color: '#6B7480', fontWeight: 500, width: 140, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.name}
-                  </span>
-                  <div style={{ flex: 1, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#FFB54B)' }} />
+          if (vis.showTopProviders) {
+            const providers = (liveTopProviders ?? []).slice(0, 5);
+            const totalPaid = (liveAllProviders.length > 0 ? liveAllProviders : providers)
+              .reduce((s, p) => s + (p.amtPaid || 0), 0);
+            columns.push(
+              <div key="providers" style={colCard}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div>
+                    <p style={colTitle}>Top Providers</p>
+                    <p style={colSub}>By amount paid (YTD)</p>
                   </div>
-                  <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, width: 48, textAlign: 'right', flexShrink: 0 }}>{item.amtPaid != null ? fmt(item.amtPaid) : item.visits}</span>
+                  <button onClick={() => setShowAllProviders(true)} style={headerLink}>View all →</button>
                 </div>
-                );
-              })}
-              {(!stats?.topConditions || stats.topConditions.length === 0) && (
-                <p style={{ fontSize: 12, color: '#9CA3B8', textAlign: 'center', padding: '12px 0' }}>Loading condition data...</p>
-              )}
-            </div>
-          </div>}
-        </div>
-        )}
-
-        {/* ── ROW 5: TOP PROVIDERS ── */}
-        {vis.showTopProviders && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-
-          <div style={{ ...card, padding: '26px 28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Top Provider Utilization</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>By amount paid · 2026</p>
+                {providers.length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
+                    {stats === null && !loadError ? 'Loading provider data…' : 'No provider activity yet.'}
+                  </p>
+                ) : providers.map((p, i) => {
+                  const pct = totalPaid > 0 && p.amtPaid > 0 ? Math.round((p.amtPaid / totalPaid) * 1000) / 10 : null;
+                  return (
+                    <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < providers.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: PROVIDER_GRADS[i % PROVIDER_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 10.5, flexShrink: 0 }}>
+                        {i + 1}
+                      </div>
+                      <p style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>{vis.showAmounts ? fmtNaira(p.amtPaid) : `${p.visits} visits`}</p>
+                        {pct !== null && <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 1 }}>{pct}%</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+                <button style={footerBtn} onClick={() => router.push('/reports')}>View provider report <span aria-hidden="true">→</span></button>
               </div>
-              <button onClick={() => setShowAllProviders(true)} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View all →</button>
-            </div>
-            {(liveTopProviders ?? []).map((p, i) => (
-              <div key={p.name} style={{ display: 'flex', alignItems: 'center', padding: '11px 0', borderBottom: i < (liveTopProviders ?? []).length - 1 ? '1px solid #F5F6FA' : 'none' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: PROVIDER_GRADS[i % PROVIDER_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0, marginRight: 12 }}>
-                  {p.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
+            );
+          }
+
+          if (vis.showTopConditions) {
+            const conditions = (stats?.topConditions ?? []).slice(0, 5);
+            const condTotal = conditions.reduce((s, c) => s + (c.amtPaid ?? c.visits), 0);
+            const CONDITION_TINTS = [
+              { color: '#EF4444', tint: '#FEF2F2' },
+              { color: '#D97706', tint: '#FFFBEB' },
+              { color: '#8B5CF6', tint: '#F5F3FF' },
+              { color: '#3B82F6', tint: '#EFF6FF' },
+              { color: '#10B981', tint: '#ECFDF5' },
+            ];
+            const iconFor = (name: string): React.ElementType => {
+              if (/malaria|typhoid/i.test(name)) return Thermometer;
+              if (/hypertension|anaemia/i.test(name)) return Heart;
+              if (/diabetes|urinary/i.test(name)) return Droplet;
+              if (/pregnan/i.test(name)) return Baby;
+              if (/pharmacy|pain/i.test(name)) return Pill;
+              if (/eye/i.test(name)) return Eye;
+              return Stethoscope;
+            };
+            columns.push(
+              <div key="conditions" style={colCard}>
+                <div style={{ marginBottom: 12 }}>
+                  <p style={colTitle}>Top Conditions</p>
+                  <p style={colSub}>By claims spend (YTD)</p>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.location || '—'}</p>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{vis.showAmounts ? fmtNaira(p.amtPaid) : '—'}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.visits} visits</p>
-                </div>
+                {conditions.length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
+                    {stats === null && !loadError ? 'Loading condition data…' : 'No condition data yet.'}
+                  </p>
+                ) : conditions.map((c, i) => {
+                  const CIcon = iconFor(c.name);
+                  const t = CONDITION_TINTS[i % CONDITION_TINTS.length];
+                  const amt = c.amtPaid ?? c.visits;
+                  const pct = condTotal > 0 ? Math.round((amt / condTotal) * 1000) / 10 : null;
+                  return (
+                    <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < conditions.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: t.tint, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <CIcon style={{ width: 13, height: 13, color: t.color }} strokeWidth={2} />
+                      </div>
+                      <p style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>
+                          {c.amtPaid != null ? (vis.showAmounts ? fmtNaira(c.amtPaid) : '—') : `${c.visits} visits`}
+                        </p>
+                        {pct !== null && <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 1 }}>{pct}%</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+                <button style={footerBtn} onClick={() => router.push('/reports')}>View full report <span aria-hidden="true">→</span></button>
               </div>
-            ))}
-            {(!liveTopProviders || liveTopProviders.length === 0) && (
-              <p style={{ fontSize: 13, color: '#B0B7C9', textAlign: 'center', padding: '20px 0' }}>Loading provider data…</p>
-            )}
-          </div>
-        </div>
-        )}
+            );
+          }
+
+          {
+            // Recent Requests — the Service Desk still runs on sample tickets,
+            // so this column is labelled as such until real ticket storage
+            // lands (stage 5).
+            const REQ_STATUS: Record<string, { bg: string; text: string }> = {
+              'Open':             { bg: '#FEF2F2', text: '#DC2626' },
+              'In Progress':      { bg: '#FFFBEB', text: '#D97706' },
+              'Awaiting Client':  { bg: '#EFF6FF', text: '#2563EB' },
+              'Awaiting Leadway': { bg: '#F5F3FF', text: '#7C3AED' },
+              'Closed':           { bg: '#F1F5F9', text: '#475569' },
+            };
+            const requests = mockTickets.slice(0, 4);
+            columns.push(
+              <div key="requests" style={colCard}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div>
+                    <p style={colTitle}>Recent Requests</p>
+                    <p style={colSub}>Sample data</p>
+                  </div>
+                  <button onClick={() => router.push('/service-desk')} style={headerLink}>View all →</button>
+                </div>
+                {requests.map((t, i) => {
+                  const chip = REQ_STATUS[t.status] ?? REQ_STATUS['Closed'];
+                  return (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < requests.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#F3F4F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <MessageSquare style={{ width: 13, height: 13, color: '#6B7480' }} strokeWidth={2} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</p>
+                        <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 1 }}>{t.ticketId} · {t.lastUpdated}</p>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: chip.bg, color: chip.text, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                        {t.status}
+                      </span>
+                    </div>
+                  );
+                })}
+                <button style={footerBtn} onClick={() => router.push('/service-desk')}>View all requests <span aria-hidden="true">→</span></button>
+              </div>
+            );
+          }
+
+          if (columns.length === 0) return null;
+          const template = columns.length === 4 ? '1.3fr 1fr 1fr 1.15fr' : `repeat(${columns.length},1fr)`;
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: template, gap: 16, alignItems: 'stretch' }}>
+              {columns}
+            </div>
+          );
+        })()}
 
       </div>
 

@@ -96,23 +96,41 @@ export default function ReportsPage() {
 
   useEffect(() => { setVis(getVis('reports')); }, []);
 
-  // Scheme Health Score — relocated here from the dashboard when the KPI row
-  // was redesigned. dashboard-stats is served from a short server-side cache,
-  // so this costs no extra upstream calls.
+  // Scheme Health Score + underwriting detail — both relocated here from the
+  // dashboard when it was redesigned. dashboard-stats is served from a short
+  // server-side cache, so this costs no extra upstream calls.
   const [health, setHealth] = useState<{ score: number; label: string; trendLabel: string | null } | null>(null);
+  const [underwriting, setUnderwriting] = useState<{
+    lossRatioPct: number | null; cor: number | null; riskStatus: string | null;
+    claimsPaid: number | null; outstandingClaims: number | null; estimatedIBNR: number | null;
+    totalIncurredClaims: number | null; earnedPremium: number | null; totalPremium: number | null;
+  } | null>(null);
   useEffect(() => {
     let cancelled = false;
     fetch('/api/hr/dashboard-stats')
       .then((r) => r.json())
       .then((d) => {
-        if (cancelled || !d?.stats || typeof d.stats.schemeHealthScore !== 'number') return;
-        setHealth({
-          score: d.stats.schemeHealthScore,
-          label: d.stats.schemeHealthLabel ?? '',
-          trendLabel: d.stats.schemeHealthTrendLabel ?? null,
+        if (cancelled || !d?.stats) return;
+        if (typeof d.stats.schemeHealthScore === 'number') {
+          setHealth({
+            score: d.stats.schemeHealthScore,
+            label: d.stats.schemeHealthLabel ?? '',
+            trendLabel: d.stats.schemeHealthTrendLabel ?? null,
+          });
+        }
+        setUnderwriting({
+          lossRatioPct: d.stats.lossRatioPct ?? null,
+          cor: d.stats.cor ?? null,
+          riskStatus: d.stats.riskStatus ?? null,
+          claimsPaid: d.stats.claimsPaid ?? null,
+          outstandingClaims: d.stats.outstandingClaims ?? null,
+          estimatedIBNR: d.stats.estimatedIBNR ?? null,
+          totalIncurredClaims: d.stats.totalIncurredClaims ?? null,
+          earnedPremium: d.stats.earnedPremium ?? null,
+          totalPremium: d.stats.totalPremium ?? null,
         });
       })
-      .catch(() => { /* the card simply doesn't render */ });
+      .catch(() => { /* the cards simply don't render */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -293,6 +311,77 @@ export default function ReportsPage() {
                   <div style={{ width: `${health.score}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg,${hsColor === '#10B981' ? '#10B981,#34D399' : hsColor === '#D97706' ? '#F59E0B,#FCD34D' : '#F56B22,#FF8C4B'})` }} />
                 </div>
                 <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{health.trendLabel ?? 'Building trend data…'}</p>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Underwriting performance — the loss-ratio detail the dashboard's
+            redesigned KPI row no longer carries. */}
+        {underwriting && underwriting.lossRatioPct !== null && (() => {
+          const u = underwriting;
+          const rs = u.riskStatus ?? 'Unknown';
+          const lrColor  = rs === 'Healthy' ? '#10B981' : rs === 'Watchlist' ? '#D97706' : '#EF4444';
+          const lrBg     = rs === 'Healthy' ? '#ECFDF5' : rs === 'Watchlist' ? '#FFFBEB' : '#FEF2F2';
+          const lrBorder = rs === 'Healthy' ? '#A7F3D0' : rs === 'Watchlist' ? '#FDE68A' : '#FECACA';
+          const fmtN = (v: number | null) => {
+            if (v === null) return '—';
+            if (v >= 1_000_000_000) return `₦${(Math.floor(v / 100_000_000) / 10).toFixed(1)}B`;
+            if (v >= 1_000_000) return `₦${(Math.floor(v / 100_000) / 10).toFixed(1)}M`;
+            if (v >= 1_000) return `₦${Math.floor(v / 1_000).toFixed(0)}K`;
+            return `₦${v.toLocaleString()}`;
+          };
+          return (
+            <div style={{ ...card, padding: '22px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, gap: 20, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 34 }}>
+                  <div>
+                    <p style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, marginBottom: 6 }}>Loss Ratio (LR)</p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                      <span style={{ fontSize: 34, fontWeight: 900, color: lrColor, letterSpacing: '-0.03em', lineHeight: 1 }}>{u.lossRatioPct}</span>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: lrColor }}>%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, marginBottom: 6 }}>Combined Operating Ratio</p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                      <span style={{ fontSize: 34, fontWeight: 900, color: u.cor !== null ? lrColor : '#C4C9D9', letterSpacing: '-0.03em', lineHeight: 1 }}>{u.cor ?? '—'}</span>
+                      {u.cor !== null && <span style={{ fontSize: 18, fontWeight: 700, color: lrColor }}>%</span>}
+                    </div>
+                  </div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: lrBg, border: `1px solid ${lrBorder}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: lrColor, marginTop: 8 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: lrColor, display: 'inline-block' }} />
+                    {rs}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                  {([
+                    { label: 'Claims Paid',        value: fmtN(u.claimsPaid) },
+                    { label: 'Outstanding Claims', value: fmtN(u.outstandingClaims) },
+                    { label: 'Estimated IBNR',     value: fmtN(u.estimatedIBNR) },
+                    { label: 'Total Incurred',     value: fmtN(u.totalIncurredClaims) },
+                    { label: 'Earned Premium',     value: fmtN(u.earnedPremium ?? u.totalPremium) },
+                  ] as { label: string; value: string }[]).map((m) => (
+                    <div key={m.label} style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: 10.5, color: '#9CA3B8', marginBottom: 2 }}>{m.label}</p>
+                      <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ height: 7, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ width: `${Math.min(u.lossRatioPct ?? 0, 100)}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 24 }}>
+                {[
+                  { label: 'Green', range: '<70%', color: '#059669' },
+                  { label: 'Amber', range: '70–90%', color: '#D97706' },
+                  { label: 'Red', range: '>90%', color: '#DC2626' },
+                ].map((l) => (
+                  <span key={l.label} style={{ fontSize: 11, fontWeight: 600, color: l.color }}>
+                    ⬤ {l.label} <span style={{ fontWeight: 400, color: '#B0B7C9' }}>{l.range}</span>
+                  </span>
+                ))}
               </div>
             </div>
           );
