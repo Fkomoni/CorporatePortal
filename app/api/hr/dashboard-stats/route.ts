@@ -52,6 +52,13 @@ async function getAllPolicies(token: string): Promise<Record<string, unknown>[]>
   return rows;
 }
 
+// ── Response cache (10-minute TTL) ────────────────────────────────────────────
+// The sidebar fetches this route on every page and the dashboard adds several
+// upstream Prognosis calls per request; one cached payload per company keeps
+// that to one upstream round-trip per TTL. `?refresh=1` bypasses it.
+const statsCache = new Map<string, { expires: number; payload: unknown }>();
+const STATS_TTL_MS = 10 * 60 * 1000;
+
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 async function fetchJson(token: string, path: string): Promise<{ data: unknown; ok: boolean }> {
   const res = await fetch(`${BASE}${path}`, {
@@ -218,6 +225,8 @@ interface LossRatioResult {
   elapsedDays: number;
   totalPolicyDays: number;
   monthlyPaid: { month: string; amount: number }[];
+  /** Cumulative paid-claims loss ratio by month — the KPI sparkline's trend. */
+  lossRatioMonthly: { month: string; pct: number }[];
 }
 
 function computeLossRatio({
@@ -321,6 +330,25 @@ function computeLossRatio({
     ibnrMethod = 'Fallback (7.5%)';
   }
 
+  // Cumulative paid-claims loss ratio at each month end. Paid-only (no
+  // outstanding/IBNR component) — it draws a sparkline, not a reported figure.
+  const lossRatioMonthly: { month: string; pct: number }[] = [];
+  if (hasPolicy && totalPremium > 0 && totalPolicyDays > 0) {
+    let cum = 0;
+    for (const [ym, amt] of Object.entries(monthly).sort(([a], [b]) => a.localeCompare(b))) {
+      cum += amt;
+      const [y, m] = ym.split('-').map(Number);
+      const monthEnd = new Date(y, m, 0); // day 0 of next month = last day of m
+      const asAtMonth = monthEnd > pe! ? pe! : monthEnd;
+      const elapsedToMonth = Math.max(daysApart(ps!, asAtMonth), 1);
+      const earnedToMonth = totalPremium * Math.min(elapsedToMonth / totalPolicyDays, 1);
+      if (earnedToMonth > 0) {
+        const label = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' });
+        lossRatioMonthly.push({ month: label, pct: +((cum / earnedToMonth) * 100).toFixed(1) });
+      }
+    }
+  }
+
   // Use canonical figure from GetPaidClaimsWithDiagnosis when available
   if (paidClaimsOverride !== undefined && paidClaimsOverride > 0) paid = paidClaimsOverride;
 
@@ -361,7 +389,26 @@ function computeLossRatio({
         const label = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' });
         return { month: label, amount: +(amount / 1_000_000).toFixed(2) };
       }),
+    lossRatioMonthly: lossRatioMonthly.slice(-6),
   };
+}
+
+// Same dedup-and-sum the Claims page uses: dedupe by claim_id, count rows whose
+// status maps to Paid, prefer AmtPaid and fall back to AmtClaimed when zero.
+function sumCanonicalPaid(rows: Record<string, unknown>[]): number {
+  const seen = new Map<string, number>();
+  for (const r of rows) {
+    const claimId = r['claim_id'] != null ? String(r['claim_id']) : '';
+    const st = String(r['claim_status'] ?? r['ClaimStatus'] ?? r['Status'] ?? r['CLAIM_STATUS'] ?? '').toLowerCase();
+    const isPaid = ['paid', 'settled', 'approved', 'complete', 'reimburse'].some((s) => st.includes(s));
+    if (!isPaid) continue;
+    const num = (v: unknown) => { if (v == null) return 0; const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; };
+    const amtPaid = num(r['AmtPaid'] ?? r['PaidAmount'] ?? r['AmountPaid']);
+    const amtBilled = num(r['AmtClaimed'] ?? r['BilledAmount'] ?? r['ClaimedAmount']);
+    const effective = amtPaid > 0 ? amtPaid : amtBilled;
+    if (claimId && !seen.has(claimId)) seen.set(claimId, effective);
+  }
+  return [...seen.values()].reduce((s, v) => s + v, 0);
 }
 
 // ── Scheme Health Score ───────────────────────────────────────────────────────
@@ -486,6 +533,15 @@ export interface DashboardStats {
   topConditions: { name: string; visits: number; amtPaid?: number }[];
   // Paid claims by month (₦ millions), last 6 months with data
   monthlySpend: { month: string; amount: number }[];
+  // KPI card extras
+  claimsPaidPrevYtd: number | null;   // prior policy year, same elapsed window
+  claimsYoYPct: number | null;        // claimsPaid vs claimsPaidPrevYtd
+  memberMonthly: { month: string; count: number }[]; // active-membership growth
+  lossRatioMonthly: { month: string; pct: number }[];
+  invoiceOutstanding: number | null;
+  invoiceHasOutstanding: boolean;
+  invoiceNextDue: string | null;
+  invoiceReceiptNumber: string | null;
   // Scheme Health Score
   schemeHealthScore: number | null;
   schemeHealthLabel: string | null;
@@ -499,13 +555,20 @@ export interface DashboardStats {
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const groupId      = session.user.companyId  ?? '';
   const policyNumber = session.user.policyNumber ?? '';
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
+
+  const cacheKey = `${groupId}|${policyNumber}`;
+  const wantRefresh = new URL(request.url).searchParams.get('refresh') === '1';
+  const cached = statsCache.get(cacheKey);
+  if (!wantRefresh && cached && Date.now() < cached.expires) {
+    return NextResponse.json(cached.payload);
+  }
 
   try {
     const token = await getServiceToken();
@@ -603,6 +666,19 @@ export async function GET() {
     const newThisMonth = newThisMonthIds.size > 0 ? newThisMonthIds.size : 0;
     const newThisMonthLabel = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
 
+    // Active-membership growth: of the members active today, how many had
+    // started by each of the last six month-ends. (Members who left along the
+    // way aren't represented — this tracks growth of the current book.)
+    const memberMonthly: { month: string; count: number }[] = [];
+    if (memberStartMap.size > 0) {
+      const starts = [...memberStartMap.values()];
+      for (let i = 5; i >= 0; i--) {
+        const monthEnd = new Date(currentYear, currentMonth - i + 1, 0);
+        const count = starts.filter((d) => d <= monthEnd).length;
+        memberMonthly.push({ month: monthEnd.toLocaleString('en-US', { month: 'short' }), count });
+      }
+    }
+
     // ── Fetch claims using actual policy dates (not calendar year) ────────────
     const cy = new Date().getFullYear();
     const toISO = (raw: string | null) => {
@@ -613,10 +689,34 @@ export async function GET() {
     };
     const claimsFromDate = toISO(policyFromDate) ?? `${cy}-01-01`;
     const claimsToDate   = toISO(policyToDate)   ?? `${cy}-12-31`;
-    const [claimsResult, paidClaimsResult] = await Promise.all([
+
+    // Prior policy year, same elapsed window — the like-for-like "vs last year"
+    // comparison for Claims Paid. Skipped when policy dates didn't resolve.
+    const psD = parseDate(policyFromDate ?? '');
+    const peD = parseDate(policyToDate ?? '');
+    let prevFromISO: string | null = null;
+    let prevToISO: string | null = null;
+    if (psD && peD) {
+      const prevFrom = new Date(psD); prevFrom.setFullYear(prevFrom.getFullYear() - 1);
+      const prevTo   = new Date(peD); prevTo.setFullYear(prevTo.getFullYear() - 1);
+      const asAt = now < peD ? now : peD;
+      const elapsed = Math.max(daysApart(psD, asAt), 0);
+      const prevWindowEnd = new Date(prevFrom.getTime() + elapsed * 86400000);
+      const cappedEnd = prevWindowEnd < prevTo ? prevWindowEnd : prevTo;
+      const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      prevFromISO = iso(prevFrom);
+      prevToISO   = iso(cappedEnd);
+    }
+
+    const [claimsResult, paidClaimsResult, prevPaidClaimsResult, invoiceResult] = await Promise.all([
       fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`),
       // Exact same endpoint + param casing as the Claims page route
       fetchJson(token, `/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${claimsFromDate}&toDate=${claimsToDate}`),
+      prevFromISO && prevToISO
+        ? fetchJson(token, `/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${prevFromISO}&toDate=${prevToISO}`)
+        : Promise.resolve({ data: null, ok: false }),
+      // Same source as the Finance page's summary strip
+      fetchJson(token, `/api/Pharmacy/GetInvoiceReceiptHistory?groupid=${groupId}`),
     ]);
     const claimsRaw  = claimsResult.data;
     const claimsOk   = claimsResult.ok && claimsResult.data !== null;
@@ -625,25 +725,24 @@ export async function GET() {
     const rawPaidRows: Record<string, unknown>[] = Array.isArray((paidClaimsResult.data as Record<string, unknown>)?.data)
       ? ((paidClaimsResult.data as Record<string, unknown>).data as Record<string, unknown>[])
       : toRows(paidClaimsResult.data);
+    const canonicalClaimsPaid = sumCanonicalPaid(rawPaidRows);
 
-    function mapStatusSimple(raw: string): string {
-      const s = raw.toLowerCase();
-      if (s.includes('paid') || s.includes('settled') || s.includes('approved') || s.includes('complete') || s.includes('reimburse')) return 'Paid';
-      return 'Other';
-    }
-    // Deduplicate by claim_id (same as claims route) then sum
-    const paidSeen = new Map<string, number>();
-    for (const r of rawPaidRows) {
-      const claimId  = r['claim_id'] != null ? String(r['claim_id']) : '';
-      const rawSt    = String(r['claim_status'] ?? r['ClaimStatus'] ?? r['Status'] ?? r['CLAIM_STATUS'] ?? '');
-      const status   = mapStatusSimple(rawSt);
-      if (status !== 'Paid') continue;
-      const amtPaid  = (() => { const v = r['AmtPaid'] ?? r['PaidAmount'] ?? r['AmountPaid']; if (v == null) return 0; const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; })();
-      const amtBilled = (() => { const v = r['AmtClaimed'] ?? r['BilledAmount'] ?? r['ClaimedAmount']; if (v == null) return 0; const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; })();
-      const effectiveAmt = amtPaid > 0 ? amtPaid : amtBilled;
-      if (claimId && !paidSeen.has(claimId)) paidSeen.set(claimId, effectiveAmt);
-    }
-    const canonicalClaimsPaid = [...paidSeen.values()].reduce((s, v) => s + v, 0);
+    const rawPrevPaidRows: Record<string, unknown>[] = Array.isArray((prevPaidClaimsResult.data as Record<string, unknown>)?.data)
+      ? ((prevPaidClaimsResult.data as Record<string, unknown>).data as Record<string, unknown>[])
+      : toRows(prevPaidClaimsResult.data);
+    const claimsPaidPrevYtd = prevPaidClaimsResult.ok && rawPrevPaidRows.length > 0
+      ? +sumCanonicalPaid(rawPrevPaidRows).toFixed(2)
+      : null;
+
+    // ── Invoice summary (first row of GetInvoiceReceiptHistory) ───────────────
+    const invoiceRows = toRows(invoiceResult.data);
+    const invoiceSummary = invoiceRows[0] ?? null;
+    const invoiceOutstanding = invoiceSummary ? toNumber(invoiceSummary.OutstandingBalance) : null;
+    const invoiceHasOutstanding = Number(invoiceSummary?.HasOutstanding ?? 0) === 1;
+    const invoiceNextDue = invoiceSummary && String(invoiceSummary.NextDue ?? '').trim()
+      ? String(invoiceSummary.NextDue).trim() : null;
+    const invoiceReceiptNumber = invoiceSummary && String(invoiceSummary.ReceiptNumber ?? '').trim()
+      ? String(invoiceSummary.ReceiptNumber).trim() : null;
 
     // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
     const claimRows = toRows(claimsRaw);
@@ -835,13 +934,23 @@ export async function GET() {
       topServices,
       topConditions,
       monthlySpend: lr.monthlyPaid,
+      claimsPaidPrevYtd,
+      claimsYoYPct: claimsPaidPrevYtd !== null && claimsPaidPrevYtd > 0
+        ? Math.round(((lr.paidClaims - claimsPaidPrevYtd) / claimsPaidPrevYtd) * 100)
+        : null,
+      memberMonthly,
+      lossRatioMonthly: lr.lossRatioMonthly,
+      invoiceOutstanding,
+      invoiceHasOutstanding,
+      invoiceNextDue,
+      invoiceReceiptNumber,
       policyPeriod,
       policyYear,
       policyFromDate,
       policyToDate,
     };
 
-    return NextResponse.json({
+    const payload = {
       stats,
       _debug: {
         matchedPolicy: policy,
@@ -873,7 +982,10 @@ export async function GET() {
         topProviders,
         topServices,
       },
-    });
+    };
+
+    statsCache.set(cacheKey, { expires: Date.now() + STATS_TTL_MS, payload });
+    return NextResponse.json(payload);
   } catch (err) {
     console.error('[hr/dashboard-stats] Error:', err);
     return NextResponse.json(

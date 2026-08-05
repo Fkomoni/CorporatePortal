@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingDown, UserPlus, Users, Activity, Gauge, Wallet } from 'lucide-react';
+import { TrendingDown, UserPlus, Users, FileText, Gauge, Wallet } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -71,10 +71,40 @@ interface DashboardStats {
   topServices: { service: string; visits: number; amtPaid: number }[];
   topConditions: { name: string; visits: number; amtPaid?: number }[];
   monthlySpend: { month: string; amount: number }[];
+  claimsPaidPrevYtd: number | null;
+  claimsYoYPct: number | null;
+  memberMonthly: { month: string; count: number }[];
+  lossRatioMonthly: { month: string; pct: number }[];
+  invoiceOutstanding: number | null;
+  invoiceHasOutstanding: boolean;
+  invoiceNextDue: string | null;
+  invoiceReceiptNumber: string | null;
   policyPeriod: string | null;
   policyYear: number | null;
   policyFromDate: string | null;
   policyToDate: string | null;
+}
+
+// NextDue arrives as either ISO (yyyy-mm-dd…) or dd/mm/yyyy; both are day-precision.
+function parseDueDate(raw: string | null): Date | null {
+  if (!raw) return null;
+  const t = raw.trim().slice(0, 10);
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+  return null;
+}
+
+function dueLabel(nextDue: string | null): string {
+  const due = parseDueDate(nextDue);
+  if (!due) return 'Payment due';
+  const today = new Date();
+  const days = Math.round((due.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000);
+  if (days > 1) return `Due in ${days} days`;
+  if (days === 1) return 'Due tomorrow';
+  if (days === 0) return 'Due today';
+  return `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`;
 }
 
 function fmtNaira(amount: number | null): string {
@@ -131,14 +161,10 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  // Policy period from GetAllPolicies, e.g. "1st April 2026 – 31st March 2027"
-  const policyYearLabel = stats?.policyPeriod ?? null;
-
   const activeLives        = stats?.activeLives        ?? null;
   const principalLives     = stats?.principalLives     ?? null;
   const dependantLives     = stats?.dependantLives     ?? null;
   const newThisMonth       = stats?.newThisMonth       ?? null;
-  const newThisMonthLabel  = stats?.newThisMonthLabel  ?? null;
   const totalPremium       = stats?.totalPremium       ?? null;
   const earnedPremium      = stats?.earnedPremium      ?? null;
   const claimsPaid         = stats?.claimsPaid         ?? null;
@@ -148,14 +174,15 @@ export default function DashboardPage() {
   const lossRatioPct       = stats?.lossRatioPct       ?? null;
   const cor                = stats?.cor                ?? null;
   const riskStatus         = stats?.riskStatus         ?? null;
-  const utilizationRatePct = stats?.utilizationRatePct ?? null;
-  const membersUtilized    = stats?.membersUtilized    ?? null;
   const liveTopProviders      = stats?.topProviders         ?? null;
   const liveMonthlySpend      = stats?.monthlySpend         ?? [];
   const liveAllProviders      = stats?.allProviders         ?? [];
-  const schemeHealthScore     = stats?.schemeHealthScore    ?? null;
-  const schemeHealthLabel     = stats?.schemeHealthLabel    ?? null;
-  const schemeHealthTrendLabel = stats?.schemeHealthTrendLabel ?? null;
+  const claimsYoYPct          = stats?.claimsYoYPct         ?? null;
+  const memberMonthly         = stats?.memberMonthly        ?? [];
+  const lossRatioMonthly      = stats?.lossRatioMonthly     ?? [];
+  const invoiceOutstanding    = stats?.invoiceOutstanding   ?? null;
+  const invoiceHasOutstanding = stats?.invoiceHasOutstanding ?? false;
+  const invoiceNextDue        = stats?.invoiceNextDue       ?? null;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -166,43 +193,16 @@ export default function DashboardPage() {
 
         {loadError && <LoadErrorBanner message={loadError} onRetry={loadStats} />}
 
-        {/* ── ROW 1: GREETING + HEALTH SCORE ── */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              {getGreeting(firstName)}
-            </h1>
-            <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 6 }}>
-              {[companyName, policyYearLabel ? `Policy year ${policyYearLabel}` : null].filter(Boolean).join('  ·  ') || 'Loading policy details…'}
-            </p>
-          </div>
-          {schemeHealthScore !== null && (() => {
-            const hsColor = schemeHealthLabel === 'Excellent' ? '#10B981'
-              : schemeHealthLabel === 'Healthy' ? '#10B981'
-              : schemeHealthLabel === 'Watchlist' ? '#D97706'
-              : schemeHealthLabel === 'At Risk' ? '#F56B22'
-              : '#EF4444';
-            return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, padding: '14px 22px', flexShrink: 0 }}>
-              <div>
-                <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Scheme Health Score</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                  <span style={{ fontSize: 32, fontWeight: 900, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>{schemeHealthScore}</span>
-                  <span style={{ fontSize: 16, fontWeight: 600, color: '#C4C9D9' }}>/100</span>
-                </div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: hsColor, marginTop: 4 }}>● {schemeHealthLabel}</p>
-              </div>
-              <div style={{ width: 1, height: 44, background: '#EDEEF2' }} />
-              <div>
-                <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Score Trend</p>
-                <div style={{ width: 88, height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
-                  <div style={{ width: `${schemeHealthScore}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg,${hsColor === '#10B981' ? '#10B981,#34D399' : hsColor === '#D97706' ? '#F59E0B,#FCD34D' : '#F56B22,#FF8C4B'})` }} />
-                </div>
-                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{schemeHealthTrendLabel ?? 'Building trend data…'}</p>
-              </div>
-            </div>
-            );
-          })()}
+        {/* ── ROW 1: GREETING ── */}
+        {/* The Scheme Health Score card that used to sit here lives on
+            Insights & Reports now — the design keeps this row to the greeting. */}
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+            {getGreeting(firstName)}
+          </h1>
+          <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 6 }}>
+            Here&rsquo;s everything happening with {companyName || 'your scheme'} today.
+          </p>
         </div>
 
         {/* ── ACTION CENTRE ── */}
@@ -248,56 +248,77 @@ export default function DashboardPage() {
         )}
 
         {/* ── ROW 2: 4 KPI CARDS ── */}
-        {vis.showKpiCards && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-          {[
+        {vis.showKpiCards && (() => {
+          const lrColor = riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : riskStatus ? '#EF4444' : '#6B7480';
+          const cards = [
             {
               value: fmtLives(activeLives),
-              label: 'Active Lives',
+              label: 'Active Members',
               sub: newThisMonth !== null && newThisMonth > 0
-                ? `▲ ${newThisMonth} added in ${newThisMonthLabel ?? 'this month'}`
+                ? `▲ ${newThisMonth} this month`
                 : principalLives !== null && dependantLives !== null
                   ? `${principalLives.toLocaleString()} staff · ${dependantLives.toLocaleString()} dependants`
                   : 'Covered lives',
+              subColor: newThisMonth !== null && newThisMonth > 0 ? '#10B981' : undefined,
               icon: Users, color: '#10B981', tint: '#ECFDF5',
-              onClick: () => router.push('/members'),
+              trend: memberMonthly.map((m) => m.count),
+              footer: { label: 'View members', onClick: () => router.push('/members') },
             },
             {
-              value: utilizationRatePct !== null ? `${utilizationRatePct}%` : '—',
-              label: 'Utilization Rate',
-              sub: membersUtilized !== null ? `${membersUtilized.toLocaleString()} members utilized` : 'Members utilized',
-              icon: Activity, color: '#3B82F6', tint: '#EFF6FF',
+              value: vis.showAmounts && claimsPaid !== null ? fmtNaira(claimsPaid) : '—',
+              label: 'Claims Paid (YTD)',
+              sub: claimsYoYPct !== null
+                ? `${claimsYoYPct >= 0 ? '▲' : '▼'} ${Math.abs(claimsYoYPct)}% vs last year`
+                : 'Policy year to date',
+              subColor: claimsYoYPct !== null ? '#10B981' : undefined,
+              icon: FileText, color: '#3B82F6', tint: '#EFF6FF',
+              trend: liveMonthlySpend.map((m) => m.amount),
+              footer: { label: 'View claims report', onClick: () => router.push('/claims') },
             },
             {
               value: lossRatioPct !== null ? `${lossRatioPct}%` : '—',
               label: 'Loss Ratio',
-              sub: riskStatus ?? 'Risk status pending',
+              sub: riskStatus ? `● ${riskStatus}` : 'Risk status pending',
+              subColor: riskStatus ? lrColor : undefined,
               icon: Gauge,
-              color: riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : riskStatus ? '#EF4444' : '#6B7480',
+              color: lrColor,
               tint: riskStatus === 'Healthy' ? '#ECFDF5' : riskStatus === 'Watchlist' ? '#FFFBEB' : riskStatus ? '#FEF2F2' : '#F3F4F8',
+              trend: lossRatioMonthly.map((m) => m.pct),
+              footer: { label: 'View loss ratio report', onClick: () => router.push('/reports') },
             },
             {
-              value: vis.showAmounts && totalPremium !== null ? fmtNaira(totalPremium) : '—',
-              label: 'Annual Premium',
-              sub: 'Total scheme premium',
-              icon: Wallet, color: '#F56B22', tint: '#FFF5EF',
-              onClick: () => router.push('/finance'),
+              value: vis.showAmounts && invoiceOutstanding !== null ? fmtNaira(invoiceOutstanding) : '—',
+              label: 'Outstanding Invoice',
+              sub: invoiceOutstanding === null ? 'No invoice data'
+                : invoiceHasOutstanding ? dueLabel(invoiceNextDue)
+                : 'All clear',
+              subColor: invoiceOutstanding === null ? undefined : invoiceHasOutstanding ? '#EF4444' : '#10B981',
+              icon: Wallet,
+              color: invoiceHasOutstanding ? '#EF4444' : '#F56B22',
+              tint: invoiceHasOutstanding ? '#FEF2F2' : '#FFF5EF',
+              footer: { label: 'View invoices', onClick: () => router.push('/finance') },
             },
-          ].map((k) => (
-            <StatCard
-              key={k.label}
-              label={k.label}
-              sub={k.sub}
-              value={k.value}
-              icon={k.icon}
-              color={k.color}
-              tint={k.tint}
-              loading={stats === null && !loadError}
-              onClick={k.onClick}
-            />
-          ))}
-        </div>
-        )}
+          ];
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+              {cards.map((k) => (
+                <StatCard
+                  key={k.label}
+                  label={k.label}
+                  sub={k.sub}
+                  subColor={k.subColor}
+                  value={k.value}
+                  icon={k.icon}
+                  color={k.color}
+                  tint={k.tint}
+                  trend={'trend' in k ? k.trend : undefined}
+                  footer={k.footer}
+                  loading={stats === null && !loadError}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {/* ── ROW 3: LOSS RATIO (large, full-width) ── */}
         {vis.showLossRatio && (
