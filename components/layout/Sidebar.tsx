@@ -41,7 +41,7 @@ const NAV_GROUPS: Array<{
     section: 'Membership',
     items: [
       { href: '/members', label: 'People', icon: Users },
-      { href: '/pending-enrolees', label: 'Pending Enrolees', icon: ClipboardCheck, adminOnly: true },
+      { href: '/pending-enrolees', label: 'Pending Enrolments', icon: ClipboardCheck, adminOnly: true },
       { href: '/benefits', label: 'Benefits', icon: ShieldCheck },
     ],
   },
@@ -168,9 +168,9 @@ export function Sidebar() {
         <Image
           src="/leadway-health-logo-light.png"
           alt="Leadway Health"
-          width={1178}
-          height={390}
-          style={{ objectFit: 'contain', objectPosition: 'left center', width: 'auto', height: 34, display: 'block' }}
+          width={1370}
+          height={453}
+          style={{ objectFit: 'contain', objectPosition: 'left center', width: 'auto', height: 36, display: 'block' }}
           priority
         />
         <p style={{ fontSize: 11.5, color: '#8B93B5', marginTop: 8 }}>Corporate Portal</p>
