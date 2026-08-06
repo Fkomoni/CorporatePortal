@@ -582,7 +582,7 @@ export default function AdministrationPage() {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 12 }}>
                 {roleCards.map((r) => {
                   const c = roleColors[r.role] ?? roleColors['Viewer'];
                   return (
@@ -628,7 +628,7 @@ export default function AdministrationPage() {
               {showRoleForm && (
                 <div style={{ marginTop: 20, padding: '20px', background: '#FAFBFC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>{editingRoleId ? 'Edit Role' : 'New Role'}</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16, marginBottom: 16 }}>
                     <div>
                       <label style={labelStyle}>Role Name</label>
                       <input value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} placeholder="e.g. Branch HR" style={inputStyle}
@@ -702,7 +702,7 @@ export default function AdministrationPage() {
 
               {showInvite && (
                 <div style={{ padding: '20px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 200px auto', gap: 12, alignItems: 'end' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) 200px auto', gap: 12, alignItems: 'end' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Full Name</label>
                       <input value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} placeholder="e.g. Ada Obi"
@@ -731,7 +731,7 @@ export default function AdministrationPage() {
                   <p style={{ marginTop: 10, fontSize: 11, color: '#B0B7C9' }}>The invitee receives an email link to set their password. Their account stays inactive until they do. Invitation links expire after 7 days.</p>
                 </div>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 180px 160px 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['User', 'Role', 'Last Activity', 'Status', ''].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
@@ -750,7 +750,7 @@ export default function AdministrationPage() {
                   const rc = roleColors[displayRole] ?? roleColors['Viewer'];
                   return (
                     <div key={u.id}
-                      style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px 160px 130px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', transition: 'background 0.12s' }}
+                      style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 180px 160px 160px 130px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid #F7F8FA', transition: 'background 0.12s' }}
                       className="last:border-0 hover:bg-[#FAFBFC]">
                       <div>
                         <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{u.name}</p>
@@ -784,7 +784,7 @@ export default function AdministrationPage() {
 
         {/* ── COMPANY PROFILE ── */}
         {activeTab === 'profile' && isAdmin && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
               {/* LOGO UPLOAD */}
@@ -844,7 +844,7 @@ export default function AdministrationPage() {
                     <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading…
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
                     {[
                       { label: 'Company Name',  value: cp?.companyName  || '—' },
                       { label: 'Group ID',      value: cp?.companyId    || '—' },
@@ -909,7 +909,7 @@ export default function AdministrationPage() {
 
         {/* ── MY ACCOUNT ── */}
         {activeTab === 'account' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
               {/* PERSONAL DETAILS */}
@@ -920,7 +920,7 @@ export default function AdministrationPage() {
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Personal Details</p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
                   <div>
                     <label style={labelStyle}>Display Name</label>
                     <input value={profile.displayName} onChange={(e) => setProfile({ ...profile, displayName: e.target.value })} style={inputStyle}
@@ -1175,7 +1175,7 @@ export default function AdministrationPage() {
 
         {/* ── HELP & DOWNLOADS ── */}
         {activeTab === 'help' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ ...card, overflow: 'hidden' }}>
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
@@ -1248,7 +1248,7 @@ export default function AdministrationPage() {
             </div>
 
             <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 140px 140px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '180px minmax(0,1fr) 140px 140px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['Time', 'Event', 'User', 'Action'].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
@@ -1287,7 +1287,7 @@ export default function AdministrationPage() {
                   const detailUser  = d.targetUserName ? `User: ${String(d.targetUserName)} → ${String(d.newStatus ?? '')}` : null;
 
                   return (
-                    <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 140px 140px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
+                    <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '180px minmax(0,1fr) 140px 140px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
                       <span style={{ fontSize: 12, color: '#9CA3B8', fontVariantNumeric: 'tabular-nums' }}>{timeStr}</span>
                       <div>
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>{actionLabel}</p>

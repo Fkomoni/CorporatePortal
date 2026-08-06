@@ -151,7 +151,7 @@ export default function ClaimsPage() {
 
         {/* SUMMARY STRIP */}
         {vis.showSummaryCards && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 16 }}>
             {summaryCards.map((s) => (
               <StatCard
                 key={s.label}

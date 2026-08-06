@@ -282,7 +282,7 @@ export default function PreEmploymentPage() {
               <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 1 }}>Enter the candidate&apos;s personal information</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
             <div>
               <label style={labelStyle}>Full Name</label>
               <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Abiodun Ogunleye" style={inputStyle} onFocus={fi} onBlur={fo} />
@@ -424,7 +424,7 @@ export default function PreEmploymentPage() {
               <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 1 }}>When should the candidate attend?</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 2fr', gap: 16 }}>
             <div>
               <label style={labelStyle}>Preferred Screening Date</label>
               <input type="date" value={form.date} min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} onChange={(e) => set('date', e.target.value)} style={inputStyle} onFocus={fi} onBlur={fo} />

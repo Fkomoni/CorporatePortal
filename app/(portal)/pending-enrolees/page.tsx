@@ -298,7 +298,7 @@ export default function PendingEnroleesPage() {
 
         {/* Summary strip — every figure is counted off the queue already on
             screen, so it can never disagree with the tables below. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 16 }}>
           <StatCard
             label="Awaiting Approval"
             sub={`${groups.length} staff record${groups.length === 1 ? '' : 's'}`}
@@ -363,7 +363,7 @@ export default function PendingEnroleesPage() {
               <p style={{ fontSize: 11.5, color: '#9CA3B8', marginTop: 2 }}>Invited but haven&apos;t used their self-enrolment link yet.</p>
             </div>
             <div style={{ minWidth: 900 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.6fr 1fr 0.8fr 0.7fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.6fr minmax(0,1fr) 0.8fr 0.7fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <span>Email</span>
                 <span>Employee Code</span>
                 <span>Type</span>
@@ -375,7 +375,7 @@ export default function PendingEnroleesPage() {
               {invitations.map((inv) => {
                 const busy = invitationBusy === inv.token;
                 return (
-                  <div key={inv.token} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.6fr 1fr 0.8fr 0.7fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center' }}>
+                  <div key={inv.token} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.6fr minmax(0,1fr) 0.8fr 0.7fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center' }}>
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{inv.email}</span>
                     <span>{inv.employeeCode}</span>
                     <span>{inv.inviteType === 'dependent' ? 'Dependant' : 'Principal'}</span>
@@ -494,7 +494,7 @@ export default function PendingEnroleesPage() {
             {/* Table */}
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
               <div style={{ minWidth: 1180 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) minmax(0,1fr) 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
                 <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleAll} style={{ cursor: 'pointer' }} />
                 <span>Staff Name</span>
                 <span>Beneficiary</span>
@@ -513,7 +513,7 @@ export default function PendingEnroleesPage() {
                 const isBusy = busyCif === row.cifNumber || busyCif === 'bulk';
                 return (
                   <div key={row.rowId}
-                    style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
+                    style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) minmax(0,1fr) 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center', background: isSelected ? '#FFF8F5' : '#fff' }}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleRow(row.rowId)} style={{ cursor: 'pointer' }} />
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.staffName}</span>
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.beneficiaryName}</span>

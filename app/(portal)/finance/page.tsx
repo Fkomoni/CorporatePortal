@@ -253,7 +253,7 @@ export default function FinancePage() {
             Claims and the dashboard. It renders its own loading state, which
             replaces the separate spinner grid that used to sit below. */}
         {(historyLoading || history) && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 16 }}>
             {[
               { label: 'Total Invoiced', value: fmt(history?.TotalAmount), sub: 'Current invoice total', icon: FileText, color: '#6366F1', tint: '#EEF2FF' },
               { label: 'Amount Paid', value: fmt(history?.AmountPaid), sub: 'Received so far', icon: CheckCircle2, color: '#059669', tint: '#ECFDF5' },
@@ -404,7 +404,7 @@ export default function FinancePage() {
             {/* Type selector */}
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Step 1 — Select Invoice Type</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
                 {INVOICE_TYPES.map((t) => (
                   <button key={t.id} onClick={() => { setInvoiceType(t.id); setInvoiceData(null); setSavedReceipt(''); setSaveError(''); }}
                     style={{

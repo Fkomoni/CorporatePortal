@@ -437,7 +437,7 @@ export default function CorporateDetailPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F1F5', display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F1F5', display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 16 }}>
                 {[
                   { label: 'Start Date',     value: fmtDate(corp.dateProvisioned) },
                   { label: 'Contact Person', value: corp.contactName || '—' },
@@ -509,7 +509,7 @@ export default function CorporateDetailPage() {
             </div>
 
             <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px 80px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 140px 140px 80px', columnGap: 12, padding: '11px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['Role', 'Permissions', 'Users', 'Manage'].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
@@ -521,7 +521,7 @@ export default function CorporateDetailPage() {
                 const isExpanded = expandedRole === role.id;
                 return (
                   <div key={role.id}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px 80px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 140px 140px 80px', columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA' }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{role.name}</span>
                       <span style={{ fontSize: 12, color: '#9CA3B8' }}>{count}/{PERMISSIONS.length}</span>
                       <button
@@ -616,7 +616,7 @@ export default function CorporateDetailPage() {
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{corp.schemeCode}</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>First Name</label>
                   <input value={signupFirst} onChange={(e) => setSignupFirst(e.target.value)} placeholder="First name" style={inputStyle}
@@ -775,7 +775,7 @@ export default function CorporateDetailPage() {
                   {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>First Name</label>
                   <input value={assignFirst} onChange={(e) => setAssignFirst(e.target.value)} placeholder="Start typing..." style={inputStyle}

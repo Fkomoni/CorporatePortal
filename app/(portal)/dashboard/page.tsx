@@ -281,7 +281,7 @@ export default function DashboardPage() {
             },
           ];
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 16 }}>
               {cards.map((k) => (
                 <StatCard
                   key={k.label}
@@ -302,12 +302,12 @@ export default function DashboardPage() {
         })()}
 
         {/* ── ROW 3: QUICK ACTIONS + NOTIFICATIONS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
 
           {/* Quick actions — every tile lands on a real, existing flow. */}
           <div style={{ ...card, padding: '24px 26px' }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 18 }}>Quick actions</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 10 }}>
               {[
                 { label: 'Add member',      icon: UserPlus,      color: '#F56B22', onClick: () => router.push('/members?action=add') },
                 { label: 'Upload Excel',    icon: Upload,        color: '#10B981', onClick: () => router.push('/members?action=upload') },
@@ -595,7 +595,12 @@ export default function DashboardPage() {
           }
 
           if (columns.length === 0) return null;
-          const template = columns.length === 4 ? '1.3fr 1fr 1fr 1.15fr' : `repeat(${columns.length},1fr)`;
+          // minmax(0,…) on every track: a bare `1fr` cannot shrink below its
+          // content, so long provider names pushed this row — and with it the
+          // whole page — into horizontal overflow.
+          const template = columns.length === 4
+            ? 'minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr)'
+            : `repeat(${columns.length},minmax(0,1fr))`;
           return (
             <div style={{ display: 'grid', gridTemplateColumns: template, gap: 16, alignItems: 'stretch' }}>
               {columns}

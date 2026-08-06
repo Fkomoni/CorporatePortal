@@ -119,7 +119,7 @@ function ServiceDeskInner() {
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* SUMMARY CARDS */}
-        {vis.showSummaryCards && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16 }}>
+        {vis.showSummaryCards && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 16 }}>
           {SUMMARY_STATUSES.map((s) => {
             const count = tickets.filter((t) => t.status === s.label).length;
             return (
@@ -169,7 +169,7 @@ function ServiceDeskInner() {
 
         {/* TICKET TABLE */}
         {vis.showTicketTable && <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `110px 1fr 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             {['Ticket ID', 'Subject', 'Category', 'Status', ...(vis.showSlaColumn ? ['SLA'] : []), 'Submitted', 'Updated'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
             ))}
@@ -180,7 +180,7 @@ function ServiceDeskInner() {
             const cat = categoryColors[t.category]  ?? categoryColors['General'];
             return (
               <div key={t.id}
-                style={{ display: 'grid', gridTemplateColumns: `110px 1fr 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
+                style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                 className="hover:bg-[#FAFBFC] last:border-0">
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{t.ticketId}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 16 }}>{t.subject}</span>

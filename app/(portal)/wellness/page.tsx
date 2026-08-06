@@ -330,7 +330,7 @@ export default function WellnessPage() {
 
         {/* ── HEALTH TALKS ── */}
         {activeTab === 'talks' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ ...card, padding: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FFF1E6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -358,7 +358,7 @@ export default function WellnessPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={labelStyle}>Topic Category</label>
                   <select
@@ -493,7 +493,7 @@ export default function WellnessPage() {
 
         {/* ── HEALTH SCREENINGS ── */}
         {activeTab === 'screening' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20, alignItems: 'start' }}>
 
             {/* LEFT: Onsite Screening Exercise */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -668,7 +668,7 @@ export default function WellnessPage() {
                 {sentLinks.slice(0, 6).map((l, i) => {
                   const sc = statusColors[l.status] ?? statusColors['Pending'];
                   return (
-                    <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < Math.min(sentLinks.length, 6) - 1 ? '1px solid #F7F8FA' : 'none' }}>
+                    <div key={l.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < Math.min(sentLinks.length, 6) - 1 ? '1px solid #F7F8FA' : 'none' }}>
                       <div>
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E' }}>{l.name}</p>
                         <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{l.email}{l.spouse ? ' + spouse' : ''} · {l.sentDate}</p>
@@ -698,7 +698,7 @@ export default function WellnessPage() {
             </div>
 
             {/* Stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16 }}>
               {[
                 { label: 'Total Eligible Members', value: SCREENING_STATS.totalEligible, sub: 'Principal members on active plans', color: '#131C4E', pct: undefined },
                 { label: 'Screened — HR Referral',  value: SCREENING_STATS.hrReferral,    sub: 'Via links sent by your team',        color: '#F56B22', pct: pctHr       },
@@ -721,7 +721,7 @@ export default function WellnessPage() {
             </div>
 
             {/* Total screened + pending */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
               <div style={{ ...card, padding: '22px 24px' }}>
                 <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Total Screened (All Sources)</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -766,13 +766,13 @@ export default function WellnessPage() {
                   Sample data
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 140px 100px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px 160px 140px 100px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['Member', 'Emp ID', 'Source', 'Date', 'Status'].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
               </div>
               {RECENT_SCREENINGS.map((s, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 140px 100px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: i < RECENT_SCREENINGS.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px 160px 140px 100px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: i < RECENT_SCREENINGS.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{s.name}</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8' }}>{s.empId}</p>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600,
@@ -802,7 +802,7 @@ export default function WellnessPage() {
                   + New Request
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
                 {['Topic', 'Category', 'Format', 'Requested', 'Scheduled', 'Status'].map((h) => (
                   <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
                 ))}
@@ -815,7 +815,7 @@ export default function WellnessPage() {
               {talkLog.map((t, i) => {
                 const sc = TALK_STATUS_COLORS[t.status] ?? TALK_STATUS_COLORS['Requested'];
                 return (
-                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: i < talkLog.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
+                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '2fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: i < talkLog.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.topic}</p>
                     <p style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.category}</p>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600,
