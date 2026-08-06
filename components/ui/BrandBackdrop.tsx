@@ -1,86 +1,87 @@
-// The brand backdrop for the login panel: a dusk glow, an optional skyline,
-// and the layered orange arc from the reference design.
+// Enterprise backdrop for the sign-in panel.
 //
-// About the skyline: the reference uses a photograph of glass towers shot from
-// below. We don't hold that asset. A vector stand-in was tried and dropped —
-// tiled window patterns read as a repeating mesh rather than architecture, and
-// seen through the translucent panel content they muddied the middle of the
-// composition. It is kept behind `showSkyline` (off by default) rather than
-// deleted, because it is the right hook for the real photo: drop an <img> in
-// behind this component and leave showSkyline off.
+// No photography and no illustration: five very-low-opacity layers that read as
+// depth rather than decoration — a mesh gradient, an analytics grid, geometric
+// waves, an abstract care-network of nodes, and a glass highlight. The mesh
+// drifts slowly (see `bd-drift` in globals.css); everything else is static so
+// the panel never competes with the copy on top of it.
 //
-// The arc is the part that carries the brand. Two constraints are load-bearing:
-// it is anchored bottom-right so the copy column on the left always sits over
-// flat navy, and the front arc must not start further left than about x=280 at
-// the bottom edge or it climbs into the feature list.
+// Opacities here are deliberately low. Raising them turns a premium backdrop
+// into a busy one — an earlier attempt with visible tiled "windows" read as a
+// repeating mesh and had to be pulled.
 
-export function BrandBackdrop({ showSkyline = false }: { showSkyline?: boolean }) {
+export function BrandBackdrop() {
   return (
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      {/* Warm dusk glow, upper right — the light source the arc implies */}
+      {/* 1 — Mesh gradient. Three offset radial pools, slowly drifting. */}
+      <div
+        className="bd-drift"
+        style={{
+          position: 'absolute', inset: '-12%',
+          background: `
+            radial-gradient(38% 44% at 78% 12%, rgba(232,119,34,0.16) 0%, rgba(232,119,34,0) 68%),
+            radial-gradient(42% 38% at 12% 82%, rgba(66,86,150,0.20) 0%, rgba(66,86,150,0) 70%),
+            radial-gradient(30% 30% at 88% 78%, rgba(232,119,34,0.08) 0%, rgba(232,119,34,0) 72%)
+          `,
+        }}
+      />
+
+      {/* 2 — Analytics grid. Fine 44px rule, faded out toward the lower left so
+              it never sits behind the headline. */}
       <div style={{
-        position: 'absolute', top: -200, right: -170, width: 560, height: 560, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(245,107,34,0.18) 0%, rgba(245,107,34,0.05) 48%, rgba(245,107,34,0) 74%)',
+        position: 'absolute', inset: 0, opacity: 0.5,
+        backgroundImage: `
+          linear-gradient(to right, rgba(255,255,255,0.045) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255,255,255,0.045) 1px, transparent 1px)
+        `,
+        backgroundSize: '44px 44px',
+        maskImage: 'radial-gradient(120% 100% at 100% 0%, #000 25%, transparent 78%)',
+        WebkitMaskImage: 'radial-gradient(120% 100% at 100% 0%, #000 25%, transparent 78%)',
       }} />
 
-      {showSkyline && (
-        <svg viewBox="0 0 600 760" preserveAspectRatio="xMaxYMax slice"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-          <defs>
-            <linearGradient id="bb-far" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#243066" stopOpacity="0.30" />
-              <stop offset="100%" stopColor="#243066" stopOpacity="0.62" />
-            </linearGradient>
-            <linearGradient id="bb-mid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1A2352" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#1A2352" stopOpacity="0.88" />
-            </linearGradient>
-            {/* White, not black: SVG masks are luminance-based, so black stops
-                mask everything out regardless of their alpha. */}
-            <linearGradient id="bb-fade" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-              <stop offset="30%" stopColor="#fff" stopOpacity="0.5" />
-              <stop offset="60%" stopColor="#fff" stopOpacity="1" />
-              <stop offset="100%" stopColor="#fff" stopOpacity="1" />
-            </linearGradient>
-            <mask id="bb-mask">
-              <rect x="0" y="0" width="600" height="760" fill="url(#bb-fade)" />
-            </mask>
-          </defs>
-          <g mask="url(#bb-mask)">
-            <rect x="318" y="286" width="54" height="474" fill="url(#bb-far)" />
-            <rect x="392" y="238" width="42" height="522" fill="url(#bb-far)" />
-            <rect x="470" y="300" width="60" height="460" fill="url(#bb-far)" />
-            <rect x="551" y="256" width="49" height="504" fill="url(#bb-far)" />
-            <rect x="352" y="196" width="70" height="564" fill="url(#bb-mid)" />
-            <rect x="440" y="330" width="66" height="430" fill="url(#bb-mid)" />
-            <rect x="516" y="376" width="84" height="384" fill="url(#bb-mid)" />
-          </g>
-        </svg>
-      )}
-
-      {/* The brand arc. Drawn in a 0-100 box with preserveAspectRatio="none" so
-          the curve lands in the same proportional place at any panel size —
-          with `slice` the control points flattened into a straight diagonal.
-          The muted arc sits behind and above the bright one so the pair reads
-          as a single banded curve. Keep both feet right of x=44: the footer
-          text runs along the bottom-left. */}
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+      <svg viewBox="0 0 600 900" preserveAspectRatio="xMidYMax slice"
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         <defs>
-          <linearGradient id="bb-arc-back" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor="#8A4A2A" stopOpacity="0.46" />
-            <stop offset="55%" stopColor="#5A3352" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="#131C4E" stopOpacity="0" />
+          <linearGradient id="bd-wave" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#E87722" stopOpacity="0.22" />
+            <stop offset="70%" stopColor="#E87722" stopOpacity="0.05" />
+            <stop offset="100%" stopColor="#E87722" stopOpacity="0" />
           </linearGradient>
-          <linearGradient id="bb-arc-front" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor="#FF7F33" stopOpacity="1" />
-            <stop offset="45%" stopColor="#F56B22" stopOpacity="0.98" />
-            <stop offset="100%" stopColor="#D2540C" stopOpacity="0.90" />
+          <linearGradient id="bd-wave-2" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#5B7BC4" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#5B7BC4" stopOpacity="0" />
           </linearGradient>
+          <radialGradient id="bd-glass" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.07" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
         </defs>
-        <path d="M44,100 C66,97 80,86 100,30 L100,100 Z" fill="url(#bb-arc-back)" />
-        <path d="M57,100 C75,98 86,89 100,49 L100,100 Z" fill="url(#bb-arc-front)" />
+
+        {/* 3 — Geometric waves, bottom-anchored */}
+        <path d="M0,900 C160,812 300,742 600,690 L600,900 Z" fill="url(#bd-wave)" />
+        <path d="M0,900 C190,846 360,806 600,772 L600,900 Z" fill="url(#bd-wave-2)" />
+        <path d="M0,832 C170,760 320,700 600,652" fill="none" stroke="#E87722" strokeOpacity="0.16" strokeWidth="1" />
+
+        {/* 4 — Abstract care network: nodes joined by thin links */}
+        <g stroke="#9FB4E8" strokeOpacity="0.16" strokeWidth="0.9" fill="none">
+          <path d="M104,190 L196,142 L286,196 L372,150 L470,206" />
+          <path d="M196,142 L214,246 L286,196" />
+          <path d="M372,150 L392,252 L470,206" />
+          <path d="M214,246 L330,300 L392,252" />
+          <path d="M104,190 L128,286 L214,246" />
+        </g>
+        <g fill="#BFCEF4" fillOpacity="0.28">
+          {[[104, 190], [196, 142], [286, 196], [372, 150], [470, 206], [214, 246], [392, 252], [330, 300], [128, 286]].map(([cx, cy]) => (
+            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="2.6" />
+          ))}
+        </g>
+        <g fill="#E87722" fillOpacity="0.5">
+          <circle cx="286" cy="196" r="3.4" />
+          <circle cx="330" cy="300" r="3.4" />
+        </g>
+
+        {/* 5 — Glass highlight, upper right */}
+        <ellipse cx="500" cy="120" rx="230" ry="180" fill="url(#bd-glass)" />
       </svg>
     </div>
   );
