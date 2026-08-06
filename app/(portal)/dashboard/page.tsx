@@ -8,10 +8,15 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
 import { DashboardVis, DEFAULTS, getVis } from '@/lib/module-visibility';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from 'recharts';
+
+// recharts is heavy and the chart sits below the fold, so it loads after
+// hydration instead of blocking the dashboard's first paint.
+const SpendAreaChart = dynamic(
+  () => import('@/components/ui/SpendAreaChart').then((m) => m.SpendAreaChart),
+  { ssr: false, loading: () => <div style={{ height: 158 }} /> },
+);
 import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
 import { LoadErrorBanner } from '@/components/LoadErrorBanner';
@@ -446,25 +451,7 @@ export default function DashboardPage() {
                     {stats === null && !loadError ? 'Loading claims data…' : 'No claims data yet.'}
                   </p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={158}>
-                    <AreaChart data={spend} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#F56B22" stopOpacity={0.14} />
-                          <stop offset="100%" stopColor="#F56B22" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="month" tick={{ fontSize: 10.5, fill: '#B0B7C9' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10.5, fill: '#B0B7C9' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v}M`} width={52} />
-                      <Tooltip
-                        contentStyle={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                        formatter={(v) => [`₦${v}M`, 'Claims']}
-                      />
-                      <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2}
-                        fill="url(#spendGrad)" dot={{ fill: '#F56B22', strokeWidth: 0, r: 3 }}
-                        activeDot={{ r: 5, fill: '#F56B22' }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <SpendAreaChart data={spend} />
                 )}
                 <button style={footerBtn} onClick={() => router.push('/claims')}>View full report <span aria-hidden="true">→</span></button>
               </div>

@@ -15,6 +15,7 @@ import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { StatCard } from '@/components/ui/StatCard';
+import { fetchListValues } from '@/lib/list-values-client';
 import { Building2, Clock, MoreVertical } from 'lucide-react';
 import { digitsOnly, validateMobile, mobileLengthHint } from '@/lib/phone';
 import { isValidEmail, validateEmail } from '@/lib/email';
@@ -197,12 +198,9 @@ function usePolicyYearStart(): string {
   const [value, setValue] = useState(policyYearStartCache);
   useEffect(() => {
     if (policyYearStartCache) return;
-    fetch('/api/hr/list-values')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.policyYearStart) { policyYearStartCache = d.policyYearStart; setValue(d.policyYearStart); }
-      })
-      .catch(() => {});
+    fetchListValues().then((d) => {
+      if (d.policyYearStart) { policyYearStartCache = d.policyYearStart; setValue(d.policyYearStart); }
+    });
   }, []);
   return value;
 }
@@ -262,12 +260,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [townOpts, setTowns]        = useState<ListItem[]>([]);
   const [townsLoading, setTownsLoading] = useState(false);
   useEffect(() => {
-    fetch('/api/hr/list-values').then((r) => r.json()).then((d) => {
+    fetchListValues().then((d) => {
       if (d.genders)        setGenders(d.genders);
       if (d.maritalStatuses) setMarital(d.maritalStatuses);
       if (d.states)         setStates(d.states);
       if (d.regions?.length) setRegions(d.regions);
-    }).catch(() => {});
+    });
   }, []);
 
   // Link form fields
@@ -3284,10 +3282,9 @@ function MembersPageInner() {
   const PAGE_SIZE = 50;
 
   useEffect(() => {
-    fetch('/api/hr/list-values')
-      .then((r) => r.json())
-      .then((d) => { if (d.relationships?.length) setRelationshipOptions(d.relationships); })
-      .catch(() => {});
+    fetchListValues().then((d) => {
+      if (d.relationships?.length) setRelationshipOptions(d.relationships);
+    });
   }, []);
 
   const loadMembers = useCallback(async (fresh = false) => {

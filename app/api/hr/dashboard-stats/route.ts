@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { createTimer } from '@/lib/perf-timing';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -563,21 +564,25 @@ export async function GET(request: Request) {
   const policyNumber = session.user.policyNumber ?? '';
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
+  const timer = createTimer('hr/dashboard-stats');
   const cacheKey = `${groupId}|${policyNumber}`;
   const wantRefresh = new URL(request.url).searchParams.get('refresh') === '1';
   const cached = statsCache.get(cacheKey);
   if (!wantRefresh && cached && Date.now() < cached.expires) {
+    timer.note('cache', 'HIT');
+    timer.done();
     return NextResponse.json(cached.payload);
   }
+  timer.note('cache', wantRefresh ? 'BYPASS' : 'MISS');
 
   try {
     const token = await getServiceToken();
 
     // Fetch premium + policies first so we can use the real policy dates for claims
-    const [premiumResult, allPolicies] = await Promise.all([
+    const [premiumResult, allPolicies] = await timer.track('premium+policies', Promise.all([
       fetchJson(token, `/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`),
       getAllPolicies(token),
-    ]);
+    ]));
 
     const premiumRaw = premiumResult.data;
 
@@ -708,7 +713,7 @@ export async function GET(request: Request) {
       prevToISO   = iso(cappedEnd);
     }
 
-    const [claimsResult, paidClaimsResult, prevPaidClaimsResult, invoiceResult] = await Promise.all([
+    const [claimsResult, paidClaimsResult, prevPaidClaimsResult, invoiceResult] = await timer.track('claims+prev+invoice', Promise.all([
       fetchJson(token, `/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${claimsFromDate}&todate=${claimsToDate}`),
       // Exact same endpoint + param casing as the Claims page route
       fetchJson(token, `/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${claimsFromDate}&toDate=${claimsToDate}`),
@@ -717,7 +722,7 @@ export async function GET(request: Request) {
         : Promise.resolve({ data: null, ok: false }),
       // Same source as the Finance page's summary strip
       fetchJson(token, `/api/Pharmacy/GetInvoiceReceiptHistory?groupid=${groupId}`),
-    ]);
+    ]));
     const claimsRaw  = claimsResult.data;
     const claimsOk   = claimsResult.ok && claimsResult.data !== null;
 
@@ -985,9 +990,13 @@ export async function GET(request: Request) {
     };
 
     statsCache.set(cacheKey, { expires: Date.now() + STATS_TTL_MS, payload });
+    timer.note('claimRows', claimRows.length);
+    timer.done();
     return NextResponse.json(payload);
   } catch (err) {
     console.error('[hr/dashboard-stats] Error:', err);
+    timer.note('error', '1');
+    timer.done();
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err), stats: null },
       { status: 500 }
