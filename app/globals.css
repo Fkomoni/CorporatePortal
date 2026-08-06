@@ -86,24 +86,33 @@
   --gradient-warm:   linear-gradient(135deg, #F56B22 0%, #E25A12 100%);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Must stay inside @layer base.
+   Tailwind 4 emits utilities into a cascade layer, and unlayered rules beat
+   layered ones no matter their specificity — so an unlayered `* { margin: 0 }`
+   silently defeats every margin and padding utility in the app. That is what
+   broke the portal frame: `ml-[240px]` on the content column stopped applying,
+   so it rendered at full width underneath the fixed sidebar and the greeting
+   and first card were hidden. Layering it restores the v3 cascade behaviour. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--navy-50);
+  }
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--navy-50);
 }
 
 ::-webkit-scrollbar {
