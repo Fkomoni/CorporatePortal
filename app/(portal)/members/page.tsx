@@ -7,6 +7,7 @@ import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
   ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus, Camera, Copy, Check,
+  ChevronRight, BarChart3, LineChart,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import type { Member } from '@/lib/types';
@@ -2155,7 +2156,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit, autoOpenECard }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean; autoOpenECard?: boolean }) {
+function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit, autoOpenECard, onViewFamily }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean; autoOpenECard?: boolean; onViewFamily: (membershipNo: string) => void }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -2351,6 +2352,45 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const grad   = avatarGradients[index % avatarGradients.length];
   const enroleeId = member.employeeId;
   const depCount  = member.dependants ?? 0;
+  // "26320219/0" → "26320219". A family shares the membership number and
+  // differs only by suffix, so this is what finds the principal's dependants.
+  const membershipNo = String(member.employeeId).split('/')[0];
+
+  // Real per-category spend for this member, from their own claims. The claims
+  // feed already classifies every claim into these five buckets, so no mapping
+  // is invented here — categories with no claims simply do not appear.
+  const spendByCategory = (() => {
+    const palette: Record<string, string> = {
+      Outpatient: '#F56B22', Inpatient: '#2563EB', Dental: '#F59E0B',
+      Optical: '#7C3AED', Maternity: '#EC4899',
+    };
+    const totals = new Map<string, { amount: number; visits: number }>();
+    for (const c of stats?.recentClaims ?? []) {
+      const cur = totals.get(c.category) ?? { amount: 0, visits: 0 };
+      totals.set(c.category, { amount: cur.amount + (c.amount || 0), visits: cur.visits + 1 });
+    }
+    const total = [...totals.values()].reduce((sum, t) => sum + t.amount, 0);
+    const rows = [...totals.entries()]
+      .map(([category, t]) => ({
+        category,
+        amount: t.amount,
+        visits: t.visits,
+        pct: total > 0 ? Math.round((t.amount / total) * 100) : 0,
+        color: palette[category] ?? '#9CA3B8',
+      }))
+      .sort((a, b) => b.amount - a.amount);
+    return { rows, total };
+  })();
+
+  const dobDate = member.dateOfBirth ? new Date(member.dateOfBirth) : null;
+  const dobValid = !!dobDate && !isNaN(dobDate.getTime());
+  // Compared against todayIso rather than Date.now() so this stays a pure
+  // render. ISO dates compare correctly as strings.
+  const dobImplausible = dobValid
+    && (dobDate!.toISOString().slice(0, 10) > todayIso || dobDate!.getFullYear() < 1900);
+  const dobDisplay = dobValid
+    ? dobDate!.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
 
   function openSendIdSheet() {
     setSendIdEmail(bioEmail || '');
@@ -2638,8 +2678,16 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       <div style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 460, background: '#fff', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Member 360</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #F0F1F5', flexShrink: 0, gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', whiteSpace: 'nowrap' }}>Member 360</p>
+            {/* Cover state at the very top: the one thing HR checks before
+                anything else, and the header is visible while the body scrolls. */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 7, fontSize: 10.5, fontWeight: 700, background: status.bg, color: status.text, whiteSpace: 'nowrap' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: status.dot }} />
+              {member.status === 'Active' ? 'Active Member' : member.status}
+            </span>
+          </div>
           <button onClick={onClose}
             style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3B8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#F7F8FA'; }}
@@ -2657,16 +2705,17 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </div>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2, overflowWrap: 'anywhere' }}>{member.firstName} {member.lastName}</p>
+              {/* One wrapping row of chips rather than two fixed rows: the four
+                  facts HR identifies a member by read as a set, and Member Type
+                  was plain grey text that disappeared next to the chips. */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF3E8', color: '#F56B22', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{enroleeId}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                 <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: plan.bg, color: plan.text }}>{member.plan}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: status.bg, color: status.text }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: status.dot }} />{member.status}
                 </span>
-                <span style={{ fontSize: 11, color: '#B8BFD0' }}>{member.type}</span>
+                <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: '#EEF2FF', color: '#3A4382' }}>{member.type}</span>
               </div>
             </div>
           </div>
@@ -2693,28 +2742,71 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           </div>
         </div>
 
-        {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
-          {[
-            { label: 'Dependants',  value: String(member.dependants ?? 0),                                  Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
-            { label: 'Spend YTD',   value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—', Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
-          ].map((k, ki) => (
-            <div key={k.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRight: ki < 1 ? '1px solid #F0F1F5' : 'none' }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
-                <k.Icon style={{ width: 15, height: 15, color: k.color }} strokeWidth={1.75} />
+        {/* KPI strip. Both tiles were previously dead numbers; each now leads
+            somewhere, which is the whole point of a "360" view — the count of
+            dependants is only useful if you can get to them. */}
+        <div style={{ padding: '14px 24px 16px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', border: '1px solid #EDEEF2', borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
+            {([
+              {
+                label: 'Dependants',
+                value: String(depCount),
+                Icon: Users, color: '#3A4382', bg: '#EEF2FF',
+                // With dependants, jump to them. With none, the useful action is
+                // to add one — but only a principal can have any.
+                action: depCount > 0
+                  ? { label: 'View dependants', run: () => onViewFamily(membershipNo) }
+                  : member.type === 'Principal'
+                    ? { label: 'Add a dependant', run: () => { setDepLinkEmail(bioEmail || member.email || ''); setShowAddDep(true); } }
+                    : null,
+              },
+              {
+                label: 'Spend YTD',
+                value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—',
+                Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5',
+                // Opens the Claims tab, which had been built but left
+                // unreachable — the tab strip only rendered Overview/Benefits.
+                action: stats && stats.recentClaims.length > 0
+                  ? { label: 'View spending', run: () => setDrawerTab('claims') }
+                  : null,
+              },
+            ] as const).map((k, ki) => (
+              <div key={k.label} style={{ padding: '14px 14px 12px', borderRight: ki < 1 ? '1px solid #EDEEF2' : 'none', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <k.Icon style={{ width: 16, height: 16, color: k.color }} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: '#131C4E', lineHeight: 1.05, letterSpacing: '-0.02em', overflowWrap: 'anywhere' }}>{k.value}</p>
+                    <p style={{ fontSize: 10.5, color: '#9CA3B8', fontWeight: 500, marginTop: 3 }}>{k.label}</p>
+                  </div>
+                </div>
+                {k.action && (
+                  <button onClick={k.action.run}
+                    style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, fontWeight: 700, color: '#3A4382', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                    {k.action.label} <ChevronRight style={{ width: 13, height: 13 }} />
+                  </button>
+                )}
               </div>
-              <p style={{ fontSize: 22, fontWeight: 900, color: '#131C4E', lineHeight: 1, letterSpacing: '-0.02em' }}>{k.value}</p>
-              <p style={{ fontSize: 10, color: '#9CA3B8', fontWeight: 500, marginTop: 3 }}>{k.label}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Tabs */}
+        {/* Claims was missing from this strip while the panel below it was fully
+            built, so a member's claim history was unreachable. */}
         <div style={{ display: 'flex', borderBottom: '1px solid #F0F1F5', flexShrink: 0, padding: '0 24px' }}>
-          {(['overview', 'benefits'] as const).map((tab) => (
-            <button key={tab} onClick={() => setDrawerTab(tab)}
-              style={{ padding: '13px 0', marginRight: 28, fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: drawerTab === tab ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${drawerTab === tab ? '#F56B22' : 'transparent'}` }}>
-              {tab === 'overview' ? 'Overview' : 'Benefits'}
+          {([
+            { id: 'overview', label: 'Overview' },
+            { id: 'claims',   label: 'Claims', count: stats?.recentClaims.length ?? 0 },
+            { id: 'benefits', label: 'Benefits' },
+          ] as const).map((tab) => (
+            <button key={tab.id} onClick={() => setDrawerTab(tab.id)}
+              style={{ padding: '13px 0', marginRight: 26, fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: drawerTab === tab.id ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${drawerTab === tab.id ? '#F56B22' : 'transparent'}`, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {tab.label}
+              {'count' in tab && tab.count > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: drawerTab === tab.id ? '#FFF3E8' : '#F1F5F9', color: drawerTab === tab.id ? '#F56B22' : '#9CA3B8' }}>{tab.count}</span>
+              )}
             </button>
           ))}
         </div>
@@ -2751,21 +2843,30 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               <div style={{ height: 1, background: '#F0F1F5', marginBottom: 24 }} />
 
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
+              {/* Plan, Member Type and Dependants used to repeat here — they are
+                  already a chip, a chip and a KPI tile a few centimetres above.
+                  Dropping the three restates nothing and loses nothing. */}
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '18px 20px', marginBottom: 24 }}>
                 {[
-                  { label: 'Date of Birth',       value: member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
+                  { label: 'Date of Birth',       value: dobDisplay, warn: dobImplausible },
                   { label: 'Gender',              value: member.gender },
-                  { label: 'Plan',                value: member.plan },
-                  { label: 'Member Type',         value: member.type },
-                  { label: 'Phone',               value: bioPhone || '—' },
                   { label: 'Staff ID',            value: bioStaffId || '—' },
+                  { label: 'Phone',               value: bioPhone || '—' },
                   { label: 'State',               value: member.location || '—' },
-                  { label: 'Dependants',          value: String(member.dependants ?? 0) },
                   { label: 'Individual Premium',  value: member.premium != null ? `₦${Math.round(member.premium).toLocaleString('en-NG')}` : '—' },
                 ].map((row) => (
-                  <div key={row.label}>
+                  <div key={row.label} style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 10, color: '#B0B7C9', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{row.label}</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>{row.value}</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: row.warn ? '#B45309' : '#131C4E', overflowWrap: 'anywhere' }}>{row.value}</p>
+                    {/* A date of birth in the future or before 1900 is bad data
+                        in the source record, not a rendering problem. Showing it
+                        with a flag tells HR to get it corrected; hiding it would
+                        leave them trusting a nonsense age. */}
+                    {row.warn && (
+                      <p style={{ fontSize: 10.5, color: '#B45309', marginTop: 3, lineHeight: 1.45 }}>
+                        Not a valid date of birth — please correct this record.
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2787,7 +2888,19 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                   ))}
                 </div>
               ) : (
-                <p style={{ fontSize: 13, color: '#C4C9D9' }}>No utilization data for this member yet.</p>
+                // A bare grey line read like a rendering failure. Saying what
+                // makes the number appear turns a dead end into an explanation.
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #EDEEF2', background: '#FAFBFC' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <LineChart style={{ width: 15, height: 15, color: '#3A4382' }} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>No utilisation yet for this member.</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3, lineHeight: 1.5 }}>
+                      Spend, visits and average per visit appear here once their first claim is processed.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -2840,39 +2953,77 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             </div>
           )}
 
-          {/* ── Benefits ── */}
+          {/* ── Benefits ──
+              This panel used to show five hardcoded rows — ₦28,500 outpatient,
+              "1% utilised" and so on — identical for every member in every
+              company, presented as that member's own utilisation. It is now
+              built from the member's actual claims.
+
+              The denominator is deliberately the member's own total spend, not a
+              benefit limit. Limits are real and available per scheme, but the
+              categories Prognosis returns on a benefit schedule do not map
+              one-to-one onto the five buckets claims are classified into, so any
+              "x% of limit" figure here would be a guess. The plan's real limits
+              are one click away instead. */}
           {drawerTab === 'benefits' && (
             <div style={{ padding: '22px 24px' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Benefit Limits · {member.plan}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                {[
-                  { cat: 'Outpatient', limit: '₦5,000,000', used: '₦28,500',   pct: 1,  color: '#F56B22' },
-                  { cat: 'Inpatient',  limit: '₦5,000,000', used: '₦312,000',  pct: 6,  color: '#2563EB' },
-                  { cat: 'Dental',     limit: '₦150,000',   used: '₦45,000',   pct: 30, color: '#F59E0B' },
-                  { cat: 'Optical',    limit: '₦80,000',    used: '₦22,000',   pct: 28, color: '#7C3AED' },
-                  { cat: 'Maternity',  limit: '₦400,000',   used: '₦0',        pct: 0,  color: '#EC4899' },
-                ].map((b) => {
-                  const barColor = b.pct > 80 ? '#EF4444' : b.pct > 50 ? '#F59E0B' : b.color;
-                  return (
-                    <div key={b.cat}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+                Spend by benefit category · {new Date().getFullYear()}
+              </p>
+
+              {spendByCategory.total > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  {spendByCategory.rows.map((b) => (
+                    <div key={b.category}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                           <span style={{ width: 8, height: 8, borderRadius: '50%', background: b.color, display: 'block', flexShrink: 0 }} />
-                          <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{b.cat}</p>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflowWrap: 'anywhere' }}>{b.category}</p>
                         </div>
-                        <div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>{b.used}</span>
-                          <span style={{ fontSize: 11, color: '#B0B7C9' }}> / {b.limit}</span>
+                        <div style={{ flexShrink: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>₦{b.amount.toLocaleString()}</span>
                         </div>
                       </div>
                       <div style={{ height: 6, background: '#F0F1F5', borderRadius: 99, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 99, background: barColor, width: `${b.pct}%`, minWidth: b.pct > 0 ? 6 : 0, transition: 'width 0.4s' }} />
+                        <div style={{ height: '100%', borderRadius: 99, background: b.color, width: `${b.pct}%`, minWidth: b.pct > 0 ? 6 : 0, transition: 'width 0.4s' }} />
                       </div>
-                      <p style={{ fontSize: 10, color: '#B0B7C9', marginTop: 4 }}>{b.pct}% utilised</p>
+                      <p style={{ fontSize: 10, color: '#B0B7C9', marginTop: 4 }}>
+                        {b.pct}% of their spend · {b.visits} claim{b.visits === 1 ? '' : 's'}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid #F0F1F5' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8' }}>Total</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>₦{spendByCategory.total.toLocaleString()}</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #EDEEF2', background: '#FAFBFC' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <BarChart3 style={{ width: 15, height: 15, color: '#3A4382' }} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>No claims on this member yet.</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3, lineHeight: 1.5 }}>
+                      Their spend will break down by category here once a claim is processed. What they are covered for is set by the {member.plan}.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* The plan's actual limits and exclusions, from the benefit
+                  schedule — the honest home for "what is this member entitled
+                  to", rather than numbers invented in this drawer. */}
+              <a href="/benefits"
+                style={{ marginTop: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 16px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#fff', textDecoration: 'none' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                  <BarChart3 style={{ width: 15, height: 15, color: '#3A4382', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: '#131C4E' }}>
+                    {member.plan} limits &amp; exclusions
+                  </span>
+                </span>
+                <ChevronRight style={{ width: 15, height: 15, color: '#9CA3B8', flexShrink: 0 }} />
+              </a>
             </div>
           )}
         </div>
@@ -3962,6 +4113,15 @@ function MembersPageInner() {
           schemes={schemes}
           autoOpenEdit={activeMember.autoOpenEdit}
           autoOpenECard={activeMember.autoOpenECard}
+          // "View dependants" in the drawer. Dependants share the principal's
+          // membership number and differ only by suffix, so searching the
+          // number without its suffix lists the whole family — but only once
+          // the list is showing beneficiaries rather than principals only.
+          onViewFamily={(membershipNo) => {
+            setViewBeneficiaries(true);
+            setSearch(membershipNo);
+            setActiveMember(null);
+          }}
         />
       )}
 
