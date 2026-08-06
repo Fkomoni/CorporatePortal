@@ -14,11 +14,12 @@ export function emailFooter(): string {
   <div style="background:#FAFBFC;padding:20px 32px;border:1px solid #E5E7F1;border-top:none;border-radius:0 0 12px 12px;">
     <table role="presentation" width="100%" style="border-collapse:collapse;">
       <tr>
-        <td style="vertical-align:middle;width:40px;padding-right:12px;">
-          <img src="${APP_BASE}/leadway-logo.jpeg" alt="Leadway Health" width="32" height="32" style="width:32px;height:32px;object-fit:contain;display:block;border-radius:6px;" />
+        <td style="vertical-align:middle;width:100px;padding-right:14px;">
+          <img src="${APP_BASE}/leadway-health-logo.png" alt="Leadway Health" width="91" height="30" style="width:91px;height:30px;display:block;border:0;" />
         </td>
         <td style="vertical-align:middle;">
-          <p style="font-size:12px;font-weight:700;color:#131C4E;margin:0 0 2px;">Leadway Health</p>
+          <!-- No "Leadway Health" text line: the wordmark beside it already
+               says so, and printing it twice reads like a mistake. -->
           <p style="font-size:11px;color:#9CA3B8;margin:0;">Winner &middot; 2023–2026 NHEA HMO of the Year</p>
         </td>
       </tr>
