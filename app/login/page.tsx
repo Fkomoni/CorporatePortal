@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { BrandBackdrop } from '@/components/ui/BrandBackdrop';
 import {
   Eye, EyeOff, ShieldCheck, BarChart3, Users, FileText, Building2,
-  Mail, Lock, Headphones, Lock as LockSmall, CheckCircle2,
+  Mail, Lock, Headphones,
 } from 'lucide-react';
 
 // Shared field styling. Inputs carry a leading icon, so the left padding makes
@@ -241,73 +241,64 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Feature cards — 2×2 so they read as substantial blocks in a narrow column */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {/* Feature list — a vertical run of icon tiles, as in the design */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {[
-              { icon: Users,       title: 'Manage Members',      desc: 'Add, update and terminate employees seamlessly.' },
-              { icon: BarChart3,   title: 'Monitor Performance', desc: 'Track claims, utilization and scheme performance.' },
-              { icon: ShieldCheck, title: 'Full Transparency',   desc: 'Every benefit plan and coverage detail, visible.' },
-              { icon: FileText,    title: 'Finance & Reports',   desc: 'Automate invoicing and access powerful analytics.' },
+              { icon: ShieldCheck, title: 'Full Benefit Transparency',  desc: 'View and manage all benefit plans and coverage details for every employee.' },
+              { icon: BarChart3,   title: 'Real-Time Analytics',        desc: 'Monitor utilization, loss ratio, and claims data as it happens.' },
+              { icon: Users,       title: 'Seamless Member Management', desc: 'Add, update, and terminate members with a few clicks.' },
+              { icon: FileText,    title: 'Pre-employment Screening',   desc: 'Initiate and track medical screenings for new hires.' },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} style={{
-                padding: '14px 14px 15px', borderRadius: 14,
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
-                backdropFilter: 'blur(2px)',
-              }}>
+              <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: 15 }}>
                 <div style={{
-                  width: 32, height: 32, borderRadius: 10, marginBottom: 10,
-                  background: 'rgba(245,107,34,0.16)',
+                  width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+                  background: 'rgba(245,107,34,0.13)', border: '1px solid rgba(245,107,34,0.22)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Icon style={{ width: 15, height: 15, color: '#F56B22' }} strokeWidth={2} />
+                  <Icon style={{ width: 17, height: 17, color: '#F56B22' }} strokeWidth={2} />
                 </div>
-                <p style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{title}</p>
-                <p style={{ fontSize: 11, color: '#8E96BC', lineHeight: 1.45 }}>{desc}</p>
+                <div style={{ maxWidth: 400 }}>
+                  <p style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{title}</p>
+                  <p style={{ fontSize: 12.5, color: '#A8AECB', lineHeight: 1.5 }}>{desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Scale + footer. Sits above the swoosh, so the text is light enough to
-            stay readable where the gradient is warmest. */}
+        {/* Footer — the design's trust line, then scale and copyright */}
         <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
-            <span style={{ fontSize: 23, fontWeight: 900, color: '#fff', letterSpacing: '-0.03em' }}>390,000+</span>
-            <span style={{ fontSize: 12, color: '#C3C9E2' }}>members covered by Leadway Health</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <ShieldCheck style={{ width: 14, height: 14, color: '#C3C9E2', flexShrink: 0 }} strokeWidth={2} />
             {['Secure', 'Reliable', 'Always Here'].map((t, i) => (
-              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11.5, color: '#AEB6D4' }}>
-                {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.35)' }} />}
+              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, fontWeight: 600, color: '#DCE0F0' }}>
+                {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />}
                 {t}
               </span>
             ))}
-            <span style={{ fontSize: 11, color: '#8E96BC', marginLeft: 'auto' }}>© 2026 Leadway Health Limited.</span>
           </div>
+          <p style={{ fontSize: 11.5, color: '#8E96BC', lineHeight: 1.6 }}>
+            <strong style={{ color: '#C3C9E2', fontWeight: 700 }}>390,000+</strong> members covered<br />
+            © 2026 Leadway Health Limited. All rights reserved.
+          </p>
         </div>
       </div>
 
       {/* ── Right panel ── */}
       <div style={{
         flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#F7F8FC', padding: '40px 32px',
+        background: '#fff', padding: '40px 32px',
       }}>
-        {/* Faint dot grid, upper right */}
+        {/* Faint dot mesh, upper right — the design's subtle texture */}
         <div aria-hidden="true" style={{
-          position: 'absolute', top: 0, right: 0, width: 300, height: 300, opacity: 0.5,
+          position: 'absolute', top: 0, right: 0, width: 340, height: 340, opacity: 0.55,
           backgroundImage: 'radial-gradient(#D9DEEF 1px, transparent 1px)',
-          backgroundSize: '18px 18px',
-          maskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 70%)',
-          WebkitMaskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 70%)',
+          backgroundSize: '16px 16px',
+          maskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 72%)',
+          WebkitMaskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 72%)',
         }} />
 
-        {/* Elevated form card */}
-        <div style={{
-          position: 'relative', width: '100%', maxWidth: 468,
-          background: '#fff', borderRadius: 22, border: '1px solid #EDEEF2',
-          boxShadow: 'var(--shadow-float, 0 18px 44px -12px rgba(19,28,78,0.20))',
-          padding: '38px 40px 32px',
-        }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: 452 }}>
 
           {/* Logo — full-colour official artwork on white */}
           <div style={{ marginBottom: 24 }}>
@@ -559,16 +550,17 @@ export default function LoginPage() {
           </>
           )}
 
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18,
-            marginTop: 26, paddingTop: 18, borderTop: '1px solid #F1F2F7',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#B0B7C9' }}>
-              <LockSmall style={{ width: 12, height: 12 }} /> Encrypted in transit
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#B0B7C9' }}>
-              <CheckCircle2 style={{ width: 12, height: 12 }} /> Protected by Leadway Health security
-            </span>
+          {/* Security note — shield in a tinted disc, two lines, as designed */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 26 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: '#EEF1FB',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ShieldCheck style={{ width: 15, height: 15, color: '#8E98C4' }} strokeWidth={2} />
+            </div>
+            <p style={{ fontSize: 11.5, color: '#9CA3B8', lineHeight: 1.55 }}>
+              Protected by Leadway Health security.<br />Your data is encrypted in transit.
+            </p>
           </div>
 
         </div>
