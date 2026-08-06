@@ -14,6 +14,14 @@ const OUTAGE_PATTERNS = [
   /econnrefused|etimedout|enotfound|socket hang up/i,
   /prognosis error 5\d\d/i,
   /\b5\d\d\b.*(gateway|unavailable|internal server)/i,
+  // When Prognosis throws, IIS answers with an ASP.NET error page instead of
+  // JSON. Our routes wrap that as "Service login non-JSON (500): <!DOCTYPE
+  // html>…", which matched none of the patterns above, so 240 characters of
+  // raw markup were rendered to HR — truncated mid-word. Catch the shape of
+  // the failure rather than its wording.
+  /non-json/i,
+  /<!doctype|<html|<head|<title>runtime error/i,
+  /no token from/i,
 ];
 
 export const OUTAGE_MESSAGE =
