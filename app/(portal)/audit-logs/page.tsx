@@ -157,7 +157,7 @@ export default function HRAuditLogsPage() {
         {/* TABLE */}
         <div style={card}>
           {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '170px minmax(0,1fr) 160px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
             {['Time', 'Event', 'User', 'Module'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
             ))}
@@ -200,7 +200,7 @@ export default function HRAuditLogsPage() {
                       : null;
 
               return (
-                <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '170px 1fr 160px 130px', columnGap: 12, alignItems: 'center', padding: '13px 24px', borderBottom: '1px solid #F7F8FA' }}>
+                <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '170px minmax(0,1fr) 160px 130px', columnGap: 12, alignItems: 'center', padding: '13px 24px', borderBottom: '1px solid #F7F8FA' }}>
                   <span style={{ fontSize: 11.5, color: '#9CA3B8', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(log.timestamp)}</span>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{label}</p>

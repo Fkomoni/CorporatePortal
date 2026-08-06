@@ -513,7 +513,7 @@ export default function EnrollPage() {
 
           <form onSubmit={handleSubmit}>
             <div style={{ background: '#fff', borderRadius: 20, padding: '28px 32px', marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
                 {[
                   { label: 'First Name *', value: firstName, set: setFirstName, ph: '' },
                   { label: 'Last Name *',  value: surname,   set: setSurname,   ph: '' },
@@ -706,7 +706,7 @@ export default function EnrollPage() {
           {/* Personal Details */}
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Personal Details</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
               <Field label="First Name *" value={firstName} onChange={setFirstName} placeholder="e.g. Amaka" required />
               <Field label="Surname *" value={surname} onChange={setSurname} placeholder="e.g. Okafor" required />
               <Field label="Other Names" value={otherNames} onChange={setOtherNames} placeholder="Middle name(s)" />
@@ -735,7 +735,7 @@ export default function EnrollPage() {
           {/* Contact Details */}
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Contact Details</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
               <Field
                 label={!isDependent || (relationships.find((r) => r.value === relationshipId)?.text ?? '').toLowerCase().includes('spouse') ? 'Mobile Number *' : 'Mobile Number'}
                 value={mobile} onChange={setMobile} placeholder="e.g. 08012345678" type="tel" numeric hint={mobileLengthHint(mobile)}

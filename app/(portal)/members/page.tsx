@@ -865,7 +865,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                 {/* Dep form */}
                 {depFormOpen ? (
                   <div style={{ border: '1.5px solid #E5E7F1', borderRadius: 16, padding: '18px 20px', background: '#FAFBFF' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10, marginBottom: 10 }}>
                       {([
                         { label: 'First Name *', value: depFN, set: setDepFN, ph: '' },
                         { label: 'Last Name *',  value: depLN, set: setDepLN, ph: '' },
@@ -1344,7 +1344,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     );
                   })()}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14, marginBottom: 16 }}>
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
                         {memberType === 'existing' ? 'Send Link To (Email) *' : 'Staff Email *'}
@@ -1499,7 +1499,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}>
                     {[
                       { label: 'First Name *',    value: firstName,  set: setFirstName,  ph: 'e.g. Amaka'     },
                       { label: 'Surname *',       value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
@@ -1602,7 +1602,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                                 <button type="button" onClick={() => setFamilyDeps((prev) => prev.filter((_, j) => j !== i))}
                                   style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer' }}>Remove</button>
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }}>
                                 <input value={dep.firstName} placeholder="First Name *" style={inputStyle}
                                   onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, firstName: e.target.value } : d))} />
                                 <input value={dep.surname} placeholder="Surname *" style={inputStyle}
@@ -2445,7 +2445,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '8px 16px' }}>
             {[
               // member.phone/email come from the initial list fetch, which is
               // often blank — bioPhone/bioEmail (resolved from the more
@@ -2469,7 +2469,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
         </div>
 
         {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           {[
             { label: 'Dependants',  value: String(member.dependants ?? 0),                                  Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
             { label: 'Spend YTD',   value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—', Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
@@ -2526,7 +2526,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               <div style={{ height: 1, background: '#F0F1F5', marginBottom: 24 }} />
 
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 20px', marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '18px 20px', marginBottom: 24 }}>
                 {[
                   { label: 'Date of Birth',       value: member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
                   { label: 'Gender',              value: member.gender },
@@ -2817,7 +2817,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14, marginBottom: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Gender</label>
                 <select value={editSexId} onChange={(e) => setEditSexId(e.target.value)}
@@ -3024,7 +3024,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               {/* ── HR fills form ── */}
               {depAction === 'form' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
                     {([
                       { label: 'First Name *',    value: depFirstName, set: setDepFirstName, ph: 'e.g. Chidi'   },
                       { label: 'Last Name *',     value: depLastName,  set: setDepLastName,  ph: member.lastName },
@@ -3065,7 +3065,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>State *</p>
                       <select value={depStateId} onChange={(e) => setDepStateId(e.target.value)}
@@ -3364,7 +3364,7 @@ function MembersPageInner() {
 
         {/* Summary cards */}
         {vis.showSummaryCards && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 16 }}>
           {SUMMARY_CARD_DEFS.map((c) => {
             const val = pageStats ? pageStats[c.key] : null;
             // Each figure now filters the list to what it counts, so the card is
@@ -3569,7 +3569,7 @@ function MembersPageInner() {
         {/* Members / Beneficiaries table */}
         <div style={{ ...card }}>
           <div className="grid items-center border-b border-[#F0F1F5] bg-[#FAFBFC]"
-            style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            style={{ gridTemplateColumns: '36px minmax(0,1fr) 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} title="Select all" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }} onClick={toggleAll} title="Click to select all">
               <span className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest select-none">
@@ -3593,7 +3593,7 @@ function MembersPageInner() {
               <div
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
-                style={{ gridTemplateColumns: '36px 1fr 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
+                style={{ gridTemplateColumns: '36px minmax(0,1fr) 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
                 onClick={() => setActiveMember({ member: m, index: globalIndex })}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />

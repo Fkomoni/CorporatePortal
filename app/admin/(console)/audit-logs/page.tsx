@@ -132,7 +132,7 @@ export default function AuditLogsPage() {
 
       {/* TABLE */}
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '170px 140px 1fr 150px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '170px 140px minmax(0,1fr) 150px 130px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
           {['Time', 'Company', 'Event / Details', 'User', 'Action'].map((h) => (
             <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
           ))}
@@ -177,7 +177,7 @@ export default function AuditLogsPage() {
               : '';
 
             return (
-              <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '170px 140px 1fr 150px 130px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
+              <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '170px 140px minmax(0,1fr) 150px 130px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
                 <span style={{ fontSize: 11, color: '#9CA3B8', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(log.timestamp)}</span>
                 <div>
                   <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.companyName || '—'}</p>

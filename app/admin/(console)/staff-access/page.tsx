@@ -146,7 +146,7 @@ export default function StaffAccessPage() {
 
         {showEnable && (
           <div style={{ ...card, padding: '20px 24px', marginBottom: 12 }}>
-            <form onSubmit={handleEnable} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
+            <form onSubmit={handleEnable} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, alignItems: 'end' }}>
               <div>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', marginBottom: 6 }}>Leadway Staff Email</label>
                 <input type="email" value={enableEmail} onChange={(e) => setEnableEmail(e.target.value)} placeholder="firstname.lastname@leadway.com" required style={inputStyle} />
@@ -204,7 +204,7 @@ export default function StaffAccessPage() {
 
         {showAdd && (
           <div style={{ ...card, padding: '20px 24px', marginBottom: 12 }}>
-            <form onSubmit={handleAdd} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'end' }}>
+            <form onSubmit={handleAdd} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) auto', gap: 12, alignItems: 'end' }}>
               <div>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', marginBottom: 6 }}>Leadway Staff Email</label>
                 <input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="firstname.lastname@leadway.com" required style={inputStyle} />

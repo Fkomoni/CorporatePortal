@@ -204,7 +204,7 @@ export default function BenefitsPage() {
         {activeTab === 'plans' && (
           <>
             {bensLoading && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 16 }}>
                 {[1,2,3,4].map((i) => (
                   <div key={i} style={{ height: 200, borderRadius: 20, background: '#F7F8FC', border: '1px solid #EDEEF2', animation: 'pulse 1.5s ease-in-out infinite' }} />
                 ))}
@@ -228,7 +228,7 @@ export default function BenefitsPage() {
               </div>
             )}
             {!bensLoading && categories.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
                 {categories.map((b) => {
                   const meta = categoryMeta[b.category] ?? { Icon: FileText, color: '#6B7280', bg: '#F1F5F9' };
                   const Icon = meta.Icon;
