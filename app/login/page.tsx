@@ -5,30 +5,42 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { BrandBackdrop } from '@/components/ui/BrandBackdrop';
 import {
-  Eye, EyeOff, ShieldCheck, BarChart3, Users, FileText, Building2,
-  Mail, Lock, Headphones,
+  Eye, EyeOff, ShieldCheck, Users, BarChart3, Hospital, FileText,
+  Building2, Mail, Lock, Headphones, ArrowRight, Lock as LockIcon,
+  BadgeCheck, ShieldHalf,
 } from 'lucide-react';
 
-// Shared field styling. Inputs carry a leading icon, so the left padding makes
-// room for it — see IconField below.
+/* ── Brand ───────────────────────────────────────────────────────────────── */
+const ORANGE = '#E87722';
+const NAVY   = '#1A1A2E';
+const NAVY_2 = '#101827';
+const BORDER = '#E6E8EC';
+const INK    = '#1A1A2E';
+const MUTED  = '#6B7280';
+const FAINT  = '#9AA1AE';
+
+/* Shared field chrome. The ring lives on the wrapper (.field-ring) so the
+   leading icon sits inside the focus highlight. */
 const LABEL: React.CSSProperties = {
-  display: 'block', fontSize: 11, fontWeight: 700, color: '#9CA3B8',
-  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7,
+  display: 'block', fontSize: 12.5, fontWeight: 600, color: INK, marginBottom: 8,
+};
+const FIELD: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 12, height: 58,
+  padding: '0 18px', borderRadius: 16, border: `1px solid ${BORDER}`, background: '#FBFCFD',
 };
 const INPUT: React.CSSProperties = {
-  width: '100%', height: 46, fontSize: 14, border: '1.5px solid #E5E7F1',
-  borderRadius: 12, background: '#FAFBFC', color: '#131C4E', outline: 'none',
-  boxSizing: 'border-box', transition: 'border-color 0.15s, box-shadow 0.15s',
+  flex: 1, minWidth: 0, height: '100%', border: 'none', outline: 'none',
+  background: 'transparent', fontSize: 15, fontWeight: 500, color: INK,
 };
 
-function IconField({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+function Field({
+  icon: Icon, children, trailing,
+}: { icon: React.ElementType; children: React.ReactNode; trailing?: React.ReactNode }) {
   return (
-    <div style={{ position: 'relative' }}>
-      <Icon style={{
-        position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)',
-        width: 16, height: 16, color: '#B0B7C9', pointerEvents: 'none', zIndex: 1,
-      }} />
+    <div className="field-ring" style={FIELD}>
+      <Icon style={{ width: 18, height: 18, color: FAINT, flexShrink: 0 }} strokeWidth={2} aria-hidden="true" />
       {children}
+      {trailing}
     </div>
   );
 }
@@ -185,386 +197,387 @@ export default function LoginPage() {
     }
   };
 
-  const fi = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#F56B22';
-    e.target.style.boxShadow   = '0 0 0 3px rgba(245,107,34,0.10)';
-  };
-  const fo = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#E5E7F1';
-    e.target.style.boxShadow   = 'none';
-  };
-
   const primaryBtn: React.CSSProperties = {
-    width: '100%', height: 50, borderRadius: 12, border: 'none',
-    background: 'var(--gradient-sunset)', color: '#fff', fontSize: 14.5, fontWeight: 700,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    boxShadow: '0 6px 18px -4px rgba(245,107,34,0.45)',
+    width: '100%', height: 60, borderRadius: 16, border: 'none',
+    background: `linear-gradient(135deg, ${ORANGE} 0%, #F08A3C 100%)`,
+    color: '#fff', fontSize: 15.5, fontWeight: 600, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+    boxShadow: '0 8px 22px -8px rgba(232,119,34,0.48)',
+  };
+  const linkBtn: React.CSSProperties = {
+    fontSize: 13, fontWeight: 600, color: ORANGE, background: 'none',
+    border: 'none', cursor: 'pointer', padding: 0,
+  };
+  const errorBox: React.CSSProperties = {
+    fontSize: 13.5, fontWeight: 500, padding: '13px 16px', borderRadius: 14,
+    background: '#FEF2F2', color: '#B42318', border: '1px solid #FECDCA',
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'inherit', background: '#fff' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#fff' }}>
 
-      {/* ── Left panel ── navy gradient with the brand swoosh. The mockup used a
-          licensed architectural photograph, which we don't have in the repo — the
-          swoosh and glow below are drawn in CSS/SVG so nothing is missing. Drop a
-          photo in behind `swoosh` if the licensed asset turns up. */}
-      <div
+      {/* ══ LEFT — 40% ══ */}
+      <aside
         className="hidden lg:flex"
         style={{
-          position: 'relative', overflow: 'hidden',
+          position: 'relative', width: '40%', flexShrink: 0,
           flexDirection: 'column', justifyContent: 'space-between',
-          width: '48%', padding: '38px 52px 34px', background: 'var(--gradient-navy)',
+          padding: '52px 56px',
+          background: `linear-gradient(160deg, ${NAVY} 0%, ${NAVY_2} 100%)`,
         }}
       >
         <BrandBackdrop />
 
-        {/* Logo — official artwork, knockout variant so the wordmark reads on navy */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* Logo lockup */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 16 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/leadway-health-logo-light.png" alt="Leadway Health" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
-          <div style={{ width: 1, height: 30, background: 'rgba(255,255,255,0.22)' }} />
-          <p style={{ fontSize: 14, color: '#D5D9EA' }}>Corporate Portal</p>
+          <img src="/leadway-health-logo-light.png" alt="Leadway Health" style={{ height: 42, width: 'auto', objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 38, background: 'rgba(255,255,255,0.16)' }} />
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>Corporate Portal</p>
+            <p style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,0.52)', marginTop: 2 }}>
+              Enterprise Healthcare Management
+            </p>
+          </div>
         </div>
 
-        {/* Hero copy */}
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 24, margin: '28px 0' }}>
+        {/* Headline + features */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 34 }}>
           <div>
-            <p style={{ fontSize: 11.5, fontWeight: 700, color: '#F56B22', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
-              Corporate Portal for HR &amp; Finance
+            <p style={{
+              fontSize: 11.5, fontWeight: 700, color: ORANGE,
+              letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 20,
+            }}>
+              Powering healthier workplaces
             </p>
-            <h1 style={{ fontSize: 38, fontWeight: 800, color: '#fff', lineHeight: 1.15, letterSpacing: '-0.02em', marginBottom: 14 }}>
-              Your scheme.<br />Your data.<br /><span style={{ color: '#F56B22' }}>Your decisions.</span>
+            <h1 style={{
+              fontSize: 46, fontWeight: 700, color: '#fff',
+              lineHeight: 1.14, letterSpacing: '-0.025em', marginBottom: 20,
+            }}>
+              Smart health<br />management for<br /><span style={{ color: ORANGE }}>your people.</span>
             </h1>
-            <p style={{ fontSize: 14.5, color: '#A8AECB', lineHeight: 1.6, maxWidth: 430 }}>
-              A powerful platform built for HR and Finance teams to manage your corporate
-              health scheme with full visibility and control.
+            <p style={{ fontSize: 15, fontWeight: 500, color: 'rgba(255,255,255,0.62)', lineHeight: 1.65, maxWidth: 460 }}>
+              A unified platform for HR and Finance teams to manage corporate healthcare
+              with complete visibility, operational efficiency and real-time insights.
             </p>
           </div>
 
-          {/* Feature list — a vertical run of icon tiles, as in the design */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Four feature cards — dark glass */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 14 }}>
             {[
-              { icon: ShieldCheck, title: 'Full Benefit Transparency',  desc: 'View and manage all benefit plans and coverage details for every employee.' },
-              { icon: BarChart3,   title: 'Real-Time Analytics',        desc: 'Monitor utilization, loss ratio, and claims data as it happens.' },
-              { icon: Users,       title: 'Seamless Member Management', desc: 'Add, update, and terminate members with a few clicks.' },
-              { icon: FileText,    title: 'Pre-employment Screening',   desc: 'Initiate and track medical screenings for new hires.' },
+              { icon: Users,     title: 'Manage Members',        desc: 'Add, update and manage employees.' },
+              { icon: BarChart3, title: 'Performance Analytics', desc: 'Monitor utilization, claims and loss ratio.' },
+              { icon: Hospital,  title: 'Provider Network',      desc: 'Access accredited providers nationwide.' },
+              { icon: FileText,  title: 'Finance & Reports',     desc: 'Invoices, reports and scheme performance.' },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: 15 }}>
+              <div key={title} style={{
+                padding: '18px 18px 20px', borderRadius: 20,
+                background: 'rgba(255,255,255,0.045)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+                boxShadow: '0 2px 14px -6px rgba(0,0,0,0.35)',
+              }}>
                 <div style={{
-                  width: 40, height: 40, borderRadius: 11, flexShrink: 0,
-                  background: 'rgba(245,107,34,0.13)', border: '1px solid rgba(245,107,34,0.22)',
+                  width: 36, height: 36, borderRadius: 11, marginBottom: 13,
+                  background: 'rgba(232,119,34,0.14)', border: '1px solid rgba(232,119,34,0.20)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Icon style={{ width: 17, height: 17, color: '#F56B22' }} strokeWidth={2} />
+                  <Icon style={{ width: 17, height: 17, color: ORANGE }} strokeWidth={2} />
                 </div>
-                <div style={{ maxWidth: 400 }}>
-                  <p style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{title}</p>
-                  <p style={{ fontSize: 12.5, color: '#A8AECB', lineHeight: 1.5 }}>{desc}</p>
-                </div>
+                <p style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: 5 }}>{title}</p>
+                <p style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.50)', lineHeight: 1.5 }}>{desc}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Footer — the design's trust line, then scale and copyright */}
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <ShieldCheck style={{ width: 14, height: 14, color: '#C3C9E2', flexShrink: 0 }} strokeWidth={2} />
-            {['Secure', 'Reliable', 'Always Here'].map((t, i) => (
-              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, fontWeight: 600, color: '#DCE0F0' }}>
-                {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />}
+        {/* Security statement */}
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <LockIcon style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.72)', flexShrink: 0 }} strokeWidth={2.2} />
+            {['Secure', 'Reliable', 'Always Available'].map((t, i) => (
+              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,0.78)' }}>
+                {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.32)' }} />}
                 {t}
               </span>
             ))}
           </div>
-          <p style={{ fontSize: 11.5, color: '#8E96BC', lineHeight: 1.6 }}>
-            <strong style={{ color: '#C3C9E2', fontWeight: 700 }}>390,000+</strong> members covered<br />
-            © 2026 Leadway Health Limited. All rights reserved.
+          <p style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,0.34)' }}>
+            © 2026 Leadway Health Limited
           </p>
         </div>
-      </div>
+      </aside>
 
-      {/* ── Right panel ── */}
-      <div style={{
-        flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#fff', padding: '40px 32px',
+      {/* ══ RIGHT — 60% ══ */}
+      <main style={{
+        position: 'relative', flex: 1, minWidth: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#fff', padding: '32px 40px', overflowY: 'auto',
       }}>
-        {/* Faint dot mesh, upper right — the design's subtle texture */}
+        {/* Dotted gradient, top right */}
         <div aria-hidden="true" style={{
-          position: 'absolute', top: 0, right: 0, width: 340, height: 340, opacity: 0.55,
-          backgroundImage: 'radial-gradient(#D9DEEF 1px, transparent 1px)',
-          backgroundSize: '16px 16px',
-          maskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 72%)',
-          WebkitMaskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 72%)',
+          position: 'absolute', top: 0, right: 0, width: 420, height: 420, opacity: 0.6,
+          backgroundImage: 'radial-gradient(#D7DBE3 1.15px, transparent 1.15px)',
+          backgroundSize: '17px 17px',
+          maskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 70%)',
+          WebkitMaskImage: 'radial-gradient(circle at 100% 0%, #000 0%, transparent 70%)',
         }} />
 
-        <div style={{ position: 'relative', width: '100%', maxWidth: 452 }}>
+        {/* Floating login card */}
+        <div className="rise-in" style={{
+          position: 'relative', width: '100%', maxWidth: 720,
+          background: '#fff', borderRadius: 28, border: `1px solid ${BORDER}`,
+          boxShadow: '0 24px 64px -20px rgba(26,26,46,0.16), 0 8px 20px -12px rgba(26,26,46,0.08)',
+          padding: '48px 56px 42px',
+        }}>
 
-          {/* Logo — full-colour official artwork on white */}
-          <div style={{ marginBottom: 24 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/leadway-health-logo.png" alt="Leadway Health" style={{ height: 46, width: 'auto', objectFit: 'contain', display: 'block' }} />
-            <p style={{ fontSize: 14.5, color: '#6B7480', marginTop: 9 }}>Corporate Portal</p>
-          </div>
-
-          {/* Badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, background: '#FFF5EF', border: '1px solid rgba(245,107,34,0.2)', marginBottom: 20 }}>
-            <ShieldCheck style={{ width: 13, height: 13, color: '#F56B22' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#F56B22', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Secure HR Sign-In</span>
+          {/* Pill */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '7px 14px', borderRadius: 99,
+            background: 'rgba(232,119,34,0.07)', border: '1px solid rgba(232,119,34,0.22)',
+            marginBottom: 24,
+          }}>
+            <ShieldCheck style={{ width: 13.5, height: 13.5, color: ORANGE }} strokeWidth={2.2} />
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: ORANGE, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Secure HR Sign-In
+            </span>
           </div>
 
           {forgotStep ? (
             <>
-              <h2 style={{ fontSize: 27, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', marginBottom: 6 }}>
+              <h2 style={{ fontSize: 32, fontWeight: 700, color: INK, letterSpacing: '-0.025em', marginBottom: 8 }}>
                 {forgotStep === 'done' ? 'Password reset' : 'Reset your password'}
               </h2>
-              <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 30 }}>
-                {forgotStep === 'email' && 'Enter your account email and we\'ll send you a reset code.'}
-                {forgotStep === 'reset' && <>Enter the code sent to <strong style={{ color: '#131C4E' }}>{forgotEmail}</strong> and choose a new password.</>}
+              <p style={{ fontSize: 14.5, fontWeight: 500, color: MUTED, marginBottom: 32 }}>
+                {forgotStep === 'email' && 'Enter your account email and we’ll send you a reset code.'}
+                {forgotStep === 'reset' && <>Enter the code sent to <strong style={{ color: INK, fontWeight: 600 }}>{forgotEmail}</strong> and choose a new password.</>}
                 {forgotStep === 'done' && 'Your password has been reset. You can now sign in with your new password.'}
               </p>
 
               {forgotStep === 'email' && (
-                <form onSubmit={handleForgotRequest} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <form onSubmit={handleForgotRequest} style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                   <div>
-                    <label style={LABEL}>Email Address</label>
-                    <IconField icon={Mail}>
-                      <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus
-                        placeholder="chidi.nwosu@acmecorp.com"
-                        style={{ ...INPUT, padding: '0 14px 0 42px' }}
-                        onFocus={fi} onBlur={fo} />
-                    </IconField>
+                    <label htmlFor="forgot-email" style={LABEL}>Email address</label>
+                    <Field icon={Mail}>
+                      <input id="forgot-email" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                        required autoFocus placeholder="you@company.com" style={INPUT} />
+                    </Field>
                   </div>
-                  {forgotError && (
-                    <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{forgotError}</div>
-                  )}
-                  <button type="submit" disabled={forgotLoading}
-                    style={{ ...primaryBtn, cursor: forgotLoading ? 'not-allowed' : 'pointer', opacity: forgotLoading ? 0.7 : 1 }}>
-                    {forgotLoading ? 'Sending…' : <>Send Reset Code <span aria-hidden="true">→</span></>}
+                  {forgotError && <div role="alert" style={errorBox}>{forgotError}</div>}
+                  <button type="submit" disabled={forgotLoading} className="btn-lift"
+                    style={{ ...primaryBtn, opacity: forgotLoading ? 0.7 : 1, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
+                    {forgotLoading ? 'Sending…' : <>Send reset code <ArrowRight style={{ width: 17, height: 17 }} /></>}
                   </button>
-                  <button type="button" onClick={closeForgot} style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'center' }}>
+                  <button type="button" onClick={closeForgot} style={{ ...linkBtn, color: MUTED, textAlign: 'center' }}>
                     ← Back to sign in
                   </button>
                 </form>
               )}
 
               {forgotStep === 'reset' && (
-                <form onSubmit={handleForgotReset} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <form onSubmit={handleForgotReset} style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                   {forgotInfo && (
-                    <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>{forgotInfo}</div>
+                    <div style={{ ...errorBox, background: '#ECFDF3', color: '#027A48', border: '1px solid #A6F4C5' }}>{forgotInfo}</div>
                   )}
                   <div>
-                    <label style={LABEL}>Reset Code</label>
-                    <input type="text" inputMode="numeric" value={forgotCode} autoFocus
+                    <label htmlFor="forgot-code" style={LABEL}>Reset code</label>
+                    <input id="forgot-code" type="text" inputMode="numeric" value={forgotCode} autoFocus required
                       onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000" required
-                      style={{ ...INPUT, height: 54, padding: '0 14px', fontSize: 24, fontWeight: 700, letterSpacing: '0.35em', textAlign: 'center' }}
-                      onFocus={fi} onBlur={fo} />
+                      placeholder="000000"
+                      className="field-ring"
+                      style={{ ...FIELD, ...INPUT, width: '100%', height: 62, fontSize: 26, fontWeight: 700, letterSpacing: '0.34em', textAlign: 'center' }} />
                   </div>
                   <div>
-                    <label style={LABEL}>New Password</label>
-                    <IconField icon={Lock}>
-                      <input type={forgotShowPass ? 'text' : 'password'} value={forgotPassword} onChange={(e) => setForgotPassword(e.target.value)}
-                        placeholder="••••••••" required autoComplete="new-password"
-                        style={{ ...INPUT, padding: '0 44px 0 42px' }}
-                        onFocus={fi} onBlur={fo} />
+                    <label htmlFor="forgot-pass" style={LABEL}>New password</label>
+                    <Field icon={Lock} trailing={
                       <button type="button" onClick={() => setForgotShowPass(!forgotShowPass)}
-                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#B8BFD0', padding: 0, display: 'flex' }}>
-                        {forgotShowPass ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                        aria-label={forgotShowPass ? 'Hide password' : 'Show password'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: FAINT, padding: 0, display: 'flex' }}>
+                        {forgotShowPass ? <EyeOff style={{ width: 17, height: 17 }} /> : <Eye style={{ width: 17, height: 17 }} />}
                       </button>
-                    </IconField>
-                    <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>Min 8 characters, with uppercase, lowercase, a number and a special character.</p>
+                    }>
+                      <input id="forgot-pass" type={forgotShowPass ? 'text' : 'password'} value={forgotPassword}
+                        onChange={(e) => setForgotPassword(e.target.value)} required autoComplete="new-password"
+                        placeholder="••••••••" style={INPUT} />
+                    </Field>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: FAINT, marginTop: 8 }}>
+                      Minimum 8 characters, with uppercase, lowercase, a number and a special character.
+                    </p>
                   </div>
                   <div>
-                    <label style={LABEL}>Confirm New Password</label>
-                    <IconField icon={Lock}>
-                      <input type={forgotShowPass ? 'text' : 'password'} value={forgotConfirm} onChange={(e) => setForgotConfirm(e.target.value)}
-                        placeholder="••••••••" required autoComplete="new-password"
-                        style={{ ...INPUT, padding: '0 14px 0 42px' }}
-                        onFocus={fi} onBlur={fo} />
-                    </IconField>
+                    <label htmlFor="forgot-confirm" style={LABEL}>Confirm new password</label>
+                    <Field icon={Lock}>
+                      <input id="forgot-confirm" type={forgotShowPass ? 'text' : 'password'} value={forgotConfirm}
+                        onChange={(e) => setForgotConfirm(e.target.value)} required autoComplete="new-password"
+                        placeholder="••••••••" style={INPUT} />
+                    </Field>
                   </div>
-                  {forgotError && (
-                    <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{forgotError}</div>
-                  )}
+                  {forgotError && <div role="alert" style={errorBox}>{forgotError}</div>}
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <button type="button" onClick={() => setForgotStep('email')} style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                      ← Back
-                    </button>
-                    <button type="button" onClick={handleForgotRequest} disabled={forgotLoading} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: forgotLoading ? 'wait' : 'pointer', padding: 0 }}>
+                    <button type="button" onClick={() => setForgotStep('email')} style={{ ...linkBtn, color: MUTED }}>← Back</button>
+                    <button type="button" onClick={handleForgotRequest} disabled={forgotLoading} style={linkBtn}>
                       {forgotLoading ? 'Sending…' : 'Resend code'}
                     </button>
                   </div>
-                  <button type="submit" disabled={forgotLoading}
-                    style={{ ...primaryBtn, cursor: forgotLoading ? 'not-allowed' : 'pointer', opacity: forgotLoading ? 0.7 : 1 }}>
-                    {forgotLoading ? 'Resetting…' : <>Reset Password <span aria-hidden="true">→</span></>}
+                  <button type="submit" disabled={forgotLoading} className="btn-lift"
+                    style={{ ...primaryBtn, opacity: forgotLoading ? 0.7 : 1, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
+                    {forgotLoading ? 'Resetting…' : <>Reset password <ArrowRight style={{ width: 17, height: 17 }} /></>}
                   </button>
                 </form>
               )}
 
               {forgotStep === 'done' && (
-                <button type="button" onClick={() => { closeForgot(); setPassword(''); }}
-                  style={{ ...primaryBtn, cursor: 'pointer' }}>
-                  ← Back to Sign In
+                <button type="button" onClick={() => { closeForgot(); setPassword(''); }} className="btn-lift" style={primaryBtn}>
+                  ← Back to sign in
                 </button>
               )}
             </>
           ) : (
           <>
-          <h2 style={{ fontSize: 27, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', marginBottom: 6 }}>
-            {otpStep ? 'Two-factor verification' : 'Welcome back'}
-          </h2>
-          <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 30 }}>
-            {otpStep
-              ? <>Enter the 6-digit code we sent to <strong style={{ color: '#131C4E' }}>{email}</strong>.</>
-              : 'Sign in to manage your corporate health scheme.'}
-          </p>
+            <h2 style={{ fontSize: 34, fontWeight: 700, color: INK, letterSpacing: '-0.027em', marginBottom: 8 }}>
+              {otpStep ? 'Two-factor verification' : 'Welcome back'}
+            </h2>
+            <p style={{ fontSize: 14.5, fontWeight: 500, color: MUTED, marginBottom: 32 }}>
+              {otpStep
+                ? <>Enter the 6-digit code we sent to <strong style={{ color: INK, fontWeight: 600 }}>{email}</strong>.</>
+                : 'Sign in to access your corporate health portal.'}
+            </p>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-            {!otpStep && (
-            <div>
-              <label style={LABEL}>Email Address</label>
-              <IconField icon={Mail}>
-                <input
-                  type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="chidi.nwosu@acmecorp.com" required autoComplete="username"
-                  style={{ ...INPUT, padding: '0 14px 0 42px' }}
-                  onFocus={fi} onBlur={fo}
-                />
-              </IconField>
-            </div>
-            )}
-
-            {!otpStep && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
-                <label style={{ ...LABEL, marginBottom: 0 }}>Password</label>
-                <button type="button" onClick={openForgot} style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  Forgot password?
-                </button>
-              </div>
-              <IconField icon={Lock}>
-                <input
-                  type={showPassword ? 'text' : 'password'} value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" required autoComplete="current-password"
-                  style={{ ...INPUT, padding: '0 44px 0 42px' }}
-                  onFocus={fi} onBlur={fo}
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#B8BFD0', padding: 0, display: 'flex' }}>
-                  {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
-                </button>
-              </IconField>
-            </div>
-            )}
-
-            {otpStep && (
-            <div>
-              <label style={LABEL}>One-Time Passcode</label>
-              <input
-                type="text" inputMode="numeric" value={otp} autoFocus
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000" required
-                style={{ ...INPUT, height: 54, padding: '0 14px', fontSize: 24, fontWeight: 700, letterSpacing: '0.35em', textAlign: 'center' }}
-                onFocus={fi} onBlur={fo}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                <button type="button" onClick={() => { setOtpStep(false); setOtp(''); setError(''); }}
-                  style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  ← Back
-                </button>
-                <button type="button" onClick={handleResend} disabled={resending}
-                  style={{ fontSize: 12, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: resending ? 'wait' : 'pointer', padding: 0 }}>
-                  {resending ? 'Sending…' : 'Resend code'}
-                </button>
-              </div>
-            </div>
-            )}
-
-            {error && (
-              <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
-                {error}
-              </div>
-            )}
-
-            <button type="submit" disabled={isLoading || (otpStep && otp.length < 6)}
-              style={{ ...primaryBtn, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.7 : 1, marginTop: 4 }}>
-              {isLoading ? (
-                <>
-                  <svg style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none">
-                    <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Signing in…
-                </>
-              ) : otpStep ? <>Verify &amp; Sign In <span aria-hidden="true">→</span></> : <>Sign in to Corporate Portal <span aria-hidden="true">→</span></>}
-            </button>
-          </form>
-
-          {/* Leadway's own staff sign in to a different console, so this is a
-              real alternative route rather than a footnote — give it the weight
-              of a secondary action. Hidden during OTP/reset to keep those
-              flows single-purpose. */}
-          {!otpStep && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0 18px' }}>
-                <div style={{ flex: 1, height: 1, background: '#EDEEF2' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#B8BFD0', letterSpacing: '0.08em' }}>OR</span>
-                <div style={{ flex: 1, height: 1, background: '#EDEEF2' }} />
-              </div>
-
-              <a href="/admin/login"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                  width: '100%', height: 48, borderRadius: 12, boxSizing: 'border-box',
-                  border: '1.5px solid #E5E7F1', background: '#fff',
-                  color: '#131C4E', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-                }}>
-                <Building2 style={{ width: 16, height: 16, color: '#131C4E' }} />
-                Leadway Staff Login
-                <span aria-hidden="true">→</span>
-              </a>
-
-              {/* Support affordance — cuts the "who do I email?" support traffic */}
-              <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: 12, marginTop: 20,
-                padding: '14px 16px', borderRadius: 14, background: '#FAFBFC', border: '1px solid #EDEEF2',
-              }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: '#FFF5EF',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Headphones style={{ width: 15, height: 15, color: '#F56B22' }} strokeWidth={2} />
-                </div>
+              {!otpStep && (
                 <div>
-                  <p style={{ fontSize: 12.5, fontWeight: 700, color: '#131C4E', marginBottom: 2 }}>Need help signing in?</p>
-                  <p style={{ fontSize: 11.5, color: '#9CA3B8', lineHeight: 1.5 }}>
-                    Contact your scheme administrator or reach the Leadway Health support team.
-                  </p>
+                  <label htmlFor="email" style={LABEL}>Email address</label>
+                  <Field icon={Mail}>
+                    <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      required autoComplete="username" placeholder="you@company.com" style={INPUT} />
+                  </Field>
                 </div>
-              </div>
-            </>
-          )}
+              )}
+
+              {!otpStep && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <label htmlFor="password" style={{ ...LABEL, marginBottom: 0 }}>Password</label>
+                    <button type="button" onClick={openForgot} style={linkBtn}>Forgot password?</button>
+                  </div>
+                  <Field icon={Lock} trailing={
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: FAINT, padding: 0, display: 'flex' }}>
+                      {showPassword ? <EyeOff style={{ width: 17, height: 17 }} /> : <Eye style={{ width: 17, height: 17 }} />}
+                    </button>
+                  }>
+                    <input id="password" type={showPassword ? 'text' : 'password'} value={password}
+                      onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password"
+                      placeholder="••••••••" style={INPUT} />
+                  </Field>
+                </div>
+              )}
+
+              {otpStep && (
+                <div>
+                  <label htmlFor="otp" style={LABEL}>One-time passcode</label>
+                  <input id="otp" type="text" inputMode="numeric" value={otp} autoFocus required
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="field-ring"
+                    style={{ ...FIELD, ...INPUT, width: '100%', height: 62, fontSize: 26, fontWeight: 700, letterSpacing: '0.34em', textAlign: 'center' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+                    <button type="button" onClick={() => { setOtpStep(false); setOtp(''); setError(''); }} style={{ ...linkBtn, color: MUTED }}>
+                      ← Back
+                    </button>
+                    <button type="button" onClick={handleResend} disabled={resending} style={linkBtn}>
+                      {resending ? 'Sending…' : 'Resend code'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {error && <div role="alert" style={errorBox}>{error}</div>}
+
+              <button type="submit" disabled={isLoading || (otpStep && otp.length < 6)} className="btn-lift"
+                style={{ ...primaryBtn, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}>
+                {isLoading ? (
+                  <>
+                    <svg style={{ width: 17, height: 17, animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Signing in…
+                  </>
+                ) : otpStep
+                  ? <>Verify &amp; sign in <ArrowRight style={{ width: 17, height: 17 }} /></>
+                  : <>Sign In <ArrowRight style={{ width: 17, height: 17 }} /></>}
+              </button>
+            </form>
+
+            {!otpStep && (
+              <>
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '26px 0 22px' }}>
+                  <div style={{ flex: 1, height: 1, background: BORDER }} />
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: FAINT, letterSpacing: '0.08em' }}>OR</span>
+                  <div style={{ flex: 1, height: 1, background: BORDER }} />
+                </div>
+
+                <a href="/admin/login" className="btn-outline-lift"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    width: '100%', height: 56, borderRadius: 16, boxSizing: 'border-box',
+                    border: `1px solid ${BORDER}`, background: '#fff',
+                    color: INK, fontSize: 14.5, fontWeight: 600, textDecoration: 'none',
+                  }}>
+                  <Building2 style={{ width: 17, height: 17, color: INK }} strokeWidth={2} />
+                  Leadway Staff Login
+                  <ArrowRight style={{ width: 16, height: 16 }} />
+                </a>
+
+                {/* Support card */}
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 14, marginTop: 24,
+                  padding: '18px 20px', borderRadius: 20,
+                  background: '#F7F8FA', border: `1px solid ${BORDER}`,
+                }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                    background: 'rgba(232,119,34,0.09)', border: '1px solid rgba(232,119,34,0.18)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Headphones style={{ width: 17, height: 17, color: ORANGE }} strokeWidth={2} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13.5, fontWeight: 600, color: INK, marginBottom: 3 }}>Need help signing in?</p>
+                    <p style={{ fontSize: 12.5, fontWeight: 500, color: MUTED, lineHeight: 1.55 }}>
+                      Contact your scheme administrator or the Leadway Health support team.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </>
           )}
 
-          {/* Security note — shield in a tinted disc, two lines, as designed */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 26 }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: '#EEF1FB',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <ShieldCheck style={{ width: 15, height: 15, color: '#8E98C4' }} strokeWidth={2} />
-            </div>
-            <p style={{ fontSize: 11.5, color: '#9CA3B8', lineHeight: 1.55 }}>
-              Protected by Leadway Health security.<br />Your data is encrypted in transit.
-            </p>
+          {/* Trust indicators */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28,
+            marginTop: 28, paddingTop: 22, borderTop: `1px solid ${BORDER}`, flexWrap: 'wrap',
+          }}>
+            {[
+              { icon: LockIcon,   label: '256-bit Encrypted' },
+              { icon: BadgeCheck, label: 'ISO 27001 Compliant' },
+              { icon: ShieldHalf, label: 'Enterprise Secure' },
+            ].map(({ icon: Icon, label }) => (
+              <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 500, color: FAINT }}>
+                <Icon style={{ width: 14, height: 14 }} strokeWidth={1.9} aria-hidden="true" />
+                {label}
+              </span>
+            ))}
           </div>
 
         </div>
-      </div>
+      </main>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>

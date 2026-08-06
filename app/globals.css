@@ -52,6 +52,16 @@
   --radius-xl3: 1.5rem;
 
   --font-sans: Inter, system-ui, sans-serif;
+
+  /* Enterprise palette for the sign-in surfaces. These are deliberately
+     distinct from the --color-orange/--color-navy above, which the ~700
+     inline usages across the app still point at; switching those wholesale
+     is a separate, reviewable change. */
+  --color-brand-orange:  #E87722;
+  --color-brand-navy:    #1A1A2E;
+  --color-brand-navy-2:  #101827;
+  --color-brand-bg:      #F7F8FA;
+  --color-brand-border:  #E6E8EC;
 }
 
 /* Kept as aliases: existing inline styles and this file reference the older
@@ -117,6 +127,56 @@ body {
 @keyframes slide-in {
   from { opacity: 0; transform: translateY(8px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)  scale(1); }
+}
+
+/* ── Sign-in micro-interactions ─────────────────────────────────────────────
+   Done in CSS rather than an animation library: these are four transitions and
+   two keyframes, and a JS animation runtime would add more to the bundle than
+   the whole page weighs. All of it is disabled under prefers-reduced-motion. */
+
+@keyframes bd-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-1.6%, 1.4%, 0) scale(1.045); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+.bd-drift { animation: bd-drift 26s ease-in-out infinite; will-change: transform; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.rise-in { animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Primary action: lifts and picks up a warm glow on hover */
+.btn-lift { transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease; }
+.btn-lift:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -8px rgba(232,119,34,0.55), 0 4px 10px -4px rgba(232,119,34,0.35);
+  filter: saturate(1.06);
+}
+.btn-lift:active:not(:disabled) { transform: translateY(0); }
+
+/* Secondary action: border warms, card lifts a little */
+.btn-outline-lift { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.btn-outline-lift:hover {
+  transform: translateY(-1px);
+  border-color: #E87722;
+  box-shadow: 0 8px 20px -8px rgba(26,26,46,0.16);
+}
+
+/* Inputs glow orange on focus — the ring is on the wrapper so the leading icon
+   sits inside the highlight. */
+.field-ring { transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease; }
+.field-ring:focus-within {
+  border-color: #E87722;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(232,119,34,0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-drift, .rise-in { animation: none; }
+  .btn-lift, .btn-outline-lift, .field-ring { transition: none; }
+  .btn-lift:hover:not(:disabled), .btn-outline-lift:hover { transform: none; }
 }
 
 .animate-slide-in {
