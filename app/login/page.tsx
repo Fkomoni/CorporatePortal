@@ -212,25 +212,26 @@ export default function LoginPage() {
         style={{
           position: 'relative', overflow: 'hidden',
           flexDirection: 'column', justifyContent: 'space-between',
-          width: '48%', padding: '44px 52px', background: 'var(--gradient-navy)',
+          width: '48%', padding: '38px 52px 34px', background: 'var(--gradient-navy)',
         }}
       >
         {/* Soft orange glow, upper right */}
         <div aria-hidden="true" style={{
           position: 'absolute', top: -160, right: -140, width: 460, height: 460,
-          borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,107,34,0.22) 0%, rgba(245,107,34,0) 70%)',
+          borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,107,34,0.20) 0%, rgba(245,107,34,0) 70%)',
         }} />
-        {/* Brand swoosh, lower left */}
-        <svg aria-hidden="true" viewBox="0 0 600 400" preserveAspectRatio="none"
-          style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 320, opacity: 0.95 }}>
+        {/* Brand swoosh — a corner accent, kept low-contrast so the copy above
+            it stays legible. */}
+        <svg aria-hidden="true" viewBox="0 0 600 240" preserveAspectRatio="none"
+          style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 240 }}>
           <defs>
             <linearGradient id="swoosh" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0%" stopColor="#F56B22" stopOpacity="0.95" />
-              <stop offset="60%" stopColor="#E25A12" stopOpacity="0.55" />
+              <stop offset="0%" stopColor="#F56B22" stopOpacity="0.42" />
+              <stop offset="55%" stopColor="#E25A12" stopOpacity="0.16" />
               <stop offset="100%" stopColor="#131C4E" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <path d="M0,400 C150,300 200,180 600,120 L600,400 Z" fill="url(#swoosh)" />
+          <path d="M0,240 C120,190 190,140 600,96 L600,240 Z" fill="url(#swoosh)" />
         </svg>
 
         {/* Logo — official artwork, knockout variant so the wordmark reads on navy */}
@@ -242,15 +243,15 @@ export default function LoginPage() {
         </div>
 
         {/* Hero copy */}
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 30, margin: '36px 0' }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 24, margin: '28px 0' }}>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 18 }}>
+            <p style={{ fontSize: 11.5, fontWeight: 700, color: '#F56B22', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
               Corporate Portal for HR &amp; Finance
             </p>
-            <h1 style={{ fontSize: 42, fontWeight: 800, color: '#fff', lineHeight: 1.14, letterSpacing: '-0.02em', marginBottom: 18 }}>
+            <h1 style={{ fontSize: 38, fontWeight: 800, color: '#fff', lineHeight: 1.15, letterSpacing: '-0.02em', marginBottom: 14 }}>
               Your scheme.<br />Your data.<br /><span style={{ color: '#F56B22' }}>Your decisions.</span>
             </h1>
-            <p style={{ fontSize: 15, color: '#A8AECB', lineHeight: 1.65, maxWidth: 440 }}>
+            <p style={{ fontSize: 14.5, color: '#A8AECB', lineHeight: 1.6, maxWidth: 430 }}>
               A powerful platform built for HR and Finance teams to manage your corporate
               health scheme with full visibility and control.
             </p>
@@ -265,38 +266,39 @@ export default function LoginPage() {
               { icon: FileText,    title: 'Finance & Reports',   desc: 'Automate invoicing and access powerful analytics.' },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} style={{
-                padding: '16px 16px 18px', borderRadius: 14,
-                background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.09)',
+                padding: '14px 14px 15px', borderRadius: 14,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
                 backdropFilter: 'blur(2px)',
               }}>
                 <div style={{
-                  width: 34, height: 34, borderRadius: 10, marginBottom: 12,
+                  width: 32, height: 32, borderRadius: 10, marginBottom: 10,
                   background: 'rgba(245,107,34,0.16)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Icon style={{ width: 16, height: 16, color: '#F56B22' }} strokeWidth={2} />
+                  <Icon style={{ width: 15, height: 15, color: '#F56B22' }} strokeWidth={2} />
                 </div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{title}</p>
-                <p style={{ fontSize: 11.5, color: '#7B82AA', lineHeight: 1.5 }}>{desc}</p>
+                <p style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{title}</p>
+                <p style={{ fontSize: 11, color: '#8E96BC', lineHeight: 1.45 }}>{desc}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Scale + footer */}
-        <div style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 16 }}>
-            <span style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.03em' }}>390,000+</span>
-            <span style={{ fontSize: 12.5, color: '#A8AECB' }}>members covered by Leadway Health</span>
+        {/* Scale + footer. Sits above the swoosh, so the text is light enough to
+            stay readable where the gradient is warmest. */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
+            <span style={{ fontSize: 23, fontWeight: 900, color: '#fff', letterSpacing: '-0.03em' }}>390,000+</span>
+            <span style={{ fontSize: 12, color: '#C3C9E2' }}>members covered by Leadway Health</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             {['Secure', 'Reliable', 'Always Here'].map((t, i) => (
-              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: '#7B82AA' }}>
-                {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#3A4382' }} />}
+              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11.5, color: '#AEB6D4' }}>
+                {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.35)' }} />}
                 {t}
               </span>
             ))}
-            <span style={{ fontSize: 11, color: '#3A4382', marginLeft: 'auto' }}>© 2026 Leadway Health Limited.</span>
+            <span style={{ fontSize: 11, color: '#8E96BC', marginLeft: 'auto' }}>© 2026 Leadway Health Limited.</span>
           </div>
         </div>
       </div>
