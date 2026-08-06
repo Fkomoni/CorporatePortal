@@ -1,30 +1,30 @@
-// Shared footer for all outbound portal emails — styled as a compact email
-// signature block (small logo + a couple of text lines) rather than a
-// full-width banner image, which many email clients block by default and
-// which then renders as an oversized broken-image placeholder with alt text
-// spilling across the message.
+// Shared footer for all outbound portal emails: the NHEA award banner, edge to
+// edge, then a thin strip of legal/contact text.
+//
+// The banner already carries the Leadway Health logo, so the footer does not
+// repeat it. Explicit width/height attributes are set because Outlook sizes
+// from attributes rather than CSS, and because a client that blocks images by
+// default then reserves the right space instead of collapsing the footer to a
+// sliver. The copyright and address stay live text below the image, so nothing
+// anyone needs depends on the image having loaded.
 //
 // Node-only module: imported exclusively from API routes and email senders
 // (never from middleware/auth — OTP verification lives in login-otp-verify.ts
 // precisely to keep this out of the Edge bundle).
 const APP_BASE = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
 
+// public/email-award-banner.png is 757x252 (3.004:1). At the 600px card width
+// that is 200px tall.
+const BANNER_W = 600;
+const BANNER_H = 200;
+
 export function emailFooter(): string {
   return `
-  <div style="background:#FAFBFC;padding:20px 32px;border:1px solid #E5E7F1;border-top:none;border-radius:0 0 12px 12px;">
-    <table role="presentation" width="100%" style="border-collapse:collapse;">
-      <tr>
-        <td style="vertical-align:middle;width:100px;padding-right:14px;">
-          <img src="${APP_BASE}/leadway-health-logo.png" alt="Leadway Health" width="91" height="30" style="width:91px;height:30px;display:block;border:0;" />
-        </td>
-        <td style="vertical-align:middle;">
-          <!-- No "Leadway Health" text line: the wordmark beside it already
-               says so, and printing it twice reads like a mistake. -->
-          <p style="font-size:11px;color:#9CA3B8;margin:0;">Winner &middot; 2023–2026 NHEA HMO of the Year</p>
-        </td>
-      </tr>
-    </table>
-    <div style="height:1px;background:#E5E7F1;margin:14px 0;"></div>
+  <img src="${APP_BASE}/email-award-banner.png"
+       alt="Leadway Health — Winner of the 2023, 2024, 2025 &amp; 2026 NHEA HMO of the Year Award"
+       width="${BANNER_W}" height="${BANNER_H}"
+       style="width:100%;max-width:${BANNER_W}px;height:auto;display:block;border:0;margin:0;" />
+  <div style="background:#FAFBFC;padding:16px 32px;border-top:1px solid #E5E7F1;">
     <p style="font-size:11px;color:#B0B7C9;margin:0 0 4px;">© 2026 Leadway Health Limited &middot; <a href="mailto:healthcare@leadwayhealth.com" style="color:#9CA3B8;">healthcare@leadwayhealth.com</a></p>
     <p style="font-size:11px;color:#C4C9D9;margin:0;">121/123 Funsho Williams Avenue, Iponri, Surulere, Lagos</p>
   </div>`;
