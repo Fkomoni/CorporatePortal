@@ -309,11 +309,16 @@ export default function DashboardPage() {
             <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 18 }}>Quick actions</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 10 }}>
               {[
+                // Each tile lands on the action itself, not the page that
+                // contains it. Download E-card is the one that cannot open
+                // cold — a card belongs to a specific member — so it carries
+                // an intent that People uses to prompt for one and then opens
+                // the card straight away.
                 { label: 'Add member',      icon: UserPlus,      color: '#F56B22', onClick: () => router.push('/members?action=add') },
                 { label: 'Upload Excel',    icon: Upload,        color: '#10B981', onClick: () => router.push('/members?action=upload') },
-                { label: 'Download E-card', icon: CreditCard,    color: '#3B82F6', onClick: () => router.push('/members') },
+                { label: 'Download E-card', icon: CreditCard,    color: '#3B82F6', onClick: () => router.push('/members?action=ecard') },
                 { label: 'Raise request',   icon: MessageSquare, color: '#8B5CF6', onClick: () => router.push('/service-desk?new=1') },
-                { label: 'Find provider',   icon: Building2,     color: '#F56B22', onClick: () => setShowAllProviders(true) },
+                { label: 'Find provider',   icon: Building2,     color: '#F56B22', onClick: () => router.push('/benefits?tab=providers') },
               ].map((a) => {
                 const Icon = a.icon;
                 return (

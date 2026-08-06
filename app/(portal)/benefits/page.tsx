@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { BenefitsVis, DEFAULTS, getVis } from '@/lib/module-visibility';
 import { Search, MapPin, Phone, CheckCircle, XCircle, Activity, Building2, Heart, Smile, Eye, FlaskConical, AlertTriangle, FileText, Syringe, Sparkles, Stethoscope } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
@@ -51,8 +52,11 @@ const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   'Spa/Gym':  { bg: '#ECFDF5', color: '#059669' },
 };
 
-export default function BenefitsPage() {
-  const [activeTab, setActiveTab] = useState<'plans' | 'providers'>('plans');
+function BenefitsPageInner() {
+  // ?tab=providers opens Provider Search directly — the dashboard's "Find
+  // provider" quick action lands here rather than on the Benefit Plans tab.
+  const initialTab = useSearchParams().get('tab') === 'providers' ? 'providers' : 'plans';
+  const [activeTab, setActiveTab] = useState<'plans' | 'providers'>(initialTab);
   const [vis, setBenVis] = useState<BenefitsVis>(DEFAULTS.benefits);
   useEffect(() => { setBenVis(getVis('benefits')); }, []);
 
@@ -413,5 +417,15 @@ export default function BenefitsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// useSearchParams needs a Suspense boundary above it to prerender — same
+// pattern as People and Service Desk.
+export default function BenefitsPage() {
+  return (
+    <Suspense fallback={null}>
+      <BenefitsPageInner />
+    </Suspense>
   );
 }
