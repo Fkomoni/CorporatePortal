@@ -3243,6 +3243,14 @@ function MembersPageInner() {
   const initialQuery = memberSearchParams.get('q') ?? '';
   const initialAction = memberSearchParams.get('action');
   const [search, setSearch]               = useState(initialQuery);
+
+  // Keep the table in step with ?q=. useState only reads the param once, and
+  // the App Router does not remount this page when just the query string
+  // changes — so searching from the top bar while already on People updated the
+  // URL and nothing else. Depends on the param, not on `search`, so typing in
+  // the page's own search box is never overwritten.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSearch(initialQuery); }, [initialQuery]);
   const [planFilter, setPlanFilter]       = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
   const [selected, setSelected]           = useState<string[]>([]);

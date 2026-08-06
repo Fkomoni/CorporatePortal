@@ -14,7 +14,6 @@ import {
   MessageSquare,
   Settings,
   FileText,
-  ChevronDown,
   LogOut,
   Heart,
   UserCheck,
@@ -74,6 +73,17 @@ const NAV_GROUPS: Array<{
     ],
   },
 ];
+
+// The API formats the policy period for prose — "1st January 2026 – 31st
+// December 2026" — which wraps to two ragged lines in a 240px sidebar and
+// becomes the largest thing in the client chip. Compacting it to
+// "1 Jan 2026 – 31 Dec 2026" keeps the exact dates on one line.
+function compactPeriod(period: string): string {
+  return period
+    .replace(/(\d+)(st|nd|rd|th)\b/g, '$1')
+    .replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\b/g,
+      (m) => m.slice(0, 3));
+}
 
 function NavLink({ href, label, icon: Icon, badge, isActive }: {
   href: string; label: string; icon: React.ElementType;
@@ -193,45 +203,54 @@ export function Sidebar() {
             <span style={{ fontSize: 21, fontWeight: 800, color: '#F56B22', letterSpacing: '-0.02em', lineHeight: 1 }}>Health</span>
           </div>
         )}
-        <p style={{ fontSize: 11.5, color: '#8B93B5', marginTop: 8 }}>Corporate Portal</p>
+        <p style={{ fontSize: 11, color: '#8B93B5', marginTop: 6, letterSpacing: '0.01em' }}>Corporate Portal</p>
       </div>
 
-      {/* Client chip — company, plan, policy period and headcount at a glance. */}
+      {/* Client chip. The company name leads; the group ID is labelled rather
+          than left as a bare number; the policy period is compacted to a single
+          line. There is deliberately no dropdown affordance — an HR account is
+          scoped to exactly one company, so a chevron here promised a switcher
+          that does not exist. */}
       <div style={{
-        margin: '4px 12px 18px', padding: '12px 13px', borderRadius: 12,
+        margin: '2px 12px 18px', padding: '12px 13px', borderRadius: 12,
         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <div style={{
             width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-            background: 'rgba(255,255,255,0.10)',
+            background: 'rgba(245,107,34,0.14)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <Building2 style={{ width: 15, height: 15, color: '#F56B22' }} />
           </div>
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', lineHeight: 1.3, wordBreak: 'break-word' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.25, wordBreak: 'break-word' }}>
               {companyName}
             </p>
-            <p style={{ fontSize: 10.5, color: '#8B93B5', marginTop: 2 }}>{companyId || '—'}</p>
+            <p style={{ fontSize: 10, color: '#7A83A8', marginTop: 3, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Group ID {companyId || '—'}
+            </p>
           </div>
-          <ChevronDown style={{ width: 13, height: 13, color: '#8B93B5', flexShrink: 0, marginTop: 2 }} />
         </div>
 
         {(policyPeriod || activeLives != null) && (
           <>
             <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '11px 0 9px' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {policyPeriod && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CalendarDays style={{ width: 12, height: 12, color: '#8B93B5', flexShrink: 0 }} />
-                  <p style={{ fontSize: 10.5, color: '#C2C8DE' }}>{policyPeriod}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {activeLives != null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <Users style={{ width: 12, height: 12, color: '#8B93B5', flexShrink: 0 }} />
+                  <p style={{ fontSize: 11, color: '#C2C8DE' }}>
+                    <strong style={{ color: '#fff', fontWeight: 700 }}>{activeLives.toLocaleString()}</strong> active members
+                  </p>
                 </div>
               )}
-              {activeLives != null && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Users style={{ width: 12, height: 12, color: '#8B93B5', flexShrink: 0 }} />
-                  <p style={{ fontSize: 10.5, color: '#C2C8DE' }}>{activeLives.toLocaleString()} members</p>
+              {policyPeriod && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <CalendarDays style={{ width: 12, height: 12, color: '#8B93B5', flexShrink: 0 }} />
+                  <p style={{ fontSize: 10.5, color: '#A8AFC9', whiteSpace: 'nowrap' }} title={policyPeriod}>
+                    {compactPeriod(policyPeriod)}
+                  </p>
                 </div>
               )}
             </div>
