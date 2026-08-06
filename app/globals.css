@@ -1,9 +1,61 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Design tokens.
+   These lived in tailwind.config.ts, which Tailwind 4 does not read — it is
+   CSS-first, so the whole palette compiled to nothing and every utility built
+   on it (bg-navy, shadow-card, bg-gradient-sunset) silently did nothing. That
+   is why 700+ brand hex values ended up hardcoded in inline styles instead.
+   Declaring them here makes them real utilities again, so a change to the
+   app's look is a change in one place. */
+@theme {
+  --color-orange:      #F56B22;
+  --color-orange-600:  #E25A12;
+  --color-orange-700:  #C84A05;
+  --color-orange-100:  #FEE2CB;
+  --color-orange-50:   #FFF1E6;
+  --color-yellow:      #FFB54B;
+  --color-yellow-50:   #FFF6E5;
 
+  --color-navy:        #131C4E;
+  --color-navy-900:    #0B1233;
+  --color-navy-800:    #101A44;
+  --color-navy-700:    #1F2960;
+  --color-navy-500:    #3A4382;
+  --color-navy-100:    #E5E7F1;
+  --color-navy-50:     #F1F2F8;
+
+  --color-surface:        #F7F8FC;
+  --color-surface-card:   #FFFFFF;
+  --color-surface-border: #EDEEF2;
+  --color-surface-muted:  #FAFBFC;
+
+  --color-ink:             #131C4E;
+  --color-ink-muted:       #6B7480;
+  --color-ink-faint:       #9CA3B8;
+  --color-ink-placeholder: #B0B7C9;
+
+  --color-status-green:  #10B981;
+  --color-status-amber:  #F59E0B;
+  --color-status-red:    #EF4444;
+  --color-status-blue:   #3B82F6;
+  --color-status-purple: #8B5CF6;
+
+  /* Elevation scale. The app currently uses a single near-flat shadow
+     everywhere; these give cards a real hierarchy. */
+  --shadow-card:    0 1px 3px 0 rgb(19 28 78 / 0.05);
+  --shadow-raised:  0 4px 14px -2px rgb(19 28 78 / 0.09), 0 2px 6px -2px rgb(19 28 78 / 0.05);
+  --shadow-float:   0 18px 44px -12px rgb(19 28 78 / 0.20), 0 6px 14px -6px rgb(19 28 78 / 0.10);
+  --shadow-popup:   0 20px 25px -5px rgb(19 28 78 / 0.12), 0 8px 10px -6px rgb(19 28 78 / 0.05);
+
+  --radius-xl2: 1rem;
+  --radius-xl3: 1.5rem;
+
+  --font-sans: Inter, system-ui, sans-serif;
+}
+
+/* Kept as aliases: existing inline styles and this file reference the older
+   var names, so removing them would break them. */
 :root {
   --orange: #F56B22;
   --orange-600: #E25A12;
@@ -17,6 +69,11 @@
   --navy-500: #3A4382;
   --navy-100: #E5E7F1;
   --navy-50: #F1F2F8;
+
+  /* Brand surfaces used by the new login shell and, next, the app chrome. */
+  --gradient-navy:   linear-gradient(150deg, #0B1233 0%, #131C4E 45%, #1B2557 100%);
+  --gradient-sunset: linear-gradient(135deg, #F56B22 0%, #FFB54B 100%);
+  --gradient-warm:   linear-gradient(135deg, #F56B22 0%, #E25A12 100%);
 }
 
 * {
