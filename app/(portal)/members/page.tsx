@@ -124,6 +124,65 @@ function Checkbox({
   );
 }
 
+/* ── Bulk census parsing helpers ──────────────────────────────────────── */
+
+// Excel stores a typed date as a serial number (days from 1899-12-30), and
+// xlsx hands it back as a Date when cellDates is on. HR also pastes plain
+// text. All three shapes have to resolve to YYYY-MM-DD, or fail loudly —
+// silently rejecting a date that looks right on screen is the worst outcome.
+function normaliseDob(value: unknown): string | null {
+  const iso = (y: number, m: number, d: number) => {
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    // Rejects impossible dates that would otherwise roll over (e.g. 31 Feb).
+    if (dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+    if (y < 1900 || dt.getTime() > Date.now()) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  };
+
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return iso(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate());
+  }
+
+  // Bare Excel serial, for files read without cellDates.
+  if (typeof value === 'number' && value > 0 && value < 80000) {
+    const dt = new Date(Date.UTC(1899, 11, 30) + value * 86400000);
+    return iso(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+  }
+
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) return iso(+isoMatch[1], +isoMatch[2], +isoMatch[3]);
+
+  // Day-first: the format the template asks for and Nigerian convention.
+  const dmy = text.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (dmy) return iso(+dmy[3], +dmy[2], +dmy[1]);
+
+  // "1 Jan 1990" / "01 January 1990"
+  const named = text.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{4})$/);
+  if (named) {
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const m = months.indexOf(named[2].slice(0, 3).toLowerCase()) + 1;
+    if (m > 0) return iso(+named[3], m, +named[1]);
+  }
+
+  // Numeric serial that arrived as text.
+  if (/^\d+(\.\d+)?$/.test(text)) return normaliseDob(Number(text));
+
+  return null;
+}
+
+// Returns Prognosis's sexId ('1' male, '2' female), or '' when the value is
+// not recognisably either — the caller turns that into a row error.
+function parseGender(value: string): string {
+  const v = value.trim().toLowerCase();
+  if (['m', 'male', 'man', 'mr'].includes(v)) return '1';
+  if (['f', 'female', 'woman', 'mrs', 'ms', 'miss'].includes(v)) return '2';
+  return '';
+}
+
 /* ── Passport photo uploader ─────────────────────────────────────────── */
 function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: boolean }) {
   const [preview, setPreview] = useState<string | null>(null);
@@ -223,7 +282,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>('');
   // Bulk CSV state
-  interface BulkRow { idx: number; firstName: string; surname: string; otherNames: string; dob: string; gender: string; email: string; mobile: string; employeeCode: string; errors: string[]; }
+  // dob is YYYY-MM-DD once parsed; sexId is resolved at parse time so the
+  // review table shows exactly what will be submitted.
+  interface BulkRow { idx: number; firstName: string; surname: string; otherNames: string; dob: string; gender: string; sexId: string; email: string; mobile: string; employeeCode: string; errors: string[]; }
   const [bulkStep, setBulkStep]       = useState<'upload' | 'review' | 'done'>('upload');
   const [bulkRows, setBulkRows]       = useState<BulkRow[]>([]);
   const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
@@ -317,7 +378,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     reader.onload = async (e) => {
       const XLSX = await import('xlsx');
       const data = new Uint8Array(e.target!.result as ArrayBuffer);
-      const wb   = XLSX.read(data, { type: 'array' });
+      // cellDates so a real Excel date cell arrives as a Date rather than a
+      // serial number. raw:false is deliberately NOT used — we want the
+      // underlying value, not Excel's display string, which varies by locale.
+      const wb   = XLSX.read(data, { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const raw  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
       const rows: BulkRow[] = raw.map((r, idx) => {
@@ -325,25 +389,50 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           for (const k of keys) { const v = r[k]; if (v != null && String(v).trim()) return String(v).trim(); }
           return '';
         };
+        const rawOf = (...keys: string[]): unknown => {
+          for (const k of keys) { const v = r[k]; if (v != null && String(v).trim()) return v; }
+          return '';
+        };
         const firstName    = get('First Name','FirstName','first_name','firstname');
         const surname      = get('Last Name','LastName','Surname','surname','last_name');
         const otherNames   = get('Other Names','OtherNames','other_names');
-        const dob          = get('Date of Birth','DOB','DateOfBirth','date_of_birth','dob');
-        const gender       = get('Gender','Sex','gender','sex');
         const email        = get('Email','email','Email Address');
         const mobile       = get('Mobile','Phone','mobile','phone','Mobile Number');
         const employeeCode = get('Employee Code','Staff ID','EmployeeCode','employee_code','staff_id','StaffID');
+
+        // DOB is read raw: typing a date into Excel turns the cell into a real
+        // date, which used to stringify to a serial number and fail validation
+        // even though it looked correct on screen.
+        const dobRaw = rawOf('Date of Birth','DOB','DateOfBirth','date_of_birth','dob');
+        const dob = normaliseDob(dobRaw);
+
+        // Gender is matched explicitly. It previously fell through to
+        // `/^f/i.test(x) ? female : male`, so any unrecognised value — a typo,
+        // a stray character — silently enrolled the person as male.
+        const genderRaw = get('Gender','Sex','gender','sex');
+        const sexId = parseGender(genderRaw);
+
         const errors: string[] = [];
         if (!firstName)    errors.push('First Name required');
         if (!surname)      errors.push('Last Name required');
-        if (!dob)          errors.push('Date of Birth required');
-        if (!gender)       errors.push('Gender required');
+        if (!genderRaw)    errors.push('Gender required');
+        else if (!sexId)   errors.push('Gender must be Male or Female');
         if (!email)        errors.push('Email required');
         if (!mobile)       errors.push('Mobile required');
         if (!employeeCode) errors.push('Employee Code required');
-        if (dob && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$|^\d{4}-\d{2}-\d{2}$/.test(dob)) errors.push('DOB must be DD/MM/YYYY');
+        if (!String(dobRaw).trim()) errors.push('Date of Birth required');
+        else if (!dob)     errors.push('Date of Birth not recognised — use DD/MM/YYYY');
         if (email && !isValidEmail(email)) errors.push('Invalid email');
-        return { idx, firstName, surname, otherNames, dob, gender, email, mobile, employeeCode, errors };
+
+        return {
+          idx, firstName, surname, otherNames,
+          // Held as YYYY-MM-DD once parsed, so the review table and the submit
+          // agree on one representation.
+          dob: dob ?? String(dobRaw).trim(),
+          gender: sexId === '2' ? 'Female' : sexId === '1' ? 'Male' : genderRaw,
+          sexId,
+          email, mobile, employeeCode, errors,
+        };
       });
       setBulkRows(rows);
       setBulkSelected(new Set(rows.filter(r => r.errors.length === 0).map(r => r.idx)));
@@ -354,12 +443,46 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
   function downloadBulkTemplate() {
     import('xlsx').then((XLSX) => {
+      // Row 1 must stay the header row — the parser reads the first sheet with
+      // the first row as keys, so guidance goes on a second sheet rather than
+      // above the headers.
       const ws = XLSX.utils.aoa_to_sheet([
         ['First Name','Last Name','Other Names','Date of Birth','Gender','Email','Mobile','Employee Code'],
         ['John','Doe','','01/01/1990','Male','john.doe@company.com','08012345678','EMP001'],
+        ['Amina','Bello','Ngozi','24/07/1988','Female','amina.bello@company.com','08023456789','EMP002'],
       ]);
+      ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
+
+      const notes = XLSX.utils.aoa_to_sheet([
+        ['Bulk enrolment — principal staff only'],
+        [],
+        ['This upload enrols EMPLOYEES (principal members) only.'],
+        ['Dependants (spouse, children) are NOT added by this file.'],
+        ['Add dependants after enrolment from the member\'s profile, or send'],
+        ['the employee a self-enrolment link so they add their own family.'],
+        [],
+        ['One plan per upload'],
+        ['Do not add a plan or scheme column. You choose one plan in the'],
+        ['portal and every row in the file is enrolled on that plan. Upload'],
+        ['separate files if staff belong to different plans.'],
+        [],
+        ['Column rules'],
+        ['First Name', 'Required'],
+        ['Last Name', 'Required'],
+        ['Other Names', 'Optional'],
+        ['Date of Birth', 'Required. DD/MM/YYYY. A real Excel date is fine too.'],
+        ['Gender', 'Required. Type Male or Female (M or F also accepted).'],
+        ['Email', 'Required. Must be a valid address.'],
+        ['Mobile', 'Required.'],
+        ['Employee Code', 'Required. Your internal staff ID.'],
+        [],
+        ['Nothing is saved until you review the parsed rows and confirm.'],
+      ]);
+      notes['!cols'] = [{ wch: 18 }, { wch: 58 }];
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Census');
+      XLSX.utils.book_append_sheet(wb, ws, 'Staff');
+      XLSX.utils.book_append_sheet(wb, notes, 'How to use');
       XLSX.writeFile(wb, 'bulk-enrolment-template.xlsx');
     });
   }
@@ -374,11 +497,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     setBulkProgress(initial);
     setBulkStep('done');
     for (const row of toSubmit) {
-      // Normalise DOB to YYYY-MM-DD
-      let dob = row.dob;
-      const dmy = dob.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-      if (dmy) dob = `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
-      const sexId = /^f/i.test(row.gender) ? '2' : '1';
+      // Both already resolved and validated at parse time, so what HR reviewed
+      // is exactly what gets sent.
+      const dob = row.dob;
+      const sexId = row.sexId;
       try {
         const res = await fetch('/api/hr/members/add', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1038,9 +1160,25 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           {/* ── BULK mode ── */}
           {mode === 'bulk' && bulkStep === 'upload' && (
             <>
+              {/* Scope notice — HR repeatedly expects a census upload to carry
+                  dependants and plan columns. It does neither, so say so before
+                  they build the file rather than after it fails. */}
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16,
+                padding: '12px 14px', borderRadius: 12, background: '#EFF6FF', border: '1px solid #BAE6FD',
+              }}>
+                <Users style={{ width: 15, height: 15, color: '#0284C7', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: 12, color: '#0C4A6E', lineHeight: 1.55 }}>
+                  <strong style={{ fontWeight: 700 }}>Principal staff only.</strong> This enrols employees.
+                  Dependants aren&rsquo;t added by the file — add them from the member&rsquo;s profile
+                  afterwards, or send a self-enrolment link. All rows are enrolled on the one
+                  plan you pick below.
+                </p>
+              </div>
+
               {/* Scheme picker */}
               <div style={{ marginBottom: 18 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan / Scheme</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan / Scheme — applies to every row</p>
                 <select value={bulkSchemeId} onChange={e => setBulkSchemeId(e.target.value)}
                   style={{ width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: bulkSchemeId ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
                   <option value=''>Select a plan…</option>
@@ -1057,7 +1195,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   <Upload style={{ width: 22, height: 22, color: '#F56B22' }} />
                 </div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Census file here</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One member per row</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One employee per row</p>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                   <button onClick={() => bulkFileRef.current?.click()}
                     style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 12, background: '#EEF2FF', cursor: 'pointer' }}>Browse File</button>
