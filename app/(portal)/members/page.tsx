@@ -1939,7 +1939,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean }) {
+function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit, autoOpenECard }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean; autoOpenECard?: boolean }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -2119,6 +2119,15 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
     if (autoOpenEdit) openEditSheet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenEdit]);
+
+  // Arriving from the dashboard's "Download E-card" quick action: an e-card is
+  // always for one specific member, so the action can't open cold — HR picks
+  // the member and the card opens straight away rather than making them hunt
+  // for the button in the drawer.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (autoOpenECard) setShowECard(true);
+  }, [autoOpenECard]);
 
   const { toast } = useToast();
   const plan   = planColors[member.plan]     ?? { bg: '#F1F5F9', text: '#475569' };
@@ -3254,7 +3263,10 @@ function MembersPageInner() {
   const [planFilter, setPlanFilter]       = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
   const [selected, setSelected]           = useState<string[]>([]);
-  const [activeMember, setActiveMember]   = useState<{ member: Member; index: number; autoOpenEdit?: boolean } | null>(null);
+  const [activeMember, setActiveMember]   = useState<{ member: Member; index: number; autoOpenEdit?: boolean; autoOpenECard?: boolean } | null>(null);
+  // Set when the dashboard sends HR here to issue an e-card. Stays on until a
+  // member is chosen, so the next row they open goes straight to the card.
+  const [ecardIntent, setEcardIntent]     = useState(initialAction === 'ecard');
   const [showAddModal, setShowAddModal]   = useState<false | 'individual' | 'bulk'>(
     initialAction === 'add' ? 'individual' : initialAction === 'upload' ? 'bulk' : false
   );
@@ -3403,6 +3415,26 @@ function MembersPageInner() {
 
         {/* Toolbar */}
         <div style={{ ...card, padding: '16px 20px' }}>
+          {/* Tells HR what to do next when they arrive from the dashboard's
+              "Download E-card" action — an e-card belongs to one member, so a
+              member has to be chosen before the card can open. */}
+          {ecardIntent && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+              padding: '11px 16px', borderRadius: 12,
+              background: '#EFF6FF', border: '1px solid #BAE6FD',
+            }}>
+              <CreditCard style={{ width: 16, height: 16, color: '#0284C7', flexShrink: 0 }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#0C4A6E' }}>
+                Choose a member to open their e-card.
+              </p>
+              <button onClick={() => setEcardIntent(false)}
+                style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#0284C7', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                Cancel
+              </button>
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ position: 'relative', flex: '2 1 480px', maxWidth: 720 }}>
               <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#C4C9D9' }} />
@@ -3602,7 +3634,7 @@ function MembersPageInner() {
                 key={m.id}
                 className={`grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] cursor-pointer transition-colors ${isSel ? 'bg-[#FFF8F5]' : ''}`}
                 style={{ gridTemplateColumns: '36px minmax(0,1fr) 100px 132px 110px 70px 100px 110px 90px 34px', columnGap: 12, padding: '16px 24px', borderLeft: isDependant && viewBeneficiaries ? '3px solid #E0E7FF' : '3px solid transparent' }}
-                onClick={() => setActiveMember({ member: m, index: globalIndex })}
+                onClick={() => { setActiveMember({ member: m, index: globalIndex, autoOpenECard: ecardIntent }); setEcardIntent(false); }}
               >
                 <Checkbox checked={isSel} onChange={() => toggleSelect(m.id)} onClick={(e) => e.stopPropagation()} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -3639,7 +3671,7 @@ function MembersPageInner() {
                 )}
                 <button
                   title="Open member"
-                  onClick={(e) => { e.stopPropagation(); setActiveMember({ member: m, index: globalIndex }); }}
+                  onClick={(e) => { e.stopPropagation(); setActiveMember({ member: m, index: globalIndex, autoOpenECard: ecardIntent }); setEcardIntent(false); }}
                   style={{
                     width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -3713,6 +3745,7 @@ function MembersPageInner() {
           maxFamilySize={maxFamilySize}
           schemes={schemes}
           autoOpenEdit={activeMember.autoOpenEdit}
+          autoOpenECard={activeMember.autoOpenECard}
         />
       )}
 
