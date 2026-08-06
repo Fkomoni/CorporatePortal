@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { BrandBackdrop } from '@/components/ui/BrandBackdrop';
 import {
   Eye, EyeOff, ShieldCheck, BarChart3, Users, FileText, Building2,
   Mail, Lock, Headphones, Lock as LockSmall, CheckCircle2,
@@ -215,24 +216,7 @@ export default function LoginPage() {
           width: '48%', padding: '38px 52px 34px', background: 'var(--gradient-navy)',
         }}
       >
-        {/* Soft orange glow, upper right */}
-        <div aria-hidden="true" style={{
-          position: 'absolute', top: -160, right: -140, width: 460, height: 460,
-          borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,107,34,0.20) 0%, rgba(245,107,34,0) 70%)',
-        }} />
-        {/* Brand swoosh — a corner accent, kept low-contrast so the copy above
-            it stays legible. */}
-        <svg aria-hidden="true" viewBox="0 0 600 240" preserveAspectRatio="none"
-          style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 240 }}>
-          <defs>
-            <linearGradient id="swoosh" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0%" stopColor="#F56B22" stopOpacity="0.42" />
-              <stop offset="55%" stopColor="#E25A12" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#131C4E" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d="M0,240 C120,190 190,140 600,96 L600,240 Z" fill="url(#swoosh)" />
-        </svg>
+        <BrandBackdrop />
 
         {/* Logo — official artwork, knockout variant so the wordmark reads on navy */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14 }}>
