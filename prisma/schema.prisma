@@ -199,13 +199,37 @@ model CorporateSyncState {
 
 // Per-company branding (logo stored as a data URL, capped at ~400 KB)
 model CompanyBranding {
-  id          String   @id @default(cuid())
-  groupId     String   @unique
-  logoDataUrl String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  groupId      String   @unique
+  logoDataUrl  String?
+  // Announcement Leadway staff show on this corporate's dashboard
+  // (the "system notice" bar). Null/empty = no bar.
+  systemNotice String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("company_branding")
+}
+
+// HR-raised Service Desk requests — replaces the page's original mock
+// tickets. Status transitions beyond Open/Closed are done by Leadway staff
+// out-of-band for now; the human-readable reference is derived from seq
+// (REQ-0007), which Postgres allocates atomically.
+model ServiceRequest {
+  id             String   @id @default(cuid())
+  seq            Int      @unique @default(autoincrement())
+  groupId        String
+  category       String
+  subject        String
+  description    String   @default("")
+  status         String   @default("Open")
+  createdByName  String   @default("")
+  createdByEmail String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([groupId, createdAt])
+  @@map("service_requests")
 }
 
 // Future-dated terminations: TerminateMember has no date parameter, so a

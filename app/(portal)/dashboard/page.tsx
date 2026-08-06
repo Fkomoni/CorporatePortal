@@ -3,9 +3,8 @@
 import {
   UserPlus, Users, FileText, Gauge, Wallet,
   Upload, CreditCard, MessageSquare, Building2, CheckCircle2, ChevronRight,
-  Thermometer, Heart, Droplet, Baby, Pill, Eye, Stethoscope,
+  Thermometer, Heart, Droplet, Baby, Pill, Eye, Stethoscope, Bell,
 } from 'lucide-react';
-import { mockTickets } from '@/lib/mock-data';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -165,6 +164,24 @@ export default function DashboardPage() {
       .then((r) => r.json())
       .then((d) => { if (typeof d.totalBeneficiaries === 'number') setPendingEnrolmentCount(d.totalBeneficiaries); })
       .catch(() => {});
+  }, []);
+
+  // Recent Service Desk requests + the staff-published system notice.
+  const [recentRequests, setRecentRequests] = useState<
+    { id: string; ticketId: string; subject: string; status: string; lastUpdated: string }[] | null
+  >(null);
+  const [systemNotice, setSystemNotice] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/hr/service-requests?limit=4')
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setRecentRequests(Array.isArray(d.requests) ? d.requests : []); })
+      .catch(() => { if (!cancelled) setRecentRequests([]); });
+    fetch('/api/hr/system-notice')
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled && typeof d.notice === 'string' && d.notice.trim()) setSystemNotice(d.notice.trim()); })
+      .catch(() => { /* no bar */ });
+    return () => { cancelled = true; };
   }, []);
 
   const activeLives        = stats?.activeLives        ?? null;
@@ -546,9 +563,7 @@ export default function DashboardPage() {
           }
 
           {
-            // Recent Requests — the Service Desk still runs on sample tickets,
-            // so this column is labelled as such until real ticket storage
-            // lands (stage 5).
+            // Recent Requests — live from the Service Desk's request store.
             const REQ_STATUS: Record<string, { bg: string; text: string }> = {
               'Open':             { bg: '#FEF2F2', text: '#DC2626' },
               'In Progress':      { bg: '#FFFBEB', text: '#D97706' },
@@ -556,17 +571,21 @@ export default function DashboardPage() {
               'Awaiting Leadway': { bg: '#F5F3FF', text: '#7C3AED' },
               'Closed':           { bg: '#F1F5F9', text: '#475569' },
             };
-            const requests = mockTickets.slice(0, 4);
+            const requests = recentRequests ?? [];
             columns.push(
               <div key="requests" style={colCard}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
                     <p style={colTitle}>Recent Requests</p>
-                    <p style={colSub}>Sample data</p>
+                    <p style={colSub}>Latest from the Service Desk</p>
                   </div>
                   <button onClick={() => router.push('/service-desk')} style={headerLink}>View all →</button>
                 </div>
-                {requests.map((t, i) => {
+                {requests.length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
+                    {recentRequests === null ? 'Loading requests…' : 'No requests yet — raise one from Quick actions.'}
+                  </p>
+                ) : requests.map((t, i) => {
                   const chip = REQ_STATUS[t.status] ?? REQ_STATUS['Closed'];
                   return (
                     <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < requests.length - 1 ? '1px solid #F5F6FA' : 'none' }}>
@@ -596,6 +615,19 @@ export default function DashboardPage() {
             </div>
           );
         })()}
+
+        {/* ── SYSTEM NOTICE ── set per corporate by Leadway staff. */}
+        {systemNotice && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 14, padding: '13px 20px',
+            background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 14,
+          }}>
+            <Bell style={{ width: 16, height: 16, color: '#F56B22', flexShrink: 0 }} strokeWidth={2} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', flexShrink: 0 }}>System notice</span>
+            <span style={{ width: 1, alignSelf: 'stretch', background: '#FED7AA', flexShrink: 0 }} />
+            <p style={{ fontSize: 12.5, color: '#7C4A12', flex: 1, minWidth: 0 }}>{systemNotice}</p>
+          </div>
+        )}
 
       </div>
 

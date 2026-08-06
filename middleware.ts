@@ -42,8 +42,8 @@ export default auth((req) => {
   // role hitting /members) → bounce to dashboard rather than leak the page.
   if (isPortalRoute && isLoggedIn && loginType !== 'staff') {
     const role = (session?.user as { role?: string })?.role;
-    const module = moduleForPath(pathname);
-    if (module && !canAccessModule(role, module)) {
+    const mod = moduleForPath(pathname);
+    if (mod && !canAccessModule(role, mod)) {
       return NextResponse.redirect(new URL('/dashboard?denied=1', req.url));
     }
   }
