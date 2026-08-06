@@ -1,6 +1,8 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit';
+import { cacheGet, cacheSet } from '@/lib/server-cache';
+import { createTimer } from '@/lib/perf-timing';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -180,13 +182,29 @@ export async function GET(req: Request) {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
+  // Cached like members/dashboard-stats: GetPaidClaimsWithDiagnosis is the
+  // heaviest upstream call in the system and claims settle daily at most, so
+  // re-running it per visit bought nothing. ?fresh=1 bypasses.
+  const timer = createTimer('hr/claims');
+  const cacheKey = `claims:${groupId}`;
+  const wantFresh = new URL(req.url).searchParams.get('fresh') === '1';
+  if (!wantFresh) {
+    const cached = cacheGet<object>(cacheKey);
+    if (cached) {
+      timer.note('cache', 'HIT');
+      timer.done();
+      return NextResponse.json({ ...cached, cached: true });
+    }
+  }
+  timer.note('cache', wantFresh ? 'BYPASS' : 'MISS');
+
   try {
     const token = await getServiceToken();
 
     // Fetch policy period first; use it to derive the claims date range
-    const premiumRes = await fetch(`${BASE}/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`, {
+    const premiumRes = await timer.track('premium', fetch(`${BASE}/api/CorporateProfile/GetGroupPremium?groupid=${groupId}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
+    }));
     const premiumRaw = await premiumRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } });
 
     const premiumRows = toRows(premiumRaw);
@@ -210,12 +228,12 @@ export async function GET(req: Request) {
     // Fetch both APIs in parallel:
     // - GetPaidClaimsWithDiagnosis: has EnrolleeID, ICDCode, ProcedureName, FilterType
     // - ClaimsHeaderEnquiry: has ClaimDiagnosis (full text diagnosis), provider, service
-    const [claimsRes, headerRes] = await Promise.all([
+    const [claimsRes, headerRes] = await timer.track('claims+header', Promise.all([
       fetch(`${BASE}/api/CorporatePortal/GetPaidClaimsWithDiagnosis?groupId=${groupId}&fromDate=${fromDate}&toDate=${toDate}`,
         { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }),
       fetch(`${BASE}/api/EnrolleeClaims/ClaimsHeaderEnquiry?groupid=${groupId}&fromdate=${fromDate}&todate=${toDate}`,
         { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }),
-    ]);
+    ]));
 
     const [claimsRaw, headerRaw] = await Promise.all([
       claimsRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
@@ -343,9 +361,15 @@ export async function GET(req: Request) {
     void logAudit({ session, action: 'VIEW_CLAIMS', resource: 'claims', request: req,
       details: { totalClaims: filtered.length, groupId } });
 
-    return NextResponse.json({ claims: filtered, stats });
+    const payload = { claims: filtered, stats };
+    cacheSet(cacheKey, payload);
+    timer.note('rows', filtered.length);
+    timer.done();
+    return NextResponse.json(payload);
   } catch (err) {
     console.error('[hr/claims] Error:', err);
+    timer.note('error', '1');
+    timer.done();
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to fetch claims' },
       { status: 500 }

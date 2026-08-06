@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { Member } from '@/lib/types';
 import { logAudit } from '@/lib/audit';
 import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
+import { createTimer } from '@/lib/perf-timing';
 import { canAccessModule } from '@/lib/roles';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
@@ -326,20 +327,27 @@ export async function GET(req: Request) {
   const skipClaims = url.searchParams.get('skipClaims') === '1';
   const cacheKey = `members-${groupId}`;
 
+  const timer = createTimer(`hr/members${skipClaims ? ' (fast)' : ''}`);
+
   // Cache only applies to the full response (with claims)
   if (!skipClaims) {
     if (fresh) cacheBust(cacheKey);
     else {
       const cached = cacheGet<object>(cacheKey);
-      if (cached) return NextResponse.json({ ...cached, cached: true });
+      if (cached) {
+        timer.note('cache', 'HIT');
+        timer.done();
+        return NextResponse.json({ ...cached, cached: true });
+      }
     }
   }
+  timer.note('cache', skipClaims ? 'N/A' : fresh ? 'BYPASS' : 'MISS');
 
   try {
     const token = await getServiceToken();
 
     // When skipClaims=1, skip GetGroupClaims (the heaviest call) for fast initial load
-    const [membersRes, premiumRes, claimsRes, relRes] = await Promise.all([
+    const [membersRes, premiumRes, claimsRes, relRes] = await timer.track('upstream', Promise.all([
       fetch(`${BASE}/api/EnrolleeProfile/GetGroupMembers?groupid=${groupId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       }),
@@ -354,7 +362,7 @@ export async function GET(req: Request) {
       fetch(`${BASE}/api/ListValues/GetBeneficiaryRelationship`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       }),
-    ]);
+    ]));
 
     const [membersRaw, premiumRaw, claimsRaw, relRaw] = await Promise.all([
       membersRes.text().then((t) => { try { return JSON.parse(t); } catch { return null; } }),
@@ -627,9 +635,13 @@ export async function GET(req: Request) {
     // Cache only the full response (with claims), not the fast skipClaims one
     if (!skipClaims) cacheSet(cacheKey, responsePayload);
 
+    timer.note('members', members.length);
+    timer.done();
     return NextResponse.json(responsePayload);
   } catch (err) {
     console.error('[hr/members] Error:', err);
+    timer.note('error', '1');
+    timer.done();
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to fetch members' },
       { status: 500 }
