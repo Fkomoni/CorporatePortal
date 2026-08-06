@@ -67,7 +67,20 @@ export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
 
       <div className="flex items-center" style={{ gap: 10 }}>
         <form onSubmit={submitSearch} className="relative hidden sm:block">
-          <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#9CA3B8' }} />
+          {/* A real submit button, not a decorative icon. It looks like the
+              obvious way to run the search, so it has to actually do it —
+              pressing Enter was previously the only way. */}
+          <button
+            type="submit"
+            aria-label="Search"
+            style={{
+              position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+              width: 22, height: 22, padding: 0, border: 'none', background: 'none',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Search style={{ width: 15, height: 15, color: '#9CA3B8' }} />
+          </button>
           <input
             ref={searchRef}
             value={query}
