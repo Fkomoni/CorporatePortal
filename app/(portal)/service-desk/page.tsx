@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -8,7 +8,11 @@ import {
   CircleDot, Loader, Building2, UserRound, CheckCircle2,
 } from 'lucide-react';
 import { ServiceDeskVis, DEFAULTS, getVis } from '@/lib/module-visibility';
-import { REQUEST_ROUTES, FALLBACK_CATEGORY, routeFor } from '@/lib/service-request-routes';
+import {
+  REQUEST_ROUTES, FALLBACK_CATEGORY, routeFor,
+  MAX_ATTACHMENTS, MAX_ATTACHMENTS_TOTAL_BYTES, MAX_ATTACHMENT_BYTES,
+  ATTACHMENT_ACCEPT, attachmentError, formatBytes,
+} from '@/lib/service-request-routes';
 import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
 import { useToast } from '@/components/ui/Toast';
@@ -17,6 +21,7 @@ import { useToast } from '@/components/ui/Toast';
 interface ServiceRequestRow {
   id: string; ticketId: string; category: string; subject: string;
   description: string; status: string; submittedDate: string; lastUpdated: string;
+  attachments?: string[];
 }
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
@@ -95,6 +100,64 @@ function ServiceDeskInner() {
   const [submitting, setSubmitting] = useState(false);
   const selectedRoute = routeFor(formCategory);
 
+  // Attachments. Held as base64 from the moment they are picked, so submit is a
+  // plain JSON POST and there is no second failure mode at send time.
+  interface PickedFile { fileName: string; size: number; base64Data: string }
+  const [files, setFiles] = useState<PickedFile[]>([]);
+  const [fileError, setFileError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+
+  function readAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      // readAsDataURL gives "data:<mime>;base64,<data>" — Prognosis wants the
+      // payload only, and takes the content type as a separate field.
+      reader.onload = () => resolve(String(reader.result ?? '').split(',')[1] ?? '');
+      reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addFiles(picked: FileList | null) {
+    if (!picked?.length) return;
+    setFileError('');
+    const incoming = Array.from(picked);
+    const problems: string[] = [];
+    const accepted: PickedFile[] = [];
+    let running = totalBytes;
+
+    for (const file of incoming) {
+      if (files.length + accepted.length >= MAX_ATTACHMENTS) {
+        problems.push(`Only ${MAX_ATTACHMENTS} files can be attached — ${file.name} was not added.`);
+        continue;
+      }
+      if (files.some((f) => f.fileName === file.name)) {
+        problems.push(`${file.name} is already attached.`);
+        continue;
+      }
+      const err = attachmentError({ name: file.name, size: file.size });
+      if (err) { problems.push(err); continue; }
+      if (running + file.size > MAX_ATTACHMENTS_TOTAL_BYTES) {
+        problems.push(`${file.name} would take the total past ${formatBytes(MAX_ATTACHMENTS_TOTAL_BYTES)}.`);
+        continue;
+      }
+      try {
+        accepted.push({ fileName: file.name, size: file.size, base64Data: await readAsBase64(file) });
+        running += file.size;
+      } catch {
+        problems.push(`Could not read ${file.name}.`);
+      }
+    }
+
+    if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
+    if (problems.length) setFileError(problems.join(' '));
+    // Clearing the input means picking the same file twice in a row still fires
+    // onChange.
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
   async function handleSubmit() {
     if (submitting) return;
     // The category picks the mailbox, so it is no longer optional — silently
@@ -107,13 +170,19 @@ function ServiceDeskInner() {
       const res = await fetch('/api/hr/service-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: formCategory || FALLBACK_CATEGORY, subject: formSubject, description: formDetails }),
+        body: JSON.stringify({
+          category: formCategory || FALLBACK_CATEGORY,
+          subject: formSubject,
+          description: formDetails,
+          attachments: files.map((f) => ({ fileName: f.fileName, base64Data: f.base64Data })),
+        }),
       });
       const json = await res.json();
       if (!res.ok) { toast(json.error ?? 'Failed to submit request.', 'error'); return; }
       const ref = json.request?.ticketId ?? '';
       setShowForm(false);
       setFormCategory(''); setFormSubject(''); setFormDetails('');
+      setFiles([]); setFileError('');
       // The request is saved either way; only claim the team has it when the
       // email actually went out.
       if (json.notified === false) {
@@ -200,7 +269,17 @@ function ServiceDeskInner() {
                 style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 164px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                 className="hover:bg-[#FAFBFC] last:border-0">
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{t.ticketId}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 16 }}>{t.subject}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: 16 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</span>
+                  {/* Filenames are kept on the request; the files themselves went
+                      out on the email. This is how HR remembers what they sent. */}
+                  {!!t.attachments?.length && (
+                    <span title={t.attachments.join(', ')} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0, color: '#9CA3B8' }}>
+                      <Paperclip style={{ width: 11, height: 11 }} />
+                      <span style={{ fontSize: 10.5, fontWeight: 600 }}>{t.attachments.length}</span>
+                    </span>
+                  )}
+                </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: cat.tint, color: cat.text, width: 'fit-content', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                   {t.category}
                 </span>
@@ -269,12 +348,58 @@ function ServiceDeskInner() {
                   <textarea value={formDetails} onChange={(e) => setFormDetails(e.target.value)} maxLength={5000} style={{ width: '100%', height: 96, padding: '10px 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', resize: 'none', boxSizing: 'border-box' }} placeholder="Describe your request..." />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Attachments</label>
-                  <div style={{ border: '2px dashed #E5E7F1', borderRadius: 14, padding: '20px 16px', textAlign: 'center', background: '#FAFBFC', cursor: 'pointer' }}>
-                    <Paperclip style={{ width: 20, height: 20, color: '#9CA3B8', margin: '0 auto 8px' }} />
-                    <p style={{ fontSize: 12, color: '#9CA3B8' }}>Drop files here or <span style={{ color: '#F56B22', fontWeight: 600 }}>browse</span></p>
-                    <p style={{ fontSize: 10, color: '#C4C9D9', marginTop: 4 }}>Excel · PDF · PNG · JPG</p>
-                  </div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>
+                    Attachments <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: '#C4C9D9' }}>· optional</span>
+                  </label>
+
+                  {files.length < MAX_ATTACHMENTS && (
+                    <div
+                      role="button" tabIndex={0}
+                      onClick={() => fileRef.current?.click()}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={(e) => { e.preventDefault(); setDragOver(false); void addFiles(e.dataTransfer.files); }}
+                      style={{ border: `2px dashed ${dragOver ? '#F56B22' : '#E5E7F1'}`, borderRadius: 14, padding: '20px 16px', textAlign: 'center', background: dragOver ? '#FFF8F5' : '#FAFBFC', cursor: 'pointer', transition: 'all 0.15s', outline: 'none' }}>
+                      <Paperclip style={{ width: 20, height: 20, color: dragOver ? '#F56B22' : '#9CA3B8', margin: '0 auto 8px' }} />
+                      <p style={{ fontSize: 12, color: '#9CA3B8' }}>Drop files here or <span style={{ color: '#F56B22', fontWeight: 600 }}>browse</span></p>
+                      <p style={{ fontSize: 10, color: '#C4C9D9', marginTop: 4 }}>
+                        Excel · PDF · Word · PNG · JPG · up to {formatBytes(MAX_ATTACHMENT_BYTES)} each, {MAX_ATTACHMENTS} files
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    ref={fileRef} type="file" multiple accept={ATTACHMENT_ACCEPT}
+                    style={{ display: 'none' }}
+                    onChange={(e) => void addFiles(e.target.files)}
+                  />
+
+                  {files.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: files.length < MAX_ATTACHMENTS ? 10 : 0 }}>
+                      {files.map((f) => (
+                        <div key={f.fileName} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#FAFBFC' }}>
+                          <Paperclip style={{ width: 13, height: 13, color: '#9CA3B8', flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fileName}</p>
+                            <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 1 }}>{formatBytes(f.size)}</p>
+                          </div>
+                          <button
+                            onClick={() => { setFiles((prev) => prev.filter((p) => p.fileName !== f.fileName)); setFileError(''); }}
+                            aria-label={`Remove ${f.fileName}`}
+                            style={{ padding: 5, borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3B8', display: 'flex', flexShrink: 0 }}>
+                            <X style={{ width: 13, height: 13 }} />
+                          </button>
+                        </div>
+                      ))}
+                      <p style={{ fontSize: 10.5, color: '#B0B7C9' }}>
+                        {files.length} of {MAX_ATTACHMENTS} · {formatBytes(totalBytes)} of {formatBytes(MAX_ATTACHMENTS_TOTAL_BYTES)}
+                      </p>
+                    </div>
+                  )}
+
+                  {fileError && (
+                    <p style={{ fontSize: 11.5, color: '#C2410C', marginTop: 8, lineHeight: 1.5 }}>{fileError}</p>
+                  )}
                 </div>
               </div>
               {/* Tells HR what happens on submit: which desk it reaches, and

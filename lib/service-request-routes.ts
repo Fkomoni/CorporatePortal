@@ -74,3 +74,63 @@ export function buildSubject(opts: { subjectTag: string; companyName: string; re
   const company = opts.companyName.trim() || 'Corporate client';
   return `Corporate Portal - ${opts.subjectTag} - ${company} (${opts.reference})`;
 }
+
+/* ── Attachments ──────────────────────────────────────────────────────────
+   The limits live here so the form, the API and the error messages HR reads
+   cannot drift apart — a client that allows what the server rejects produces a
+   saved request with no email and no explanation.
+
+   Caps are deliberately conservative. Every file is base64-encoded into the
+   SendEmailAlert payload, which inflates it by a third, and neither Prognosis
+   nor the mailboxes downstream publish a size limit. Refusing a 40MB scan up
+   front is better than a request that saves and silently never arrives. */
+
+export const MAX_ATTACHMENTS = 4;
+export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+export const MAX_ATTACHMENTS_TOTAL_BYTES = 10 * 1024 * 1024;
+
+/** Extension → MIME type sent to Prognosis. Also the allowlist. */
+export const ATTACHMENT_TYPES: Record<string, string> = {
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls:  'application/vnd.ms-excel',
+  csv:  'text/csv',
+  pdf:  'application/pdf',
+  png:  'image/png',
+  jpg:  'image/jpeg',
+  jpeg: 'image/jpeg',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  doc:  'application/msword',
+};
+
+export const ATTACHMENT_ACCEPT = Object.keys(ATTACHMENT_TYPES).map((e) => `.${e}`).join(',');
+
+export function attachmentExtension(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  return dot < 0 ? '' : fileName.slice(dot + 1).toLowerCase();
+}
+
+/** MIME type for a filename, or '' when the extension is not allowed. */
+export function attachmentContentType(fileName: string): string {
+  return ATTACHMENT_TYPES[attachmentExtension(fileName)] ?? '';
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+
+/**
+ * Why this file cannot be attached, or null when it can. Used by the form
+ * before upload and by the API on the way through, so the two agree.
+ */
+export function attachmentError(file: { name: string; size: number }): string | null {
+  if (!attachmentContentType(file.name)) {
+    return `${file.name} — only ${Object.keys(ATTACHMENT_TYPES).join(', ')} files can be attached.`;
+  }
+  if (file.size <= 0) return `${file.name} is empty.`;
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    return `${file.name} is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_ATTACHMENT_BYTES)} per file.`;
+  }
+  return null;
+}
