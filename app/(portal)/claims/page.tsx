@@ -137,7 +137,7 @@ export default function ClaimsPage() {
     'Amt Claimed (₦)': c.amtClaimed,
     'Amt Paid (₦)': c.amount,
     'Status': c.status,
-    'Date': c.submittedDate,
+    'Treatment Date': c.submittedDate,
     'Case ID': c.caseId ?? '',
   }));
 
@@ -226,7 +226,7 @@ export default function ClaimsPage() {
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflowX: 'auto' }}>
             <div
               className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
-              style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1280 }}>
+              style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 108px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1306 }}>
               <span>Claim ID</span>
               <span>Member</span>
               <span>Enrolee ID</span>
@@ -236,7 +236,7 @@ export default function ClaimsPage() {
               <span>Category</span>
               <span className="text-right">Amt Claimed</span>
               <span className="text-right">Amt Paid</span>
-              <span>Date</span>
+              <span>Treatment Date</span>
             </div>
 
             {loading && (
@@ -254,7 +254,7 @@ export default function ClaimsPage() {
                 <div
                   key={c.id || i}
                   className="grid items-center border-b border-[#F7F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                  style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '14px 24px', minWidth: 1280 }}>
+                  style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 108px', columnGap: 12, padding: '14px 24px', minWidth: 1306 }}>
                   <span className="text-[12px] font-bold text-[#F56B22] font-mono truncate">{c.claimRef}</span>
                   <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-[#131C4E] truncate">{maskName(c.memberName) || initials}</p>
