@@ -80,6 +80,8 @@ interface DashboardStats {
   topServices: { service: string; visits: number; amtPaid: number }[];
   topConditions: { name: string; visits: number; amtPaid?: number }[];
   monthlySpend: { month: string; amount: number }[];
+  undatedPaidCount?: number;
+  undatedPaidAmount?: number;
   claimsPaidPrevYtd: number | null;
   claimsYoYPct: number | null;
   memberMonthly: { month: string; count: number }[];
@@ -452,11 +454,27 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 {spend.length === 0 ? (
-                  <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
-                    {stats === null && !loadError ? 'Loading claims data…' : 'No claims data yet.'}
+                  <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center', lineHeight: 1.6 }}>
+                    {stats === null && !loadError
+                      ? 'Loading claims data…'
+                      // "No claims data yet" was wrong whenever claims had been
+                      // paid but none could be placed on a month — which read as
+                      // a broken chart sitting under a non-zero Paid Claims KPI.
+                      : (stats?.undatedPaidCount ?? 0) > 0
+                        ? `${stats!.undatedPaidCount} paid claim${stats!.undatedPaidCount === 1 ? '' : 's'} carry no treatment or payment date, so they cannot be placed on a month. They are included in Claims Paid.`
+                        : (stats?.claimsPaid ?? 0) > 0
+                          ? 'Claims have been paid, but none fall inside the current policy year.'
+                          : 'No claims paid yet this policy year.'}
                   </p>
                 ) : (
-                  <SpendAreaChart data={spend} />
+                  <>
+                    <SpendAreaChart data={spend} />
+                    {(stats?.undatedPaidCount ?? 0) > 0 && (
+                      <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6, lineHeight: 1.5 }}>
+                        Excludes {stats!.undatedPaidCount} paid claim{stats!.undatedPaidCount === 1 ? '' : 's'} with no treatment or payment date.
+                      </p>
+                    )}
+                  </>
                 )}
                 <button style={footerBtn} onClick={() => router.push('/claims')}>View full report <span aria-hidden="true">→</span></button>
               </div>

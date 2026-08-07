@@ -6,7 +6,7 @@
 // no business in a browser bundle.
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { renderEmailTemplate } from '@/lib/email-template';
-import { RequestRoute, buildSubject } from '@/lib/service-request-routes';
+import { RequestRoute, buildSubject, formatBytes } from '@/lib/service-request-routes';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -75,6 +75,15 @@ const esc = (s: string) =>
 /** Newlines to <br> after escaping, so HR's paragraphs survive. */
 const escMultiline = (s: string) => esc(s).replace(/\r?\n/g, '<br />');
 
+/** One file on its way to the queue, already validated by the caller. */
+export interface RequestAttachment {
+  fileName: string;
+  contentType: string;
+  base64Data: string;
+  /** Original byte length, for the "2.1 MB" in the email body. */
+  size: number;
+}
+
 export interface RequestEmailInput {
   route: RequestRoute;
   reference: string;
@@ -85,6 +94,7 @@ export interface RequestEmailInput {
   requestSubject: string;
   details: string;
   submittedAt: Date;
+  attachments?: RequestAttachment[];
 }
 
 export function renderRequestEmail(input: RequestEmailInput): string {
@@ -120,6 +130,17 @@ export function renderRequestEmail(input: RequestEmailInput): string {
         value: `<a href="mailto:${esc(input.hrEmail)}" style="color:#F56B22;text-decoration:none;">${esc(input.hrEmail)}</a>`,
       },
       { label: 'Submitted', value: esc(submitted) },
+      // Listed in the body as well as being attached: a mail client that strips
+      // or quarantines attachments otherwise leaves no trace that HR sent any,
+      // and the agent has no way to know to ask for them.
+      ...(input.attachments?.length
+        ? [{
+            label: input.attachments.length === 1 ? 'Attachment' : 'Attachments',
+            value: input.attachments
+              .map((a) => `${esc(a.fileName)} <span style="color:#9CA3B8;">(${esc(formatBytes(a.size))})</span>`)
+              .join('<br />'),
+          }]
+        : []),
     ],
     footnote:
       `${esc(who)} is copied on this email — Reply All reaches them directly. ` +
@@ -154,7 +175,16 @@ export async function sendServiceRequestEmail(
         BCC: '',
         Subject: subject,
         MessageBody: renderRequestEmail(input),
-        Attachments: null,
+        // Prognosis expects FileName / ContentType / Base64Data, and null
+        // rather than [] when there is nothing to attach — that is the shape
+        // every other working sender in this codebase uses.
+        Attachments: input.attachments?.length
+          ? input.attachments.map((a) => ({
+              FileName: a.fileName,
+              ContentType: a.contentType,
+              Base64Data: a.base64Data,
+            }))
+          : null,
         Category: '',
         UserId: 0,
         ProviderId: 0,
@@ -171,7 +201,10 @@ export async function sendServiceRequestEmail(
       console.error(`[service-request] Email FAILED → ${to} (cc: ${cc || 'none'}) — ${error}`);
       return { sent: false, to, cc, error };
     }
-    console.log(`[service-request] ${input.reference} → ${to} (cc: ${cc || 'none'})`);
+    const files = input.attachments?.length
+      ? `, ${input.attachments.length} attachment(s): ${input.attachments.map((a) => a.fileName).join(', ')}`
+      : '';
+    console.log(`[service-request] ${input.reference} → ${to} (cc: ${cc || 'none'})${files}`);
     return { sent: true, to, cc };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);

@@ -225,6 +225,11 @@ model ServiceRequest {
   status         String   @default("Open")
   createdByName  String   @default("")
   createdByEmail String   @default("")
+  // Names only. The files themselves travel on the email to the queue that
+  // owns the request; keeping megabytes of base64 in Postgres would buy
+  // nothing, but HR opening REQ-0148 three weeks later still needs to know
+  // what they sent with it.
+  attachmentNames String[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

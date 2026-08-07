@@ -5,8 +5,12 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-import { REQUEST_CATEGORIES, FALLBACK_CATEGORY, routeFor } from '@/lib/service-request-routes';
-import { sendServiceRequestEmail } from '@/lib/service-request-mail';
+import {
+  REQUEST_CATEGORIES, FALLBACK_CATEGORY, routeFor,
+  MAX_ATTACHMENTS, MAX_ATTACHMENTS_TOTAL_BYTES,
+  attachmentContentType, attachmentError, formatBytes,
+} from '@/lib/service-request-routes';
+import { sendServiceRequestEmail, RequestAttachment } from '@/lib/service-request-mail';
 
 // REQ-0007-style reference derived from the atomically allocated sequence.
 function refFor(seq: number): string {
@@ -25,6 +29,7 @@ function shape(r: any) {
     submittedDate: r.createdAt.toISOString().slice(0, 10),
     lastUpdated: r.updatedAt.toISOString().slice(0, 10),
     createdByName: r.createdByName,
+    attachments: r.attachmentNames ?? [],
   };
 }
 
@@ -60,9 +65,40 @@ export async function POST(req: Request) {
   const groupId = session.user.companyId;
   if (!groupId) return NextResponse.json({ error: 'No group ID' }, { status: 400 });
 
-  let body: { category?: string; subject?: string; description?: string };
+  let body: {
+    category?: string; subject?: string; description?: string;
+    attachments?: Array<{ fileName?: string; base64Data?: string }>;
+  };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  // Attachments are revalidated here rather than trusted from the form: this
+  // route forwards whatever it is given to an internal Leadway mailbox, so the
+  // extension allowlist and the size caps have to hold server-side too.
+  const attachments: RequestAttachment[] = [];
+  const rawFiles = Array.isArray(body.attachments) ? body.attachments : [];
+  if (rawFiles.length > MAX_ATTACHMENTS) {
+    return NextResponse.json({ error: `Attach at most ${MAX_ATTACHMENTS} files.` }, { status: 400 });
+  }
+  let totalBytes = 0;
+  for (const raw of rawFiles) {
+    const fileName = String(raw?.fileName ?? '').trim().slice(0, 200);
+    const base64Data = String(raw?.base64Data ?? '');
+    if (!fileName || !base64Data) {
+      return NextResponse.json({ error: 'An attachment arrived without a name or contents.' }, { status: 400 });
+    }
+    // Base64 carries 3 bytes per 4 characters, less any '=' padding.
+    const size = Math.floor((base64Data.length * 3) / 4) - (base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0);
+    const err = attachmentError({ name: fileName, size });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    totalBytes += size;
+    attachments.push({ fileName, contentType: attachmentContentType(fileName), base64Data, size });
+  }
+  if (totalBytes > MAX_ATTACHMENTS_TOTAL_BYTES) {
+    return NextResponse.json({
+      error: `Attachments total ${formatBytes(totalBytes)} — the limit is ${formatBytes(MAX_ATTACHMENTS_TOTAL_BYTES)} across all files.`,
+    }, { status: 400 });
   }
 
   const subject = String(body.subject ?? '').trim().slice(0, 200);
@@ -82,6 +118,7 @@ export async function POST(req: Request) {
         description,
         createdByName: session.user.name ?? '',
         createdByEmail: session.user.email ?? '',
+        attachmentNames: attachments.map((a) => a.fileName),
       },
     });
   } catch (err) {
@@ -107,6 +144,7 @@ export async function POST(req: Request) {
         requestSubject: subject,
         details: description,
         submittedAt: created.createdAt,
+        attachments,
       })
     : { sent: false, to: '', cc: '' };
 
@@ -114,7 +152,10 @@ export async function POST(req: Request) {
     session,
     action: 'CREATE_SERVICE_REQUEST',
     resource: reference,
-    details: { category, subject, routedTo: mail.to, cc: mail.cc, emailSent: mail.sent },
+    details: {
+      category, subject, routedTo: mail.to, cc: mail.cc, emailSent: mail.sent,
+      attachments: attachments.map((a) => `${a.fileName} (${formatBytes(a.size)})`),
+    },
     request: req,
   });
 
