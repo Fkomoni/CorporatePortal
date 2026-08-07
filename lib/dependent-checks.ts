@@ -1,5 +1,5 @@
 // Guards against double-enrolling the same dependant under a principal, and
-// against exceeding a scheme's max family size — enforced both when HR adds
+// against exceeding a scheme's max family size: enforced both when HR adds
 // a dependant directly and when approving a pending self-registration (the
 // Enrolee App self-registration path bypasses add-dependents entirely, so
 // approval is the only checkpoint for those).
@@ -46,7 +46,7 @@ async function fetchFamilyByStatus(base: string, token: string, groupId: string,
 
 /** All family members under a principal's CIF, deduplicated by CIF.
  *
- * ClientPlanBeneficiariesNoPagitation ignores the memberstatus parameter —
+ * ClientPlanBeneficiariesNoPagitation ignores the memberstatus parameter -
  * confirmed against production, where memberstatus=active and
  * memberstatus=inactive return an identical row set (and both include
  * portal-registered/pending members). Fetching both therefore returned every
@@ -67,7 +67,7 @@ export interface DuplicateDependent {
   cifNumber: string;
 }
 
-/** Matches by date of birth against everyone already in the family — the
+/** Matches by date of birth against everyone already in the family: the
  * simplest reliable dedup signal for a dependant who may have been entered
  * with slightly different name spelling/casing across two registrations. */
 export function findDuplicateDependent(family: FamilyMember[], dateOfBirth: string, excludeCif?: string): DuplicateDependent | null {
@@ -79,7 +79,7 @@ export function findDuplicateDependent(family: FamilyMember[], dateOfBirth: stri
 }
 
 /** Fetches the scheme's MaximumFamilySize (principal + dependants combined),
- * or null if it couldn't be resolved — callers should skip the limit check
+ * or null if it couldn't be resolved: callers should skip the limit check
  * rather than block on an unresolved limit. */
 export async function getSchemeMaxFamilySize(base: string, token: string, groupId: string, schemeId: string): Promise<number | null> {
   if (!schemeId) return null;

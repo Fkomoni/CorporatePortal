@@ -1,4 +1,4 @@
-// PDF export via the browser's own print pipeline — the same approach the
+// PDF export via the browser's own print pipeline: the same approach the
 // e-ID cards use. It avoids shipping a PDF library for what is essentially a
 // styled table, and "Save as PDF" is already the print destination people reach
 // for. Returns false when the window was blocked so callers can say so.

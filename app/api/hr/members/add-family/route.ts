@@ -1,5 +1,5 @@
 // Adds a principal AND their dependants in a single atomic call, using
-// Prognosis's AddFamily endpoint — confirmed shape: one AddBeneficiary array
+// Prognosis's AddFamily endpoint: confirmed shape: one AddBeneficiary array
 // where every entry (principal included) sends Parent_Cif: 0 and is
 // differentiated purely by Relationship_ID ("1" = principal). Prognosis
 // groups them into one family itself; we don't resolve/pass a parent CIF.
@@ -70,7 +70,7 @@ export interface FamilyMember {
   enrolleePicture?: string;
   enrolleePictureType?: string;
   nin?: string;
-  // Only meaningful for dependants — the principal is always forced to "1".
+  // Only meaningful for dependants: the principal is always forced to "1".
   relationshipId?: string;
 }
 
@@ -145,7 +145,7 @@ export async function POST(req: Request) {
   try {
     const token = await getServiceToken();
 
-    // Flag emails/mobiles already registered to another member in this group —
+    // Flag emails/mobiles already registered to another member in this group -
     // AddFamily accepts duplicates silently, so check every member first.
     try {
       for (const m of allMembers) {
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       registrationsource: 'Web Portal',
       startdate: body.startDate ?? '',
       // HR is registering this family directly (not via a self-enrolment
-      // link) — active immediately, not queued pending.
+      // link): active immediately, not queued pending.
       Activated: true,
       EnrolleePicture: m.enrolleePicture ?? '',
       EnrolleePictureType: m.enrolleePictureType ?? '',
@@ -250,7 +250,7 @@ export async function POST(req: Request) {
 
     if (enrolled.length === 0) {
       console.error('[hr/members/add-family] No members returned in response:', text.slice(0, 500));
-      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no members returned. Please check with Leadway Health.' }, { status: 422 });
+      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed: no members returned. Please check with Leadway Health.' }, { status: 422 });
     }
 
     // Record every CIF as portal-sourced (true submission timestamp) so, if
@@ -269,7 +269,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // HR-initiated registrations should not sit in Prognosis's pending queue —
+    // HR-initiated registrations should not sit in Prognosis's pending queue -
     // auto-approve every member (principal + each dependant) individually,
     // same as add/route.ts and add-dependents/route.ts.
     const userEmail = session.user.email ?? '';

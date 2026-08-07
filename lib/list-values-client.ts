@@ -6,7 +6,7 @@
 // payload (policy year start, gender/marital/state/region options,
 // relationships). They used to fetch the same endpoint independently, so one
 // page load made three identical round-trips. Memoising the promise means the
-// first caller starts the request and the rest await it — one request per page
+// first caller starts the request and the rest await it: one request per page
 // load, whoever asks first.
 //
 // The server route is itself cached for 24 hours, so this is purely about

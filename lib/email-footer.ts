@@ -9,7 +9,7 @@
 // anyone needs depends on the image having loaded.
 //
 // Node-only module: imported exclusively from API routes and email senders
-// (never from middleware/auth — OTP verification lives in login-otp-verify.ts
+// (never from middleware/auth. OTP verification lives in login-otp-verify.ts
 // precisely to keep this out of the Edge bundle).
 const APP_BASE = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
 
@@ -21,7 +21,7 @@ const BANNER_H = 200;
 export function emailFooter(): string {
   return `
   <img src="${APP_BASE}/email-award-banner.png"
-       alt="Leadway Health — Winner of the 2023, 2024, 2025 &amp; 2026 NHEA HMO of the Year Award"
+       alt="Leadway Health. Winner of the 2023, 2024, 2025 &amp; 2026 NHEA HMO of the Year Award"
        width="${BANNER_W}" height="${BANNER_H}"
        style="width:100%;max-width:${BANNER_W}px;height:auto;display:block;border:0;margin:0;" />
   <div style="background:#FAFBFC;padding:16px 32px;border-top:1px solid #E5E7F1;">

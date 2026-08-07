@@ -1,8 +1,8 @@
 // Prognosis's Sex_ID convention, in one place.
 //
-// Confirmed against Prognosis's own list — GET /api/ListValues/GetGender
+// Confirmed against Prognosis's own list. GET /api/ListValues/GetGender
 // returns exactly {"Sex_id": 1, "Sex": "Male"} and {"Sex_id": 2, "Sex":
-// "Female"} — and corroborated by production members: Favour Mbaekwe is
+// "Female"}, and corroborated by production members: Favour Mbaekwe is
 // sex_id 2 / Member_Gender "Female", Dante Mbaekwe is sex_id 1 / "Male".
 // So 1 = Male, 2 = Female, matching what AddPrincipalOnly/AddFamily/
 // AddDependentsOnly have always sent.
@@ -11,7 +11,7 @@
 // which would have written the opposite gender whenever HR edited a member whose
 // gender field was being derived from their bio rather than picked in the form.)
 //
-// Note the gender dropdowns themselves are populated from GetGender (singular —
+// Note the gender dropdowns themselves are populated from GetGender (singular -
 // the plural spelling 405s), so form-submitted values are already Prognosis's
 // own IDs and need no mapping. These helpers are only for translating to/from
 // the free-text gender that bio reads return.

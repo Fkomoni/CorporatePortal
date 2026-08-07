@@ -21,9 +21,9 @@ export async function POST(req: Request) {
 
   switch (body.action) {
     case 'request': {
-      // Don't reveal whether the account exists/is active — always report success.
+      // Don't reveal whether the account exists/is active: always report success.
       // For the primary HR admin contact (role=hr_admin), Prognosis's
-      // Company_Email1 must still recognise this email for that company —
+      // Company_Email1 must still recognise this email for that company -
       // same authorisation rule as registration. Manually invited sub-users
       // (Viewer, Finance, custom roles) were never tied to Prognosis this way,
       // so they're exempt from this check.
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
             console.error('[forgot-password] Failed to send reset code:', e);
           }
         } else {
-          console.warn(`[forgot-password] ${email} is no longer the Prognosis-authorised contact — reset code withheld.`);
+          console.warn(`[forgot-password] ${email} is no longer the Prognosis-authorised contact: reset code withheld.`);
         }
       }
       return NextResponse.json({ success: true, message: 'If an account exists for this email, a reset code has been sent.' });
@@ -61,8 +61,8 @@ export async function POST(req: Request) {
       const passwordHash = await bcrypt.hash(newPassword, 12);
 
       // Confirmed with Prognosis: ChangePassword's OldPassword isn't
-      // actually verified, so it can be called here too — any placeholder
-      // value works — keeping the account in sync even on a forgot-password
+      // actually verified, so it can be called here too, any placeholder
+      // value works, keeping the account in sync even on a forgot-password
       // reset. Still non-blocking: the local reset succeeds regardless.
       let prognosisSynced = user.prognosisSynced;
       try {

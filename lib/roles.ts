@@ -6,11 +6,11 @@ export function isAdminRole(role?: string | null): boolean {
   return r === 'hr_admin' || r === 'admin';
 }
 
-// ── Per-role module access ───────────────────────────────────────────────────
+//  Per-role module access
 // Matches the access descriptions shown on the Administration page's role
 // cards ("Finance module & Finance Reports only", etc). Invited users' role
 // is free text (e.g. "Finance Manager"), so we match by keyword rather than
-// an exact string — anything containing "finance" gets Finance-only access,
+// an exact string: anything containing "finance" gets Finance-only access,
 // anything containing "hr" gets the HR Manager set, everything else (Admin,
 // Viewer, or an unrecognised role) defaults to full access.
 export type ModuleKey =
@@ -37,7 +37,7 @@ export function canAccessModule(role: string | null | undefined, module: ModuleK
 }
 
 // Maps a portal pathname to the module it belongs to. Returns null for
-// pathnames that aren't module-gated (e.g. /administration, /audit-logs —
+// pathnames that aren't module-gated (e.g. /administration, /audit-logs -
 // those are already restricted separately via isAdminRole).
 export function moduleForPath(pathname: string): ModuleKey | null {
   const seg = pathname.split('/').filter(Boolean)[0] ?? '';

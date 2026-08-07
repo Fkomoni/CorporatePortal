@@ -17,7 +17,7 @@ interface Policy {
 const PER_PAGE = 50;
 
 const fmtDate = (d: string) => {
-  if (!d) return '—';
+  if (!d) return '-';
   const dt = new Date(d);
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
 };
@@ -86,14 +86,14 @@ export default function CorporatesPage() {
 
   // Page number buttons: show up to 5 around current page
   const pageButtons = () => {
-    const pages: (number | '…')[] = [];
+    const pages: (number | '...')[] = [];
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-      if (safePage > 3) pages.push('…');
+      if (safePage > 3) pages.push('...');
       for (let i = Math.max(2, safePage - 1); i <= Math.min(totalPages - 1, safePage + 1); i++) pages.push(i);
-      if (safePage < totalPages - 2) pages.push('…');
+      if (safePage < totalPages - 2) pages.push('...');
       pages.push(totalPages);
     }
     return pages;
@@ -123,7 +123,7 @@ export default function CorporatesPage() {
               <p style={{ fontSize: 18, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em' }}>
                 Provision Corporates{' '}
                 <span style={{ color: '#F56B22' }}>
-                  ({loading ? '…' : filtered.length.toLocaleString()})
+                  ({loading ? '...' : filtered.length.toLocaleString()})
                 </span>
               </p>
             </div>
@@ -204,8 +204,8 @@ export default function CorporatesPage() {
                     </div>
                   </div>
                   <span style={{ fontSize: 12, color: '#9CA3B8' }}>{fmtDate(c.dateProvisioned)}</span>
-                  <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.adminEmail || '—'}</span>
-                  <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contactName || '—'}</span>
+                  <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.adminEmail || '-'}</span>
+                  <span style={{ fontSize: 12, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contactName || '-'}</span>
                   <span style={{ fontSize: 12, color: c.lastLogin ? '#131C4E' : '#C4C9D9' }}>
                     {c.lastLogin ? fmtDate(c.lastLogin.split('T')[0]) : 'Never'}
                   </span>
@@ -228,7 +228,7 @@ export default function CorporatesPage() {
           {!loading && !error && totalPages > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5' }}>
               <p style={{ fontSize: 12, color: '#9CA3B8' }}>
-                Showing {((safePage - 1) * PER_PAGE + 1).toLocaleString()}–{Math.min(safePage * PER_PAGE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} corporates
+                Showing {((safePage - 1) * PER_PAGE + 1).toLocaleString()}-{Math.min(safePage * PER_PAGE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} corporates
               </p>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
@@ -236,8 +236,8 @@ export default function CorporatesPage() {
                   <ChevronLeft style={{ width: 14, height: 14, color: '#6B7280' }} />
                 </button>
                 {pageButtons().map((p, i) => (
-                  p === '…'
-                    ? <span key={`e${i}`} style={{ width: 30, textAlign: 'center', fontSize: 12, color: '#B0B7C9' }}>…</span>
+                  p === '...'
+                    ? <span key={`e${i}`} style={{ width: 30, textAlign: 'center', fontSize: 12, color: '#B0B7C9' }}>...</span>
                     : <button key={p} onClick={() => setPage(p as number)}
                         style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: p === safePage ? 'none' : '1px solid #E5E7F1', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: p === safePage ? 700 : 500, background: p === safePage ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#fff', color: p === safePage ? '#fff' : '#6B7280', boxShadow: p === safePage ? '0 2px 6px rgba(245,107,34,0.28)' : 'none' }}>{p}</button>
                 ))}

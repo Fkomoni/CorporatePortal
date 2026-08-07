@@ -73,7 +73,7 @@ export async function POST(req: Request) {
         EmailAddress: email,
         CC: '',
         BCC: '',
-        Subject: `Your Leadway Health Enrolee ID — ${enroleeId}`,
+        Subject: `Your Leadway Health Enrolee ID: ${enroleeId}`,
         MessageBody: html,
         Attachments: null,
         Category: '',
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     try { raw = JSON.parse(text); } catch { raw = text; }
     const r = raw as Record<string, unknown>;
     // Prognosis can return HTTP 200 with a logical failure embedded in the
-    // body — never trust res.ok alone.
+    // body: never trust res.ok alone.
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');
     if (!res.ok || (apiStatus && !['success', '200', 'ok', 'true'].includes(apiStatus))) {

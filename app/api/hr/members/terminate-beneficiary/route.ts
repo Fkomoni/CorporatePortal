@@ -1,5 +1,5 @@
 // Terminates a single dependant (beneficiary) via Prognosis's
-// EnrolleeProfile/TerminateBeneficiary — unlike TerminateMember (used for
+// EnrolleeProfile/TerminateBeneficiary: unlike TerminateMember (used for
 // principals), this endpoint accepts an effective date and a reason, so
 // dependant terminations don't need the ScheduledTermination workaround.
 import { auth } from '@/auth';
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   if (!effectiveDate) return NextResponse.json({ error: 'Effective date is required' }, { status: 400 });
   if (!reason?.trim()) return NextResponse.json({ error: 'A reason for termination is required' }, { status: 400 });
 
-  // No backdated terminations — same rule as principal termination.
+  // No backdated terminations: same rule as principal termination.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const chosen = new Date(effectiveDate); chosen.setHours(0, 0, 0, 0);
   if (isNaN(chosen.getTime()) || chosen < today) {
@@ -129,13 +129,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: apiMessage || `Termination failed (${apiStatus})` }, { status: 422 });
     }
 
-    // Best-effort — not critical if this table isn't relevant to beneficiary terminations.
+    // Best-effort: not critical if this table isn't relevant to beneficiary terminations.
     try {
       await prisma.scheduledTermination.updateMany({
         where: { cifNumber: String(cifNumber), status: 'pending' },
         data: { status: 'completed', processedAt: new Date() },
       });
-    } catch { /* no matching scheduled row — fine */ }
+    } catch { /* no matching scheduled row: fine */ }
 
     void logAudit({ session, action: 'TERMINATE_BENEFICIARY', resource: 'members', request: req,
       details: { enrolleeId, cifNumber, effectiveDate, reason, memberName } });

@@ -54,7 +54,7 @@ export async function issueLoginOtp(
       console.log(`[login-otp] OTP SMS to ${user.mobile} → HTTP ${res.status}: ${text.slice(0, 300)}`);
       if (!res.ok) return false;
       let d: Record<string, unknown> | null = null;
-      try { d = JSON.parse(text); } catch { /* non-JSON success body — fine */ }
+      try { d = JSON.parse(text); } catch { /* non-JSON success body: fine */ }
       const status = String(d?.status ?? d?.Status ?? '').toLowerCase();
       if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
       if (d?.ErrorMessage || d?.errorMessage || d?.error || d?.Error) return false;
@@ -72,10 +72,10 @@ export async function issueLoginOtp(
       ? 'Use this code to complete setting up your Corporate Portal account. It expires in 10 minutes.'
       : 'Use this code to complete your sign-in to the Corporate Portal. It expires in 10 minutes.';
   const footNote = purpose === 'reset'
-    ? "If you didn't request a password reset, you can safely ignore this email — your password will not change unless this code is used."
+    ? "If you didn't request a password reset, you can safely ignore this email: your password will not change unless this code is used."
     : purpose === 'registration'
       ? "If you didn't request to set up this account, you can safely ignore this email."
-      : "If you didn't try to sign in, someone may have your password — change it immediately.";
+      : "If you didn't try to sign in, someone may have your password: change it immediately.";
 
   const emailBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
@@ -104,7 +104,7 @@ ${emailFooter()}
         EmailAddress: user.email,
         CC: '',
         BCC: '',
-        Subject: `${heading} – Leadway Health Corporate Portal`,
+        Subject: `${heading} - Leadway Health Corporate Portal`,
         MessageBody: emailBody,
         Attachments: null,
         Category: '',
@@ -119,7 +119,7 @@ ${emailFooter()}
     console.log(`[login-otp] OTP email to ${user.email} → HTTP ${res.status}: ${text.slice(0, 300)}`);
     if (!res.ok) return false;
     let d: Record<string, unknown> | null = null;
-    try { d = JSON.parse(text); } catch { /* non-JSON success body — fine */ }
+    try { d = JSON.parse(text); } catch { /* non-JSON success body: fine */ }
     const status = String(d?.status ?? d?.Status ?? '').toLowerCase();
     if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
     if (d?.ErrorMessage || d?.errorMessage || d?.error || d?.Error) return false;

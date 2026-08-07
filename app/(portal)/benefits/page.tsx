@@ -53,7 +53,7 @@ const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 function BenefitsPageInner() {
-  // ?tab=providers opens Provider Search directly — the dashboard's "Find
+  // ?tab=providers opens Provider Search directly: the dashboard's "Find
   // provider" quick action lands here rather than on the Benefit Plans tab.
   const initialTab = useSearchParams().get('tab') === 'providers' ? 'providers' : 'plans';
   const [activeTab, setActiveTab] = useState<'plans' | 'providers'>(initialTab);
@@ -166,7 +166,7 @@ function BenefitsPageInner() {
           </div>
         </div>
 
-        {/* Scheme selector — shared by both tabs */}
+        {/* Scheme selector: shared by both tabs */}
         {schemesLoading && (
           <div style={{ display: 'flex', gap: 10 }}>
             {[1,2,3].map((i) => (
@@ -204,7 +204,7 @@ function BenefitsPageInner() {
           </div>
         )}
 
-        {/* ── PLANS TAB ── */}
+        {/*  PLANS TAB  */}
         {activeTab === 'plans' && (
           <>
             {bensLoading && (
@@ -296,7 +296,7 @@ function BenefitsPageInner() {
           </>
         )}
 
-        {/* ── PROVIDERS TAB ── */}
+        {/*  PROVIDERS TAB  */}
         {activeTab === 'providers' && (
           <>
             {/* Summary chips */}
@@ -320,7 +320,7 @@ function BenefitsPageInner() {
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 480 }}>
                 <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, city or state…"
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, city or state..."
                   style={{ width: '100%', height: 42, paddingLeft: 42, paddingRight: 16, fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                   onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                   onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
@@ -345,7 +345,7 @@ function BenefitsPageInner() {
                   <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
                   <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
                 </svg>
-                {provRefreshing ? 'Refreshing…' : 'Refresh'}
+                {provRefreshing ? 'Refreshing...' : 'Refresh'}
               </button>
             </div>
 
@@ -420,7 +420,7 @@ function BenefitsPageInner() {
   );
 }
 
-// useSearchParams needs a Suspense boundary above it to prerender — same
+// useSearchParams needs a Suspense boundary above it to prerender: same
 // pattern as People and Service Desk.
 export default function BenefitsPage() {
   return (

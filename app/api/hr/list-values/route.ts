@@ -91,7 +91,7 @@ export async function GET(req: Request) {
   const CACHE_KEY = 'list-values-v2';
 
   // Earliest date HR may backdate cover to. Per-group, so it must NOT go into
-  // the globally-cached payload below — getPolicyYearStart keeps its own
+  // the globally-cached payload below: getPolicyYearStart keeps its own
   // per-group cache instead.
   const policyYearStart = await getPolicyYearStart(session.user.companyId ?? '');
 
@@ -146,7 +146,7 @@ export async function GET(req: Request) {
     }).filter((s) => s.text && s.value);
 
     // Regions → GetRegion now returns StateId/State (renamed from
-    // RegionID/RegionName) plus ZoneId/Zone — Prognosis derives the
+    // RegionID/RegionName) plus ZoneId/Zone. Prognosis derives the
     // geopolitical zone from the state automatically, so we just surface it
     // for display; older key names kept as fallback during the transition.
     const regionRows = toArr((regionsRaw as Record<string,unknown>)?.result ?? (regionsRaw as Record<string,unknown>)?.data ?? regionsRaw ?? []);

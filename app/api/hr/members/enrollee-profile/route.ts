@@ -67,10 +67,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: `Failed to fetch enrollee profile (${res.status})` }, { status: res.status });
     }
 
-    // GetEnrolleeBioDataByEnrolleeID's "result" is an array — the row itself
+    // GetEnrolleeBioDataByEnrolleeID's "result" is an array: the row itself
     // is result[0], not the array. Using the array directly as `row` (as
     // before) meant every field lookup below silently failed, since arrays
-    // don't have properties like "Cif_Number" — this is why cifNumber/
+    // don't have properties like "Cif_Number": this is why cifNumber/
     // schemeId/schemeName/groupId resolved blank on every single call.
     const r = raw as Record<string, unknown>;
     const resultField = r?.result ?? r?.Result ?? r?.data ?? r?.Data;

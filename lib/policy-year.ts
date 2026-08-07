@@ -1,4 +1,4 @@
-// Start date of the group's CURRENT policy year — the earliest date cover may
+// Start date of the group's CURRENT policy year: the earliest date cover may
 // be backdated to on any enrolment flow (invite links, Add Member, Add Family,
 // and approving a pending enrolee). Backdating past the policy year start would
 // place cover in a period the group wasn't yet covered for / wasn't premium-rated
@@ -46,7 +46,7 @@ function jan1ThisYear(): string {
  *
  * If the recorded policy period has already lapsed (the group has rolled into a
  * renewal Prognosis hasn't reflected yet), the recorded start is still returned
- * — it's the most defensible floor we have, and being slightly permissive is
+ *: it's the most defensible floor we have, and being slightly permissive is
  * preferable to blocking a legitimate backdate.
  */
 export async function getPolicyYearStart(groupId: string): Promise<string> {

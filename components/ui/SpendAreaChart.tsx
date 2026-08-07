@@ -3,7 +3,7 @@
 // The dashboard's claims-spend area chart, split into its own module so
 // recharts can be code-split out of the dashboard's initial bundle. recharts
 // is one of the heaviest dependencies in the app and the chart sits below the
-// KPI row, so it does not need to block first paint — next/dynamic loads it
+// KPI row, so it does not need to block first paint: next/dynamic loads it
 // after hydration (see the dashboard page).
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,

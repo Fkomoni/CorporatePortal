@@ -97,7 +97,7 @@ function extractArray(raw: unknown): unknown[] {
 }
 
 // All ListValues endpoints share the same lowercase schemeid param and pagination shape.
-// No NoOfRecords/pageSize limit — pass a very large value so all records come back.
+// No NoOfRecords/pageSize limit: pass a very large value so all records come back.
 async function fetchListValues(token: string, endpoint: string, schemeId: string, type: string, userEmail?: string | null): Promise<{ providers: Provider[]; error?: string }> {
   const params = new URLSearchParams({ schemeid: schemeId, MinimumID: '1', NoOfRecords: '9999', pageSize: '9999' });
   const url = `${BASE}${endpoint}?${params}`;

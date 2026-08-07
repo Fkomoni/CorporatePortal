@@ -104,7 +104,7 @@ export async function GET(req: Request) {
     for (const p of policies) {
       const state = stateMap.get(p.groupId);
 
-      // ── Seed mode: record baseline, never send ──
+      //  Seed mode: record baseline, never send
       if (seedMode) {
         await prisma.corporateSyncState.upsert({
           where: { groupId: p.groupId },
@@ -114,7 +114,7 @@ export async function GET(req: Request) {
         continue;
       }
 
-      // ── New group ──
+      //  New group
       if (!state) {
         if (!p.adminEmail) { results.skippedNoEmail++; continue; }
         const entry: (typeof results.newGroups)[number] = { groupId: p.groupId, companyName: p.companyName, email: p.adminEmail };
@@ -136,7 +136,7 @@ export async function GET(req: Request) {
         continue;
       }
 
-      // ── HR email change ──
+      //  HR email change
       const prevEmail = (state.adminEmail ?? '').toLowerCase();
       if (p.adminEmail && prevEmail && p.adminEmail !== prevEmail) {
         const entry: (typeof results.emailChanges)[number] = {
@@ -157,7 +157,7 @@ export async function GET(req: Request) {
             },
           });
           // The old email's login account must stop working once the HR
-          // contact changes — otherwise the previous person keeps access
+          // contact changes: otherwise the previous person keeps access
           // indefinitely alongside the newly invited one.
           try {
             await prisma.user.updateMany({
@@ -172,7 +172,7 @@ export async function GET(req: Request) {
         continue;
       }
 
-      // ── No change: touch lastSyncedAt (cheap keep-alive, only in send mode) ──
+      //  No change: touch lastSyncedAt (cheap keep-alive, only in send mode)
       if (sendMode) {
         await prisma.corporateSyncState.update({
           where: { groupId: p.groupId },

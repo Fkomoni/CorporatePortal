@@ -23,7 +23,7 @@ export const REQUEST_ROUTES: RequestRoute[] = [
   {
     category: 'General Enquiries',
     subjectTag: 'General Enquiries',
-    hint: 'Cover confirmation, plan questions, hospital lists — anything the other four queues do not cover.',
+    hint: 'Cover confirmation, plan questions, hospital lists: anything the other four queues do not cover.',
     tint: '#F1F5F9', text: '#475569',
   },
   {
@@ -75,9 +75,9 @@ export function buildSubject(opts: { subjectTag: string; companyName: string; re
   return `Corporate Portal - ${opts.subjectTag} - ${company} (${opts.reference})`;
 }
 
-/* ── Attachments ──────────────────────────────────────────────────────────
+/*  Attachments
    The limits live here so the form, the API and the error messages HR reads
-   cannot drift apart — a client that allows what the server rejects produces a
+   cannot drift apart: a client that allows what the server rejects produces a
    saved request with no email and no explanation.
 
    Caps are deliberately conservative. Every file is base64-encoded into the
@@ -126,11 +126,11 @@ export function formatBytes(bytes: number): string {
  */
 export function attachmentError(file: { name: string; size: number }): string | null {
   if (!attachmentContentType(file.name)) {
-    return `${file.name} — only ${Object.keys(ATTACHMENT_TYPES).join(', ')} files can be attached.`;
+    return `${file.name}: only ${Object.keys(ATTACHMENT_TYPES).join(', ')} files can be attached.`;
   }
   if (file.size <= 0) return `${file.name} is empty.`;
   if (file.size > MAX_ATTACHMENT_BYTES) {
-    return `${file.name} is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_ATTACHMENT_BYTES)} per file.`;
+    return `${file.name} is ${formatBytes(file.size)}: the limit is ${formatBytes(MAX_ATTACHMENT_BYTES)} per file.`;
   }
   return null;
 }

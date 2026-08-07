@@ -49,7 +49,7 @@ function s(row: Record<string, unknown>, ...keys: string[]): string {
 function toRow(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== 'object') return null;
   // Confirmed shape: GetEnrolleeBioDataByEnrolleeID returns a bare top-level
-  // array, not wrapped in { data: [...] } — check this before anything else,
+  // array, not wrapped in { data: [...] }. Check this before anything else,
   // since Array.isArray(raw) === true would otherwise fall through and treat
   // the whole array as the row (every field lookup then silently fails).
   if (Array.isArray(raw)) return raw.length > 0 ? (raw[0] as Record<string, unknown>) : null;
@@ -90,7 +90,7 @@ export async function GET(req: Request) {
 
     // profilepic/picturetype are siblings of `result` in the raw response
     // ({status, result:[...], profilepic, picturetype}), not fields inside
-    // the row itself — must search the top-level object separately.
+    // the row itself: must search the top-level object separately.
     const topLevel = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? (raw as Record<string, unknown>) : {};
 
     const phone = s(row,
@@ -110,7 +110,7 @@ export async function GET(req: Request) {
     const hospital = s(row, 'Hospital', 'PreferredHospital', 'FacilityName');
     const dob = s(row, 'DateOfBirth', 'DOB', 'Member_DateOfBirth', 'BirthDate', 'Date_Of_Birth');
     // profilepic/picturetype live as siblings of `result` on the top-level
-    // response object, not inside the row itself — check topLevel first.
+    // response object, not inside the row itself. Check topLevel first.
     const { photo, photoType, source: photoKey } = resolveEnrolleePhoto(topLevel, row);
     console.log(`[hr/members/biodata] ${logTag(session.user.email)} ${enrolleeId} photo resolved via "${photoKey || 'none'}" (${photo ? photo.length : 0} chars). Row keys: ${Object.keys(row).join(', ')}`);
 

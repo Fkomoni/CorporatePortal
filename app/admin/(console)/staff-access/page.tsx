@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, X, ShieldCheck, ShieldOff } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 interface Policy { groupId: string; name: string; schemeCode: string }
 interface AccessRow { id: string; staffEmail: string; companyId: string; companyName: string | null; policyNumber: string | null }
@@ -13,6 +14,7 @@ const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border
 const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
 
 export default function StaffAccessPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<AccessRow[]>([]);
   const [staffUsers, setStaffUsers] = useState<StaffUserRow[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
@@ -62,8 +64,10 @@ export default function StaffAccessPage() {
       });
       const json = await res.json();
       if (!res.ok) { setEnableError(json.error ?? 'Failed to enable this email.'); return; }
+      const enabled = enableEmail;
       setEnableEmail(''); setShowEnable(false);
       await load();
+      toast(`${enabled} can now sign in to the admin portal.`, 'success');
     } catch {
       setEnableError('Network error. Please try again.');
     } finally {
@@ -72,15 +76,25 @@ export default function StaffAccessPage() {
   }
 
   async function handleToggleActive(email: string, active: boolean) {
+    // The response was never checked. A rejected request still flipped the
+    // toggle locally, so an admin who revoked someone's access saw it revoked
+    // while the server had refused the change. The row is only updated once the
+    // server confirms it.
     try {
-      await fetch('/api/admin/staff-access', {
+      const res = await fetch('/api/admin/staff-access', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, active }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.error) {
+        toast(json.error ?? `Could not ${active ? 'enable' : 'disable'} ${email}. Access is unchanged.`, 'error');
+        return;
+      }
       setStaffUsers((prev) => prev.map((s) => (s.email === email ? { ...s, active } : s)));
+      toast(`${email} can ${active ? 'now' : 'no longer'} sign in to the admin portal.`, 'success');
     } catch {
-      setError('Failed to update access.');
+      toast(`Network error. ${email} is unchanged, please try again.`, 'error');
     }
   }
 
@@ -98,8 +112,10 @@ export default function StaffAccessPage() {
       });
       const json = await res.json();
       if (!res.ok) { setAddError(json.error ?? 'Failed to grant access.'); return; }
+      const granted = addEmail;
       setAddEmail(''); setAddCompanyId(''); setClientQuery(''); setShowAdd(false);
       await load();
+      toast(`${granted} now has access to ${policy.name}.`, 'success');
     } catch {
       setAddError('Network error. Please try again.');
     } finally {
@@ -109,11 +125,25 @@ export default function StaffAccessPage() {
 
   async function handleRemove(id: string) {
     if (!confirm('Remove this client access?')) return;
+    // Same defect as the toggle: the row disappeared from the table whatever the
+    // server said, so a failed revocation looked like a successful one.
+    const removed = rows.find((r) => r.id === id);
     try {
-      await fetch(`/api/admin/staff-access?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/staff-access?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.error) {
+        toast(json.error ?? 'Could not remove that access. It is unchanged.', 'error');
+        return;
+      }
       setRows((prev) => prev.filter((r) => r.id !== id));
+      toast(
+        removed
+          ? `${removed.staffEmail} no longer has access to ${removed.companyName ?? removed.companyId}.`
+          : 'Client access removed.',
+        'success',
+      );
     } catch {
-      setError('Failed to remove access.');
+      toast('Network error. That access is unchanged, please try again.', 'error');
     }
   }
 
@@ -127,13 +157,13 @@ export default function StaffAccessPage() {
       <div>
         <p style={{ fontSize: 20, fontWeight: 800, color: '#131C4E' }}>Internal Admin Access</p>
         <p style={{ fontSize: 13, color: '#9CA3B8', marginTop: 4 }}>
-          A valid Leadway AD login is not enough on its own — only emails explicitly enabled below can use the internal admin portal at all.
+          A valid Leadway AD login is not enough on its own: only emails explicitly enabled below can use the internal admin portal at all.
         </p>
       </div>
 
       {error && <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626' }}>{error}</div>}
 
-      {/* ── ENABLED STAFF ── */}
+      {/*  ENABLED STAFF  */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Enabled for Portal Access</p>
@@ -153,7 +183,7 @@ export default function StaffAccessPage() {
               </div>
               <button type="submit" disabled={enableLoading}
                 style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 10, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', cursor: enableLoading ? 'not-allowed' : 'pointer', opacity: enableLoading ? 0.6 : 1 }}>
-                {enableLoading ? 'Enabling…' : 'Enable'}
+                {enableLoading ? 'Enabling...' : 'Enable'}
               </button>
             </form>
             {enableError && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 10 }}>{enableError}</p>}
@@ -162,7 +192,7 @@ export default function StaffAccessPage() {
 
         <div style={{ ...card, overflow: 'hidden' }}>
           {loading ? (
-            <p style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#9CA3B8' }}>Loading…</p>
+            <p style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#9CA3B8' }}>Loading...</p>
           ) : staffUsers.length === 0 ? (
             <p style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#9CA3B8' }}>No staff emails enabled yet.</p>
           ) : (
@@ -188,7 +218,7 @@ export default function StaffAccessPage() {
         </div>
       </div>
 
-      {/* ── CLIENT ACCESS ── */}
+      {/*  CLIENT ACCESS  */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
@@ -217,7 +247,7 @@ export default function StaffAccessPage() {
                   onChange={(e) => { setClientQuery(e.target.value); setAddCompanyId(''); setClientDropdownOpen(true); }}
                   onFocus={() => setClientDropdownOpen(true)}
                   onBlur={() => setTimeout(() => setClientDropdownOpen(false), 150)}
-                  placeholder="Type to search clients…"
+                  placeholder="Type to search clients..."
                   autoComplete="off"
                   required={!addCompanyId}
                   style={inputStyle}
@@ -245,19 +275,19 @@ export default function StaffAccessPage() {
               </div>
               <button type="submit" disabled={addLoading}
                 style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 10, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', cursor: addLoading ? 'not-allowed' : 'pointer', opacity: addLoading ? 0.6 : 1 }}>
-                {addLoading ? 'Granting…' : 'Grant'}
+                {addLoading ? 'Granting...' : 'Grant'}
               </button>
             </form>
             {addError && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 10 }}>{addError}</p>}
             <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 10 }}>
-              Note: granting client access alone does not enable portal login — the email must also be enabled above.
+              Note: granting client access alone does not enable portal login: the email must also be enabled above.
             </p>
           </div>
         )}
 
         <div style={{ ...card, overflow: 'hidden' }}>
           {loading ? (
-            <p style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#9CA3B8' }}>Loading…</p>
+            <p style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#9CA3B8' }}>Loading...</p>
           ) : Object.keys(clientsByEmail).length === 0 ? (
             <p style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#9CA3B8' }}>No internal admins linked to any client yet.</p>
           ) : (

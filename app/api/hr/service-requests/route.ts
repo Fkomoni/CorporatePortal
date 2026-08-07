@@ -97,7 +97,7 @@ export async function POST(req: Request) {
   }
   if (totalBytes > MAX_ATTACHMENTS_TOTAL_BYTES) {
     return NextResponse.json({
-      error: `Attachments total ${formatBytes(totalBytes)} — the limit is ${formatBytes(MAX_ATTACHMENTS_TOTAL_BYTES)} across all files.`,
+      error: `Attachments total ${formatBytes(totalBytes)}: the limit is ${formatBytes(MAX_ATTACHMENTS_TOTAL_BYTES)} across all files.`,
     }, { status: 400 });
   }
 

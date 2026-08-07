@@ -1,7 +1,7 @@
 // Manages which client companies a Leadway staff email may act as HR for
-// (StaffClientAccess) — Prognosis has no equivalent endpoint, so we own this
+// (StaffClientAccess). Prognosis has no equivalent endpoint, so we own this
 // mapping entirely. Staff-only (loginType 'staff' is no longer issued, but
-// this predates that — gate on isInternalStaff being false, i.e. a real
+// this predates that: gate on isInternalStaff being false, i.e. a real
 // Leadway staff console session, not an internal-admin-as-HR session).
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 // Enable or disable a Leadway email's access to the internal admin portal
-// at all — independent of which clients it's linked to. This is the actual
+// at all: independent of which clients it's linked to. This is the actual
 // gate: a valid AD login is never sufficient on its own.
 export async function PATCH(req: Request) {
   const { error } = await requireStaffSession();
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Upsert a placeholder StaffUser row so the FK is satisfied — real
+    // Upsert a placeholder StaffUser row so the FK is satisfied: real
     // name/role get filled in from Prognosis on their first login.
     await prisma.staffUser.upsert({
       where: { email: staffEmail },

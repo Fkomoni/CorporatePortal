@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       ErrorMessage: '',
     };
 
-    console.log('[send-signup] ── REQUEST ──────────────────────────────────');
+    console.log('[send-signup]  REQUEST ');
     console.log('[send-signup] URL    :', `${BASE}/api/CorporateProfile/ClientUserRegistration`);
     console.log('[send-signup] Payload:', JSON.stringify(requestPayload, null, 2));
 
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     const text = await res.text();
     let data: unknown;
     try { data = JSON.parse(text); } catch {
-      console.log('[send-signup] ── RESPONSE (non-JSON) ──────────────────');
+      console.log('[send-signup]  RESPONSE (non-JSON) ');
       console.log('[send-signup] HTTP   :', res.status);
       console.log('[send-signup] Raw    :', text);
       return NextResponse.json({
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       }, { status: 502 });
     }
 
-    console.log('[send-signup] ── RESPONSE ─────────────────────────────────');
+    console.log('[send-signup]  RESPONSE ');
     console.log('[send-signup] HTTP   :', res.status);
     console.log('[send-signup] Body   :', JSON.stringify(data, null, 2));
 
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Build registration link with scheme identifiers — the OTP is requested
+    // Build registration link with scheme identifiers: the OTP is requested
     // separately later (see comment below) so it can't be embedded in the link.
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
     const registrationLink = `${appBase}/verify-registration?email=${encodeURIComponent(email)}&groupId=${encodeURIComponent(groupId ?? '')}&company=${encodeURIComponent(companyName ?? '')}&name=${encodeURIComponent(`${firstname ?? ''} ${surname ?? ''}`.trim())}`;
@@ -154,7 +154,7 @@ export async function POST(req: Request) {
         console.log(`[send-signup] Pre-registered HR user: ${email} (groupId: ${groupId}, policyNumber: ${PolicyNumber})`);
 
         // If this is a new email for an existing group's primary HR contact,
-        // deactivate the previous one — otherwise both stay valid indefinitely.
+        // deactivate the previous one: otherwise both stay valid indefinitely.
         // Scoped to role='hr_admin' (the auto-synced contact role) so manually
         // invited sub-users under the same company are never touched.
         if (groupId) {
@@ -176,7 +176,7 @@ export async function POST(req: Request) {
     }
 
     // Send registration email via Prognosis SendEmailAlert. The OTP itself is
-    // deliberately NOT sent here — it's requested on-demand via
+    // deliberately NOT sent here: it's requested on-demand via
     // /api/hr/request-registration-otp once the user reaches that step, so:
     //   (a) its 10-minute expiry starts when they're ready to use it, and
     //   (b) ClientUserRegistration is only invoked once per registration
@@ -220,7 +220,7 @@ ${emailFooter()}
             EmailAddress: email,
             CC: '',
             BCC: '',
-            Subject: 'Complete Your Registration – Leadway Health Corporate Portal',
+            Subject: 'Complete Your Registration - Leadway Health Corporate Portal',
             MessageBody: emailBody,
             Attachments: null,
             Category: '',

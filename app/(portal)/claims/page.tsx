@@ -29,7 +29,7 @@ const categoryStyles: Record<string, { bg: string; text: string }> = {
 
 const fmt    = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
 const fmtDate = (d: string) => {
-  if (!d) return '—';
+  if (!d) return '-';
   try {
     // Append T00:00:00 to ISO date strings to avoid UTC-shift off-by-one
     const s = /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d;
@@ -43,12 +43,12 @@ function memberInitials(fullName: string, enrolleeId: string): string {
     return parts.map((p) => p[0] + '.').join('');
   }
   if (enrolleeId) return enrolleeId.slice(0, 4);
-  return '—';
+  return '-';
 }
 
 // Format as "F.L" (first initial + last initial) for confidentiality
 function maskName(fullName: string): string {
-  if (!fullName) return '—';
+  if (!fullName) return '-';
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0][0].toUpperCase() + '.';
   return `${parts[0][0].toUpperCase()}.${parts[parts.length - 1][0].toUpperCase()}`;
@@ -97,29 +97,29 @@ export default function ClaimsPage() {
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0);
 
   // Cards keep their shape while loading so the strip doesn't jump; StatCard
-  // renders "…" for the value whenever `loading` is set.
+  // renders "..." for the value whenever `loading` is set.
   const summaryCards = [
     {
       label: 'Total Billed',
-      value: stats ? fmt(stats.totalBilledAmount) : '—',
+      value: stats ? fmt(stats.totalBilledAmount) : '-',
       sub: stats ? `${stats.totalClaims} claim${stats.totalClaims !== 1 ? 's' : ''} submitted` : 'Claims submitted',
       color: '#6366F1', tint: '#EEF2FF', icon: ReceiptText,
     },
     {
       label: 'Total Paid YTD',
-      value: stats ? fmt(stats.totalPaidAmount) : '—',
+      value: stats ? fmt(stats.totalPaidAmount) : '-',
       sub: stats ? `${stats.paidCount} claim${stats.paidCount !== 1 ? 's' : ''} settled` : 'Claims settled',
       color: '#10B981', tint: '#ECFDF5', icon: TrendingUp,
     },
     {
       label: 'Processing',
-      value: stats ? fmt(stats.processingAmount) : '—',
+      value: stats ? fmt(stats.processingAmount) : '-',
       sub: stats ? `${stats.processingCount} claim${stats.processingCount !== 1 ? 's' : ''} pending` : 'Claims pending',
       color: '#F59E0B', tint: '#FFFBEB', icon: Clock,
     },
     {
       label: 'Rejected Amount',
-      value: stats ? fmt(stats.rejectedAmount) : '—',
+      value: stats ? fmt(stats.rejectedAmount) : '-',
       sub: 'Portion of paid claims not reimbursed',
       color: '#EF4444', tint: '#FEF2F2', icon: XCircle,
     },
@@ -143,7 +143,7 @@ export default function ClaimsPage() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="Claims" subtitle={stats?.policyStart && stats?.policyEnd ? `Policy ${new Date(stats.policyStart + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(stats.policyEnd + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})}` : 'Claims Register · Spend Analysis'} />
+      <TopBar title="Claims" subtitle={stats?.policyStart && stats?.policyEnd ? `Policy ${new Date(stats.policyStart + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})} - ${new Date(stats.policyEnd + 'T00:00:00').toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'})}` : 'Claims Register · Spend Analysis'} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -157,7 +157,7 @@ export default function ClaimsPage() {
                 key={s.label}
                 label={s.label}
                 sub={s.sub}
-                value={vis.showAmounts ? s.value : '—'}
+                value={vis.showAmounts ? s.value : '-'}
                 icon={s.icon}
                 color={s.color}
                 tint={s.tint}
@@ -200,7 +200,7 @@ export default function ClaimsPage() {
                     <ArrowDownToLine style={{ width: 13, height: 13 }} /> XLS
                   </button>
                   <button onClick={() => {
-                    // This button previously had no handler at all — HR clicked
+                    // This button previously had no handler at all. HR clicked
                     // it and nothing happened.
                     const ok = exportToPdf(exportRows(), 'claims-export', {
                       title: 'Claims Register',
@@ -242,7 +242,7 @@ export default function ClaimsPage() {
             {loading && (
               <div className="py-16 flex flex-col items-center gap-3 text-center">
                 <div style={{ width: 32, height: 32, border: '3px solid #F0F1F5', borderTopColor: '#F56B22', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <p className="text-[13px] text-[#9CA3B8]">Loading claims…</p>
+                <p className="text-[13px] text-[#9CA3B8]">Loading claims...</p>
               </div>
             )}
 
@@ -259,18 +259,18 @@ export default function ClaimsPage() {
                   <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-[#131C4E] truncate">{maskName(c.memberName) || initials}</p>
                   </div>
-                  <span className="text-[11px] text-[#9CA3B8] font-mono truncate">{c.employeeId || '—'}</span>
+                  <span className="text-[11px] text-[#9CA3B8] font-mono truncate">{c.employeeId || '-'}</span>
                   <div className="min-w-0">
-                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || ''}>{c.icdDescription || '—'}</p>
+                    <p className="text-[11px] text-[#131C4E] truncate" title={c.icdDescription || ''}>{c.icdDescription || '-'}</p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '—'}</p>
+                    <p className="text-[11px] text-[#131C4E] truncate" title={c.provider || ''}>{c.provider || '-'}</p>
                     {c.caseId && <p className="text-[10px] text-[#9CA3B8] truncate">{c.caseId}</p>}
                   </div>
-                  <span className="text-[11px] text-[#9CA3B8] truncate">{c.providerState || '—'}</span>
+                  <span className="text-[11px] text-[#9CA3B8] truncate">{c.providerState || '-'}</span>
                   <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-semibold w-fit" style={{ background: cat.bg, color: cat.text }}>{c.category}</span>
-                  <span className="text-[12px] font-semibold text-[#131C4E] text-right">{vis.showAmounts ? fmt(c.amtClaimed) : '—'}</span>
-                  <span className="text-[12px] font-bold text-[#10B981] text-right">{vis.showAmounts ? fmt(c.amount) : '—'}</span>
+                  <span className="text-[12px] font-semibold text-[#131C4E] text-right">{vis.showAmounts ? fmt(c.amtClaimed) : '-'}</span>
+                  <span className="text-[12px] font-bold text-[#10B981] text-right">{vis.showAmounts ? fmt(c.amount) : '-'}</span>
                   <span className="text-[11px] text-[#9CA3B8]">{fmtDate(c.submittedDate)}</span>
                 </div>
               );

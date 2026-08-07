@@ -165,7 +165,7 @@ export default function EnrollPage() {
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
     }
-    // Mobile is compulsory for the principal and a spouse dependant — optional
+    // Mobile is compulsory for the principal and a spouse dependant: optional
     // for other dependants (e.g. children).
     const isPrincipalFlow = !isDependent && !principalCifNumber;
     const relationshipText = relationships.find((r) => r.value === relationshipId)?.text?.toLowerCase() ?? '';
@@ -232,7 +232,7 @@ export default function EnrollPage() {
           setRemainingSlots(newRemaining);
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
           if (newRemaining > 0) {
-            // More slots — reset form and stay on page so member can add next dependent
+            // More slots: reset form and stay on page so member can add next dependent
             setFirstName(''); setSurname(''); setOtherNames(''); setDob('');
             setSexId(''); setMarital2(''); setMobile(''); setMobile2('');
             setStateId(''); setAddress(''); setPreExisting(''); setRelationship(''); setNin('');
@@ -243,7 +243,7 @@ export default function EnrollPage() {
             setStatus('success');
           }
         } else if (isSelfDepScope && data.cifNumber) {
-          // Principal enrolled for self+dep scope — transition to dependent form
+          // Principal enrolled for self+dep scope: transition to dependent form
           setPrincipalCifNumber(String(data.cifNumber));
           setEnrollResult({ enrolleeId, membershipNo: data.membershipNo ?? '' });
           setPrincipalRecord({
@@ -276,7 +276,7 @@ export default function EnrollPage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F8FC' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 48, height: 48, border: '3px solid #F56B22', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: '#6B7280', fontSize: 14 }}>Loading your enrolment form…</p>
+          <p style={{ color: '#6B7280', fontSize: 14 }}>Loading your enrolment form...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -335,7 +335,7 @@ export default function EnrollPage() {
             <p style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Enrolment Complete!</p>
             <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
               Successfully enrolled on <strong>{invitation?.schemeName ?? 'your health plan'}</strong>.<br />
-              Keep your member ID(s) safe — you will need them at any Leadway Health provider.
+              Keep your member ID(s) safe: you will need them at any Leadway Health provider.
             </p>
             {invitation?.startDate && (
               <p style={{ fontSize: 13, color: '#059669', fontWeight: 700, marginTop: 10 }}>
@@ -348,7 +348,7 @@ export default function EnrollPage() {
           <div style={{ background: '#fff', border: '1.5px solid #BBF7D0', borderRadius: 20, overflow: 'hidden', marginBottom: 24, boxShadow: '0 4px 24px rgba(16,185,129,0.10)' }}>
             <div style={{ background: 'linear-gradient(135deg,#059669,#10B981)', padding: '14px 20px' }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Enrolled Member{allEnrolled.length > 1 ? 's' : ''} — {allEnrolled.length} total
+                Enrolled Member{allEnrolled.length > 1 ? 's' : ''}: {allEnrolled.length} total
               </p>
             </div>
             {allEnrolled.map((m, i) => (
@@ -356,7 +356,7 @@ export default function EnrollPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{m.role}</p>
                   {m.name && <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 2 }}>{m.name}</p>}
-                  <p style={{ fontSize: 18, fontWeight: 900, color: '#065F46', fontFamily: 'monospace', letterSpacing: '0.04em' }}>{m.enrolleeId || '—'}</p>
+                  <p style={{ fontSize: 18, fontWeight: 900, color: '#065F46', fontFamily: 'monospace', letterSpacing: '0.04em' }}>{m.enrolleeId || '-'}</p>
                 </div>
                 {m.enrolleeId && (
                   <button onClick={() => copyText(m.enrolleeId)}
@@ -390,7 +390,7 @@ export default function EnrollPage() {
               : 'Your HR team will follow up with your physical member card and further details.'}
           </p>
 
-          {/* Print-only e-ID cards — hidden on screen, shown via window.print() */}
+          {/* Print-only e-ID cards: hidden on screen, shown via window.print() */}
           <div className="ecard-print-area" style={{ display: 'none' }}>
             {allEnrolled.filter((m) => m.enrolleeId).map((m, i) => (
               <div key={i} style={{
@@ -402,7 +402,7 @@ export default function EnrollPage() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/leadway-logo.jpeg" alt="Leadway Health" style={{ height: 78, objectFit: 'contain' }} />
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 13, fontWeight: 900, color: '#131C4E', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15 }}>{m.name || '—'}</p>
+                    <p style={{ fontSize: 13, fontWeight: 900, color: '#131C4E', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15 }}>{m.name || '-'}</p>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', marginTop: 2 }}>{m.role}</p>
                   </div>
                 </div>
@@ -445,7 +445,7 @@ export default function EnrollPage() {
     );
   }
 
-  // ── "Add Dependants" phase for scope='self-dependent' ──────────────────
+  //  "Add Dependants" phase for scope='self-dependent'
   if (status === 'add-deps') {
     const principalId = enrollResult?.enrolleeId || enrollResult?.membershipNo || '';
     return (
@@ -459,7 +459,7 @@ export default function EnrollPage() {
             </div>
             <div>
               <p style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>You&apos;re Enrolled!</p>
-              <p style={{ fontSize: 13, opacity: 0.9 }}>Member ID: <strong style={{ fontFamily: 'monospace' }}>{principalId || '—'}</strong></p>
+              <p style={{ fontSize: 13, opacity: 0.9 }}>Member ID: <strong style={{ fontFamily: 'monospace' }}>{principalId || '-'}</strong></p>
               <p style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>Now add your dependants below.</p>
             </div>
           </div>
@@ -471,7 +471,7 @@ export default function EnrollPage() {
               {depEnrolled.map((d, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none' }}>
                   <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>{d.name || `Dependent ${i + 1}`}</span>
-                  <span style={{ fontSize: 13, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId || '—'}</span>
+                  <span style={{ fontSize: 13, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.enrolleeId || '-'}</span>
                 </div>
               ))}
             </div>
@@ -481,7 +481,7 @@ export default function EnrollPage() {
           {existingDependants.length > 0 && (
             <div style={{ background: '#FFFBEB', border: '1.5px solid #FCD34D', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>
-                ⚠ Dependants already registered on this policy
+                Dependants already registered on this policy
               </p>
               {existingDependants.map((d, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px solid #FDE68A' : 'none' }}>
@@ -581,13 +581,13 @@ export default function EnrollPage() {
                 type="button"
                 onClick={() => { setStatus('success'); }}
                 style={{ flex: 1, height: 52, borderRadius: 14, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                Done — No More Dependants
+                Done. No More Dependants
               </button>
               <button
                 type="submit"
                 disabled={submitting}
                 style={{ flex: 2, height: 52, borderRadius: 14, border: 'none', background: submitting ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: submitting ? '#9CA3B8' : '#fff', fontSize: 15, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,107,34,0.35)' }}>
-                {submitting ? 'Adding…' : 'Add Dependant'}
+                {submitting ? 'Adding...' : 'Add Dependant'}
               </button>
             </div>
           </form>
@@ -614,7 +614,7 @@ export default function EnrollPage() {
           </p>
         </div>
 
-        {/* HR-fixed cover start date — read-only, member cannot change it */}
+        {/* HR-fixed cover start date: read-only, member cannot change it */}
         {invitation?.startDate && (
           <div style={{ background: '#F7F8FC', border: '1px solid #E5E7F1', borderRadius: 14, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <p style={{ fontSize: 12.5, color: '#6B7280' }}>Cover start date <span style={{ color: '#9CA3B8' }}>(set by your HR team)</span></p>
@@ -628,7 +628,7 @@ export default function EnrollPage() {
             <p style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 8 }}>✓ Already enrolled this session:</p>
             {depEnrolled.map((d, i) => (
               <p key={i} style={{ fontSize: 13, color: '#065F46', margin: '2px 0' }}>
-                {d.name || `Dependent ${i + 1}`}{d.enrolleeId ? ` — ${d.enrolleeId}` : ''}
+                {d.name || `Dependent ${i + 1}`}{d.enrolleeId ? `: ${d.enrolleeId}` : ''}
               </p>
             ))}
           </div>
@@ -645,7 +645,7 @@ export default function EnrollPage() {
         {isDependent && existingDependants.length > 0 && (
           <div style={{ background: '#FFFBEB', border: '1.5px solid #FCD34D', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>
-              ⚠ Dependants already registered on this policy
+              Dependants already registered on this policy
             </p>
             {existingDependants.map((d, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px solid #FDE68A' : 'none' }}>
@@ -672,7 +672,7 @@ export default function EnrollPage() {
             </div>
             {errorDebug && (
               <div style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px' }}>
-                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Debug — Prognosis request/response</p>
+                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Debug. Prognosis request/response</p>
                 <pre style={{ fontSize: 11, color: '#131C4E', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 260, overflowY: 'auto', margin: 0 }}>
                   {JSON.stringify(errorDebug, null, 2)}
                 </pre>
@@ -697,7 +697,7 @@ export default function EnrollPage() {
                   style={{ height: 36, padding: '0 16px', fontSize: 13, fontWeight: 600, color: '#F56B22', border: '1.5px solid #FFD8C0', borderRadius: 10, background: '#FFF5EF', cursor: 'pointer' }}>
                   {photoBase64 ? 'Change Photo' : 'Upload Photo'}
                 </button>
-                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 6 }}>JPG or PNG, max 2 MB — required</p>
+                <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 6 }}>JPG or PNG, max 2 MB: required</p>
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png" style={{ display: 'none' }} onChange={handlePhoto} />
               </div>
             </div>
@@ -773,7 +773,7 @@ export default function EnrollPage() {
           {/* Submit */}
           <button type="submit" disabled={submitting}
             style={{ height: 52, borderRadius: 14, border: 'none', background: submitting ? '#F0F1F5' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: submitting ? '#B0B7C9' : '#fff', fontSize: 16, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,107,34,0.35)', transition: 'all 0.15s' }}>
-            {submitting ? 'Submitting…' : 'Submit Enrolment'}
+            {submitting ? 'Submitting...' : 'Submit Enrolment'}
           </button>
           <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3B8', marginTop: -12 }}>
             Your information is encrypted and securely transmitted to Leadway Health.

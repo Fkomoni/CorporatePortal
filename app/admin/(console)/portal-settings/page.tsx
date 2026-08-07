@@ -14,7 +14,7 @@ import {
   PeopleVis, ReportsVis, ServiceDeskVis,
 } from '@/lib/module-visibility';
 
-// ── Section definitions per module ──────────────────────────────────────────
+//  Section definitions per module
 
 type Section<T> = { key: keyof T; label: string; desc: string; Icon: React.ElementType; color: string; bg: string };
 
@@ -28,7 +28,7 @@ const DASHBOARD_SECTIONS: Section<DashboardVis>[] = [
 ];
 
 const CLAIMS_SECTIONS: Section<ClaimsVis>[] = [
-  { key: 'showSummaryCards', label: 'Summary Statistics',     desc: '4 stat cards — Total Paid, Processing, Queried, Rejected',    Icon: BarChart2,         color: '#2563EB', bg: '#EFF6FF' },
+  { key: 'showSummaryCards', label: 'Summary Statistics',     desc: '4 stat cards. Total Paid, Processing, Queried, Rejected',    Icon: BarChart2,         color: '#2563EB', bg: '#EFF6FF' },
   { key: 'showAmounts',      label: 'Financial Amounts (₦)', desc: 'Monetary values in stat cards and Amount column of table',     Icon: DollarSign,        color: '#059669', bg: '#ECFDF5' },
   { key: 'showExports',      label: 'Export Buttons',         desc: 'Allow HR to download the claims register (XLS / PDF)',        Icon: Download,          color: '#D97706', bg: '#FFFBEB' },
   { key: 'showFilters',      label: 'Filter & Search Toolbar', desc: 'Category, Status, Plan filters and search box',              Icon: SlidersHorizontal, color: '#7C3AED', bg: '#F5F3FF' },
@@ -74,7 +74,7 @@ const SERVICEDESK_SECTIONS: Section<ServiceDeskVis>[] = [
   { key: 'showSlaColumn',    label: 'SLA Column',        desc: 'SLA status column (Within SLA, Near SLA, Breached)', Icon: Clock,         color: '#D97706', bg: '#FFFBEB' },
 ];
 
-// ── Module registry ──────────────────────────────────────────────────────────
+//  Module registry
 
 const MODULES = [
   { key: 'dashboard'   as ModuleKey, label: 'Dashboard',        Icon: LayoutDashboard, sections: DASHBOARD_SECTIONS    },
@@ -86,7 +86,7 @@ const MODULES = [
   { key: 'serviceDesk' as ModuleKey, label: 'Service Desk',     Icon: MessageSquare,   sections: SERVICEDESK_SECTIONS  },
 ] as const;
 
-// ── Toggle component ─────────────────────────────────────────────────────────
+//  Toggle component
 
 function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
@@ -102,7 +102,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
-// ── Companies list ───────────────────────────────────────────────────────────
+//  Companies list
 
 const ALL_COMPANIES_ID = '__all__';
 
@@ -113,13 +113,13 @@ const COMPANIES = [
   { id: 'corp-004', name: 'Jackson, Etti And Edu (JEE Africa)',  status: 'Pending' },
   { id: 'corp-005', name: 'Flour Mills of Nigeria Plc',          status: 'Active'  },
   { id: 'corp-006', name: 'Baker Hughes Nigeria Ltd',            status: 'Active'  },
-  { id: 'corp-007', name: 'NLNG – Nigeria LNG Limited',          status: 'Active'  },
+  { id: 'corp-007', name: 'NLNG - Nigeria LNG Limited',          status: 'Active'  },
   { id: 'corp-008', name: 'Zenith Bank Plc',                     status: 'Active'  },
   { id: 'corp-009', name: 'Primus Pharmacare Ltd',               status: 'Pending' },
   { id: 'corp-010', name: 'Okomu Oil Palm Company Plc',          status: 'Active'  },
 ];
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+//  Page
 
 export default function PortalSettingsPage() {
   const [activeModule, setActiveModule] = useState<ModuleKey>('dashboard');
@@ -227,7 +227,7 @@ export default function PortalSettingsPage() {
           onBlur={(e) => { e.currentTarget.style.borderColor = isGlobal ? '#FDBA74' : '#E5E7F1'; }}
         >
           <option value={ALL_COMPANIES_ID}>All Companies</option>
-          <option disabled>─────────────</option>
+          <option disabled></option>
           {COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {isGlobal ? (
@@ -293,7 +293,7 @@ export default function PortalSettingsPage() {
               <p style={{ fontSize: 12, color: isGlobal ? '#F56B22' : '#9CA3B8', marginTop: 2, fontWeight: isGlobal ? 600 : 400 }}>
                 {isGlobal
                   ? <>All {COMPANIES.length} companies · {mod.label} page visibility</>
-                  : <><strong>{COMPANIES.find((c) => c.id === selectedCompanyId)?.name ?? '—'}</strong> · {mod.label} page visibility</>
+                  : <><strong>{COMPANIES.find((c) => c.id === selectedCompanyId)?.name ?? '-'}</strong> · {mod.label} page visibility</>
                 }
               </p>
             </div>

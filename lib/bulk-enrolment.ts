@@ -6,13 +6,13 @@
 // kept where they can be tested directly rather than only through a file
 // upload in a browser.
 import type { Member } from '@/lib/types';
-// Same source lib/list-values-client.ts uses — type-only, so nothing from the
+// Same source lib/list-values-client.ts uses: type-only, so nothing from the
 // route module ends up in the bundle.
 import type { RelationshipOption } from '@/app/api/hr/list-values/route';
 
 // Excel stores a typed date as a serial number (days from 1899-12-30), and
 // xlsx hands it back as a Date when cellDates is on. HR also pastes plain
-// text. All three shapes have to resolve to YYYY-MM-DD, or fail loudly —
+// text. All three shapes have to resolve to YYYY-MM-DD, or fail loudly -
 // silently rejecting a date that looks right on screen is the worst outcome.
 export function normaliseDob(value: unknown): string | null {
   const iso = (y: number, m: number, d: number) => {
@@ -59,7 +59,7 @@ export function normaliseDob(value: unknown): string | null {
 }
 
 // Returns Prognosis's sexId ('1' male, '2' female), or '' when the value is
-// not recognisably either — the caller turns that into a row error.
+// not recognisably either: the caller turns that into a row error.
 export function parseGender(value: string): string {
   const v = value.trim().toLowerCase();
   if (['m', 'male', 'man', 'mr'].includes(v)) return '1';
@@ -86,7 +86,7 @@ const RELATIONSHIP_SYNONYMS: Record<string, string[]> = {
 
 /**
  * Resolves a typed relationship to a Prognosis relationshipId, or '' when it
- * cannot be matched — which the caller turns into a row error rather than a
+ * cannot be matched, which the caller turns into a row error rather than a
  * guess. The IDs are per-environment, so they are always looked up in the list
  * the API returned and never hardcoded.
  */
@@ -113,7 +113,7 @@ export function codeKey(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, '');
 }
 
-/** Spreadsheet row number for a zero-based data index — header is row 1. */
+/** Spreadsheet row number for a zero-based data index: header is row 1. */
 export function sheetRow(idx: number): number {
   return idx + 2;
 }
@@ -128,7 +128,7 @@ export interface BulkRow {
   /** Prognosis relationshipId. Empty for principals. */
   relationshipId: string;
   employeeCode: string;
-  /** Employee Code this row belongs to — its own for a principal, the
+  /** Employee Code this row belongs to: its own for a principal, the
    *  Principal Employee Code for a dependant. */
   familyKey: string;
   firstName: string; surname: string; otherNames: string;
@@ -152,7 +152,7 @@ export interface BulkFamily {
   dependants: BulkRow[];
   /** Principal first, then dependants in file order. */
   rows: BulkRow[];
-  /** Non-empty blocks the whole family — a bad principal row takes its
+  /** Non-empty blocks the whole family: a bad principal row takes its
    *  dependants with it, because they cannot be enrolled without it. */
   blocked: string;
 }
@@ -211,8 +211,8 @@ export function parseBulkRow(
   const dob = normaliseDob(dobRaw);
 
   // Gender is matched explicitly. It previously fell through to
-  // `/^f/i.test(x) ? female : male`, so any unrecognised value — a typo, a
-  // stray character — silently enrolled the person as male.
+  // `/^f/i.test(x) ? female : male`, so any unrecognised value, a typo, a
+  // stray character, silently enrolled the person as male.
   const genderRaw = get(COLUMNS.gender);
   const sexId = parseGender(genderRaw);
 
@@ -222,16 +222,16 @@ export function parseBulkRow(
   if (!genderRaw)  errors.push('Gender required');
   else if (!sexId) errors.push('Gender must be Male or Female');
   if (!String(dobRaw).trim()) errors.push('Date of Birth required');
-  else if (!dob)   errors.push('Date of Birth not recognised — use DD/MM/YYYY');
+  else if (!dob)   errors.push('Date of Birth not recognised. Use DD/MM/YYYY');
   if (email && !isValidEmail(email)) errors.push('Invalid email');
 
   if (isDep) {
-    // Email and mobile are genuinely optional for a dependant — a child has
-    // neither — and AddFamily only requires them on the principal.
+    // Email and mobile are genuinely optional for a dependant, a child has
+    // neither, and AddFamily only requires them on the principal.
     if (!relationshipId) {
       errors.push(relOpts.length
-        ? `Relationship "${relRaw}" not recognised — use ${relOpts.map(o => o.text).slice(0, 4).join(', ')}`
-        : 'Relationship options could not be loaded — please retry');
+        ? `Relationship "${relRaw}" not recognised. Use ${relOpts.map(o => o.text).slice(0, 4).join(', ')}`
+        : 'Relationship options could not be loaded. Please retry');
     }
     if (!principalCode && !employeeCode) errors.push('Principal Employee Code required for a dependant');
   } else {
@@ -277,7 +277,7 @@ export function parseBulkRow(
  * dependant is resolved, so a dependant listed above its employee still finds
  * it.
  *
- * Mutates rows[].errors — the review table reads errors off the row they belong
+ * Mutates rows[].errors: the review table reads errors off the row they belong
  * to, so cross-row problems have to land there.
  */
 export function buildBulkFamilies(rows: BulkRow[], enrolledPrincipals: Member[]): BulkFamily[] {
@@ -336,7 +336,7 @@ export function buildBulkFamilies(rows: BulkRow[], enrolledPrincipals: Member[])
         fam.existingPrincipal = existing;
       } else {
         r.errors.push(
-          `No employee with Employee Code ${r.familyKey} in this file, and none enrolled — add the employee row too`,
+          `No employee with Employee Code ${r.familyKey} in this file, and none enrolled. Add the employee row too`,
         );
       }
     }
@@ -348,7 +348,7 @@ export function buildBulkFamilies(rows: BulkRow[], enrolledPrincipals: Member[])
 
     if (fam.principal?.errors.length) {
       fam.blocked = fam.dependants.length
-        ? 'Fix the employee row — their dependants cannot be enrolled without them'
+        ? 'Fix the employee row: their dependants cannot be enrolled without them'
         : 'Fix the errors on this row';
     } else if (!fam.principal && !fam.existingPrincipal) {
       fam.blocked = 'No employee to attach these dependants to';

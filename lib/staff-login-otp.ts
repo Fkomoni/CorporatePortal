@@ -1,4 +1,4 @@
-// 2FA for internal Leadway staff logins — same mechanism as HR (sha256-hashed
+// 2FA for internal Leadway staff logins: same mechanism as HR (sha256-hashed
 // 6-digit email code, 10 min TTL, 5 attempts), targeting StaffUser instead of
 // User since staff accounts have no fixed company/password.
 import crypto from 'crypto';
@@ -29,14 +29,14 @@ export async function issueStaffLoginOtp(staffUser: { id: string; email: string;
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#131C4E;padding:24px 32px;border-radius:12px 12px 0 0;">
     <p style="font-size:22px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em">LEADWAY <span style="color:#F56B22;">HEALTH</span></p>
-    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL — STAFF SIGN-IN</p>
+    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;letter-spacing:0.1em">CORPORATE PORTAL. STAFF SIGN-IN</p>
   </div>
   <div style="background:#fff;padding:36px 32px;border:1px solid #E5E7F1;border-top:none;">
     <p style="font-size:20px;font-weight:700;color:#131C4E;margin:0 0 8px">Your Sign-In Verification Code</p>
     <p style="font-size:14px;color:#6B7280;line-height:1.6;margin:0 0 24px">Use this code to complete your staff sign-in to the Corporate Portal. It expires in 10 minutes.</p>
     <p style="font-size:34px;font-weight:900;letter-spacing:0.25em;color:#131C4E;background:#F7F8FC;border:1px dashed #C7CBE0;border-radius:12px;padding:18px 24px;text-align:center;margin:0 0 24px">${code}</p>
     <p style="font-size:12px;color:#9CA3B8;margin:0;line-height:1.7">
-      If you didn't try to sign in, contact IT immediately — your Leadway AD password may be compromised.
+      If you didn't try to sign in, contact IT immediately: your Leadway AD password may be compromised.
       Never share this code; Leadway Health will never ask you for it.
     </p>
   </div>
@@ -51,7 +51,7 @@ ${emailFooter()}
       body: JSON.stringify({
         EmailAddress: staffUser.email,
         CC: '', BCC: '',
-        Subject: 'Your Sign-In Verification Code – Leadway Health Corporate Portal',
+        Subject: 'Your Sign-In Verification Code - Leadway Health Corporate Portal',
         MessageBody: emailBody,
         Attachments: null, Category: '', UserId: 0, ProviderId: 0, ServiceId: 0, Reference: '', TransactionType: '',
       }),
@@ -60,7 +60,7 @@ ${emailFooter()}
     console.log(`[staff-login-otp] OTP email to ${staffUser.email} → HTTP ${res.status}: ${text.slice(0, 300)}`);
     if (!res.ok) return false;
     let d: Record<string, unknown> | null = null;
-    try { d = JSON.parse(text); } catch { /* non-JSON success body — fine */ }
+    try { d = JSON.parse(text); } catch { /* non-JSON success body: fine */ }
     const status = String(d?.status ?? d?.Status ?? '').toLowerCase();
     if (status && !['success', 'true', '200', 'ok'].includes(status)) return false;
     if (d?.ErrorMessage || d?.errorMessage || d?.error || d?.Error) return false;

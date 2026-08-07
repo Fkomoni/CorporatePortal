@@ -1,4 +1,4 @@
-// The dashboard's system-notice bar. Read-only for HR — the notice itself is
+// The dashboard's system-notice bar. Read-only for HR: the notice itself is
 // set per corporate by Leadway staff in the admin console.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
@@ -18,7 +18,7 @@ export async function GET() {
     return NextResponse.json({ notice });
   } catch (err) {
     console.error('[hr/system-notice] Error:', err);
-    // The bar simply doesn't render — never block the dashboard on this.
+    // The bar simply doesn't render: never block the dashboard on this.
     return NextResponse.json({ notice: null });
   }
 }

@@ -45,7 +45,7 @@ function toRows(raw: unknown): Record<string, unknown>[] {
 }
 
 // Prognosis's Company_Email1 (via GetAllPolicies) is the single source of
-// truth for which email is currently authorised as a group's HR contact —
+// truth for which email is currently authorised as a group's HR contact -
 // our own OTP/password logic never decides this, only Prognosis does.
 // groupId, when known, scopes the check to that specific group; otherwise
 // any active policy with a matching Company_Email1 is accepted.
@@ -72,7 +72,7 @@ export async function isEmailAuthorizedForGroup(email: string, groupId?: string 
   }
 }
 
-// Delivers the OTP to the HR contact in its own email and SMS — kept separate
+// Delivers the OTP to the HR contact in its own email and SMS: kept separate
 // from the registration-link email so the link alone can't complete signup.
 export async function sendOtpDelivery(
   token: string,
@@ -95,7 +95,7 @@ export async function sendOtpDelivery(
     </p>
     <p style="font-size:34px;font-weight:900;letter-spacing:0.25em;color:#131C4E;background:#F7F8FC;border:1px dashed #C7CBE0;border-radius:12px;padding:18px 24px;text-align:center;margin:0 0 24px">${p.otp}</p>
     <p style="font-size:12px;color:#9CA3B8;margin:0;line-height:1.7">
-      Enter this code on the registration page. Do not share it with anyone —
+      Enter this code on the registration page. Do not share it with anyone -
       Leadway Health will never ask you for this code.
     </p>
   </div>
@@ -110,7 +110,7 @@ ${emailFooter()}
         EmailAddress: p.email,
         CC: '',
         BCC: '',
-        Subject: 'Your OTP – Leadway Health Corporate Portal',
+        Subject: 'Your OTP - Leadway Health Corporate Portal',
         MessageBody: otpEmailBody,
         Attachments: null,
         Category: '',
@@ -218,7 +218,7 @@ export async function sendCorporateWelcome(p: WelcomeParams): Promise<WelcomeRes
       d?.token ?? d?.Token ?? d?.code ?? d?.Code ??
       d?.data?.otp ?? d?.data?.verificationCode ?? d?.data?.code ?? null;
 
-    // OTP deliberately NOT embedded in the link — it must be typed from the
+    // OTP deliberately NOT embedded in the link: it must be typed from the
     // separate OTP message, otherwise the link alone completes registration.
     const appBase = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://corporateportal.onrender.com').replace(/\/$/, '');
     const registrationLink = `${appBase}/verify-registration?email=${encodeURIComponent(p.email)}&groupId=${encodeURIComponent(p.groupId)}&company=${encodeURIComponent(p.companyName)}&name=${encodeURIComponent((p.contactName ?? '').trim())}`;
@@ -248,11 +248,11 @@ export async function sendCorporateWelcome(p: WelcomeParams): Promise<WelcomeRes
       console.error('[corporate-welcome] DB pre-registration failed (non-fatal):', dbErr);
     }
 
-    // The OTP itself is deliberately NOT sent here — it's requested on-demand
+    // The OTP itself is deliberately NOT sent here: it's requested on-demand
     // via /api/hr/request-registration-otp once the user actually reaches the
     // OTP step, so its expiry window starts when they're ready to use it
     // rather than the moment this welcome email goes out.
-    if (!otp) return { success: true, emailSent: false, registrationLink, error: 'No OTP returned — email not sent' };
+    if (!otp) return { success: true, emailSent: false, registrationLink, error: 'No OTP returned: email not sent' };
 
     const emailBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">

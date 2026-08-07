@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
+import { useToast } from '@/components/ui/Toast';
 import {
   UserCheck, MapPin, CheckSquare, Calendar, Send, CheckCircle,
   Building2, ChevronDown, X, ClipboardList,
 } from 'lucide-react';
 
-// ── Facilities by state ───────────────────────────────────────────────────────
+//  Facilities by state
 
 const FACILITIES_BY_STATE: Record<string, { name: string; address: string; type: string }[]> = {
   'Lagos': [
@@ -81,7 +82,7 @@ const NIGERIAN_STATES = [
   'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
 ];
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+//  Tests
 
 type Gender = 'Male' | 'Female' | '';
 
@@ -122,9 +123,10 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   Gynaecology:  { bg: '#FDF4FF', text: '#9333EA' },
 };
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+//  Page
 
 export default function PreEmploymentPage() {
+  const { toast } = useToast();
   const [form, setForm] = useState({
     name: '', email: '', phone: '', gender: '' as Gender,
     dob: '', state: '', notes: '', date: '',
@@ -208,8 +210,11 @@ export default function PreEmploymentPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to send');
       setSubmitted(true);
+      toast(`Screening request sent for ${form.name}.`, 'success');
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Failed to send request');
+      const msg = e instanceof Error ? e.message : 'Failed to send request';
+      setSubmitError(msg);
+      toast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -244,7 +249,7 @@ export default function PreEmploymentPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
                 { label: 'Candidate',  value: form.name },
-                { label: 'Facility',   value: `${selectedFacility?.name} — ${selectedFacility?.address}` },
+                { label: 'Facility',   value: `${selectedFacility?.name}: ${selectedFacility?.address}` },
                 { label: 'State',      value: form.state },
                 { label: 'Preferred Date', value: form.date },
                 { label: 'Tests',      value: `${selectedTests.size + 1} test${selectedTests.size + 1 !== 1 ? 's' : ''} selected` },
@@ -271,7 +276,7 @@ export default function PreEmploymentPage() {
 
       <div style={{ padding: '28px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* ── SECTION 1: Candidate Details ── */}
+        {/*  SECTION 1: Candidate Details  */}
         <div style={{ ...card, padding: '24px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FFF1E6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -317,7 +322,7 @@ export default function PreEmploymentPage() {
           </div>
         </div>
 
-        {/* ── SECTION 2: Facilities (appears once state is selected) ── */}
+        {/*  SECTION 2: Facilities (appears once state is selected)  */}
         {form.state && (
           <div style={{ ...card, padding: '24px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -358,7 +363,7 @@ export default function PreEmploymentPage() {
           </div>
         )}
 
-        {/* ── SECTION 3: Tests (appears once gender is selected) ── */}
+        {/*  SECTION 3: Tests (appears once gender is selected)  */}
         {form.gender && (
           <div style={{ ...card, padding: '24px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -381,7 +386,7 @@ export default function PreEmploymentPage() {
               )}
             </div>
 
-            {/* Mandatory test — always included */}
+            {/* Mandatory test: always included */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', marginBottom: 20, background: '#FFF5EF', border: '1.5px solid #F56B22', borderRadius: 10 }}>
               <input type="checkbox" checked readOnly style={{ width: 15, height: 15, accentColor: '#F56B22', flexShrink: 0, cursor: 'default' }} />
               <span style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', flex: 1 }}>Complete Physical Examination (BMI, Blood Pressure, Pulse Rate)</span>
@@ -413,7 +418,7 @@ export default function PreEmploymentPage() {
           </div>
         )}
 
-        {/* ── SECTION 4: Date, Notes & Submit ── */}
+        {/*  SECTION 4: Date, Notes & Submit  */}
         <div style={{ ...card, padding: '24px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -431,12 +436,12 @@ export default function PreEmploymentPage() {
             </div>
             <div>
               <label style={labelStyle}>Additional Notes (optional)</label>
-              <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} placeholder="Any special requirements or instructions for the candidate…" style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none', fontFamily: 'inherit' }} onFocus={fi} onBlur={fo} />
+              <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} placeholder="Any special requirements or instructions for the candidate..." style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none', fontFamily: 'inherit' }} onFocus={fi} onBlur={fo} />
             </div>
           </div>
         </div>
 
-        {/* ── SUBMIT BAR ── */}
+        {/*  SUBMIT BAR  */}
         <div style={{ ...card, padding: '18px 28px', display: 'flex', alignItems: 'center', gap: 20 }}>
           <div style={{ flex: 1 }}>
             {canSubmit ? (
@@ -445,7 +450,7 @@ export default function PreEmploymentPage() {
               </p>
             ) : (
               <p style={{ fontSize: 13, color: '#9CA3B8' }}>
-                Complete all sections above — candidate details, facility, tests and date — to request a quote.
+                Complete all sections above, candidate details, facility, tests and date, to request a quote.
               </p>
             )}
           </div>
@@ -453,7 +458,7 @@ export default function PreEmploymentPage() {
             {submitError && <p style={{ fontSize: 12, color: '#DC2626', maxWidth: 320, textAlign: 'right' }}>{submitError}</p>}
             <button onClick={handleSubmit} disabled={!canSubmit || submitting}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: (canSubmit && !submitting) ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.45, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: canSubmit ? '0 2px 10px rgba(245,107,34,0.32)' : 'none', transition: 'all 0.2s', flexShrink: 0, whiteSpace: 'nowrap' }}>
-              <Send style={{ width: 14, height: 14 }} /> {submitting ? 'Sending…' : 'Get Quote from Leadway'}
+              <Send style={{ width: 14, height: 14 }} /> {submitting ? 'Sending...' : 'Get Quote from Leadway'}
             </button>
           </div>
         </div>

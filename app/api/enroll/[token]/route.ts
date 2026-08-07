@@ -35,7 +35,7 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-// GET — validate token and return invitation metadata + list values
+// GET: validate token and return invitation metadata + list values
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
@@ -50,7 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const remainingSlots = invitation.inviteType === 'dependent'
     ? invitation.maxDependents - invitation.usedCount
     : invitation.scope === 'self-dependent'
-      ? invitation.maxDependents   // principal link that allows dependants — slots = how many deps HR configured
+      ? invitation.maxDependents   // principal link that allows dependants: slots = how many deps HR configured
       : 1;
 
   // Fetch list values in parallel
@@ -131,7 +131,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   }
 }
 
-// POST — submit self-enrollment
+// POST: submit self-enrollment
 export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
@@ -173,13 +173,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const svcToken = await getServiceToken();
 
     // Postal_Town_ID was previously hardcoded to 1 (Abia), so the state the
-    // member actually selected never reached Prognosis — regionid is
+    // member actually selected never reached Prognosis: regionid is
     // Prognosis's real field for state (per GetRegion/GetStates), driven by
     // whichever region the member/dependant chose in the State dropdown.
     const resolvedRegionId = body.postalTownId ? (Number(body.postalTownId) || body.postalTownId) : 1;
     const nin = String(body.nin ?? '').trim();
     // A staff member filling their own form must not be able to submit letters
-    // or a malformed number — the field is only optional for non-spouse dependants.
+    // or a malformed number: the field is only optional for non-spouse dependants.
     const emailErr = validateEmail(body.email, { required: !isDependent, label: 'Email' });
     if (emailErr) return NextResponse.json({ error: emailErr }, { status: 400 });
     const mobErr = validateMobile(body.mobile, { required: !isDependent, label: 'Mobile number' })
@@ -233,13 +233,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
         NIN: nin,
-        // Self-service link submissions must wait for HR approval — Activated
+        // Self-service link submissions must wait for HR approval. Activated
         // is the same field UpdateBeneficiary/TerminateBeneficiary use to flag
         // a beneficiary's active state, so we ask Prognosis not to activate
         // this one immediately. HR's own direct Add Dependent stays untouched
         // (unset there) and keeps auto-activating as before.
         Activated: false,
-        // Cover start date is fixed by HR at invite-creation time — the
+        // Cover start date is fixed by HR at invite-creation time: the
         // member's own submitted body has no say over it.
         startdate: invitation.startDate ?? '',
         ...(invitation.startDate ? { Fromdate: invitation.startDate, StartDate: invitation.startDate } : {}),
@@ -263,7 +263,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         titleid: 0,
         // Prognosis's confirmed AddPrincipalOnly shape uses "1" for the
         // principal's own Relationship_ID (previously sent as "30", a
-        // dependent-type relationship — corrected per their updated docs).
+        // dependent-type relationship: corrected per their updated docs).
         Relationship_ID: '1',
         EmailAdress: invitation.email,
         Home_Phone: body.homePhone ?? '',
@@ -286,10 +286,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         EnrolleePicture: body.enrolleePicture ?? '',
         EnrolleePictureType: body.enrolleePictureType ?? '',
         NIN: nin,
-        // See note above — same reasoning applies to a principal self-enrolling
+        // See note above: same reasoning applies to a principal self-enrolling
         // via their own link.
         Activated: false,
-        // Cover start date is fixed by HR at invite-creation time — the
+        // Cover start date is fixed by HR at invite-creation time: the
         // member's own submitted body has no say over it.
         startdate: invitation.startDate ?? '',
         ...(invitation.startDate ? { Fromdate: invitation.startDate, StartDate: invitation.startDate } : {}),
@@ -328,7 +328,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       return NextResponse.json({ error: apiMessage, debug }, { status: 422 });
     }
 
-    // Mark the invitation used BEFORE returning — so re-submits are blocked
+    // Mark the invitation used BEFORE returning: so re-submits are blocked
     const newUsedCount = (invitation.usedCount ?? 0) + 1;
     const fullyUsed = !isSelfDepAdd && (invitation.inviteType !== 'dependent' || newUsedCount >= invitation.maxDependents);
     await prisma.memberInvitation.update({
@@ -339,7 +339,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     });
 
-    // Extract IDs — Prognosis wraps result in data[] for dependent calls
+    // Extract IDs. Prognosis wraps result in data[] for dependent calls
     const dataItem = Array.isArray(r?.data) ? (r.data as Record<string,unknown>[])[0] : r;
     const cifNumber    = dataItem?.Cif_Number ?? dataItem?.cifNumber ?? dataItem?.CifNumber ?? r?.Cif_Number ?? r?.cifNumber ?? null;
     const membershipNo = String(dataItem?.MembershipNo ?? dataItem?.membershipNo ?? r?.MembershipNo ?? r?.membershipNo ?? '');
@@ -347,7 +347,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const enrolleeId   = membershipNo ? `${membershipNo}/${suffix}` : '';
 
     // Self-service registrations via an HR-issued link go through the same HR
-    // approval queue as Enrolee App registrations — only HR's own direct
+    // approval queue as Enrolee App registrations: only HR's own direct
     // Add Member action auto-approves. Record this CIF as link-sourced so
     // Pending Enrolees can label it "Corporate Portal" instead of "Enrolee App".
     if (cifNumber) {

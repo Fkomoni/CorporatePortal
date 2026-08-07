@@ -48,7 +48,7 @@ function toRows(raw: unknown, depth = 0): Record<string, unknown>[] {
   return [];
 }
 
-// GET /api/hr/debug/premium — returns raw field names + sample rows from GetGroupPremium
+// GET /api/hr/debug/premium: returns raw field names + sample rows from GetGroupPremium
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

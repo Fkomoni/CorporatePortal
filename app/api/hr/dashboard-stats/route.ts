@@ -8,7 +8,7 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
-// ── Service token (6-hour cache) ──────────────────────────────────────────────
+//  Service token (6-hour cache)
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
@@ -35,7 +35,7 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-// ── GetAllPolicies (24-hour cache) ────────────────────────────────────────────
+//  GetAllPolicies (24-hour cache)
 let allPoliciesCache: Record<string, unknown>[] | null = null;
 let allPoliciesExpiry = 0;
 
@@ -53,14 +53,14 @@ async function getAllPolicies(token: string): Promise<Record<string, unknown>[]>
   return rows;
 }
 
-// ── Response cache (10-minute TTL) ────────────────────────────────────────────
+//  Response cache (10-minute TTL)
 // The sidebar fetches this route on every page and the dashboard adds several
 // upstream Prognosis calls per request; one cached payload per company keeps
 // that to one upstream round-trip per TTL. `?refresh=1` bypasses it.
 const statsCache = new Map<string, { expires: number; payload: unknown }>();
 const STATS_TTL_MS = 10 * 60 * 1000;
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+//  HTTP helper
 async function fetchJson(token: string, path: string): Promise<{ data: unknown; ok: boolean }> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -101,21 +101,67 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+const MONTH_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+/**
+ * Every date shape this backend has been seen to return.
+ *
+ * The previous version accepted exactly two: YYYY-MM-DD with zero-padded parts,
+ * and DD/MM/YYYY. Anything else, including the /Date(ms)/ form an ASP.NET
+ * serialiser emits, was treated as no date at all. It also sliced to 10
+ * characters first, which decapitated the timestamp forms before they could be
+ * matched. The third branch was dead code: it repeated the DD/MM/YYYY pattern,
+ * so the MM/DD/YYYY comment never applied to anything.
+ */
 function parseDate(s: string): Date | null {
-  if (!s) return null;
-  const t = String(s).trim().slice(0, 10);
-  // YYYY-MM-DD
-  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-  // DD/MM/YYYY
-  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-  // MM/DD/YYYY
-  const mdy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mdy) {
-    const d = new Date(Number(mdy[3]), Number(mdy[1]) - 1, Number(mdy[2]));
-    if (!isNaN(d.getTime())) return d;
+  const raw = String(s ?? '').trim();
+  if (!raw || raw.toLowerCase() === 'null') return null;
+
+  const mk = (y: number, m: number, d: number): Date | null => {
+    if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2200) return null;
+    const dt = new Date(y, m - 1, d);
+    // Rejects roll-over dates such as 31 February.
+    return dt.getMonth() === m - 1 && dt.getDate() === d ? dt : null;
+  };
+
+  // ASP.NET JSON: /Date(1710374400000)/ or /Date(1710374400000+0100)/
+  const dotnet = raw.match(/^\/?Date\((-?\d+)([+-]\d{4})?\)\/?$/i);
+  if (dotnet) {
+    const dt = new Date(Number(dotnet[1]));
+    return isNaN(dt.getTime()) ? null : dt;
   }
+
+  // Date-only head of an ISO or "YYYY-MM-DD HH:mm:ss" value.
+  const isoLike = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoLike) return mk(+isoLike[1], +isoLike[2], +isoLike[3]);
+
+  // Day-first with any separator: 14/03/2026, 14-03-2026, 14.03.2026
+  const dmy = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (dmy) {
+    const [, a, b, y] = dmy;
+    // Day-first is the convention here, but a value like 03/14/2026 can only be
+    // month-first, so fall back to that rather than discarding the row.
+    return mk(+y, +b, +a) ?? mk(+y, +a, +b);
+  }
+
+  // "14 Mar 2026" / "14 March 2026" / "Mar 14, 2026"
+  const dMonY = raw.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{4})/);
+  if (dMonY) {
+    const m = MONTH_ABBR.indexOf(dMonY[2].slice(0, 3).toLowerCase()) + 1;
+    if (m > 0) return mk(+dMonY[3], m, +dMonY[1]);
+  }
+  const monDY = raw.match(/^([A-Za-z]{3,})[\s-]+(\d{1,2}),?[\s-]+(\d{4})/);
+  if (monDY) {
+    const m = MONTH_ABBR.indexOf(monDY[1].slice(0, 3).toLowerCase()) + 1;
+    if (m > 0) return mk(+monDY[3], m, +monDY[2]);
+  }
+
+  // Epoch milliseconds or seconds as a bare number.
+  if (/^\d{10}$|^\d{13}$/.test(raw)) {
+    const dt = new Date(raw.length === 10 ? Number(raw) * 1000 : Number(raw));
+    if (!isNaN(dt.getTime()) && dt.getFullYear() >= 1990 && dt.getFullYear() <= 2200) return dt;
+  }
+
   return null;
 }
 
@@ -131,7 +177,7 @@ function extractDateStr(p: Record<string, unknown>, ...keys: string[]): string {
   return '';
 }
 
-// ── Policy matching ───────────────────────────────────────────────────────────
+//  Policy matching
 function findPolicy(
   policies: Record<string, unknown>[],
   groupId: string,
@@ -169,7 +215,7 @@ function findPolicy(
   }, null);
 }
 
-// ── Actuarial constants ───────────────────────────────────────────────────────
+//  Actuarial constants
 const PREMIUM_KEYS = [
   'IndividualPremiumFees','Member_Premium','ActualPremium','BasePremiumIndividual',
   'PremiumAmount','Premium','Amount','TotalPremium','GrossPremium','NetPremium',
@@ -180,34 +226,75 @@ const PREMIUM_KEYS = [
 const PAID_AMOUNT_KEYS  = ['AmtPaid','PaidAmount','AmountPaid','Paid_Amount','paid_amount','ClaimPaidAmount','NetPaid','Amount_Paid','TotalPaidAmount','TotalPaid','gross_paid'];
 const BILLED_AMOUNT_KEYS = ['AmtClaimed','BilledAmount','ClaimedAmount','Amount_Billed','billed_amount','AmountBilled','ClaimAmount','Claim_Amount','GrossAmount','TotalBilled','amount_claimed','gross_claimedamt'];
 const STATUS_KEYS       = ['CLAIM_STATUS','ClaimStatus','Status','claim_status','PaymentStatus','Claim_Status'];
-const PAYMENT_DATE_KEYS = ['PaymentDate','Payment_Date','DatePaid','PaidDate','DateSettled','SettlementDate'];
-const CLAIM_DATE_KEYS   = ['TreatmentDate','DateOfService','ServiceDate','ClaimDate','Claim_Date','Treatment_Date'];
+// Matched case- and separator-insensitively, so "claim_date", "Claim_Date" and
+// "ClaimDate" are all one entry. claim_date is the spelling this endpoint
+// actually returns and the one the Claims page reads.
+const PAYMENT_DATE_KEYS = ['PaymentDate','DatePaid','PaidDate','DateSettled','SettlementDate','date_paid','settled_date','ChequeDate','ApprovedDate'];
+const CLAIM_DATE_KEYS   = ['ClaimDate','TreatmentDate','DateOfService','ServiceDate','EncounterDate','DateOfTreatment','VisitDate','date_of_service','TransactionDate','DateReceived'];
 const PAID_SUBSTRINGS   = ['paid','settled','approved','complete','processed','reimbursed'];
 
-function numField(row: Record<string, unknown>, keys: string[]): number {
-  for (const k of keys) {
-    const v = row[k];
-    if (v == null) continue;
-    if (typeof v === 'number') return v;
-    const c = String(v).replace(/[,₦$\s]/g, '').trim();
-    if (c && !isNaN(+c)) return +c;
+// Field lookup is case- and separator-insensitive.
+//
+// This endpoint's rows come back snake_cased (claim_id, claimant, nem) while the
+// alias lists below are written in Prognosis's PascalCase. An exact lookup meant
+// "claim_date" never matched "ClaimDate", so every claim looked undated and the
+// spend trend had nothing to plot even though the column was populated. Rather
+// than keep adding spellings of the same field, both are normalised to
+// alphanumerics-lowercased before comparing.
+const keyIndexCache = new WeakMap<object, Map<string, string>>();
+
+function normKey(k: string): string {
+  return k.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function keyIndex(row: Record<string, unknown>): Map<string, string> {
+  let idx = keyIndexCache.get(row);
+  if (!idx) {
+    idx = new Map();
+    // First spelling wins, so an exact-cased duplicate cannot be shadowed.
+    for (const k of Object.keys(row)) {
+      const n = normKey(k);
+      if (!idx.has(n)) idx.set(n, k);
+    }
+    keyIndexCache.set(row, idx);
   }
-  return 0;
+  return idx;
+}
+
+function rawField(row: Record<string, unknown>, keys: string[]): unknown {
+  const idx = keyIndex(row);
+  for (const k of keys) {
+    const actual = idx.get(normKey(k));
+    if (actual === undefined) continue;
+    const v = row[actual];
+    if (v == null) continue;
+    const s = String(v).trim();
+    // Prognosis sends the literal strings "null" and "NULL" for empty columns;
+    // the Claims page already filters these and this has to match it.
+    if (!s || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') continue;
+    return v;
+  }
+  return undefined;
+}
+
+function numField(row: Record<string, unknown>, keys: string[]): number {
+  const v = rawField(row, keys);
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  const c = String(v).replace(/[,₦$\s]/g, '').trim();
+  return c && !isNaN(+c) ? +c : 0;
 }
 
 function strField(row: Record<string, unknown>, keys: string[]): string {
-  for (const k of keys) {
-    const v = row[k];
-    if (v != null && String(v).trim()) return String(v);
-  }
-  return '';
+  const v = rawField(row, keys);
+  return v == null ? '' : String(v);
 }
 
 function daysApart(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
-// ── Actuarial computation ─────────────────────────────────────────────────────
+//  Actuarial computation
 interface LossRatioResult {
   totalPremium: number;
   earnedPremium: number;
@@ -230,7 +317,7 @@ interface LossRatioResult {
    *  they are in the total but cannot be placed on the trend. */
   undatedPaidCount: number;
   undatedPaidAmount: number;
-  /** Cumulative paid-claims loss ratio by month — the KPI sparkline's trend. */
+  /** Cumulative paid-claims loss ratio by month: the KPI sparkline's trend. */
   lossRatioMonthly: { month: string; pct: number }[];
 }
 
@@ -284,7 +371,7 @@ export function computeLossRatio({
   // Two separate monthly maps, because they answer different questions.
   //
   // `monthly` feeds the IBNR reserve and keeps its deliberately strict test
-  // (exact CLAIM_STATUS "Paid Claims", AmtPaid only) — a reserving input should
+  // (exact CLAIM_STATUS "Paid Claims", AmtPaid only): a reserving input should
   // not quietly widen.
   //
   // `monthlySpend` feeds the Claims Spend Trend chart and the loss-ratio
@@ -347,7 +434,7 @@ export function computeLossRatio({
     }
 
     // Chart bucket: same claim, same amount as the headline total. paidAmt is
-    // the effective figure by this point — the AmtClaimed fallback has already
+    // the effective figure by this point: the AmtClaimed fallback has already
     // been applied above.
     if (isPaid && paidAmt > 0) {
       if (td && (!ps || td >= ps)) {
@@ -373,7 +460,7 @@ export function computeLossRatio({
   }
 
   // Cumulative paid-claims loss ratio at each month end. Paid-only (no
-  // outstanding/IBNR component) — it draws a sparkline, not a reported figure.
+  // outstanding/IBNR component): it draws a sparkline, not a reported figure.
   const lossRatioMonthly: { month: string; pct: number }[] = [];
   if (hasPolicy && totalPremium > 0 && totalPolicyDays > 0) {
     let cum = 0;
@@ -455,7 +542,7 @@ function sumCanonicalPaid(rows: Record<string, unknown>[]): number {
   return [...seen.values()].reduce((s, v) => s + v, 0);
 }
 
-// ── Scheme Health Score ───────────────────────────────────────────────────────
+//  Scheme Health Score
 function computeHealthScore({
   lossRatio, cor, utilizationRate, outstandingClaims, paidClaims,
 }: {
@@ -482,7 +569,7 @@ function computeHealthScore({
     : cor <= 125 ? 30
     : 10;
 
-  // Utilization rate (20%) — 15–35% is the healthy range
+  // Utilization rate (20%): 15-35% is the healthy range
   const u = utilizationRate;
   const utilScore = u === null ? 50
     : u >= 15 && u <= 35 ? 100
@@ -510,7 +597,7 @@ function computeHealthScore({
   return { score, label };
 }
 
-// Store this month's snapshot; read previous quarter for trend (raw SQL — graceful if table not yet migrated)
+// Store this month's snapshot; read previous quarter for trend (raw SQL: graceful if table not yet migrated)
 async function upsertHealthSnapshot(groupId: string, yearMonth: string, snap: {
   score: number; lossRatio: number | null; cor: number | null; utilRate: number | null; riskStatus: string | null;
 }): Promise<void> {
@@ -523,7 +610,7 @@ async function upsertHealthSnapshot(groupId: string, yearMonth: string, snap: {
          score=$4,"lossRatio"=$5,cor=$6,"utilRate"=$7,"riskStatus"=$8,"updatedAt"=NOW()`,
       id, groupId, yearMonth, snap.score, snap.lossRatio, snap.cor, snap.utilRate, snap.riskStatus,
     );
-  } catch { /* table not yet migrated — silent until first deploy */ }
+  } catch { /* table not yet migrated: silent until first deploy */ }
 }
 
 async function getPreviousQuarterScore(groupId: string, currentYM: string): Promise<number | null> {
@@ -540,7 +627,7 @@ async function getPreviousQuarterScore(groupId: string, currentYM: string): Prom
   } catch { return null; }
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+//  Types
 export interface DashboardStats {
   activeLives: number | null;
   principalLives: number | null;
@@ -600,7 +687,7 @@ export interface DashboardStats {
   policyToDate: string | null;
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
+//  Route handler
 export async function GET(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -631,7 +718,7 @@ export async function GET(request: Request) {
 
     const premiumRaw = premiumResult.data;
 
-    // ── Policy period + brokerage from GetAllPolicies ────────────────────────
+    //  Policy period + brokerage from GetAllPolicies
     const policy = findPolicy(allPolicies, groupId, policyNumber);
 
     let policyPeriod: string | null   = null;
@@ -647,7 +734,7 @@ export async function GET(request: Request) {
       const toD     = parseDate(toStr);
 
       if (fromD && toD) {
-        policyPeriod   = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+        policyPeriod   = `${fmtOrdinalDate(fromD)} - ${fmtOrdinalDate(toD)}`;
         policyYear     = fromD.getFullYear();
         policyFromDate = fromStr;
         policyToDate   = toStr;
@@ -659,7 +746,7 @@ export async function GET(request: Request) {
       brokerage = parseFloat(String(brokerateRaw).replace(/[^0-9.]/g, '')) || 0;
     }
 
-    // ── Active lives from GetGroupPremium ────────────────────────────────────
+    //  Active lives from GetGroupPremium
     const rows = toRows(premiumRaw);
 
     // Fallback: derive policy dates from premium rows when GetAllPolicies didn't resolve them
@@ -673,7 +760,7 @@ export async function GET(request: Request) {
         if (fromD && toD) {
           policyFromDate = fromStr;
           policyToDate   = toStr;
-          policyPeriod   = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+          policyPeriod   = `${fmtOrdinalDate(fromD)} - ${fmtOrdinalDate(toD)}`;
           policyYear     = fromD.getFullYear();
         }
       }
@@ -688,7 +775,7 @@ export async function GET(request: Request) {
     const principalLives = [...activeIds].filter((id) => id.endsWith('/0')).length || null;
     const dependantLives = activeLives !== null && principalLives !== null ? activeLives - principalLives : null;
 
-    // ── New members this calendar month ──────────────────────────────────────
+    //  New members this calendar month
     const now = new Date();
     const currentYear  = now.getFullYear();
     const currentMonth = now.getMonth();
@@ -718,7 +805,7 @@ export async function GET(request: Request) {
 
     // Active-membership growth: of the members active today, how many had
     // started by each of the last six month-ends. (Members who left along the
-    // way aren't represented — this tracks growth of the current book.)
+    // way aren't represented: this tracks growth of the current book.)
     const memberMonthly: { month: string; count: number }[] = [];
     if (memberStartMap.size > 0) {
       const starts = [...memberStartMap.values()];
@@ -729,7 +816,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // ── Fetch claims using actual policy dates (not calendar year) ────────────
+    //  Fetch claims using actual policy dates (not calendar year)
     const cy = new Date().getFullYear();
     const toISO = (raw: string | null) => {
       if (!raw) return null;
@@ -740,7 +827,7 @@ export async function GET(request: Request) {
     const claimsFromDate = toISO(policyFromDate) ?? `${cy}-01-01`;
     const claimsToDate   = toISO(policyToDate)   ?? `${cy}-12-31`;
 
-    // Prior policy year, same elapsed window — the like-for-like "vs last year"
+    // Prior policy year, same elapsed window: the like-for-like "vs last year"
     // comparison for Claims Paid. Skipped when policy dates didn't resolve.
     const psD = parseDate(policyFromDate ?? '');
     const peD = parseDate(policyToDate ?? '');
@@ -784,7 +871,7 @@ export async function GET(request: Request) {
       ? +sumCanonicalPaid(rawPrevPaidRows).toFixed(2)
       : null;
 
-    // ── Invoice summary (first row of GetInvoiceReceiptHistory) ───────────────
+    //  Invoice summary (first row of GetInvoiceReceiptHistory)
     const invoiceRows = toRows(invoiceResult.data);
     const invoiceSummary = invoiceRows[0] ?? null;
     const invoiceOutstanding = invoiceSummary ? toNumber(invoiceSummary.OutstandingBalance) : null;
@@ -794,8 +881,23 @@ export async function GET(request: Request) {
     const invoiceReceiptNumber = invoiceSummary && String(invoiceSummary.ReceiptNumber ?? '').trim()
       ? String(invoiceSummary.ReceiptNumber).trim() : null;
 
-    // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
+    //  Actuarial: earned premium, incurred claims, loss ratio, COR
     const claimRows = toRows(claimsRaw);
+
+    // The exact keys and the date value on a real row. Guessing at field
+    // spellings is what let every claim look undated in the first place; with
+    // this in the logs the next mismatch is one line to find instead of a
+    // reverse-engineering exercise.
+    if (claimRows.length > 0) {
+      const sample = claimRows[0];
+      console.log('[dashboard-stats] claim row keys:', Object.keys(sample).join(','));
+      console.log('[dashboard-stats] claim date resolved:',
+        JSON.stringify({
+          treatment: strField(sample, CLAIM_DATE_KEYS),
+          payment: strField(sample, PAYMENT_DATE_KEYS),
+          parsed: parseDate(strField(sample, CLAIM_DATE_KEYS) || strField(sample, PAYMENT_DATE_KEYS))?.toISOString() ?? null,
+        }));
+    }
 
     const lr = computeLossRatio({
       premiumRows: rows,
@@ -807,7 +909,7 @@ export async function GET(request: Request) {
       paidClaimsOverride: paidClaimsResult.ok && canonicalClaimsPaid > 0 ? canonicalClaimsPaid : undefined,
     });
 
-    // ── Utilization metrics ───────────────────────────────────────────────────
+    //  Utilization metrics
     const uniqueClaimNos = new Set(
       claimRows.map((r) => String(r.claim_id ?? r.ClaimNumber ?? r.Claim_Number ?? '').trim()).filter(Boolean)
     );
@@ -824,7 +926,7 @@ export async function GET(request: Request) {
         ? Math.round((membersUtilized / activeLives) * 100)
         : null;
 
-    // ── Top 5 providers ───────────────────────────────────────────────────────
+    //  Top 5 providers
     const providerMap = new Map<string, { location: string; visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
       const name     = String(r.provider ?? r.Provider ?? r.ProviderName ?? '').trim();
@@ -850,7 +952,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.amtPaid - a.amtPaid);
     const topProviders = allProvidersSorted.slice(0, 5);
 
-    // ── Top 5 service types ───────────────────────────────────────────────────
+    //  Top 5 service types
     const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
       const svc      = String(r.service ?? r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
@@ -875,7 +977,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.visits - a.visits)
       .slice(0, 5);
 
-    // ── Top Conditions from real diagnosis data ───────────────────────────────
+    //  Top Conditions from real diagnosis data
     const CONDITION_BUCKETS: [RegExp, string][] = [
       [/malaria|artemether|artesunate|coartem|lumefantrine|chloroquine|quinine/i, 'Malaria'],
       [/hypertension|antihypertens|amlodipine|lisinopril|losartan|valsartan|atenolol|nifedipine|ramipril|telmisartan|bisoprolol|exforge|cardiotan|perindopril/i, 'Hypertension'],
@@ -920,7 +1022,7 @@ export async function GET(request: Request) {
       ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
       : null;
 
-    // ── Scheme Health Score ───────────────────────────────────────────────────
+    //  Scheme Health Score
     const hs = computeHealthScore({
       lossRatio:       lr.lossRatio,
       cor:             lr.cor,

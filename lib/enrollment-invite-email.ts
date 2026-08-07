@@ -1,4 +1,4 @@
-// Shared enrolment-invite email — used both when HR first generates a
+// Shared enrolment-invite email: used both when HR first generates a
 // self-enrolment link and when they resend an existing one from Pending
 // Enrolees.
 import { renderEmailTemplate } from '@/lib/email-template';
@@ -18,8 +18,8 @@ export interface InviteEmailOptions {
 
 export function renderInviteEmail(opts: InviteEmailOptions): { subject: string; html: string } {
   const subject = opts.isDependent
-    ? 'Leadway Health — Add Your Dependants'
-    : 'Leadway Health — Complete Your Health Insurance Enrolment';
+    ? 'Leadway Health, Add Your Dependants'
+    : 'Leadway Health, Complete Your Health Insurance Enrolment';
 
   const html = renderEmailTemplate({
     category: 'Enrolment',
@@ -27,7 +27,7 @@ export function renderInviteEmail(opts: InviteEmailOptions): { subject: string; 
     headline: opts.isDependent ? 'Add Your Dependants' : 'Complete Your Enrolment',
     body: opts.isDependent
       ? `Your HR team has sent you a link to add your dependants (spouse, children, etc.) to your <strong style="color:#131C4E;">${opts.schemeName}</strong> health insurance plan.`
-      : `Your HR team has invited you to enrol on the <strong style="color:#131C4E;">${opts.schemeName}</strong> health insurance plan. Click the button below to complete your enrolment — it only takes a few minutes.`,
+      : `Your HR team has invited you to enrol on the <strong style="color:#131C4E;">${opts.schemeName}</strong> health insurance plan. Click the button below to complete your enrolment: it only takes a few minutes.`,
     highlight: `
       <div style="text-align:center;margin-bottom:16px;">
         <a href="${opts.url}" style="display:inline-block;background:linear-gradient(135deg,#F56B22,#FF8C4B);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:10px;letter-spacing:0.02em;">

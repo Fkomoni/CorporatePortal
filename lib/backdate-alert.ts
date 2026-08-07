@@ -1,6 +1,6 @@
 // Fires an internal alert whenever HR enrols a member/dependant with a cover
-// start date earlier than today ("backdated"). Sent to compliance contacts —
-// never to the member or HR — so Leadway can flag that claims incurred
+// start date earlier than today ("backdated"). Sent to compliance contacts -
+// never to the member or HR: so Leadway can flag that claims incurred
 // before the real enrolment date are not covered by the backdate.
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { renderEmailTemplate, EmailDetailRow } from '@/lib/email-template';
@@ -36,15 +36,15 @@ export async function sendBackdateAlert(details: BackdateAlertDetails): Promise<
   const rows: EmailDetailRow[] = [
     { label: 'Member Name', value: details.memberName },
     { label: 'Relationship', value: details.relationship },
-    { label: 'Membership No.', value: details.membershipNo || '—' },
-    { label: 'CIF Number', value: details.cifNumber != null ? String(details.cifNumber) : '—' },
-    { label: 'Company', value: details.companyName || '—' },
+    { label: 'Membership No.', value: details.membershipNo || '-' },
+    { label: 'CIF Number', value: details.cifNumber != null ? String(details.cifNumber) : '-' },
+    { label: 'Company', value: details.companyName || '-' },
     { label: 'Employee Code', value: details.employeeCode },
     { label: 'Plan / Scheme', value: details.schemeName },
-    { label: 'Gender', value: details.gender || '—' },
-    { label: 'Date of Birth', value: details.dateOfBirth || '—' },
-    { label: 'Email', value: details.email || '—' },
-    { label: 'Mobile', value: details.mobile || '—' },
+    { label: 'Gender', value: details.gender || '-' },
+    { label: 'Date of Birth', value: details.dateOfBirth || '-' },
+    { label: 'Email', value: details.email || '-' },
+    { label: 'Mobile', value: details.mobile || '-' },
     { label: 'Registered By (HR)', value: details.registeredBy },
     { label: 'Registration Date', value: details.registrationDate },
     { label: 'Backdated Cover Start Date', value: details.backdatedTo },
@@ -55,7 +55,7 @@ export async function sendBackdateAlert(details: BackdateAlertDetails): Promise<
     eyebrow: 'Backdated Enrolment',
     headline: 'A member was enrolled with a backdated cover start date',
     body: `HR acknowledged and accepted the backdating warning before proceeding. Full details of the enrolment are below.`,
-    highlight: `<strong style="color:#DC2626;">⚠ Backdating does not make expenses incurred before the actual enrolment date eligible for reimbursement or approval.</strong> Leadway HMO will not refund or settle any claims, treatments, admissions, or medications obtained prior to the member's valid enrolment date.`,
+    highlight: `<strong style="color:#DC2626;">Backdating does not make expenses incurred before the actual enrolment date eligible for reimbursement or approval.</strong> Leadway HMO will not refund or settle any claims, treatments, admissions, or medications obtained prior to the member's valid enrolment date.`,
     details: rows,
     footnote: 'This is an automated compliance notification triggered by the Corporate Portal.',
   });
@@ -65,7 +65,7 @@ export async function sendBackdateAlert(details: BackdateAlertDetails): Promise<
     // SendEmailAlert takes ONE address in EmailAddress. Passing a
     // semicolon-separated list returned HTTP 200 with the body
     // "fail: Invalid email address format", so every alert was silently
-    // dropped — Prognosis reports this failure in the body, not the status
+    // dropped. Prognosis reports this failure in the body, not the status
     // code. Send one request per recipient instead.
     for (const recipient of ALERT_RECIPIENTS) {
       const res = await fetch(`${BASE}/api/EnrolleeProfile/SendEmailAlert`, {
@@ -74,7 +74,7 @@ export async function sendBackdateAlert(details: BackdateAlertDetails): Promise<
         body: JSON.stringify({
           EmailAddress: recipient,
           CC: '', BCC: '',
-          Subject: `⚠ Backdated Enrolment — ${details.memberName} (${details.companyName || details.employeeCode})`,
+          Subject: `Backdated Enrolment: ${details.memberName} (${details.companyName || details.employeeCode})`,
           MessageBody: html,
           Attachments: null, Category: '', UserId: 0, ProviderId: 0, ServiceId: 0, Reference: '', TransactionType: '',
         }),

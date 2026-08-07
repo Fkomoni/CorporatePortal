@@ -1,7 +1,7 @@
 interface CacheEntry<T> {
   data: T;
-  cachedDate: string; // 'YYYY-MM-DD' UTC — for midnight auto-bust
-  expiresAt: number;  // ms timestamp — 24hr hard cap
+  cachedDate: string; // 'YYYY-MM-DD' UTC, for midnight auto-bust
+  expiresAt: number;  // ms timestamp, 24hr hard cap
 }
 
 const store = new Map<string, CacheEntry<unknown>>();

@@ -1,11 +1,11 @@
 // Updates a member's editable biodata. Prognosis exposes two separate
 // endpoints depending on whether the record is the principal (main member)
 // or a dependant (beneficiary):
-//   - Principal → EnrolleeProfile/UpdateBiodata — Photo, Phone, Email, DOB, Address
-//   - Dependant → EnrolleeProfile/UpdateBeneficiary — Gender, DOB, Phone, Email
+//   - Principal → EnrolleeProfile/UpdateBiodata. Photo, Phone, Email, DOB, Address
+//   - Dependant → EnrolleeProfile/UpdateBeneficiary. Gender, DOB, Phone, Email
 // Both replace the whole record rather than patching individual fields, so we
 // first fetch the member's current full record and only override the
-// HR-editable fields on top of it — everything else is passed through
+// HR-editable fields on top of it: everything else is passed through
 // unchanged to avoid accidentally blanking data Prognosis already has.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
@@ -49,14 +49,14 @@ export interface UpdateInfoPayload {
   enrolleeId: string;
   cifNumber?: string | number;
   isPrincipal?: boolean;
-  sexId?: string;        // Prognosis Sex_ID — see lib/gender.ts (1 = Male, 2 = Female)
+  sexId?: string;        // Prognosis Sex_ID. See lib/gender.ts (1 = Male, 2 = Female)
   dateOfBirth?: string;
   mobile?: string;
   email?: string;
   address?: string;      // principals only
-  photo?: string;         // base64 — principals only
+  photo?: string;         // base64, principals only
   photoType?: string;
-  nin?: string;           // 11-digit NIN — Prognosis requires this on every save, even if unrelated fields are the only ones changing
+  nin?: string;           // 11-digit NIN, Prognosis requires this on every save, even if unrelated fields are the only ones changing
 }
 
 function s(v: unknown): string {
@@ -67,7 +67,7 @@ function n(v: unknown): number {
   return Number.isFinite(num) ? num : 0;
 }
 // UpdateBiodata/UpdateBeneficiary reject any DateOfBirth/startdate/Effectivedate
-// with a time component — bio reads return full ISO timestamps.
+// with a time component: bio reads return full ISO timestamps.
 function dateOnly(v: unknown): string {
   const str = s(v);
   const match = str.match(/^\d{4}-\d{2}-\d{2}/);
@@ -86,7 +86,7 @@ function maritalStatusId(row: Record<string, unknown>): string {
 }
 // Confirmed FK mapping from Prognosis: Spouse=23, Son=8, Daughter=7, everything
 // else (Father/Mother/Brother/Sister/Other)=41. 30="Main member" must never be
-// sent for a dependant — but here we're editing an existing record, so we
+// sent for a dependant, but here we're editing an existing record, so we
 // carry forward whatever numeric ID Prognosis already has, falling back to
 // this mapping only if it's missing.
 function relationshipId(row: Record<string, unknown>): string {
@@ -105,7 +105,7 @@ function postalTownId(row: Record<string, unknown>): string {
   const v = s(row['LGAID']);
   return v === '0' ? '' : v;
 }
-// Empty string trips an internal type-conversion exception on these two —
+// Empty string trips an internal type-conversion exception on these two -
 // must be null, not "", when unset.
 function nullableStr(v: unknown): string | null {
   const str = s(v);
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Could not load current member record (${profileRes.status})` }, { status: 502 });
     }
     const p = profileRaw as Record<string, unknown>;
-    // GetEnrolleeBioDataByEnrolleeID's "result" is an array — the row itself
+    // GetEnrolleeBioDataByEnrolleeID's "result" is an array: the row itself
     // is result[0], not the array. Spreading the array directly (as before)
     // put numeric-index keys into the payload instead of real field names,
     // so Prognosis received a payload missing Cif_Number/scheme/NIN entirely
@@ -167,10 +167,10 @@ export async function POST(req: Request) {
 
     const cifNumber = body.cifNumber ?? row['Member_MemberUniqueID'] ?? row['Cif_Number'] ?? row['CIF_Number'] ?? row['CifNo'] ?? row['Cif'] ?? row['cifNumber'];
     // Strip a "data:image/...;base64," prefix if the client sent a full data
-    // URI — Prognosis wants raw base64 only.
+    // URI. Prognosis wants raw base64 only.
     const rawPhoto = photo ? photo.replace(/^data:[^;]+;base64,/, '') : '';
 
-    // UpdateBiodata/UpdateBeneficiary is a full-record replace, not a patch —
+    // UpdateBiodata/UpdateBeneficiary is a full-record replace, not a patch -
     // every field below must be sent. We read the member's current bio and
     // map every field onto this write shape unchanged, then overlay only the
     // 1-2 fields HR actually edited on top.
@@ -199,7 +199,7 @@ export async function POST(req: Request) {
       MemberType: s(row['Member_Membertype']) || s(row['Member_MemberTypeID']),
       BaseAmount: Math.round(n(row['Member_IndividualPremium'])),
       // regionid=0 gets rejected outright ("Invalid state of origin"/"Invalid
-      // country") — some dependant bio records have no StateID on file at
+      // country"): some dependant bio records have no StateID on file at
       // all, so fall back to a valid default rather than sending 0.
       regionid: n(row['StateID']) || 1,
       titleid: n(row['Member_TitleID']),
@@ -213,7 +213,7 @@ export async function POST(req: Request) {
       DeviceID: nullableStr(row['MobileAppDeviceID']),
       employeecode: s(row['Member_staffid']),
       // Required keys, but only populated when actually uploading/clearing a
-      // photo — echoing back the existing stored photo trips Prognosis's
+      // photo: echoing back the existing stored photo trips Prognosis's
       // ~900KB payload limit.
       EnrolleePicture: isPrincipal && photo ? rawPhoto : '',
       EnrolleePictureType: isPrincipal && photo ? (photoType || 'jpeg') : '',
@@ -242,7 +242,7 @@ export async function POST(req: Request) {
     const r = raw as Record<string, unknown>;
 
     // Prognosis routinely returns HTTP 200 on a business-logic failure, so
-    // res.ok alone is meaningless here — inspect the body. The error text can
+    // res.ok alone is meaningless here: inspect the body. The error text can
     // land under any of several keys depending on which code path was hit.
     function extractErrorText(v: unknown): string {
       if (v == null) return '';

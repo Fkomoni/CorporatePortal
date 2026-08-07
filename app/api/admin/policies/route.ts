@@ -7,7 +7,7 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
-// ── Service token cache (reuse for ~6 hours) ──────────────────────────────────
+//  Service token cache (reuse for ~6 hours)
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
@@ -52,7 +52,7 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-// ── Normalise one raw Prognosis row ───────────────────────────────────────────
+//  Normalise one raw Prognosis row
 // Actual field names from GetAllPolicies:
 //   GROUP_ID, GROUP_CODE, PolicyNumber, GROUP_NAME, Accepton, Termdate,
 //   Company_Email1, Contact_name, NoOfLives, accountmanager, scheme_type
@@ -96,7 +96,7 @@ function normalizePolicy(p: Record<string, any>) {
   };
 }
 
-// ── Fetch policies with one-time token refresh on 401/403 ─────────────────────
+//  Fetch policies with one-time token refresh on 401/403
 async function fetchPolicies(token: string, retry = false): Promise<Response> {
   const res = await fetch(`${BASE}/api/CorporateProfile/GetAllPolicies`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -113,7 +113,7 @@ async function fetchPolicies(token: string, retry = false): Promise<Response> {
   return res;
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
+//  Route handler
 export async function GET(req: Request) {
   const session = await auth();
 

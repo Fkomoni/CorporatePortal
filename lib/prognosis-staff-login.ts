@@ -1,5 +1,5 @@
 // Validates a Leadway staff member's login against Prognosis, which in turn
-// checks Leadway's Active Directory — the AD password is the only password
+// checks Leadway's Active Directory: the AD password is the only password
 // that ever exists for internal admins; we never set or store one locally.
 //
 // Contract confirmed by the user directly (from another app that already
@@ -33,12 +33,12 @@ function mapRole(raw: unknown): StaffLoginResult['role'] {
   return 'officer';
 }
 
-// Only Leadway email addresses may be internal admins — ExternalPortalLogin
+// Only Leadway email addresses may be internal admins. ExternalPortalLogin
 // is a general-purpose Prognosis auth endpoint (the same one used elsewhere
 // in this app for HR account validation), so it will happily authenticate
 // any account Prognosis recognizes, not just Leadway AD staff. This check
 // must run before ever calling Prognosis, not just when granting client
-// access — otherwise any Prognosis-known non-Leadway account can sign in
+// access: otherwise any Prognosis-known non-Leadway account can sign in
 // here.
 function isLeadwayEmail(email: string): boolean {
   return /^[^\s@]+@leadway\.com$/i.test(email.trim());

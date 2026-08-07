@@ -1,6 +1,6 @@
 // Calls Prognosis's ChangePassword to keep it in sync with our local hash.
-// ChangePassword's model only takes Old/New/ConfirmPassword — no
-// email/username — so it's called with the shared service token, the same
+// ChangePassword's model only takes Old/New/ConfirmPassword, no
+// email/username, so it's called with the shared service token, the same
 // way every other Prognosis call in this app authenticates.
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')

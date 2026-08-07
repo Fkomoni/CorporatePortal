@@ -68,14 +68,14 @@ export async function POST(req: Request) {
   let html: string;
 
   if (body.type === 'talk') {
-    subject = `Health Talk Request — ${body.talkTopic ?? 'New Request'} [${companyName}]`;
+    subject = `Health Talk Request: ${body.talkTopic ?? 'New Request'} [${companyName}]`;
     html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F7F8FC;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
     <div style="background:linear-gradient(135deg,#F56B22,#FF8C4B);padding:32px 40px;">
-      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Leadway Health — Corporate Portal</p>
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Leadway Health. Corporate Portal</p>
       <p style="margin:0;font-size:22px;font-weight:800;color:#fff;">Health Talk Request</p>
     </div>
     <div style="padding:36px 40px;">
@@ -91,31 +91,31 @@ export async function POST(req: Request) {
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Format</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.talkFormat ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.talkFormat ?? '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Category</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.talkCategory ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.talkCategory ?? '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Topic</td>
-          <td style="padding:10px 0;color:#131C4E;font-weight:600;">${body.talkTopic ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;font-weight:600;">${body.talkTopic ?? '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Preferred Date</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.talkDate ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.talkDate ?? '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Duration</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.talkDuration ? `${body.talkDuration} minutes` : '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.talkDuration ? `${body.talkDuration} minutes` : '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Expected Attendees</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.talkAttendees ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.talkAttendees ?? '-'}</td>
         </tr>
         <tr>
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Venue / Platform</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.talkVenue || '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.talkVenue || '-'}</td>
         </tr>
       </table>
     </div>
@@ -126,14 +126,14 @@ export async function POST(req: Request) {
 </body>
 </html>`;
   } else {
-    subject = `Onsite Health Screening Request — ${companyName}`;
+    subject = `Onsite Health Screening Request: ${companyName}`;
     html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F7F8FC;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
     <div style="background:linear-gradient(135deg,#2563EB,#3B82F6);padding:32px 40px;">
-      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Leadway Health — Corporate Portal</p>
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Leadway Health. Corporate Portal</p>
       <p style="margin:0;font-size:22px;font-weight:800;color:#fff;">Onsite Screening Request</p>
     </div>
     <div style="padding:36px 40px;">
@@ -149,19 +149,19 @@ export async function POST(req: Request) {
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Expected Participants</td>
-          <td style="padding:10px 0;color:#131C4E;font-weight:600;">${body.scrParticipants ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;font-weight:600;">${body.scrParticipants ?? '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Preferred Date</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.scrDate ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.scrDate ?? '-'}</td>
         </tr>
         <tr style="border-bottom:1px solid #F0F1F5;">
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Venue / Location</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.scrVenue ?? '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.scrVenue ?? '-'}</td>
         </tr>
         <tr>
           <td style="padding:10px 0;font-weight:700;color:#9CA3B8;">Additional Notes</td>
-          <td style="padding:10px 0;color:#131C4E;">${body.scrNotes || '—'}</td>
+          <td style="padding:10px 0;color:#131C4E;">${body.scrNotes || '-'}</td>
         </tr>
       </table>
     </div>

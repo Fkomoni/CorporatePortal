@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   if (!parentCif) return NextResponse.json({ error: 'parentCif is required' }, { status: 400 });
   if (!reason) return NextResponse.json({ error: 'A reason for declining is required.' }, { status: 400 });
 
-  // RejectEnrollees requires an explicit dd/mm/yyyy termination date — HR
+  // RejectEnrollees requires an explicit dd/mm/yyyy termination date. HR
   // must choose it rather than have it silently default to "today".
   const terminationDate = String(body.terminationDate ?? '').trim();
   const dmy = terminationDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   }
 
   // RejectEnrollees operates on a single member's own CIF, not a family
-  // grouping — reject every member in this family individually.
+  // grouping: reject every member in this family individually.
   const cifNumbers = [...new Set((body.cifNumbers ?? [parentCif]).map((c) => String(c).trim()).filter(Boolean))];
   const userEmail = session.user.email ?? '';
 
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   if (failures.length > 0) return NextResponse.json({ error: failures[0].error ?? 'Rejection failed', failedCifs: failures.length }, { status: 422 });
   const result = { message: undefined as string | undefined, recordsUpdated };
 
-  // Best-effort notification to the applicant — never blocks the rejection itself
+  // Best-effort notification to the applicant: never blocks the rejection itself
   if (body.email) {
     try {
       const svcToken = await getServiceToken();

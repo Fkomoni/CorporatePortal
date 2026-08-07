@@ -1,4 +1,4 @@
--- HR service requests (Service Desk) — replaces the page's mock tickets.
+-- HR service requests (Service Desk): replaces the page's mock tickets.
 CREATE TABLE "service_requests" (
     "id" TEXT NOT NULL,
     "seq" SERIAL NOT NULL,

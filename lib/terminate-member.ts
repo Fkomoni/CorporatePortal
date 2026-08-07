@@ -1,4 +1,4 @@
-// Shared call to Prognosis's TerminateMember — used by the immediate HR
+// Shared call to Prognosis's TerminateMember: used by the immediate HR
 // action and the scheduled-termination cron job (kept only for rows already
 // queued before TerminateMember was confirmed to accept a future
 // terminationdate directly; new terminations no longer need scheduling).
@@ -53,7 +53,7 @@ export async function callTerminateMember(cifNumber: string, opts: TerminateOpti
     let token = await getServiceToken();
 
     // Filed under the known-good account rather than the acting HR user, whose
-    // email Prognosis may not recognise — see PROGNOSIS_ACTING_USER_EMAIL. The
+    // email Prognosis may not recognise. See PROGNOSIS_ACTING_USER_EMAIL. The
     // real actor is logged here and audited by the caller.
     if (opts.userEmail?.trim() && opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL) {
       console.log(`[TerminateMember] cif=${cifNumber} requested by ${opts.userEmail}, filed on Prognosis as ${PROGNOSIS_ACTING_USER_EMAIL}`);
@@ -93,22 +93,22 @@ export async function callTerminateMember(cifNumber: string, opts: TerminateOpti
 
     if (!res.ok || (apiStatus && apiStatus !== 'success')) {
       // Every termination is filed under one account, so "Invalid user." means
-      // that account has stopped being accepted — terminations are down for
+      // that account has stopped being accepted: terminations are down for
       // everyone, not just this member or this HR user.
       if (/invalid user/i.test(text)) {
-        console.error(`[TerminateMember] Prognosis no longer accepts the acting account "${PROGNOSIS_ACTING_USER_EMAIL}" — all terminations will fail until this is resolved.`);
+        console.error(`[TerminateMember] Prognosis no longer accepts the acting account "${PROGNOSIS_ACTING_USER_EMAIL}": all terminations will fail until this is resolved.`);
         return {
           success: false,
-          error: 'Prognosis is not accepting the account this portal files terminations under, so it will not record this. This affects all terminations, not just this member — please contact Leadway.',
+          error: 'Prognosis is not accepting the account this portal files terminations under, so it will not record this. This affects all terminations, not just this member. Please contact Leadway.',
         };
       }
       // A 5xx is Prognosis failing internally, not the termination being
       // refused. Nothing was written, and retrying later usually works.
       if (res.status >= 500) {
-        console.error(`[TerminateMember] Prognosis ${res.status} for cif=${cifNumber} — treating as transient: ${text.slice(0, 300)}`);
+        console.error(`[TerminateMember] Prognosis ${res.status} for cif=${cifNumber}: treating as transient: ${text.slice(0, 300)}`);
         return {
           success: false,
-          error: "Leadway's system is temporarily unavailable and could not record this termination. Nothing has been changed — please try again in a few minutes.",
+          error: "Leadway's system is temporarily unavailable and could not record this termination. Nothing has been changed. Please try again in a few minutes.",
         };
       }
       return { success: false, error: apiMessage || `Termination failed (${res.status})` };
