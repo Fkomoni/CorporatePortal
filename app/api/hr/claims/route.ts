@@ -65,23 +65,71 @@ function parsePolicyDate(raw: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function str(row: Record<string, unknown>, ...keys: string[]): string {
+// Field lookup is case- and separator-insensitive. This API returns snake_case
+// (claim_id, claim_date) while these key lists are written in PascalCase, so an
+// exact match silently skipped fields that were present under another spelling.
+const keyIndexCache = new WeakMap<object, Map<string, string>>();
+
+function normKey(k: string): string {
+  return k.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function keyIndex(row: Record<string, unknown>): Map<string, string> {
+  let idx = keyIndexCache.get(row);
+  if (!idx) {
+    idx = new Map();
+    for (const k of Object.keys(row)) {
+      const n = normKey(k);
+      if (!idx.has(n)) idx.set(n, k);
+    }
+    keyIndexCache.set(row, idx);
+  }
+  return idx;
+}
+
+/** The key that supplied a value, or '' — so the caller can report which won. */
+function whichKey(row: Record<string, unknown>, ...keys: string[]): string {
+  const idx = keyIndex(row);
   for (const k of keys) {
-    const v = row[k];
-    if (v != null && String(v).trim() && String(v).trim().toLowerCase() !== 'null') return String(v).trim();
+    const actual = idx.get(normKey(k));
+    if (actual === undefined) continue;
+    const v = row[actual];
+    if (v != null && String(v).trim() && String(v).trim().toLowerCase() !== 'null') return actual;
   }
   return '';
 }
 
+function str(row: Record<string, unknown>, ...keys: string[]): string {
+  const actual = whichKey(row, ...keys);
+  return actual ? String(row[actual]).trim() : '';
+}
+
 function num(row: Record<string, unknown>, ...keys: string[]): number {
+  const idx = keyIndex(row);
   for (const k of keys) {
-    const v = row[k];
+    const actual = idx.get(normKey(k));
+    if (actual === undefined) continue;
+    const v = row[actual];
     if (v == null) continue;
     const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, ''));
     if (!isNaN(n)) return n;
   }
   return 0;
 }
+
+// Ordered by confidence that the name means "when care was given". Matched
+// case- and separator-insensitively, so TreatmentDate also covers
+// treatment_date and TREATMENTDATE.
+const TREATMENT_DATE_KEYS = [
+  'TreatmentDate', 'DateOfTreatment', 'DateOfService', 'ServiceDate',
+  'EncounterDate', 'VisitDate', 'AdmissionDate',
+  // Last resort: these say "claim", not "treatment". Using one means the column
+  // is showing when the claim was raised, which the log below makes visible
+  // rather than leaving it to be discovered by someone reconciling figures.
+  'claim_date', 'ClaimDate',
+];
+
+const AMBIGUOUS_DATE_KEYS = new Set(['claim_date', 'claimdate']);
 
 function mapStatus(raw: string): 'Paid' | 'Processing' | 'Queried' | 'Rejected' {
   const s = raw.toLowerCase();
@@ -262,6 +310,14 @@ export async function GET(req: Request) {
       ? (claimsRaw.data as Record<string, unknown>[])
       : toRows(claimsRaw);
 
+    // Which key actually supplied each row's date. The column promises a
+
+    // treatment date; this is how that promise gets verified against real data
+
+    // instead of assumed from a key list.
+
+    const treatmentKeyCounts = new Map<string, number>();
+
     const claims: LiveClaim[] = [];
 
     for (let idx = 0; idx < rows.length; idx++) {
@@ -294,7 +350,15 @@ export async function GET(req: Request) {
         || inferDiagnosisFromProcedure(catRaw)
         || (isPharmacy ? 'Pharmacy benefit' : '');
       const diagnosis      = procedureName || icdDescription || str(r, 'Diagnosis');
-      const dateStr       = str(r, 'TreatmentDate', 'claim_date', 'DateOfService', 'ClaimDate');
+      // The column is labelled "Treatment Date", so every genuine
+      // treatment/service date key is tried before anything ambiguous.
+      // claim_date and ClaimDate are last on purpose: by name they are when the
+      // claim was raised, not when care was given, and they were previously
+      // second in this list. treatmentKeyUsed below records which one actually
+      // supplied the value so the label can be trusted rather than assumed.
+      const dateKey = whichKey(r, ...TREATMENT_DATE_KEYS);
+      const dateStr = dateKey ? String(r[dateKey]).trim() : '';
+      if (dateKey) treatmentKeyCounts.set(dateKey, (treatmentKeyCounts.get(dateKey) ?? 0) + 1);
 
       const amtClaimed = num(r, 'AmtClaimed', 'BilledAmount', 'ClaimedAmount');
       const amtPaid    = num(r, 'AmtPaid', 'PaidAmount', 'AmountPaid');
@@ -330,6 +394,22 @@ export async function GET(req: Request) {
         submittedDate: fmtDateStr(dateStr),
         caseId: isReimbursementById.get(claimRef) ? caseIdByClaimId.get(claimRef) : undefined,
       });
+    }
+
+    if (treatmentKeyCounts.size > 0) {
+      const summary = [...treatmentKeyCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, n]) => `${k}=${n}`)
+        .join(' ');
+      const fellBack = [...treatmentKeyCounts.keys()].filter((k) => AMBIGUOUS_DATE_KEYS.has(normKey(k)));
+      console.log(`[hr/claims] treatment date from: ${summary}`);
+      if (fellBack.length) {
+        console.warn(
+          `[hr/claims] WARNING: ${fellBack.join(', ')} supplied the date for some rows. ` +
+          'That is the claim date, not the treatment date, and the column says "Treatment Date". ' +
+          'No treatment/service date key was present on those rows.',
+        );
+      }
     }
 
     // Deduplicate by claim_id. API returns one row per procedure;
