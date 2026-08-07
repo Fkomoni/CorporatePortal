@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-  // Same generic message for unknown account / wrong password — no user enumeration
+  // Same generic message for unknown account / wrong password: no user enumeration
   if (!user || !user.active || !user.password || !(await bcrypt.compare(password, user.password))) {
     return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
   }

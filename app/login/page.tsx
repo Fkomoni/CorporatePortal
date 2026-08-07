@@ -10,7 +10,7 @@ import {
   BadgeCheck, ShieldHalf,
 } from 'lucide-react';
 
-/* ── Brand ───────────────────────────────────────────────────────────────── */
+/*  Brand  */
 const ORANGE = '#E87722';
 const NAVY   = '#1A1A2E';
 const NAVY_2 = '#101827';
@@ -57,7 +57,7 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
   const router = useRouter();
 
-  // ── Forgot password ──────────────────────────────────────────────────────
+  //  Forgot password
   const [forgotStep, setForgotStep] = useState<null | 'email' | 'reset' | 'done'>(null);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotCode, setForgotCode] = useState('');
@@ -216,7 +216,7 @@ export default function LoginPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#fff' }}>
 
-      {/* ══ LEFT — 40% ══ */}
+      {/* ══ LEFT: 40% ══ */}
       <aside
         className="hidden lg:flex"
         style={{
@@ -262,7 +262,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Four feature cards — dark glass */}
+          {/* Four feature cards: dark glass */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 14 }}>
             {[
               { icon: Users,     title: 'Manage Members',        desc: 'Add, update and manage employees.' },
@@ -308,7 +308,7 @@ export default function LoginPage() {
         </div>
       </aside>
 
-      {/* ══ RIGHT — 60% ══ */}
+      {/* ══ RIGHT: 60% ══ */}
       <main style={{
         position: 'relative', flex: 1, minWidth: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -367,7 +367,7 @@ export default function LoginPage() {
                   {forgotError && <div role="alert" style={errorBox}>{forgotError}</div>}
                   <button type="submit" disabled={forgotLoading} className="btn-lift"
                     style={{ ...primaryBtn, opacity: forgotLoading ? 0.7 : 1, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
-                    {forgotLoading ? 'Sending…' : <>Send reset code <ArrowRight style={{ width: 17, height: 17 }} /></>}
+                    {forgotLoading ? 'Sending...' : <>Send reset code <ArrowRight style={{ width: 17, height: 17 }} /></>}
                   </button>
                   <button type="button" onClick={closeForgot} style={{ ...linkBtn, color: MUTED, textAlign: 'center' }}>
                     ← Back to sign in
@@ -417,12 +417,12 @@ export default function LoginPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <button type="button" onClick={() => setForgotStep('email')} style={{ ...linkBtn, color: MUTED }}>← Back</button>
                     <button type="button" onClick={handleForgotRequest} disabled={forgotLoading} style={linkBtn}>
-                      {forgotLoading ? 'Sending…' : 'Resend code'}
+                      {forgotLoading ? 'Sending...' : 'Resend code'}
                     </button>
                   </div>
                   <button type="submit" disabled={forgotLoading} className="btn-lift"
                     style={{ ...primaryBtn, opacity: forgotLoading ? 0.7 : 1, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
-                    {forgotLoading ? 'Resetting…' : <>Reset password <ArrowRight style={{ width: 17, height: 17 }} /></>}
+                    {forgotLoading ? 'Resetting...' : <>Reset password <ArrowRight style={{ width: 17, height: 17 }} /></>}
                   </button>
                 </form>
               )}
@@ -489,7 +489,7 @@ export default function LoginPage() {
                       ← Back
                     </button>
                     <button type="button" onClick={handleResend} disabled={resending} style={linkBtn}>
-                      {resending ? 'Sending…' : 'Resend code'}
+                      {resending ? 'Sending...' : 'Resend code'}
                     </button>
                   </div>
                 </div>
@@ -505,7 +505,7 @@ export default function LoginPage() {
                       <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
-                    Signing in…
+                    Signing in...
                   </>
                 ) : otpStep
                   ? <>Verify &amp; sign in <ArrowRight style={{ width: 17, height: 17 }} /></>

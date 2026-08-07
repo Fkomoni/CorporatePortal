@@ -21,6 +21,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
 import { LoadErrorBanner } from '@/components/LoadErrorBanner';
 import { friendlyError } from '@/lib/user-facing-error';
+import { useToast } from '@/components/ui/Toast';
 
 const PROVIDER_GRADS = [
   'linear-gradient(135deg,#131C4E,#3A4382)',
@@ -40,9 +41,9 @@ const card: React.CSSProperties = {
 function getGreeting(firstName: string): string {
   const hour = new Date().getHours();
   const name = firstName || 'there';
-  if (hour < 12) return `Good morning, ${name} ☀️`;
-  if (hour < 17) return `Good afternoon, ${name} 👋`;
-  return `Good evening, ${name} 🌙`;
+  if (hour < 12) return `Good morning, ${name}`;
+  if (hour < 17) return `Good afternoon, ${name}`;
+  return `Good evening, ${name}`;
 }
 
 interface DashboardStats {
@@ -96,7 +97,7 @@ interface DashboardStats {
   policyToDate: string | null;
 }
 
-// NextDue arrives as either ISO (yyyy-mm-dd…) or dd/mm/yyyy; both are day-precision.
+// NextDue arrives as either ISO (yyyy-mm-dd...) or dd/mm/yyyy; both are day-precision.
 function parseDueDate(raw: string | null): Date | null {
   if (!raw) return null;
   const t = raw.trim().slice(0, 10);
@@ -119,7 +120,7 @@ function dueLabel(nextDue: string | null): string {
 }
 
 function fmtNaira(amount: number | null): string {
-  if (amount === null) return '—';
+  if (amount === null) return '-';
   if (amount >= 1_000_000_000) return `₦${(Math.floor(amount / 100_000_000) / 10).toFixed(1)}B`;
   if (amount >= 1_000_000) return `₦${(Math.floor(amount / 100_000) / 10).toFixed(1)}M`;
   if (amount >= 1_000) return `₦${(Math.floor(amount / 1_000)).toFixed(0)}K`;
@@ -127,7 +128,7 @@ function fmtNaira(amount: number | null): string {
 }
 
 function fmtLives(n: number | null): string {
-  if (n === null) return '—';
+  if (n === null) return '-';
   return n.toLocaleString();
 }
 
@@ -136,6 +137,7 @@ export default function DashboardPage() {
   const [vis, setVis] = useState<DashboardVis>(DEFAULTS.dashboard);
   useEffect(() => { setVis(getVis('dashboard')); }, []);
   const { data: session } = useSession();
+  const { toast } = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = session?.user as any;
   const companyName: string = user?.companyName ?? '';
@@ -170,7 +172,9 @@ export default function DashboardPage() {
     fetch('/api/hr/members/pending')
       .then((r) => r.json())
       .then((d) => { if (typeof d.totalBeneficiaries === 'number') setPendingEnrolmentCount(d.totalBeneficiaries); })
-      .catch(() => {});
+      // No badge is indistinguishable from nothing pending, and pending enrolees
+      // are waiting on HR to approve them, so a failure has to be visible.
+      .catch(() => toast('Could not check for pending enrolees. Open Pending Enrolees to see them.', 'error'));
   }, []);
 
   // Recent Service Desk requests + the staff-published system notice.
@@ -211,16 +215,16 @@ export default function DashboardPage() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      {/* No page title — the greeting below is the heading, as in the design. */}
+      {/* No page title: the greeting below is the heading, as in the design. */}
       <TopBar notificationCount={pendingEnrolmentCount ?? undefined} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {loadError && <LoadErrorBanner message={loadError} onRetry={loadStats} />}
 
-        {/* ── ROW 1: GREETING ── */}
+        {/*  ROW 1: GREETING  */}
         {/* The Scheme Health Score card that used to sit here lives on
-            Insights & Reports now — the design keeps this row to the greeting. */}
+            Insights & Reports now: the design keeps this row to the greeting. */}
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
             {getGreeting(firstName)}
@@ -230,7 +234,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* ── ROW 2: 4 KPI CARDS ── */}
+        {/*  ROW 2: 4 KPI CARDS  */}
         {vis.showKpiCards && (() => {
           const lrColor = riskStatus === 'Healthy' ? '#10B981' : riskStatus === 'Watchlist' ? '#D97706' : riskStatus ? '#EF4444' : '#6B7480';
           const cards = [
@@ -248,7 +252,7 @@ export default function DashboardPage() {
               footer: { label: 'View members', onClick: () => router.push('/members') },
             },
             {
-              value: vis.showAmounts && claimsPaid !== null ? fmtNaira(claimsPaid) : '—',
+              value: vis.showAmounts && claimsPaid !== null ? fmtNaira(claimsPaid) : '-',
               label: 'Claims Paid (YTD)',
               sub: claimsYoYPct !== null
                 ? `${claimsYoYPct >= 0 ? '▲' : '▼'} ${Math.abs(claimsYoYPct)}% vs last year`
@@ -259,7 +263,7 @@ export default function DashboardPage() {
               footer: { label: 'View claims report', onClick: () => router.push('/claims') },
             },
             {
-              value: lossRatioPct !== null ? `${lossRatioPct}%` : '—',
+              value: lossRatioPct !== null ? `${lossRatioPct}%` : '-',
               label: 'Loss Ratio',
               sub: riskStatus ? `● ${riskStatus}` : 'Risk status pending',
               subColor: riskStatus ? lrColor : undefined,
@@ -270,7 +274,7 @@ export default function DashboardPage() {
               footer: { label: 'View loss ratio report', onClick: () => router.push('/reports') },
             },
             {
-              value: vis.showAmounts && invoiceOutstanding !== null ? fmtNaira(invoiceOutstanding) : '—',
+              value: vis.showAmounts && invoiceOutstanding !== null ? fmtNaira(invoiceOutstanding) : '-',
               label: 'Outstanding Invoice',
               sub: invoiceOutstanding === null ? 'No invoice data'
                 : invoiceHasOutstanding ? dueLabel(invoiceNextDue)
@@ -303,17 +307,17 @@ export default function DashboardPage() {
           );
         })()}
 
-        {/* ── ROW 3: QUICK ACTIONS + NOTIFICATIONS ── */}
+        {/*  ROW 3: QUICK ACTIONS + NOTIFICATIONS  */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
 
-          {/* Quick actions — every tile lands on a real, existing flow. */}
+          {/* Quick actions: every tile lands on a real, existing flow. */}
           <div style={{ ...card, padding: '24px 26px' }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', marginBottom: 18 }}>Quick actions</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 10 }}>
               {[
                 // Each tile lands on the action itself, not the page that
                 // contains it. Download E-card is the one that cannot open
-                // cold — a card belongs to a specific member — so it carries
+                // cold, a card belongs to a specific member, so it carries
                 // an intent that People uses to prompt for one and then opens
                 // the card straight away.
                 { label: 'Add member',      icon: UserPlus,      color: '#F56B22', onClick: () => router.push('/members?action=add') },
@@ -344,7 +348,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Notifications — derived from live signals rather than an event log,
+          {/* Notifications: derived from live signals rather than an event log,
               so there are no fabricated timestamps; each row navigates to where
               the work is done. */}
           {(() => {
@@ -362,7 +366,7 @@ export default function DashboardPage() {
               rows.push({
                 key: 'invoice', icon: FileText, color: '#D97706', tint: '#FFFBEB',
                 title: invoiceReceiptNumber
-                  ? `Invoice ${invoiceReceiptNumber} — ${due}`
+                  ? `Invoice ${invoiceReceiptNumber}: ${due}`
                   : `Invoice ${due.charAt(0).toLowerCase()}${due.slice(1)}`,
                 sub: vis.showAmounts ? `Amount: ₦${invoiceOutstanding.toLocaleString()}` : undefined,
                 href: '/finance',
@@ -383,7 +387,7 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0' }}>
                     <CheckCircle2 style={{ width: 18, height: 18, color: '#10B981', flexShrink: 0 }} />
                     <p style={{ fontSize: 12.5, color: '#9CA3B8' }}>
-                      {stats === null && !loadError ? 'Checking for updates…' : 'You’re all caught up.'}
+                      {stats === null && !loadError ? 'Checking for updates...' : 'You’re all caught up.'}
                     </p>
                   </div>
                 ) : rows.map((n, i) => {
@@ -422,7 +426,7 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* ── ROW 4: ANALYTICS ── */}
+        {/*  ROW 4: ANALYTICS  */}
         {(() => {
           const columns: React.ReactNode[] = [];
           const colCard: React.CSSProperties = { ...card, padding: '22px 22px 14px', display: 'flex', flexDirection: 'column', minWidth: 0 };
@@ -456,9 +460,9 @@ export default function DashboardPage() {
                 {spend.length === 0 ? (
                   <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center', lineHeight: 1.6 }}>
                     {stats === null && !loadError
-                      ? 'Loading claims data…'
+                      ? 'Loading claims data...'
                       // "No claims data yet" was wrong whenever claims had been
-                      // paid but none could be placed on a month — which read as
+                      // paid but none could be placed on a month, which read as
                       // a broken chart sitting under a non-zero Paid Claims KPI.
                       : (stats?.undatedPaidCount ?? 0) > 0
                         ? `${stats!.undatedPaidCount} paid claim${stats!.undatedPaidCount === 1 ? '' : 's'} carry no treatment or payment date, so they cannot be placed on a month. They are included in Claims Paid.`
@@ -496,7 +500,7 @@ export default function DashboardPage() {
                 </div>
                 {providers.length === 0 ? (
                   <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
-                    {stats === null && !loadError ? 'Loading provider data…' : 'No provider activity yet.'}
+                    {stats === null && !loadError ? 'Loading provider data...' : 'No provider activity yet.'}
                   </p>
                 ) : providers.map((p, i) => {
                   const pct = totalPaid > 0 && p.amtPaid > 0 ? Math.round((p.amtPaid / totalPaid) * 1000) / 10 : null;
@@ -545,7 +549,7 @@ export default function DashboardPage() {
                 </div>
                 {conditions.length === 0 ? (
                   <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
-                    {stats === null && !loadError ? 'Loading condition data…' : 'No condition data yet.'}
+                    {stats === null && !loadError ? 'Loading condition data...' : 'No condition data yet.'}
                   </p>
                 ) : conditions.map((c, i) => {
                   const CIcon = iconFor(c.name);
@@ -560,7 +564,7 @@ export default function DashboardPage() {
                       <p style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <p style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>
-                          {c.amtPaid != null ? (vis.showAmounts ? fmtNaira(c.amtPaid) : '—') : `${c.visits} visits`}
+                          {c.amtPaid != null ? (vis.showAmounts ? fmtNaira(c.amtPaid) : '-') : `${c.visits} visits`}
                         </p>
                         {pct !== null && <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 1 }}>{pct}%</p>}
                       </div>
@@ -573,7 +577,7 @@ export default function DashboardPage() {
           }
 
           {
-            // Recent Requests — live from the Service Desk's request store.
+            // Recent Requests: live from the Service Desk's request store.
             const REQ_STATUS: Record<string, { bg: string; text: string }> = {
               'Open':             { bg: '#FEF2F2', text: '#DC2626' },
               'In Progress':      { bg: '#FFFBEB', text: '#D97706' },
@@ -593,7 +597,7 @@ export default function DashboardPage() {
                 </div>
                 {requests.length === 0 ? (
                   <p style={{ fontSize: 12, color: '#B0B7C9', padding: '30px 0', textAlign: 'center' }}>
-                    {recentRequests === null ? 'Loading requests…' : 'No requests yet — raise one from Quick actions.'}
+                    {recentRequests === null ? 'Loading requests...' : 'No requests yet: raise one from Quick actions.'}
                   </p>
                 ) : requests.map((t, i) => {
                   const chip = REQ_STATUS[t.status] ?? REQ_STATUS['Closed'];
@@ -618,9 +622,9 @@ export default function DashboardPage() {
           }
 
           if (columns.length === 0) return null;
-          // minmax(0,…) on every track: a bare `1fr` cannot shrink below its
-          // content, so long provider names pushed this row — and with it the
-          // whole page — into horizontal overflow.
+          // minmax(0,...) on every track: a bare `1fr` cannot shrink below its
+          // content, so long provider names pushed this row, and with it the
+          // whole page, into horizontal overflow.
           const template = columns.length === 4
             ? 'minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr)'
             : `repeat(${columns.length},minmax(0,1fr))`;
@@ -631,7 +635,7 @@ export default function DashboardPage() {
           );
         })()}
 
-        {/* ── SYSTEM NOTICE ── set per corporate by Leadway staff. */}
+        {/*  SYSTEM NOTICE  set per corporate by Leadway staff. */}
         {systemNotice && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 14, padding: '13px 20px',
@@ -646,7 +650,7 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* ── ALL PROVIDERS MODAL ── */}
+      {/*  ALL PROVIDERS MODAL  */}
       {showAllProviders && (
       <div
         onClick={() => setShowAllProviders(false)}
@@ -671,10 +675,10 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.location || '—'}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.location || '-'}</p>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{vis.showAmounts ? fmtNaira(p.amtPaid) : '—'}</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{vis.showAmounts ? fmtNaira(p.amtPaid) : '-'}</p>
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 1 }}>{p.visits} visits</p>
                 </div>
               </div>

@@ -2,7 +2,7 @@
 // the inviter's company and emails a link into the same self-registration
 // flow used for the primary HR contact (/verify-registration): the invitee
 // fills in their own details, which registers them with Prognosis via
-// CorporateUserSignUp, then verifies an OTP — so every portal login,
+// CorporateUserSignUp, then verifies an OTP: so every portal login,
 // regardless of who invited whom, is validated against both our DB and
 // Prognosis the same way.
 import { auth } from '@/auth';
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
   }
   // Internal Leadway staff acting as HR for a client may never invite
-  // secondary users — only the real HR admin, or a colleague HR itself
+  // secondary users: only the real HR admin, or a colleague HR itself
   // invited as Admin, can do that.
   if (session.user.isInternalStaff) {
     return NextResponse.json({ error: 'Forbidden: internal staff cannot invite portal users' }, { status: 403 });
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
     }
 
-    // Create (or refresh) the invited user — inactive until they set a password
+    // Create (or refresh) the invited user: inactive until they set a password
     await prisma.user.upsert({
       where: { email },
       update: { name, role, companyId: groupId, companyName: session.user.companyName ?? null, policyNumber: session.user.policyNumber ?? null },

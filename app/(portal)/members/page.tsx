@@ -66,7 +66,7 @@ function mapPlanNameShared(raw: string): string {
 }
 
 // Resolve a member's Prognosis schemeId even when the members list didn't carry
-// one — falls back to matching by scheme name, then to the company's only scheme.
+// one: falls back to matching by scheme name, then to the company's only scheme.
 function resolveMemberScheme(p: { schemeId?: string; plan: string }, schemes: PolicyScheme[]): PolicyScheme | null {
   if (p.schemeId) {
     const byId = schemes.find((s) => s.schemeId === p.schemeId);
@@ -94,7 +94,7 @@ const categoryIconColors: Record<string, { bg: string; color: string }> = {
   'Maternity':  { bg: '#FFF1F2', color: '#BE123C' },
 };
 
-/* ── Custom checkbox ─────────────────────────────────────────────────── */
+/*  Custom checkbox  */
 function Checkbox({
   checked, indeterminate = false, onChange, onClick, title,
 }: {
@@ -126,9 +126,9 @@ function Checkbox({
   );
 }
 
-/* ── Bulk census parsing helpers ──────────────────────────────────────── */
+/*  Bulk census parsing helpers  */
 
-/* ── Passport photo uploader ─────────────────────────────────────────── */
+/*  Passport photo uploader  */
 function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: boolean }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [hover, setHover]     = useState(false);
@@ -189,8 +189,8 @@ interface RelationshipOption { text: string; value: string; }
 interface ListItem { text: string; value: string; }
 
 
-/* ── Add Member Modal ────────────────────────────────────────────────── */
-// Cover may be backdated to any past date. There is no earliest-date floor —
+/*  Add Member Modal  */
+// Cover may be backdated to any past date. There is no earliest-date floor -
 // HR just has to acknowledge the backdate warning (BackdateWarningModal), which
 // states Leadway settles no claims incurred before the valid enrolment date.
 // Earliest date cover may be backdated to: the start of the group's current
@@ -312,14 +312,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [photoType, setPhotoType]   = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
 
-  // Add dependants at the same time as the principal — submitted together
+  // Add dependants at the same time as the principal: submitted together
   // via AddFamily in one atomic call instead of principal-then-dependents.
   interface FamilyDepDraft { firstName: string; surname: string; dob: string; sexId: string; relationshipId: string; mobile: string; email: string; }
   const blankFamilyDep = (): FamilyDepDraft => ({ firstName: '', surname: '', dob: '', sexId: '', relationshipId: '', mobile: '', email: '' });
   const [addDepsNow, setAddDepsNow] = useState(false);
   const [familyDeps, setFamilyDeps] = useState<FamilyDepDraft[]>([]);
 
-  // ── Bulk helpers ─────────────────────────────────────────────────────────
+  //  Bulk helpers
 
   function parseBulkFile(file: File) {
     const reader = new FileReader();
@@ -327,7 +327,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       const XLSX = await import('xlsx');
       const data = new Uint8Array(e.target!.result as ArrayBuffer);
       // cellDates so a real Excel date cell arrives as a Date rather than a
-      // serial number. raw:false is deliberately NOT used — we want the
+      // serial number. raw:false is deliberately NOT used: we want the
       // underlying value, not Excel's display string, which varies by locale.
       const wb   = XLSX.read(data, { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
@@ -353,7 +353,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
   function downloadBulkTemplate() {
     import('xlsx').then((XLSX) => {
-      // Row 1 must stay the header row — the parser reads the first sheet with
+      // Row 1 must stay the header row: the parser reads the first sheet with
       // the first row as keys, so guidance goes on a second sheet rather than
       // above the headers.
       const ws = XLSX.utils.aoa_to_sheet([
@@ -369,7 +369,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       ws['!cols'] = [{ wch: 13 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }];
 
       const notes = XLSX.utils.aoa_to_sheet([
-        ['Bulk enrolment — employees and their dependants'],
+        ['Bulk enrolment: employees and their dependants'],
         [],
         ['One row per person. An employee row and the rows of their spouse and'],
         ['children make up one family, and a family is enrolled together.'],
@@ -377,8 +377,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         ['How a dependant points at its employee'],
         ['Put the employee\'s Employee Code in the dependant\'s "Principal'],
         ['Employee Code" column, and leave the dependant\'s own "Employee Code"'],
-        ['blank. Order does not matter — a dependant may appear above its'],
-        ['employee — but keeping the family together makes the file readable.'],
+        ['blank. Order does not matter, a dependant may appear above its'],
+        ['employee, but keeping the family together makes the file readable.'],
         [],
         ['A dependant is never enrolled before its employee exists. If both are'],
         ['in this file they are submitted together in one step. If the employee'],
@@ -394,7 +394,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         [],
         ['Column rules'],
         ['Relationship', 'Principal for the employee. Spouse / Child etc. for a dependant. Blank counts as Principal.'],
-        ['Employee Code', 'Required on employee rows — your internal staff ID. Leave blank on dependant rows.'],
+        ['Employee Code', 'Required on employee rows: your internal staff ID. Leave blank on dependant rows.'],
         ['Principal Employee Code', 'Required on dependant rows. The Employee Code of the employee they belong to.'],
         ['First Name', 'Required'],
         ['Last Name', 'Required'],
@@ -471,9 +471,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           const data = await res.json();
           if (!res.ok || data.error) {
             const msg = data.error ?? 'Failed';
-            // The call covers the whole family, so a failure fails all of it —
+            // The call covers the whole family, so a failure fails all of it -
             // reporting only the principal would leave dependants stuck on
-            // "Processing…" forever.
+            // "Processing..." forever.
             mark(fam.principal.idx, 'error', msg);
             for (const d of deps) mark(d.idx, 'error', msg);
           } else {
@@ -491,7 +491,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         continue;
       }
 
-      // Principal is already enrolled — attach the dependants to them.
+      // Principal is already enrolled: attach the dependants to them.
       // AddDependents keys off the principal's CIF, which the list does not
       // carry, so it is read from their profile first.
       const existing = fam.existingPrincipal;
@@ -504,7 +504,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const prof = await profRes.json();
         const parentCif = Number(prof?.cifNumber ?? existing.cifNumber ?? 0);
         if (!parentCif) {
-          const msg = `Could not read ${existing.firstName} ${existing.lastName}'s record — add these dependants from their profile instead`;
+          const msg = `Could not read ${existing.firstName} ${existing.lastName}'s record. Add these dependants from their profile instead`;
           for (const d of deps) mark(d.idx, 'error', msg);
           continue;
         }
@@ -594,7 +594,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         setPrincipalProfile(data);
         if (data.schemeId) setSelectedSchemeId(data.schemeId);
         if (data.employeeCode) setEmpCode(data.employeeCode);
-        // The members list often doesn't carry email — fall back to the
+        // The members list often doesn't carry email: fall back to the
         // live Prognosis profile so the dependent-link form doesn't force
         // HR to retype an email that already exists on record.
         if (data.email && !p.email) setLinkEmail(data.email);
@@ -617,7 +617,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const filtered = all.filter((t) => !t.regionId || t.regionId === rid);
         setTowns(filtered.length > 0 ? filtered : all);
       })
-      .catch(() => {})
+      // An empty town list is indistinguishable from a region that genuinely has
+      // none, and it blocks the enrolment, so the failure has to be said out loud.
+      .catch(() => toast('Could not load towns for that region. Pick the region again to retry.', 'error'))
       .finally(() => setTownsLoading(false));
   }
 
@@ -637,6 +639,36 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       navigator.clipboard.writeText(text).catch(() => { /* already copied via execCommand */ });
     }
     toast(label, 'success');
+  }
+
+  /**
+   * Emails a newly enrolled member their enrolee ID.
+   *
+   * Fired after the enrolment has already succeeded, so it must never block or
+   * undo it, but it must not be silent either. All four call sites used to be
+   * `.catch(() => {})`, which swallowed network errors and did not look at the
+   * response at all: an HTTP 500, or Prognosis answering 200 with
+   * "fail: Invalid email address format", left HR on a success screen believing
+   * the member had been sent their ID. Nobody found out until the member asked.
+   */
+  async function notifyEnroleeId(args: {
+    email: string; enroleeId: string; memberName: string; schemeName?: string;
+  }) {
+    const retry = 'Open their profile and use Send Enrolee ID to try again.';
+    try {
+      const res = await fetch('/api/hr/members/send-enrolee-id', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(args),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) {
+        toast(`${args.memberName} is enrolled, but their enrolee ID could not be emailed to ${args.email}. ${retry}`, 'error');
+        return;
+      }
+      toast(`Enrolee ID emailed to ${args.email}.`, 'success');
+    } catch {
+      toast(`${args.memberName} is enrolled, but their enrolee ID could not be emailed to ${args.email}. ${retry}`, 'error');
+    }
   }
 
   const inputStyle: React.CSSProperties = {
@@ -709,7 +741,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (data.emailSent) {
           toast(`Enrolment link sent to ${linkEmail}!`, 'success');
         } else {
-          toast('Link generated — email could not be sent, copy and share manually.', 'success');
+          toast('Link generated, but the email could not be sent. Copy and share it manually.', 'success');
         }
         return;
       }
@@ -744,7 +776,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               firstName, surname, otherNames, dateOfBirth: dob,
               sexId, maritalStatus, email, mobile,
               // stateId already holds Prognosis's RegionID (the state dropdown is
-              // sourced straight from GetStates) — regionId/townId are separate,
+              // sourced straight from GetStates): regionId/townId are separate,
               // never-populated fields left over from an LGA picker that was
               // never wired up, so using them here silently dropped the state.
               regionId: stateId, postalTownId: stateId, relationshipId: relId,
@@ -756,7 +788,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         });
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add dependent'); return; }
-          // The member was created but Prognosis did not approve/activate them —
+          // The member was created but Prognosis did not approve/activate them -
           // tell HR explicitly rather than showing an unqualified success.
           if (data.autoApproved === false) {
             toast(`Member created, but activation on Prognosis failed${data.approveError ? `: ${data.approveError}` : ''}. Approve them from Pending Enrolees.`, 'error');
@@ -765,10 +797,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const memberId = enrolled?.enrolleeId || enrolled?.membershipNo || '';
         // Fire email to dependent (non-blocking)
         if (email && memberId) {
-          fetch('/api/hr/members/send-enrolee-id', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedPrincipal?.plan }),
-          }).catch(() => {});
+          void notifyEnroleeId({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedPrincipal?.plan });
         }
         setEnrollResult({ name: `${firstName} ${surname}`, memberId });
         return;
@@ -818,7 +847,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           });
           const data = await res.json();
           if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add family'); return; }
-          // The member was created but Prognosis did not approve/activate them —
+          // The member was created but Prognosis did not approve/activate them -
             // tell HR explicitly rather than showing an unqualified success.
             if (data.autoApproved === false) {
               toast(`Member created, but activation on Prognosis failed${data.approveError ? `: ${data.approveError}` : ''}. Approve them from Pending Enrolees.`, 'error');
@@ -826,10 +855,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           const principalRow = data.enrolled?.find((m: { isPrincipal: boolean }) => m.isPrincipal);
           const memberId = principalRow?.enrolleeId || principalRow?.membershipNo || '';
           if (email && memberId) {
-            fetch('/api/hr/members/send-enrolee-id', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedScheme?.schemeName }),
-            }).catch(() => {});
+            void notifyEnroleeId({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedScheme?.schemeName });
           }
           setEnrollResult({ name: `${firstName} ${surname}`, memberId, cifNumber: principalRow?.cifNumber ?? null, isNewWithDeps: false, schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', empCode });
           return;
@@ -852,7 +878,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         });
         const data = await res.json();
         if (!res.ok || data.error) { setFormError(data.error ?? 'Failed to add member'); return; }
-          // The member was created but Prognosis did not approve/activate them —
+          // The member was created but Prognosis did not approve/activate them -
           // tell HR explicitly rather than showing an unqualified success.
           if (data.autoApproved === false) {
             toast(`Member created, but activation on Prognosis failed${data.approveError ? `: ${data.approveError}` : ''}. Approve them from Pending Enrolees.`, 'error');
@@ -860,10 +886,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         const memberId = data.enrolleeId || data.membershipNo || data.fullEnrolleeId || '';
         // Fire email to new member (non-blocking)
         if (email && memberId) {
-          fetch('/api/hr/members/send-enrolee-id', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedScheme?.schemeName }),
-          }).catch(() => {});
+          void notifyEnroleeId({ email, enroleeId: memberId, memberName: `${firstName} ${surname}`, schemeName: selectedScheme?.schemeName });
         }
         setEnrollResult({ name: `${firstName} ${surname}`, memberId, cifNumber: data.cifNumber ?? null, isNewWithDeps: linkScope === 'self-dependent', schemeId: selectedSchemeId, schemeName: selectedScheme?.schemeName ?? '', empCode });
         return;
@@ -880,14 +903,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     }
   }
 
-  const submitLabel = submitting ? 'Please wait…'
+  const submitLabel = submitting ? 'Please wait...'
     : mode === 'individual' && actionType === 'link' ? 'Generate Link'
     : mode === 'individual' ? 'Add Member'
     : bulkStep === 'review' ? `Enrol ${bulkSelected.size} Member${bulkSelected.size !== 1 ? 's' : ''}`
     : bulkStep === 'done' ? 'Close'
     : 'Upload & Enrol';
 
-  // ── Add-dependent handler for "new staff + dependants" success screen ───
+  //  Add-dependent handler for "new staff + dependants" success screen
   async function handleAddDep() {
     if (depSub) return;
     setDepErr('');
@@ -914,10 +937,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       const enrolled2 = data.enrolled?.[0];
       const depMemberId = enrolled2?.enrolleeId || enrolled2?.membershipNo || '';
       if (depEm && depMemberId) {
-        fetch('/api/hr/members/send-enrolee-id', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: depEm, enroleeId: depMemberId, memberName: `${depFN} ${depLN}`, schemeName: enrollResult.schemeName }),
-        }).catch(() => {});
+        void notifyEnroleeId({ email: depEm, enroleeId: depMemberId, memberName: `${depFN} ${depLN}`, schemeName: enrollResult.schemeName });
       }
       setEnrolledDeps((prev) => [...prev, { name: `${depFN} ${depLN}`, memberId: depMemberId }]);
       setDepFN(''); setDepLN(''); setDepDob2(''); setDepSex(''); setDepRel(''); setDepSt(''); setDepMob(''); setDepEm('');
@@ -930,7 +950,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     }
   }
 
-  // ── Enrolment success screen ──────────────────────────────────────────
+  //  Enrolment success screen
   if (enrollResult) {
     const { name, memberId, isNewWithDeps } = enrollResult;
     const depInputStyle: React.CSSProperties = { width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
@@ -973,14 +993,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               </div>
             )}
 
-            {/* ── "New staff + dependants" dep section ── */}
+            {/*  "New staff + dependants" dep section  */}
             {isNewWithDeps && (
               <div style={{ textAlign: 'left', marginBottom: 28 }}>
                 <div style={{ height: 1, background: '#F0F1F5', marginBottom: 20 }} />
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 12 }}>Add Dependants</p>
                 {!enrollResult?.cifNumber && (
                   <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400E' }}>
-                    ⚠ No CIF number was returned for this member. To add dependants, please close this and use <strong>Add Member → Existing staff&apos;s dependent</strong> to search for them by name.
+                    No CIF number was returned for this member. To add dependants, please close this and use <strong>Add Member → Existing staff&apos;s dependent</strong> to search for them by name.
                   </div>
                 )}
 
@@ -990,7 +1010,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     {enrolledDeps.map((d, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: i > 0 ? '8px 0 0' : 0 }}>
                         <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>{d.name}</span>
-                        <span style={{ fontSize: 12, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.memberId || '—'}</span>
+                        <span style={{ fontSize: 12, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>{d.memberId || '-'}</span>
                       </div>
                     ))}
                   </div>
@@ -1056,7 +1076,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       </button>
                       <button onClick={handleAddDep} disabled={depSub}
                         style={{ flex: 2, height: 38, fontSize: 13, fontWeight: 700, color: '#fff', background: depSub ? '#E5E7F1' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 10, cursor: depSub ? 'not-allowed' : 'pointer' }}>
-                        {depSub ? 'Adding…' : 'Add Dependant'}
+                        {depSub ? 'Adding...' : 'Add Dependant'}
                       </button>
                     </div>
                   </div>
@@ -1088,7 +1108,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     setStep(2);
   }
 
-  // Step 2 choice handler — maps enrolment type to internal state
+  // Step 2 choice handler: maps enrolment type to internal state
   function chooseType(type: 'principal' | 'dependent' | 'new-with-deps') {
     if (type === 'principal') {
       setMemberType('new');
@@ -1127,13 +1147,13 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               <p style={{ fontSize: 16, fontWeight: 800, color: '#131C4E' }}>Add Member</p>
               {mode === 'individual' && (
                 <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 1 }}>
-                  Step {step} of 3 — {STEP_LABELS[step - 1]}
+                  Step {step} of 3: {STEP_LABELS[step - 1]}
                 </p>
               )}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Mode toggle — only on step 1 */}
+            {/* Mode toggle: only on step 1 */}
             {step === 1 && (
               <div style={{ display: 'flex', background: '#F7F8FA', borderRadius: 10, padding: 3, gap: 2 }}>
                 {(['individual', 'bulk'] as const).map((m) => (
@@ -1174,7 +1194,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             </div>
           )}
 
-          {/* ── BULK mode ── */}
+          {/*  BULK mode  */}
           {mode === 'bulk' && bulkStep === 'upload' && (
             <>
               {/* How families work in the file. HR builds the spreadsheet before
@@ -1197,10 +1217,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
 
               {/* Scheme picker */}
               <div style={{ marginBottom: 18 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan / Scheme — applies to every row</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Plan / Scheme: applies to every row</p>
                 <select value={bulkSchemeId} onChange={e => setBulkSchemeId(e.target.value)}
                   style={{ width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: bulkSchemeId ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
-                  <option value=''>Select a plan…</option>
+                  <option value=''>Select a plan...</option>
                   {schemes.map(s => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
                 </select>
               </div>
@@ -1228,7 +1248,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             </>
           )}
 
-          {/* ── BULK — Review table ── */}
+          {/*  BULK. Review table  */}
           {mode === 'bulk' && bulkStep === 'review' && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
@@ -1244,11 +1264,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
               <div style={{ marginBottom: 12 }}>
                 <select value={bulkSchemeId} onChange={e => setBulkSchemeId(e.target.value)}
                   style={{ width: '100%', height: 38, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC', color: bulkSchemeId ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
-                  <option value=''>Select a plan…</option>
+                  <option value=''>Select a plan...</option>
                   {schemes.map(s => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
                 </select>
               </div>
-              {/* Select all — by family, because a family is enrolled as a
+              {/* Select all: by family, because a family is enrolled as a
                   unit and a dependant cannot be sent without its principal. */}
               {(() => {
                 const selectable = bulkFamilies.filter(f => !f.blocked);
@@ -1265,7 +1285,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   </div>
                 );
               })()}
-              {/* Families — the principal first, its dependants indented under
+              {/* Families: the principal first, its dependants indented under
                   it, so what will be submitted together looks like it belongs
                   together. */}
               <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1308,12 +1328,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         </div>
                       </div>
                       {/* Where the principal is not in the file, say who the
-                          dependants are joining — otherwise the row reads as if
+                          dependants are joining: otherwise the row reads as if
                           it has no employee at all. */}
                       {fam.existingPrincipal && !fam.principal && (
                         <p style={{ fontSize: 11, color: '#0C4A6E', background: '#EFF6FF', borderTop: '1px solid #DBEAFE', padding: '7px 12px', lineHeight: 1.5 }}>
                           Joining <strong>{fam.existingPrincipal.firstName} {fam.existingPrincipal.lastName}</strong>
-                          {fam.existingPrincipal.staffId ? ` (${fam.existingPrincipal.staffId})` : ''}, already enrolled — on their existing plan.
+                          {fam.existingPrincipal.staffId ? ` (${fam.existingPrincipal.staffId})` : ''}, already enrolled: on their existing plan.
                         </p>
                       )}
                       {fam.blocked && (
@@ -1328,18 +1348,18 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             </>
           )}
 
-          {/* ── BULK — Results ── */}
+          {/*  BULK. Results  */}
           {mode === 'bulk' && bulkStep === 'done' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>
-                Enrolment Results — {[...bulkProgress.values()].filter(v => v.status === 'ok').length} succeeded
+                Enrolment Results: {[...bulkProgress.values()].filter(v => v.status === 'ok').length} succeeded
                 {' · '}{[...bulkProgress.values()].filter(v => v.status === 'error').length} failed
                 {[...bulkProgress.values()].some(v => v.status === 'skipped') && ` · ${[...bulkProgress.values()].filter(v => v.status === 'skipped').length} skipped`}
                 {' · '}{[...bulkProgress.values()].filter(v => v.status === 'pending').length} pending
               </p>
               {bulkRows.filter(r => bulkProgress.has(r.idx)).map(row => {
                 const prog = bulkProgress.get(row.idx);
-                const icon = prog?.status === 'ok' ? '✓' : prog?.status === 'error' ? '✗' : prog?.status === 'skipped' ? '–' : '⏳';
+                const icon = prog?.status === 'ok' ? '✓' : prog?.status === 'error' ? '✗' : prog?.status === 'skipped' ? '-' : '⏳';
                 const color = prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : prog?.status === 'skipped' ? '#9CA3B8' : '#D97706';
                 return (
                   <div key={row.idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#FAFBFC' }}>
@@ -1354,8 +1374,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       <p style={{ fontSize: 11, color: prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : '#9CA3B8', minWidth: 0, overflowWrap: 'anywhere' }}>
                         {prog?.status === 'ok' ? `Enrolled · ${prog.msg}`
                           : prog?.status === 'error' ? prog.msg
-                          : prog?.status === 'skipped' ? `Not sent — ${prog.msg}`
-                          : 'Processing…'}
+                          : prog?.status === 'skipped' ? `Not sent: ${prog.msg}`
+                          : 'Processing...'}
                       </p>
                     </div>
                   </div>
@@ -1364,7 +1384,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             </div>
           )}
 
-          {/* ── INDIVIDUAL — Step 1: How will this enrolment happen? ── */}
+          {/*  INDIVIDUAL. Step 1: How will this enrolment happen?  */}
           {mode === 'individual' && step === 1 && (
             <>
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>
@@ -1380,7 +1400,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>Member self-enrols</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Send the staff member a secure link — they fill in their own details</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Send the staff member a secure link: they fill in their own details</p>
                   </div>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </div>
@@ -1402,7 +1422,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             </>
           )}
 
-          {/* ── INDIVIDUAL — Step 2: What type of enrolment? ── */}
+          {/*  INDIVIDUAL. Step 2: What type of enrolment?  */}
           {mode === 'individual' && step === 2 && (
             <>
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>
@@ -1418,7 +1438,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 3 }}>Principal only</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Enrol a staff member — no dependants at this time</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', lineHeight: 1.5 }}>Enrol a staff member: no dependants at this time</p>
                   </div>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </div>
@@ -1454,10 +1474,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             </>
           )}
 
-          {/* ── INDIVIDUAL — Step 3: Details ── */}
+          {/*  INDIVIDUAL. Step 3: Details  */}
           {mode === 'individual' && step === 3 && (
             <>
-              {/* ── LINK flow ── */}
+              {/*  LINK flow  */}
               {actionType === 'link' && (
                 <>
                   {/* Principal picker for dependent link */}
@@ -1469,7 +1489,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
                             <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId}</p>
-                            <p style={{ fontSize: 11, color: profileLoading ? '#9CA3B8' : '#059669', fontWeight: 600 }}>{profileLoading ? 'Loading plan…' : (principalProfile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan)}</p>
+                            <p style={{ fontSize: 11, color: profileLoading ? '#9CA3B8' : '#059669', fontWeight: 600 }}>{profileLoading ? 'Loading plan...' : (principalProfile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan)}</p>
                           </div>
                           <button onClick={() => { setSelectedPrincipal(null); setPrincipalProfile(null); setPrincipalSearch(''); setLinkEmpCode(''); setLinkEmail(''); }}
                             style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
@@ -1479,7 +1499,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       ) : (
                         <>
                           <input value={principalSearch} onChange={(e) => setPrincipalSearch(e.target.value)}
-                            placeholder="Type name or employee ID…"
+                            placeholder="Type name or employee ID..."
                             style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                           {principalSearch.length >= 2 && (
                             <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto', borderRadius: 10, border: '1px solid #E5E7F1', background: '#fff' }}>
@@ -1508,7 +1528,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     </div>
                   )}
 
-                  {/* Plan — only for non-dependent links */}
+                  {/* Plan: only for non-dependent links */}
                   {memberType !== 'existing' && (
                     <div style={{ marginBottom: 16 }}>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Select Plan *</p>
@@ -1517,19 +1537,19 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
                             style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
                             onFocus={focusOn} onBlur={focusOff}>
-                            <option value="">— Choose a plan —</option>
+                            <option value="">- Choose a plan -</option>
                             {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
                           </select>
-                        ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                        ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans...</div>}
                         <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                     </div>
                   )}
 
-                  {/* Dependent count picker — for dep links and new-staff-with-deps links */}
+                  {/* Dependent count picker: for dep links and new-staff-with-deps links */}
                   {(memberType === 'existing' || linkScope === 'self-dependent') && (() => {
                     // Don't fall back to schemes[0] here (unlike selectedScheme
-                    // elsewhere) — until HR actually picks a plan, there's no
+                    // elsewhere): until HR actually picks a plan, there's no
                     // real limit to show, so this stays null and the size
                     // picker below falls back to a sane default (8) instead
                     // of an arbitrary/possibly-zero plan's family size.
@@ -1585,7 +1605,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 16 }}>
                     {memberType === 'existing'
                       ? "The dependent enrolment link will be tied to this staff member's record."
-                      : 'The link is tied to this email + employee code. Staff must verify both to enrol — preventing misuse.'}
+                      : 'The link is tied to this email + employee code. Staff must verify both to enrol: preventing misuse.'}
                     {' '}The cover start date is set by you and cannot be changed by the staff member.
                   </p>
 
@@ -1616,11 +1636,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                 </>
               )}
 
-              {/* ── FORM flow ── */}
+              {/*  FORM flow  */}
               {actionType === 'form' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-                  {/* Principal picker — only for "existing staff's dependent" */}
+                  {/* Principal picker: only for "existing staff's dependent" */}
                   {memberType === 'existing' && (
                     <div style={{ background: '#F7F8FC', borderRadius: 14, padding: '14px 16px', border: selectedPrincipal ? '1.5px solid #10B981' : '1.5px solid #E5E7F1' }}>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Principal Staff Member *</p>
@@ -1629,9 +1649,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{selectedPrincipal.firstName} {selectedPrincipal.lastName}</p>
                             <p style={{ fontSize: 11, color: '#6B7280' }}>{selectedPrincipal.employeeId}</p>
-                            <p style={{ fontSize: 11, color: profileLoading ? '#9CA3B8' : '#059669', fontWeight: 600 }}>{profileLoading ? 'Loading plan…' : (principalProfile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan)}</p>
+                            <p style={{ fontSize: 11, color: profileLoading ? '#9CA3B8' : '#059669', fontWeight: 600 }}>{profileLoading ? 'Loading plan...' : (principalProfile?.schemeName || resolveScheme(selectedPrincipal)?.schemeName || selectedPrincipal.plan)}</p>
                             {!profileLoading && !principalProfile?.cifNumber && !selectedPrincipal.cifNumber && (
-                              <p style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>⚠ No CIF found — try selecting again</p>
+                              <p style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>No CIF found. Try selecting again</p>
                             )}
                           </div>
                           <button onClick={() => { setSelectedPrincipal(null); setPrincipalProfile(null); setPrincipalSearch(''); }}
@@ -1644,7 +1664,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <input
                             value={principalSearch}
                             onChange={(e) => setPrincipalSearch(e.target.value)}
-                            placeholder="Type name or employee ID to search…"
+                            placeholder="Type name or employee ID to search..."
                             style={inputStyle}
                             onFocus={focusOn} onBlur={focusOff}
                           />
@@ -1698,7 +1718,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
                   </div>
 
-                  {/* Plan — hidden for "existing" since it's inherited from the principal */}
+                  {/* Plan: hidden for "existing" since it's inherited from the principal */}
                   {memberType !== 'existing' && (
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Select Plan *</p>
@@ -1707,10 +1727,10 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                           <select value={selectedSchemeId} onChange={(e) => setSelectedSchemeId(e.target.value)}
                             style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', border: selectedSchemeId ? '1.5px solid #10B981' : '2px solid #F56B22', background: selectedSchemeId ? '#fff' : '#FFF8F5', paddingRight: 36, fontWeight: selectedSchemeId ? 600 : 400, color: selectedSchemeId ? '#131C4E' : '#9CA3B8' }}
                             onFocus={focusOn} onBlur={focusOff}>
-                            <option value="">— Choose a plan —</option>
+                            <option value="">- Choose a plan -</option>
                             {schemes.map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
                           </select>
-                        ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans…</div>}
+                        ) : <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#B0B7C9' }}>Loading plans...</div>}
                         <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: selectedSchemeId ? '#10B981' : '#F56B22' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                     </div>
@@ -1807,7 +1827,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         <input type="checkbox" checked={addDepsNow}
                           onChange={(e) => { setAddDepsNow(e.target.checked); if (e.target.checked && familyDeps.length === 0) setFamilyDeps([blankFamilyDep()]); }} />
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: '#131C4E' }}>Add dependants now too</span>
-                        <span style={{ fontSize: 11, color: '#9CA3B8' }}>— registers everyone together in one submission</span>
+                        <span style={{ fontSize: 11, color: '#9CA3B8' }}>- registers everyone together in one submission</span>
                       </label>
 
                       {addDepsNow && (
@@ -1859,7 +1879,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           )}
         </div>
 
-        {/* Footer — only shown on step 3 (or bulk mode) */}
+        {/* Footer: only shown on step 3 (or bulk mode) */}
         {(mode === 'bulk' || (mode === 'individual' && step === 3)) && (
           <div style={{ padding: '16px 24px', borderTop: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, flexShrink: 0 }}>
             <button onClick={onClose} style={{ height: 44, padding: '0 22px', fontSize: 14, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FA', border: 'none', borderRadius: 14, cursor: 'pointer' }}>
@@ -1894,7 +1914,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   );
 }
 
-/* ── Solo bulk actions: single-select Send Invite Link / Request Correction ── */
+/*  Solo bulk actions: single-select Send Invite Link / Request Correction  */
 function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member; schemes: PolicyScheme[]; onClose: () => void; onSent: () => void }) {
   const { toast } = useToast();
   const scheme = resolveMemberScheme(member, schemes);
@@ -1931,7 +1951,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
       });
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error ?? 'Failed to generate link'); return; }
-      toast(data.emailSent ? `Dependant invite link sent to ${email}.` : 'Link generated — email could not be sent.', 'success');
+      toast(data.emailSent ? `Dependant invite link sent to ${email}.` : 'Link generated: email could not be sent.', 'success');
       onSent();
     } catch {
       setError('Failed to generate link. Please try again.');
@@ -1973,7 +1993,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
           <button onClick={onClose} disabled={submitting} style={{ height: 40, padding: '0 18px', borderRadius: 10, border: '1.5px solid #E5E7F1', background: '#fff', color: '#6B7280', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           <button onClick={() => submit()} disabled={submitting}
             style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: submitting ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: submitting ? '#9CA3B8' : '#fff', fontSize: 13.5, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}>
-            {submitting ? 'Sending…' : 'Generate & Send Link'}
+            {submitting ? 'Sending...' : 'Generate & Send Link'}
           </button>
         </div>
       </div>
@@ -1988,7 +2008,7 @@ function SoloInviteModal({ member, schemes, onClose, onSent }: { member: Member;
   );
 }
 
-/* ── E-Card ──────────────────────────────────────────────────────────── */
+/*  E-Card  */
 function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail, onClose }: { member: Member; enroleeId: string; avatarPreview: string | null; schemeName: string; memberEmail: string | null; onClose: () => void }) {
   const { toast } = useToast();
   const [sending, setSending] = useState(false);
@@ -2114,7 +2134,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
             <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Send to</p>
             <input type="email" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="member@email.com"
               style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
-            {!memberEmail && <p style={{ fontSize: 11.5, color: '#D97706', marginTop: 6 }}>No email on file for this member — enter one to send.</p>}
+            {!memberEmail && <p style={{ fontSize: 11.5, color: '#D97706', marginTop: 6 }}>No email on file for this member. Enter one to send.</p>}
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button onClick={() => setShowSendSheet(false)} disabled={sending}
                 style={{ flex: 1, height: 38, fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>
@@ -2122,7 +2142,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
               </button>
               <button onClick={handleSendECard} disabled={sending || !sendEmail.trim()}
                 style={{ flex: 1, height: 38, fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, cursor: (sending || !sendEmail.trim()) ? 'not-allowed' : 'pointer', background: (sending || !sendEmail.trim()) ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)' }}>
-                {sending ? 'Sending…' : 'Confirm & Send'}
+                {sending ? 'Sending...' : 'Confirm & Send'}
               </button>
             </div>
           </div>
@@ -2155,7 +2175,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
   );
 }
 
-/* ── Member 360 Drawer ───────────────────────────────────────────────── */
+/*  Member 360 Drawer  */
 function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit, autoOpenECard, onViewFamily }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean; autoOpenECard?: boolean; onViewFamily: (membershipNo: string) => void }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
@@ -2282,7 +2302,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const [bioStaffId, setBioStaffId]         = useState<string | null>(member.staffId || null);
   const [bioEmail, setBioEmail]             = useState<string | null>(member.email || null);
   const [bioDob, setBioDob]                 = useState<string | null>(member.dateOfBirth || null);
-  // Authoritative schemeId straight from Prognosis — GetGroupPremium rarely
+  // Authoritative schemeId straight from Prognosis. GetGroupPremium rarely
   // carries one, so name-matching against local `schemes` can still miss.
   const [profileSchemeId, setProfileSchemeId] = useState<string | null>(null);
   useEffect(() => {
@@ -2304,7 +2324,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           setBioEmail(d.email);
           // If HR opened "Add Dependent" and clicked before this biodata
           // fetch resolved, depLinkEmail was seeded blank and never gets
-          // another chance to fill in — top it up here too, but only if
+          // another chance to fill in: top it up here too, but only if
           // it's still empty so we never overwrite something HR typed.
           setDepLinkEmail((prev) => prev || d.email);
         }
@@ -2330,7 +2350,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   }
 
   // "Request Correction" (single member selected in the bulk toolbar) routes
-  // straight here instead of a separate email-request flow — HR can just
+  // straight here instead of a separate email-request flow. HR can just
   // make the fix themselves via the same Edit sheet.
   useEffect(() => {
     if (autoOpenEdit) openEditSheet();
@@ -2338,7 +2358,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   }, [autoOpenEdit]);
 
   // Arriving from the dashboard's "Download E-card" quick action: an e-card is
-  // always for one specific member, so the action can't open cold — HR picks
+  // always for one specific member, so the action can't open cold. HR picks
   // the member and the card opens straight away rather than making them hunt
   // for the button in the drawer.
   useEffect(() => {
@@ -2358,7 +2378,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
   // Real per-category spend for this member, from their own claims. The claims
   // feed already classifies every claim into these five buckets, so no mapping
-  // is invented here — categories with no claims simply do not appear.
+  // is invented here: categories with no claims simply do not appear.
   const spendByCategory = (() => {
     const palette: Record<string, string> = {
       Outpatient: '#F56B22', Inpatient: '#2563EB', Dental: '#F59E0B',
@@ -2390,7 +2410,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
     && (dobDate!.toISOString().slice(0, 10) > todayIso || dobDate!.getFullYear() < 1900);
   const dobDisplay = dobValid
     ? dobDate!.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—';
+    : '-';
 
   function openSendIdSheet() {
     setSendIdEmail(bioEmail || '');
@@ -2449,7 +2469,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       toast('Enrolee ID copied', 'success');
       setTimeout(() => setIdCopied(false), 2000);
     } else {
-      toast('Could not copy — please copy manually.', 'error');
+      toast('Could not copy. Please copy manually.', 'error');
     }
   }
 
@@ -2457,7 +2477,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
     if (!member.cifNumber) { toast('No CIF number on record for this member.', 'error'); return; }
     if (!termDate) { setTermError('Please choose an effective date.'); return; }
     // Dependants go through Prognosis's TerminateBeneficiary, which genuinely
-    // supports an effective date + reason — no need for our ScheduledTermination
+    // supports an effective date + reason: no need for our ScheduledTermination
     // workaround (that exists only because TerminateMember, for principals, doesn't).
     if (member.type === 'Dependant') {
       if (!termReason.trim()) { setTermError('Please enter a reason for termination.'); return; }
@@ -2577,12 +2597,12 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   }
 
   // Use the member's own scheme family size if available, otherwise fall back to prop.
-  // schemeId matching alone often misses since GetGroupPremium rarely returns it —
+  // schemeId matching alone often misses since GetGroupPremium rarely returns it -
   // fall back to matching by scheme name (mirrors the Add Member modal's resolveScheme).
   const memberScheme = (profileSchemeId && schemes.find((s) => s.schemeId === profileSchemeId)) || resolveMemberScheme(member, schemes);
   const memberMaxFamily = memberScheme?.maxFamilySize ?? maxFamilySize;
   const remainingSlots = Math.max(0, memberMaxFamily - 1 - depCount);
-  // Resolved schemeId for API calls — member.id is NOT the schemeId.
+  // Resolved schemeId for API calls: member.id is NOT the schemeId.
   // Prefer the value fetched straight from Prognosis (profileSchemeId);
   // fall back to local schemeId/name-matching if that fetch hasn't landed yet.
   const resolvedSchemeId = profileSchemeId || member.schemeId || memberScheme?.schemeId || '';
@@ -2722,13 +2742,13 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '8px 16px' }}>
             {[
               // member.phone/email come from the initial list fetch, which is
-              // often blank — bioPhone/bioEmail (resolved from the more
+              // often blank: bioPhone/bioEmail (resolved from the more
               // reliable GetEnrolleeBioDataByEnrolleeID call) take priority.
               { Icon: Phone,    value: bioPhone || member.phone },
               { Icon: Mail,     value: bioEmail || member.email },
               { Icon: MapPin,   value: member.location },
               // enrollmentDate is Prognosis's cover-effective/start date, not
-              // the date the registration was actually submitted — label it
+              // the date the registration was actually submitted: label it
               // accordingly rather than "Enrolled", which reads as the latter.
               { Icon: Calendar, value: `Cover Start: ${new Date(member.enrollmentDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}` },
             ].map(({ Icon, value }) => (
@@ -2743,7 +2763,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
         </div>
 
         {/* KPI strip. Both tiles were previously dead numbers; each now leads
-            somewhere, which is the whole point of a "360" view — the count of
+            somewhere, which is the whole point of a "360" view: the count of
             dependants is only useful if you can get to them. */}
         <div style={{ padding: '14px 24px 16px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', border: '1px solid #EDEEF2', borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
@@ -2753,7 +2773,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 value: String(depCount),
                 Icon: Users, color: '#3A4382', bg: '#EEF2FF',
                 // With dependants, jump to them. With none, the useful action is
-                // to add one — but only a principal can have any.
+                // to add one, but only a principal can have any.
                 action: depCount > 0
                   ? { label: 'View dependants', run: () => onViewFamily(membershipNo) }
                   : member.type === 'Principal'
@@ -2762,10 +2782,10 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               },
               {
                 label: 'Spend YTD',
-                value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—',
+                value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '-',
                 Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5',
                 // Opens the Claims tab, which had been built but left
-                // unreachable — the tab strip only rendered Overview/Benefits.
+                // unreachable: the tab strip only rendered Overview/Benefits.
                 action: stats && stats.recentClaims.length > 0
                   ? { label: 'View spending', run: () => setDrawerTab('claims') }
                   : null,
@@ -2814,7 +2834,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
 
-          {/* ── Overview ── */}
+          {/*  Overview  */}
           {drawerTab === 'overview' && (
             <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Passport Photo</p>
@@ -2843,17 +2863,17 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               <div style={{ height: 1, background: '#F0F1F5', marginBottom: 24 }} />
 
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
-              {/* Plan, Member Type and Dependants used to repeat here — they are
+              {/* Plan, Member Type and Dependants used to repeat here: they are
                   already a chip, a chip and a KPI tile a few centimetres above.
                   Dropping the three restates nothing and loses nothing. */}
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '18px 20px', marginBottom: 24 }}>
                 {[
                   { label: 'Date of Birth',       value: dobDisplay, warn: dobImplausible },
                   { label: 'Gender',              value: member.gender },
-                  { label: 'Staff ID',            value: bioStaffId || '—' },
-                  { label: 'Phone',               value: bioPhone || '—' },
-                  { label: 'State',               value: member.location || '—' },
-                  { label: 'Individual Premium',  value: member.premium != null ? `₦${Math.round(member.premium).toLocaleString('en-NG')}` : '—' },
+                  { label: 'Staff ID',            value: bioStaffId || '-' },
+                  { label: 'Phone',               value: bioPhone || '-' },
+                  { label: 'State',               value: member.location || '-' },
+                  { label: 'Individual Premium',  value: member.premium != null ? `₦${Math.round(member.premium).toLocaleString('en-NG')}` : '-' },
                 ].map((row) => (
                   <div key={row.label} style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 10, color: '#B0B7C9', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{row.label}</p>
@@ -2864,7 +2884,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                         leave them trusting a nonsense age. */}
                     {row.warn && (
                       <p style={{ fontSize: 10.5, color: '#B45309', marginTop: 3, lineHeight: 1.45 }}>
-                        Not a valid date of birth — please correct this record.
+                        Not a valid date of birth. Please correct this record.
                       </p>
                     )}
                   </div>
@@ -2879,7 +2899,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                   {[
                     { label: 'Total Spend YTD', value: `₦${Math.round(stats.totalSpendYtd).toLocaleString()}`, color: '#131C4E' },
                     { label: 'Visits Count',     value: `${stats.visitsYtd} visit${stats.visitsYtd !== 1 ? 's' : ''}`, color: '#131C4E' },
-                    { label: 'Avg Per Visit',    value: stats.visitsYtd > 0 ? `₦${Math.round(stats.totalSpendYtd / stats.visitsYtd).toLocaleString()}` : '—', color: '#131C4E' },
+                    { label: 'Avg Per Visit',    value: stats.visitsYtd > 0 ? `₦${Math.round(stats.totalSpendYtd / stats.visitsYtd).toLocaleString()}` : '-', color: '#131C4E' },
                   ].map((r) => (
                     <div key={r.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 13, color: '#9CA3B8' }}>{r.label}</span>
@@ -2905,7 +2925,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             </div>
           )}
 
-          {/* ── Claim History ── */}
+          {/*  Claim History  */}
           {drawerTab === 'claims' && (
             <div style={{ padding: '22px 24px' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Recent Claims</p>
@@ -2953,9 +2973,9 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             </div>
           )}
 
-          {/* ── Benefits ──
-              This panel used to show five hardcoded rows — ₦28,500 outpatient,
-              "1% utilised" and so on — identical for every member in every
+          {/*  Benefits
+              This panel used to show five hardcoded rows, ₦28,500 outpatient,
+              "1% utilised" and so on, identical for every member in every
               company, presented as that member's own utilisation. It is now
               built from the member's actual claims.
 
@@ -3012,7 +3032,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               )}
 
               {/* The plan's actual limits and exclusions, from the benefit
-                  schedule — the honest home for "what is this member entitled
+                  schedule: the honest home for "what is this member entitled
                   to", rather than numbers invented in this drawer. */}
               <a href="/benefits"
                 style={{ marginTop: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 16px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#fff', textDecoration: 'none' }}>
@@ -3030,13 +3050,13 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
         {/* Bottom actions */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid #F0F1F5', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Row 1 — Send Enrolee ID + Add Dependent (principals only) */}
+          {/* Row 1. Send Enrolee ID + Add Dependent (principals only) */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               onClick={openSendIdSheet}
               disabled={sendingId}
               style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: sendingId ? '#9CA3B8' : '#3A4382', border: '1px solid #C7D2FE', borderRadius: 14, background: sendingId ? '#F7F8FA' : 'linear-gradient(135deg,#F8F9FF,#EEF2FF)', cursor: sendingId ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.15s' }}>
-              <Send style={{ width: 14, height: 14 }} /> {sendingId ? 'Sending…' : 'Send Enrolee ID'}
+              <Send style={{ width: 14, height: 14 }} /> {sendingId ? 'Sending...' : 'Send Enrolee ID'}
             </button>
             <button
               onClick={handleCopyEnroleeId}
@@ -3049,7 +3069,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 onClick={() => {
                   // member.email comes from the initial list fetch, which often
                   // lags behind bioEmail (resolved later from the more reliable
-                  // GetEnrolleeBioDataByEnrolleeID call) — prefer bioEmail here
+                  // GetEnrolleeBioDataByEnrolleeID call): prefer bioEmail here
                   // so the Send Link email field isn't blank when it's on file.
                   setDepLinkEmail(bioEmail || member.email || '');
                   setShowAddDep(true);
@@ -3059,7 +3079,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </button>
             )}
           </div>
-          {/* Row 2 — Edit / E-Card / Terminate */}
+          {/* Row 2. Edit / E-Card / Terminate */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               onClick={openEditSheet}
@@ -3088,13 +3108,13 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </p>
               <button onClick={handleCancelScheduledTermination} disabled={cancellingTerm}
                 style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', background: 'none', border: 'none', cursor: cancellingTerm ? 'wait' : 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap' }}>
-                {cancellingTerm ? 'Cancelling…' : 'Cancel'}
+                {cancellingTerm ? 'Cancelling...' : 'Cancel'}
               </button>
             </div>
           )}
         </div>
 
-        {/* ── Terminate confirmation bottom sheet ── */}
+        {/*  Terminate confirmation bottom sheet  */}
         {showTerminateConfirm && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -3120,7 +3140,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
             {!member.cifNumber ? (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E', fontSize: 12.5, marginBottom: 14 }}>
-                No CIF number on record for this member — termination cannot proceed.
+                No CIF number on record for this member: termination cannot proceed.
               </div>
             ) : (
               <div style={{ marginBottom: 16 }}>
@@ -3128,7 +3148,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 <input type="date" value={termDate} min={todayIso}
                   onChange={(e) => setTermDate(e.target.value)}
                   style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
-                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>Must be today or a future date — backdated terminations are not allowed.</p>
+                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 6 }}>Must be today or a future date: backdated terminations are not allowed.</p>
               </div>
             )}
 
@@ -3152,13 +3172,13 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </button>
               <button onClick={handleTerminate} disabled={terminating || !member.cifNumber}
                 style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: terminating || !member.cifNumber ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#EF4444,#DC2626)', opacity: terminating || !member.cifNumber ? 0.6 : 1, boxShadow: '0 2px 8px rgba(239,68,68,0.28)' }}>
-                {terminating ? (termDate === todayIso ? 'Terminating…' : 'Scheduling…') : (termDate === todayIso ? 'Confirm Termination' : 'Schedule Termination')}
+                {terminating ? (termDate === todayIso ? 'Terminating...' : 'Scheduling...') : (termDate === todayIso ? 'Confirm Termination' : 'Schedule Termination')}
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Edit Member bottom sheet ── */}
+        {/*  Edit Member bottom sheet  */}
         {showEdit && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -3231,7 +3251,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>NIN required to save</label>
                   <input value={editNin} onChange={(e) => setEditNin(digitsOnly(e.target.value).slice(0, 11))} inputMode="numeric" maxLength={11}
-                    placeholder="Prognosis has no NIN on file for this member — enter their 11-digit NIN"
+                    placeholder="Prognosis has no NIN on file for this member. Enter their 11-digit NIN"
                     style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1.5px solid #FDE68A', borderRadius: 10, background: '#FFFBEB', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               )}
@@ -3248,13 +3268,13 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </button>
               <button onClick={handleEditSubmit} disabled={editSubmitting}
                 style={{ flex: 1, height: 44, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: editSubmitting ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#3A4382,#131C4E)', opacity: editSubmitting ? 0.6 : 1 }}>
-                {editSubmitting ? 'Saving…' : 'Save Changes'}
+                {editSubmitting ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Passport photo zoom ── */}
+        {/*  Passport photo zoom  */}
         {showPhotoZoom && avatarPreview && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110, padding: 20 }}
             onClick={() => setShowPhotoZoom(false)}>
@@ -3263,7 +3283,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           </div>
         )}
 
-        {/* ── Send Enrolee ID sheet ── */}
+        {/*  Send Enrolee ID sheet  */}
         {showSendIdSheet && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
             onClick={() => setShowSendIdSheet(false)}>
@@ -3302,7 +3322,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                     onClick={() => handleSendEnroleeId(sendIdEmail)}
                     disabled={sendingId || !sendIdEmail.trim()}
                     style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: sendingId || !sendIdEmail.trim() ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#3A4382,#131C4E)', opacity: sendingId || !sendIdEmail.trim() ? 0.6 : 1 }}>
-                    {sendingId ? 'Sending…' : 'Send'}
+                    {sendingId ? 'Sending...' : 'Send'}
                   </button>
                 </div>
               </div>
@@ -3310,7 +3330,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           </div>
         )}
 
-        {/* ── E-Card modal ── */}
+        {/*  E-Card modal  */}
         {showECard && (
           <ECardModal
             member={member}
@@ -3322,7 +3342,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           />
         )}
 
-        {/* ── Add Dependent bottom sheet ── */}
+        {/*  Add Dependent bottom sheet  */}
         {showAddDependent && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -3397,7 +3417,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 </div>
               )}
 
-              {/* ── HR fills form ── */}
+              {/*  HR fills form  */}
               {depAction === 'form' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
@@ -3447,7 +3467,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                       <select value={depStateId} onChange={(e) => setDepStateId(e.target.value)}
                         style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: depStateId ? '#131C4E' : '#9CA3B8', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
                         <option value="">Select state</option>
-                        {/* populated from parent via relationshipOptions — states passed as prop elsewhere; use hardcoded common ones */}
+                        {/* populated from parent via relationshipOptions: states passed as prop elsewhere; use hardcoded common ones */}
                         {[{v:'1',t:'Abia'},{v:'2',t:'Adamawa'},{v:'3',t:'Akwa Ibom'},{v:'4',t:'Anambra'},{v:'5',t:'Bauchi'},{v:'6',t:'Bayelsa'},{v:'7',t:'Benue'},{v:'8',t:'Borno'},{v:'9',t:'Cross River'},{v:'10',t:'Delta'},{v:'11',t:'Ebonyi'},{v:'12',t:'Edo'},{v:'13',t:'Ekiti'},{v:'14',t:'Enugu'},{v:'15',t:'FCT'},{v:'16',t:'Gombe'},{v:'17',t:'Imo'},{v:'18',t:'Jigawa'},{v:'19',t:'Kaduna'},{v:'20',t:'Kano'},{v:'21',t:'Katsina'},{v:'22',t:'Kebbi'},{v:'23',t:'Kogi'},{v:'24',t:'Kwara'},{v:'25',t:'Lagos'},{v:'26',t:'Nasarawa'},{v:'27',t:'Niger'},{v:'28',t:'Ogun'},{v:'29',t:'Ondo'},{v:'30',t:'Osun'},{v:'31',t:'Oyo'},{v:'32',t:'Plateau'},{v:'33',t:'Rivers'},{v:'34',t:'Sokoto'},{v:'35',t:'Taraba'},{v:'36',t:'Yobe'},{v:'37',t:'Zamfara'}].map((s) => <option key={s.v} value={s.v}>{s.t}</option>)}
                       </select>
                     </div>
@@ -3485,13 +3505,13 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                   </div>
                   {!member.cifNumber && (
                     <div style={{ padding: '10px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FDE68A' }}>
-                      <p style={{ fontSize: 11, color: '#D97706' }}>⚠ Principal CIF not available — dependent may fail. Try refreshing the member list.</p>
+                      <p style={{ fontSize: 11, color: '#D97706' }}>Principal CIF not available: dependent may fail. Try refreshing the member list.</p>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* ── Send link to member ── */}
+              {/*  Send link to member  */}
               {depAction === 'link' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -3535,7 +3555,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                       style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#10B981'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; }} />
-                    <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 6 }}>Fixed by you — the dependant cannot change it.</p>
+                    <p style={{ fontSize: 10.5, color: '#9CA3B8', marginTop: 6 }}>Fixed by you: the dependant cannot change it.</p>
                   </div>
 
                   <div style={{ padding: '12px 14px', background: '#ECFDF5', borderRadius: 12, border: '1px solid #BBF7D0' }}>
@@ -3546,14 +3566,14 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 
                   {remainingSlots === 0 && (
                     <div style={{ padding: '10px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FDE68A' }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: '#D97706' }}>⚠ This member has used all dependant slots on their plan. Adding more may be rejected.</p>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#D97706' }}>This member has used all dependant slots on their plan. Adding more may be rejected.</p>
                     </div>
                   )}
 
                   {/* Generated link */}
                   {depGeneratedUrl && (
                     <div style={{ background: '#ECFDF5', border: '1px solid #BBF7D0', borderRadius: 12, padding: '12px 14px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link ready — copy and share:</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginBottom: 8 }}>Link ready. Copy and share:</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input readOnly value={depGeneratedUrl} onFocus={(e) => e.currentTarget.select()} style={{ flex: 1, height: 36, padding: '0 10px', fontSize: 11, border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', color: '#131C4E', outline: 'none' }} />
                         <button onClick={async () => {
@@ -3570,7 +3590,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                             try { copied = document.execCommand('copy'); } catch { copied = false; }
                             document.body.removeChild(ta);
                           }
-                          toast(copied ? 'Link copied!' : 'Could not copy automatically — select the link text and copy manually.', copied ? 'success' : 'error');
+                          toast(copied ? 'Link copied!' : 'Could not copy automatically. Select the link text and copy manually.', copied ? 'success' : 'error');
                         }} style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#059669', border: '1px solid #BBF7D0', borderRadius: 8, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</button>
                       </div>
                     </div>
@@ -3588,7 +3608,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               {!depGeneratedUrl && (
                 <button onClick={() => handleDepSubmit()} disabled={depSubmitting}
                   style={{ flex: 2, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', background: depSubmitting ? '#F0F1F5' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 14, cursor: depSubmitting ? 'not-allowed' : 'pointer', boxShadow: depSubmitting ? 'none' : '0 2px 8px rgba(16,185,129,0.28)' }}>
-                  {depSubmitting ? 'Please wait…' : depAction === 'form' ? 'Add Dependent' : 'Generate & Send Link'}
+                  {depSubmitting ? 'Please wait...' : depAction === 'form' ? 'Add Dependent' : 'Generate & Send Link'}
                 </button>
               )}
             </div>
@@ -3606,14 +3626,14 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
 }
 
 
-/* ── Members Page ────────────────────────────────────────────────────── */
+/*  Members Page  */
 function MembersPageInner() {
   const [vis, setVis] = useState<PeopleVis>(DEFAULTS.people);
   useEffect(() => { setVis(getVis('people')); }, []);
 
   // Seeded from ?q= so the global TopBar search lands here with the term
   // already applied rather than appearing to do nothing. ?action=add|upload
-  // opens the add-member modal in the matching mode — the dashboard's Quick
+  // opens the add-member modal in the matching mode: the dashboard's Quick
   // actions tiles land here.
   const memberSearchParams = useSearchParams();
   const initialQuery = memberSearchParams.get('q') ?? '';
@@ -3622,7 +3642,7 @@ function MembersPageInner() {
 
   // Keep the table in step with ?q=. useState only reads the param once, and
   // the App Router does not remount this page when just the query string
-  // changes — so searching from the top bar while already on People updated the
+  // changes: so searching from the top bar while already on People updated the
   // URL and nothing else. Depends on the param, not on `search`, so typing in
   // the page's own search box is never overwritten.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -3644,7 +3664,7 @@ function MembersPageInner() {
   const [showSoloInvite, setShowSoloInvite] = useState<Member | null>(null);
   const { toast } = useToast();
 
-  // Policy schemes — used for dependant limit validation and plan dropdown in AddMemberModal
+  // Policy schemes: dependant limit validation and the plan dropdown in AddMemberModal
   const [schemes, setSchemes] = useState<PolicyScheme[]>([]);
   const [maxFamilySize, setMaxFamilySize] = useState<number>(8);
   useEffect(() => {
@@ -3656,7 +3676,9 @@ function MembersPageInner() {
         const sizes = loaded.map((s) => s.maxFamilySize).filter((n): n is number => n !== null && n > 0);
         if (sizes.length > 0) setMaxFamilySize(Math.min(...sizes));
       })
-      .catch(() => {});
+      // Without schemes the plan picker is empty and no member can be enrolled.
+      // Failing silently left HR staring at "Select a plan" with nothing in it.
+      .catch(() => toast('Could not load your plans, so the plan picker will be empty. Reload the page to try again.', 'error'));
   }, []);
 
   // Live data
@@ -3690,7 +3712,7 @@ function MembersPageInner() {
       setRefreshing(false);
     }
 
-    // Background: fetch full response (with claims) — updates stats when ready
+    // Background: fetch full response (with claims): updates stats when ready
     try {
       const qs2 = new URLSearchParams(fresh ? { fresh: '1' } : {});
       const d2 = await fetch(`/api/hr/members${qs2.toString() ? `?${qs2}` : ''}`).then((r) => r.json());
@@ -3709,7 +3731,7 @@ function MembersPageInner() {
 
   const sourceList = viewBeneficiaries ? allBeneficiaries : principals;
 
-  // Dynamic filter options — only show values that exist in the current source list
+  // Dynamic filter options: only show values that exist in the current source list
   const availablePlans    = ['All Plans',   ...Array.from(new Set(sourceList.map((m) => m.plan))).sort()];
   const availableStatuses = ['All Status',  ...Array.from(new Set(sourceList.map((m) => m.status))).sort()];
 
@@ -3720,7 +3742,7 @@ function MembersPageInner() {
       && (!statusFilter || m.status === statusFilter);
   });
 
-  // Newest enrolments first — Enrolee ID's numeric prefix (before the "/")
+  // Newest enrolments first. Enrolee ID's numeric prefix (before the "/")
   // increases with registration order, so a higher number means a newer
   // member (e.g. 26103467/0 was enrolled after 21000645/0).
   const enroleeIdNum = (m: Member) => parseInt(String(m.employeeId).split('/')[0], 10) || 0;
@@ -3745,7 +3767,7 @@ function MembersPageInner() {
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
-      <TopBar title="People" subtitle={`Member Management · ${pageStats ? pageStats.activeCount.toLocaleString() : '—'} active lives`} />
+      <TopBar title="People" subtitle={`Staff & Dependants · ${pageStats ? pageStats.activeCount.toLocaleString() : '-'} active lives`} />
 
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -3768,7 +3790,7 @@ function MembersPageInner() {
                 key={c.label}
                 label={c.label}
                 sub={c.sub}
-                value={val != null ? val.toLocaleString() : '—'}
+                value={val != null ? val.toLocaleString() : '-'}
                 icon={c.Icon}
                 color={c.color}
                 tint={c.tint}
@@ -3783,7 +3805,7 @@ function MembersPageInner() {
         {/* Toolbar */}
         <div style={{ ...card, padding: '16px 20px' }}>
           {/* Tells HR what to do next when they arrive from the dashboard's
-              "Download E-card" action — an e-card belongs to one member, so a
+              "Download E-card" action: an e-card belongs to one member, so a
               member has to be chosen before the card can open. */}
           {ecardIntent && (
             <div style={{
@@ -3832,7 +3854,7 @@ function MembersPageInner() {
                     color: viewBeneficiaries === val ? '#131C4E' : '#9CA3B8',
                     boxShadow: viewBeneficiaries === val ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                   }}>
-                  {val ? 'All Beneficiaries' : 'Members'}
+                  {val ? 'All Beneficiaries' : 'Staff'}
                 </button>
               ))}
             </div>
@@ -3846,7 +3868,7 @@ function MembersPageInner() {
                 <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
                 <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
               </svg>
-              {refreshing ? 'Refreshing…' : 'Refresh'}
+              {refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
             <button onClick={() => exportToXls(filtered.map((m) => ({ 'Enrolee ID': m.employeeId, 'Staff ID': m.staffId ?? '', 'First Name': m.firstName, 'Last Name': m.lastName, 'Gender': m.gender, 'DOB': m.dateOfBirth, 'Phone': m.phone, 'Email': m.email, 'Plan': m.plan, 'Type': m.type, 'Status': m.status, 'Location': m.location })), 'members-export')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -3866,7 +3888,7 @@ function MembersPageInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 14 }}>
             <Users style={{ width: 18, height: 18, color: '#0284C7', flexShrink: 0 }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0C4A6E' }}>
-              All Beneficiaries View — {principalCount} active principals + {dependantCount} active dependants = {principalCount + dependantCount} active covered lives
+              All Beneficiaries View: {principalCount} active principals + {dependantCount} active dependants = {principalCount + dependantCount} active covered lives
             </span>
 
             <span style={{ fontSize: 12, color: '#38BDF8', marginLeft: 'auto' }}>Showing all covered lives including dependants</span>
@@ -3882,7 +3904,7 @@ function MembersPageInner() {
             setBulkBusy('Send Enrolee IDs');
             let sent = 0, skipped = 0;
             for (const m of selectedMembers) {
-              // The members list often doesn't carry email at all — fall
+              // The members list often doesn't carry email at all: fall
               // back to the live Prognosis profile before giving up on this
               // member, same fix already applied to the dependent-link forms.
               let email = m.email;
@@ -3903,7 +3925,7 @@ function MembersPageInner() {
               } catch { skipped++; }
             }
             setBulkBusy(null);
-            toast(`Sent to ${sent} member${sent !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — no email on file)` : ''}.`, sent ? 'success' : 'error');
+            toast(`Sent to ${sent} member${sent !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped: no email on file)` : ''}.`, sent ? 'success' : 'error');
           }
 
           function bulkExportList() {
@@ -3924,14 +3946,14 @@ function MembersPageInner() {
           const soloIsPrincipal = soloMember?.type === 'Principal';
 
           const actions: { label: string; Icon: typeof Plus; color: string; bg: string; border: string; enabled: boolean; disabledReason?: string; onClick?: () => void }[] = [
-            { label: 'Approve Additions', Icon: Plus, color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', enabled: hasPending, disabledReason: 'No pending members selected — use the Pending Enrolees page to approve.' },
+            { label: 'Approve Additions', Icon: Plus, color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', enabled: hasPending, disabledReason: 'No pending members selected. Use the Pending Enrolees page to approve.' },
             { label: 'Send Enrolee IDs', Icon: Send, color: '#3730A3', bg: '#EEF2FF', border: '#C7D2FE', enabled: true, onClick: bulkSendEnroleeIds },
             { label: 'Download E-Cards', Icon: CreditCard, color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD', enabled: true, onClick: bulkDownloadECards },
             { label: 'Export List', Icon: ArrowDownToLine, color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', enabled: true, onClick: bulkExportList },
             {
               label: 'Send Invite Links', Icon: Link2, color: '#D97706', bg: '#FFFBEB', border: '#FDE68A',
               enabled: !!soloMember && soloIsPrincipal,
-              disabledReason: soloMember ? 'Dependant invite links are per principal — select the staff member, not a dependant.' : 'Select exactly one staff member to send a dependant invite link.',
+              disabledReason: soloMember ? 'Dependant invite links are per principal. Select the staff member, not a dependant.' : 'Select exactly one staff member to send a dependant invite link.',
               onClick: soloMember ? () => setShowSoloInvite(soloMember) : undefined,
             },
             {
@@ -3963,7 +3985,7 @@ function MembersPageInner() {
                         border: `1px solid ${enabled ? border : '#EDEEF2'}`, background: enabled ? bg : '#F7F8FA', color: enabled ? color : '#C4C9D9',
                         cursor: disabled ? (enabled ? 'wait' : 'not-allowed') : 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.7 : 1,
                       }}>
-                      <Icon style={{ width: 13, height: 13 }} /> {busy ? `${label}…` : label}
+                      <Icon style={{ width: 13, height: 13 }} /> {busy ? `${label}...` : label}
                     </button>
                   );
                 })}
@@ -3980,7 +4002,7 @@ function MembersPageInner() {
             <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} title="Select all" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }} onClick={toggleAll} title="Click to select all">
               <span className="text-[10.5px] font-bold text-[#9CA3B8] uppercase tracking-widest select-none">
-                {viewBeneficiaries ? 'Beneficiary' : 'Member'}
+                {viewBeneficiaries ? 'Beneficiary' : 'Staff'}
               </span>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#C4C9D9', background: '#F0F1F5', padding: '1px 5px', borderRadius: 4, letterSpacing: '0.04em' }}>SELECT ALL</span>
             </div>
@@ -4011,14 +4033,14 @@ function MembersPageInner() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.02em',
                   }}>
-                    {`${(m.firstName || '').charAt(0)}${(m.lastName || '').charAt(0)}`.toUpperCase() || '—'}
+                    {`${(m.firstName || '').charAt(0)}${(m.lastName || '').charAt(0)}`.toUpperCase() || '-'}
                   </span>
                   {isDependant && viewBeneficiaries && (
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#6366F1', background: '#EEF2FF', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>DEP</span>
                   )}
                   <p className="text-[13px] font-semibold text-[#131C4E] truncate">{m.firstName} {m.lastName}</p>
                 </div>
-                <span className="text-[11px] text-[#131C4E] font-mono" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.staffId || undefined}>{m.staffId || '—'}</span>
+                <span className="text-[11px] text-[#131C4E] font-mono" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.staffId || undefined}>{m.staffId || '-'}</span>
                 <span className="text-[11px] text-[#131C4E] font-mono font-semibold" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.employeeId}</span>
                 <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: plan.bg, color: plan.text }}>{m.plan}</span>
                 <span className="text-[11px]" style={{ color: isDependant ? '#6366F1' : '#9CA3B8', fontWeight: isDependant ? 600 : 400 }}>{m.type}</span>
@@ -4034,7 +4056,7 @@ function MembersPageInner() {
                     </span>
                   </span>
                 ) : (
-                  <span style={{ fontSize: 11, color: '#C4C9D9' }}>—</span>
+                  <span style={{ fontSize: 11, color: '#C4C9D9' }}>-</span>
                 )}
                 <button
                   title="Open member"
@@ -4055,7 +4077,7 @@ function MembersPageInner() {
           {membersLoading && (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
               <div style={{ width: 32, height: 32, border: '3px solid #F0F1F5', borderTopColor: '#F56B22', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-              <p className="text-[13px] text-[#9CA3B8]">Loading members…</p>
+              <p className="text-[13px] text-[#9CA3B8]">Loading members...</p>
             </div>
           )}
           {!membersLoading && filtered.length === 0 && (
@@ -4072,7 +4094,7 @@ function MembersPageInner() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #F0F1F5', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
             <p className="text-[12px] text-[#9CA3B8]">
-              Showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length} {viewBeneficiaries ? 'beneficiaries' : 'members'}
+              Showing {safePage * PAGE_SIZE + 1}-{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length} {viewBeneficiaries ? 'beneficiaries' : 'staff'}
               {filtered.length < sourceList.length && ` (filtered from ${sourceList.length})`}
             </p>
             {totalPages > 1 && (
@@ -4115,7 +4137,7 @@ function MembersPageInner() {
           autoOpenECard={activeMember.autoOpenECard}
           // "View dependants" in the drawer. Dependants share the principal's
           // membership number and differ only by suffix, so searching the
-          // number without its suffix lists the whole family — but only once
+          // number without its suffix lists the whole family, but only once
           // the list is showing beneficiaries rather than principals only.
           onViewFamily={(membershipNo) => {
             setViewBeneficiaries(true);

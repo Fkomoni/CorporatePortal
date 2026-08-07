@@ -4,7 +4,7 @@
 // actually ready to enter it.
 //
 // Email authorisation is Prognosis's call (Company_Email1 via GetAllPolicies)
-// — but the OTP itself is generated and verified entirely by us, the same
+//, but the OTP itself is generated and verified entirely by us, the same
 // mechanism already used for login 2FA and Forgot Password. We stopped
 // depending on Prognosis's ClientUserRegistration for this: it's a stricter
 // "insured client" check that doesn't reliably recognise a freshly-changed
@@ -44,14 +44,14 @@ export async function POST(req: Request) {
 
   // Leadway password complexity policy
   if (password.length < 8)              return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 });
-  if (!/[A-Z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one uppercase letter (A–Z).' }, { status: 400 });
-  if (!/[a-z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one lowercase letter (a–z).' }, { status: 400 });
-  if (!/[0-9]/.test(password))          return NextResponse.json({ error: 'Password must include at least one number (0–9).' }, { status: 400 });
+  if (!/[A-Z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one uppercase letter (A-Z).' }, { status: 400 });
+  if (!/[a-z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one lowercase letter (a-z).' }, { status: 400 });
+  if (!/[0-9]/.test(password))          return NextResponse.json({ error: 'Password must include at least one number (0-9).' }, { status: 400 });
   if (!/[^A-Za-z0-9]/.test(password))  return NextResponse.json({ error: 'Password must include at least one special character.' }, { status: 400 });
 
   try {
     // Prognosis's Company_Email1 check only applies to the primary HR
-    // contact (role=hr_admin) — a colleague invited via Administration →
+    // contact (role=hr_admin): a colleague invited via Administration →
     // Invite User (Admin/HR Manager/Finance/Viewer) was never registered as
     // that contact with Prognosis, so this check would always wrongly
     // reject them. Same exemption already used in forgot-password.
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
 
     // A genuine CorporateUserSignUp confirms Prognosis now has this exact
     // password. If the account already existed there instead, force it into
-    // sync with a ChangePassword call — confirmed with Prognosis that
+    // sync with a ChangePassword call: confirmed with Prognosis that
     // OldPassword isn't actually verified, so this is safe even though we
     // don't know the account's real prior password.
     let prognosisSynced = !signup.alreadyExisted;

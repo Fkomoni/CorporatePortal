@@ -326,7 +326,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // Deduplicate by claim_id — API returns one row per procedure;
+    // Deduplicate by claim_id. API returns one row per procedure;
     // keep the row that has the most data (description preferred)
     const seen = new Map<string, LiveClaim>();
     for (const c of claims) {

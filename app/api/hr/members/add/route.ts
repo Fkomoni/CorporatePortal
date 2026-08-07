@@ -105,7 +105,7 @@ export async function POST(req: Request) {
   }
 
   // Cover may be backdated, but never earlier than the start of the group's
-  // current policy year, and HR must acknowledge the backdate warning first —
+  // current policy year, and HR must acknowledge the backdate warning first -
   // Leadway settles no claims incurred before the valid enrolment date.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isBackdated = !!body.startDate && new Date(body.startDate) < today;
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
   try {
     const token = await getServiceToken();
 
-    // Flag emails/mobiles already registered to another member in this group —
+    // Flag emails/mobiles already registered to another member in this group -
     // Prognosis's AddPrincipalOnly accepts duplicates silently, so check first.
     try {
       const clash = await findDuplicateContact(BASE, token, groupId, email, mobile);
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
     }
 
     // regionid is Prognosis's real field for state (GetStates returns
-    // {RegionID, RegionName} — "region" is Prognosis's word for state).
+    // {RegionID, RegionName}: "region" is Prognosis's word for state).
     // body.stateId is what the State dropdown actually sets; body.regionId
     // is only a fallback in case a caller already resolved it that way.
     const resolvedRegionId = body.regionId
@@ -163,7 +163,7 @@ export async function POST(req: Request) {
       titleid: 0,
       // Prognosis's confirmed AddPrincipalOnly/AddFamily shape uses "1" for
       // the principal's own Relationship_ID (previously sent as "30", which
-      // is a dependent-type relationship — corrected per their updated docs).
+      // is a dependent-type relationship: corrected per their updated docs).
       Relationship_ID: '1',
       EmailAdress: normalizeEmail(email),
       Home_Phone: '',
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
       registrationsource: 'Web Portal',
       NIN: body.nin ?? '',
       // HR is registering this member directly (not via a self-enrolment
-      // link) — the plan should be active immediately, not queued pending.
+      // link): the plan should be active immediately, not queued pending.
       Activated: true,
       startdate: body.startDate ?? '',
       ...(body.startDate ? { Fromdate: body.startDate, StartDate: body.startDate } : {}),
@@ -229,7 +229,7 @@ export async function POST(req: Request) {
     // Success requires at least an enrolleeId or Cif_Number
     if (!enrolleeId && !cifNumber) {
       console.error('[hr/members/add] No member ID in response:', text.slice(0, 500));
-      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed — no member ID returned. Please check with Leadway Health.' }, { status: 422 });
+      return NextResponse.json({ error: apiMessage || 'Enrolment may have failed: no member ID returned. Please check with Leadway Health.' }, { status: 422 });
     }
 
     // If CIF wasn't in the AddPrincipalOnly response, look it up via enrollee profile
@@ -250,7 +250,7 @@ export async function POST(req: Request) {
     }
 
     // Record this CIF as portal-sourced (with the true submission timestamp)
-    // regardless of whether auto-approve below succeeds — if it ever ends up
+    // regardless of whether auto-approve below succeeds: if it ever ends up
     // stuck in Pending Enrolees (e.g. auto-approve failed), this is what lets
     // that list show "Corporate Portal" instead of "Enrolee App" and the
     // actual registration date instead of Prognosis's plan-start-date field.
@@ -266,7 +266,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // HR-initiated registrations should not sit in Prognosis's pending queue —
+    // HR-initiated registrations should not sit in Prognosis's pending queue -
     // auto-approve immediately rather than waiting on manual insurer action.
     let autoApproved = false;
     let approveError: string | null = null;
@@ -282,7 +282,7 @@ export async function POST(req: Request) {
       autoApproved = approveResult.success;
       if (!approveResult.success) {
         approveError = approveResult.error ?? 'Unknown error';
-        // Loud: the member exists but is NOT approved, and HR must be told —
+        // Loud: the member exists but is NOT approved, and HR must be told -
         // this failing quietly is what previously hid a broken approval path.
         console.error(`[hr/members/add] Auto-approve FAILED for CIF ${cifNumber}: ${approveError}`);
       }

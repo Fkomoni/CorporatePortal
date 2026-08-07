@@ -85,7 +85,7 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
 
 function mapStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
   const s = raw.toLowerCase();
-  // Check termination/cancellation keywords FIRST — Prognosis's status text
+  // Check termination/cancellation keywords FIRST. Prognosis's status text
   // for a member mid-termination can read "Active - Pending Termination" or
   // similar, which contains "active" too. Checking that substring first
   // would misclassify an already-terminated-in-progress member as Active.
@@ -126,7 +126,7 @@ function classifyByRelationship(
   const s = raw.toLowerCase().trim();
   if (principalTexts.has(s)) return 'Principal';
   if (knownTexts.has(s)) return 'Dependant'; // known but not principal → dependant
-  return null; // not found in the list — fall back to other logic
+  return null; // not found in the list: fall back to other logic
 }
 
 function mapRow(
@@ -148,7 +148,7 @@ function mapRow(
   const status = mapStatus(str(row, 'MemberStatus_Desc', 'Status', 'MemberStatus', 'ActiveStatus', 'EnrolleeStatus', 'PolicyStatus'));
   const gender = mapGender(str(row, 'Member_Gender', 'Gender', 'Sex', 'GenderDesc'));
 
-  // Type classification — layered approach:
+  // Type classification: layered approach:
   // 1. ID suffix (most reliable): /0 = Principal, /1+ = Dependant
   // 2. Relationship field matched against GetBeneficiaryRelationship list
   // 3. Heuristic mapType() fallback
@@ -234,7 +234,7 @@ function inferCategory(row: Record<string, unknown>): string {
 }
 
 // Fallback source when GetGroupMembers/GetGroupPremium return no rows for a
-// group (confirmed to happen for some groups, e.g. group 2697) — this
+// group (confirmed to happen for some groups, e.g. group 2697): this
 // endpoint is confirmed working for those same groups via raw dumps.
 // Confirmed real fields: cif_number, Enrolleeid, firstname, surname,
 // Member_DateOfBirth, IsDependant, parentcif, EmailAdress, Phone, Gender,
@@ -292,7 +292,7 @@ function mapFallbackRow(row: Record<string, unknown>, index: number): Member {
   };
 }
 
-// Counts members genuinely awaiting HR activation — the "Pending Additions"
+// Counts members genuinely awaiting HR activation: the "Pending Additions"
 // tile previously derived this from the active/inactive member list, which
 // can never contain a "Pending" row, so it always showed 0. This is the
 // same endpoint the Pending Enrolees page uses.
@@ -398,7 +398,7 @@ export async function GET(req: Request) {
     const claimRows   = skipClaims ? [] : toRows(claimsRaw);
 
     // GetGroupMembers/GetGroupPremium return zero rows for some groups even
-    // though they have active members (confirmed for group 2697) — fall back
+    // though they have active members (confirmed for group 2697): fall back
     // to the confirmed-working ClientPlanBeneficiariesNoPagitation endpoint.
     let fallbackRows: Record<string, unknown>[] = [];
     let usedFallback = false;
@@ -408,11 +408,11 @@ export async function GET(req: Request) {
       console.log(`[hr/members] groupId=${groupId} GetGroupMembers/GetGroupPremium empty, fallback rows=${fallbackRows.length}`);
     }
 
-    // GetGroupMembers/GetGroupPremium are active-roster/billing sources — they
+    // GetGroupMembers/GetGroupPremium are active-roster/billing sources: they
     // never carry terminated members at all, so a terminated member simply
     // vanished from this list with no way for HR to ever see them again.
     // ClientPlanBeneficiariesNoPagitation?memberstatus=inactive is confirmed
-    // to return them — always fetch it and merge in below.
+    // to return them: always fetch it and merge in below.
     let terminatedRows: Record<string, unknown>[] = [];
     if (!usedFallback) {
       try {
@@ -429,7 +429,7 @@ export async function GET(req: Request) {
       if (eid && !premiumByEnrollee.has(eid)) premiumByEnrollee.set(eid, r);
     }
 
-    // ── Build per-member claim stats ──────────────────────────────────────
+    //  Build per-member claim stats
     const thisYear = new Date().getFullYear();
     const memberStatsMap: Record<string, MemberStats> = {};
 
@@ -491,7 +491,7 @@ export async function GET(req: Request) {
     }
 
     // Claims rows are keyed by bare MembershipNo/CifNo, but members are keyed by
-    // employeeId in "MembershipNo/Suffix" form (e.g. "21000097/0") — without this,
+    // employeeId in "MembershipNo/Suffix" form (e.g. "21000097/0"): without this,
     // the lookup in the UI always misses and Utilization/Claim History show empty
     // even when claims exist. Mirror both directions so either form resolves.
     for (const [key, ms] of Object.entries({ ...memberStatsMap })) {
@@ -504,8 +504,8 @@ export async function GET(req: Request) {
       }
     }
 
-    // ── Map member rows to Member objects ─────────────────────────────────
-    // GetGroupPremium is the primary source — it has the confirmed field names
+    //  Map member rows to Member objects
+    // GetGroupPremium is the primary source: it has the confirmed field names
     // (Member_EnrolleeID, Member_CustomerName, Member_Relationship, etc.)
     // GetGroupMembers is used only as enrichment for extra fields (phone, email)
     // when available and the enrollee IDs match.
@@ -540,7 +540,7 @@ export async function GET(req: Request) {
         return base;
       });
 
-    // Merge in terminated members fetched separately above — primary/premium
+    // Merge in terminated members fetched separately above: primary/premium
     // sources never carry them, so without this they'd never appear here at
     // all regardless of the Status filter. Dedup below prefers whichever
     // record already exists over this one only when the existing one is
@@ -550,7 +550,7 @@ export async function GET(req: Request) {
       members.push(...terminatedRows.map((row, i) => mapFallbackRow(row, i)));
     }
 
-    // Dedupe by enrolleeId — GetGroupPremium can return multiple rows per member
+    // Dedupe by enrolleeId. GetGroupPremium can return multiple rows per member
     // (e.g. one per renewal/premium period), which otherwise renders as duplicate
     // rows sharing the same id/key and breaks client-side filtering/list rendering.
     // Keep the Active record when duplicates disagree on status, else the last one seen.

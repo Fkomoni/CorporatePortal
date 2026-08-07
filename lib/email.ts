@@ -1,4 +1,4 @@
-// Email validation, in one place — used by every form that collects an address
+// Email validation, in one place: used by every form that collects an address
 // and every route that forwards one to Prognosis or sends mail to it.
 //
 // Prognosis stores whatever it is given without complaint: production already
@@ -13,7 +13,7 @@
 // "user@localhost") without trying to out-lawyer the RFC.
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[A-Za-z]{2,}$/;
 
-/** Trim and lowercase — Prognosis is case-sensitive when matching duplicates. */
+/** Trim and lowercase. Prognosis is case-sensitive when matching duplicates. */
 export function normalizeEmail(value: unknown): string {
   return String(value ?? '').trim().toLowerCase();
 }

@@ -64,7 +64,7 @@ const FILTER_KEYS: Record<SourceKey, { date: string; plan?: string }> = {
 
 const LAST_RUN_KEY = 'reports:lastRun';
 
-/** Accepts ISO, dd/mm/yyyy and "12 Jun 2026" — all appear across our sources. */
+/** Accepts ISO, dd/mm/yyyy and "12 Jun 2026": all appear across our sources. */
 function toTime(value: unknown): number | null {
   const s = String(value ?? '').trim();
   if (!s) return null;
@@ -96,7 +96,7 @@ export default function ReportsPage() {
 
   useEffect(() => { setVis(getVis('reports')); }, []);
 
-  // Scheme Health Score + underwriting detail — both relocated here from the
+  // Scheme Health Score + underwriting detail: both relocated here from the
   // dashboard when it was redesigned. dashboard-stats is served from a short
   // server-side cache, so this costs no extra upstream calls.
   const [health, setHealth] = useState<{ score: number; label: string; trendLabel: string | null } | null>(null);
@@ -171,7 +171,7 @@ export default function ReportsPage() {
     });
   }, []);
 
-  /** Fetches a source and applies the *applied* filters — the ones behind the
+  /** Fetches a source and applies the *applied* filters: the ones behind the
    *  Apply Filters button, not whatever is mid-edit in the inputs. */
   const loadRows = useCallback(async (source: SourceKey): Promise<Row[] | null> => {
     const url = source === 'members' ? '/api/hr/members?skipClaims=1' : '/api/hr/claims';
@@ -185,7 +185,7 @@ export default function ReportsPage() {
     const toT = appliedFilters.to ? new Date(appliedFilters.to).getTime() + 86_399_999 : null;
 
     return raw.filter((r) => {
-      // Rows with no usable date are kept rather than silently dropped — losing
+      // Rows with no usable date are kept rather than silently dropped: losing
       // them would understate the report without saying so.
       const t = toTime(r[keys.date]);
       if (t != null) {
@@ -203,7 +203,7 @@ export default function ReportsPage() {
   };
 
   const filterMeta = () => {
-    const m = [`Period: ${appliedFilters.from || '—'} to ${appliedFilters.to || '—'}`];
+    const m = [`Period: ${appliedFilters.from || '-'} to ${appliedFilters.to || '-'}`];
     if (appliedFilters.plan) m.push(`Plan: ${appliedFilters.plan}`);
     return m;
   };
@@ -216,7 +216,7 @@ export default function ReportsPage() {
       const rows = await loadRows(def.source);
       if (!rows) return;
       if (rows.length === 0) {
-        toast('No rows matched the selected period and plan — adjust the filters and try again.', 'info');
+        toast('No rows matched the selected period and plan: adjust the filters and try again.', 'info');
         return;
       }
       const out = project(rows, def.source);
@@ -244,7 +244,7 @@ export default function ReportsPage() {
       const rows = await loadRows(builderSource);
       if (!rows) return;
       if (rows.length === 0) {
-        toast('No rows matched the selected period and plan — adjust the filters and try again.', 'info');
+        toast('No rows matched the selected period and plan: adjust the filters and try again.', 'info');
         return;
       }
       const out = project(rows, builderSource, builderCols);
@@ -288,7 +288,7 @@ export default function ReportsPage() {
 
       <div style={{ padding: '8px 30px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* Scheme Health Score — the composite loss-ratio/COR/utilization score */}
+        {/* Scheme Health Score: the composite loss-ratio/COR/utilization score */}
         {health && (() => {
           const hsColor = health.label === 'Excellent' || health.label === 'Healthy' ? '#10B981'
             : health.label === 'Watchlist' ? '#D97706'
@@ -310,13 +310,13 @@ export default function ReportsPage() {
                 <div style={{ height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
                   <div style={{ width: `${health.score}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg,${hsColor === '#10B981' ? '#10B981,#34D399' : hsColor === '#D97706' ? '#F59E0B,#FCD34D' : '#F56B22,#FF8C4B'})` }} />
                 </div>
-                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{health.trendLabel ?? 'Building trend data…'}</p>
+                <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{health.trendLabel ?? 'Building trend data...'}</p>
               </div>
             </div>
           );
         })()}
 
-        {/* Underwriting performance — the loss-ratio detail the dashboard's
+        {/* Underwriting performance: the loss-ratio detail the dashboard's
             redesigned KPI row no longer carries. */}
         {underwriting && underwriting.lossRatioPct !== null && (() => {
           const u = underwriting;
@@ -325,7 +325,7 @@ export default function ReportsPage() {
           const lrBg     = rs === 'Healthy' ? '#ECFDF5' : rs === 'Watchlist' ? '#FFFBEB' : '#FEF2F2';
           const lrBorder = rs === 'Healthy' ? '#A7F3D0' : rs === 'Watchlist' ? '#FDE68A' : '#FECACA';
           const fmtN = (v: number | null) => {
-            if (v === null) return '—';
+            if (v === null) return '-';
             if (v >= 1_000_000_000) return `₦${(Math.floor(v / 100_000_000) / 10).toFixed(1)}B`;
             if (v >= 1_000_000) return `₦${(Math.floor(v / 100_000) / 10).toFixed(1)}M`;
             if (v >= 1_000) return `₦${Math.floor(v / 1_000).toFixed(0)}K`;
@@ -345,7 +345,7 @@ export default function ReportsPage() {
                   <div>
                     <p style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 500, marginBottom: 6 }}>Combined Operating Ratio</p>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                      <span style={{ fontSize: 34, fontWeight: 900, color: u.cor !== null ? lrColor : '#C4C9D9', letterSpacing: '-0.03em', lineHeight: 1 }}>{u.cor ?? '—'}</span>
+                      <span style={{ fontSize: 34, fontWeight: 900, color: u.cor !== null ? lrColor : '#C4C9D9', letterSpacing: '-0.03em', lineHeight: 1 }}>{u.cor ?? '-'}</span>
                       {u.cor !== null && <span style={{ fontSize: 18, fontWeight: 700, color: lrColor }}>%</span>}
                     </div>
                   </div>
@@ -375,7 +375,7 @@ export default function ReportsPage() {
               <div style={{ display: 'flex', gap: 24 }}>
                 {[
                   { label: 'Green', range: '<70%', color: '#059669' },
-                  { label: 'Amber', range: '70–90%', color: '#D97706' },
+                  { label: 'Amber', range: '70-90%', color: '#D97706' },
                   { label: 'Red', range: '>90%', color: '#DC2626' },
                 ].map((l) => (
                   <span key={l.label} style={{ fontSize: 11, fontWeight: 600, color: l.color }}>
@@ -434,7 +434,7 @@ export default function ReportsPage() {
 
           {dirty && (
             <p style={{ fontSize: 11.5, color: '#D97706', marginTop: 10 }}>
-              Filters changed — press Apply Filters so exports use them.
+              Filters changed. Press Apply Filters so exports use them.
             </p>
           )}
         </div>
@@ -590,7 +590,7 @@ export default function ReportsPage() {
                     cursor: builderBusy || builderCols.length === 0 ? 'not-allowed' : 'pointer',
                     opacity: builderCols.length === 0 ? 0.6 : 1,
                   }}>
-                  <FileSpreadsheet style={{ width: 15, height: 15 }} /> {builderBusy ? 'Building…' : 'Export XLS'}
+                  <FileSpreadsheet style={{ width: 15, height: 15 }} /> {builderBusy ? 'Building...' : 'Export XLS'}
                 </button>
                 <button
                   onClick={() => runCustom('pdf')}
@@ -602,7 +602,7 @@ export default function ReportsPage() {
                     cursor: builderBusy || builderCols.length === 0 ? 'not-allowed' : 'pointer',
                     opacity: builderCols.length === 0 ? 0.6 : 1,
                   }}>
-                  <FileText style={{ width: 15, height: 15 }} /> {builderBusy ? 'Building…' : 'Export PDF'}
+                  <FileText style={{ width: 15, height: 15 }} /> {builderBusy ? 'Building...' : 'Export PDF'}
                 </button>
                 <p style={{ fontSize: 11.5, color: '#9CA3B8' }}>
                   Uses the period and plan applied above.

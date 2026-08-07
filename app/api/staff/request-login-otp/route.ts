@@ -1,8 +1,8 @@
 // Step 1 of internal staff sign-in: validates the Leadway email/AD password
 // against Prognosis and sends the 2FA OTP. The actual session is only ever
 // granted by NextAuth's staff-credentials authorize() (see auth.ts), which
-// re-validates everything here — this route exists purely to surface the
-// linked-clients list (which may be empty — the general staff console is
+// re-validates everything here: this route exists purely to surface the
+// linked-clients list (which may be empty: the general staff console is
 // always reachable regardless) and trigger the OTP before that final step.
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid credentials. Please check your Leadway staff email and password.' }, { status: 401 });
     }
 
-    // A valid Leadway AD login is not enough on its own — the account must
+    // A valid Leadway AD login is not enough on its own: the account must
     // also have been explicitly enabled for this portal by an admin
     // (/admin/staff-access). Never auto-create or auto-enable here.
     const staffUser = await prisma.staffUser.findUnique({ where: { email: staff.email } });
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     const clients = await prisma.staffClientAccess.findMany({ where: { staffEmail: staff.email } });
 
-    // Recognized device — skip sending an OTP entirely; the final sign-in
+    // Recognized device: skip sending an OTP entirely; the final sign-in
     // step re-checks trust server-side rather than trusting this response.
     if (await isDeviceTrusted(staffUser.id)) {
       return NextResponse.json({

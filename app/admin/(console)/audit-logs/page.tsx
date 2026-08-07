@@ -102,7 +102,7 @@ export default function AuditLogsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') load(0); }}
-            placeholder="Search by user, company, action…"
+            placeholder="Search by user, company, action..."
             style={{ width: '100%', height: 38, padding: '0 14px 0 34px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 20, background: '#fff', outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
@@ -122,7 +122,7 @@ export default function AuditLogsPage() {
           Refresh
         </button>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9CA3B8', alignSelf: 'center' }}>
-          {loading ? 'Loading…' : `${total.toLocaleString()} event${total !== 1 ? 's' : ''}`}
+          {loading ? 'Loading...' : `${total.toLocaleString()} event${total !== 1 ? 's' : ''}`}
         </span>
       </div>
 
@@ -139,7 +139,7 @@ export default function AuditLogsPage() {
         </div>
 
         {loading ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3B8', fontSize: 13 }}>Loading audit logs…</div>
+          <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3B8', fontSize: 13 }}>Loading audit logs...</div>
         ) : logs.length === 0 ? (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <ClipboardList style={{ width: 32, height: 32, margin: '0 auto 12px', color: '#E5E7F1' }} />
@@ -180,7 +180,7 @@ export default function AuditLogsPage() {
               <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '170px 140px minmax(0,1fr) 150px 130px', columnGap: 12, alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #F7F8FA' }}>
                 <span style={{ fontSize: 11, color: '#9CA3B8', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(log.timestamp)}</span>
                 <div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.companyName || '—'}</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.companyName || '-'}</p>
                   <p style={{ fontSize: 10, color: '#B0B7C9', marginTop: 1 }}>{log.loginType === 'hr' ? 'HR' : 'Staff'}</p>
                 </div>
                 <div>

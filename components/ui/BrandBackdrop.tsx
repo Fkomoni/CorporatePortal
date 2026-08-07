@@ -1,19 +1,19 @@
 // Enterprise backdrop for the sign-in panel.
 //
 // No photography and no illustration: five very-low-opacity layers that read as
-// depth rather than decoration — a mesh gradient, an analytics grid, geometric
+// depth rather than decoration: a mesh gradient, an analytics grid, geometric
 // waves, an abstract care-network of nodes, and a glass highlight. The mesh
 // drifts slowly (see `bd-drift` in globals.css); everything else is static so
 // the panel never competes with the copy on top of it.
 //
 // Opacities here are deliberately low. Raising them turns a premium backdrop
-// into a busy one — an earlier attempt with visible tiled "windows" read as a
+// into a busy one: an earlier attempt with visible tiled "windows" read as a
 // repeating mesh and had to be pulled.
 
 export function BrandBackdrop() {
   return (
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      {/* 1 — Mesh gradient. Three offset radial pools, slowly drifting. */}
+      {/* 1. Mesh gradient. Three offset radial pools, slowly drifting. */}
       <div
         className="bd-drift"
         style={{
@@ -26,7 +26,7 @@ export function BrandBackdrop() {
         }}
       />
 
-      {/* 2 — Analytics grid. Fine 44px rule, faded out toward the lower left so
+      {/* 2. Analytics grid. Fine 44px rule, faded out toward the lower left so
               it never sits behind the headline. */}
       <div style={{
         position: 'absolute', inset: 0, opacity: 0.5,
@@ -57,12 +57,12 @@ export function BrandBackdrop() {
           </radialGradient>
         </defs>
 
-        {/* 3 — Geometric waves, bottom-anchored */}
+        {/* 3. Geometric waves, bottom-anchored */}
         <path d="M0,900 C160,812 300,742 600,690 L600,900 Z" fill="url(#bd-wave)" />
         <path d="M0,900 C190,846 360,806 600,772 L600,900 Z" fill="url(#bd-wave-2)" />
         <path d="M0,832 C170,760 320,700 600,652" fill="none" stroke="#E87722" strokeOpacity="0.16" strokeWidth="1" />
 
-        {/* 4 — Abstract care network: nodes joined by thin links */}
+        {/* 4. Abstract care network: nodes joined by thin links */}
         <g stroke="#9FB4E8" strokeOpacity="0.16" strokeWidth="0.9" fill="none">
           <path d="M104,190 L196,142 L286,196 L372,150 L470,206" />
           <path d="M196,142 L214,246 L286,196" />
@@ -80,7 +80,7 @@ export function BrandBackdrop() {
           <circle cx="330" cy="300" r="3.4" />
         </g>
 
-        {/* 5 — Glass highlight, upper right */}
+        {/* 5. Glass highlight, upper right */}
         <ellipse cx="500" cy="120" rx="230" ry="180" fill="url(#bd-glass)" />
       </svg>
     </div>

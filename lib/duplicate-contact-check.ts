@@ -1,5 +1,5 @@
 // Flags emails/mobiles already registered to another member in the same
-// group before calling AddPrincipalOnly/AddDependentsOnly — Prognosis
+// group before calling AddPrincipalOnly/AddDependentsOnly. Prognosis
 // accepts duplicate contact info silently, so this is our only guard.
 //
 // Confirmed via a raw dump of CorporateProfile/ClientPlanBeneficiariesNoPagitation
@@ -16,7 +16,7 @@ function normEmail(v: unknown): string {
 
 // Phone numbers in this data show up in wildly different formats for the same
 // number (e.g. "07047704146", "+2347031779870", "704 770 4346", " 09169972771")
-// — normalize to bare digits with the leading 0/234 stripped so they compare
+//: normalize to bare digits with the leading 0/234 stripped so they compare
 // equal regardless of how each was originally entered.
 function normPhone(v: unknown): string {
   const digits = String(v ?? '').replace(/\D/g, '');
@@ -48,7 +48,7 @@ async function fetchBeneficiaries(base: string, token: string, groupId: string, 
       : Array.isArray(raw) ? raw as Record<string, unknown>[] : [];
 }
 
-// A contact already used by ANY member — active or inactive — must be
+// A contact already used by ANY member, active or inactive, must be
 // treated as taken: an inactive/terminated principal's record still exists
 // in Prognosis and re-enrolling their old email/phone under a new person
 // would collide with (or resurrect confusion around) that old record.

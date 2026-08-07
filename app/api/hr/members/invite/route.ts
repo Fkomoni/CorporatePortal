@@ -61,7 +61,7 @@ async function sendPrognosisEmail(token: string, to: string, subject: string, ht
   try { raw = JSON.parse(text); } catch { raw = text; }
   const r = raw as Record<string, unknown>;
   // Prognosis can return HTTP 200 with a logical failure embedded in the
-  // body — never trust res.ok alone.
+  // body: never trust res.ok alone.
   const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
   const apiMessage = String(r?.message ?? r?.Message ?? '');
   if (!res.ok || (apiStatus && !['success', '200', 'ok', 'true'].includes(apiStatus))) {
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
   if (!email || !employeeCode || !schemeId) {
     return NextResponse.json({ error: 'email, employeeCode and schemeId are required' }, { status: 400 });
   }
-  // The whole point of an invitation is that it lands in an inbox — a malformed
+  // The whole point of an invitation is that it lands in an inbox: a malformed
   // address means the staff member silently never receives their link.
   const emailErr = validateEmail(email, { required: true, label: 'Staff email' });
   if (emailErr) return NextResponse.json({ error: emailErr }, { status: 400 });
@@ -148,8 +148,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This staff member has already enrolled via an invitation link.' }, { status: 409 });
     }
 
-    // A contact already tied to any member in this group — active or
-    // inactive — must not be reused for a new principal invite.
+    // A contact already tied to any member in this group, active or
+    // inactive, must not be reused for a new principal invite.
     try {
       const token = await getServiceToken();
       const clash = await findDuplicateContact(BASE, token, groupId, email, '');
@@ -188,8 +188,8 @@ export async function POST(req: Request) {
 
   const isDependent = inviteType === 'dependent';
   const subject = isDependent
-    ? 'Leadway Health — Add Your Dependants'
-    : 'Leadway Health — Complete Your Health Insurance Enrolment';
+    ? 'Leadway Health, Add Your Dependants'
+    : 'Leadway Health, Complete Your Health Insurance Enrolment';
 
   const html = renderEmailTemplate({
     category: 'Enrolment',
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
     headline: isDependent ? 'Add Your Dependants' : 'Complete Your Enrolment',
     body: isDependent
       ? `Your HR team has sent you a link to add your dependants (spouse, children, etc.) to your <strong style="color:#131C4E;">${schemeName}</strong> health insurance plan.`
-      : `Your HR team has invited you to enrol on the <strong style="color:#131C4E;">${schemeName}</strong> health insurance plan. Click the button below to complete your enrolment — it only takes a few minutes.`,
+      : `Your HR team has invited you to enrol on the <strong style="color:#131C4E;">${schemeName}</strong> health insurance plan. Click the button below to complete your enrolment: it only takes a few minutes.`,
     highlight: `
       <div style="text-align:center;margin-bottom:16px;">
         <a href="${url}" style="display:inline-block;background:linear-gradient(135deg,#F56B22,#FF8C4B);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:10px;letter-spacing:0.02em;">

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ShieldCheck, Building2, BarChart3, Users, LayoutGrid, Briefcase } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 type Stage = 'credentials' | 'otp';
 type Destination = 'console' | 'client';
@@ -11,6 +12,7 @@ type Destination = 'console' | 'client';
 interface ClientOption { companyId: string; companyName: string | null }
 
 export default function StaffLoginPage() {
+  const { toast } = useToast();
   const [stage, setStage] = useState<Stage>('credentials');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -81,11 +83,18 @@ export default function StaffLoginPage() {
     }
 
     if (rememberDevice) {
+      // Sign-in has already succeeded, so a failure here must not block it: but
+      // it was only logged to the console, which meant the user was told nothing
+      // and simply got asked for a code again next time.
       try {
         const trustRes = await fetch('/api/staff/trust-device', { method: 'POST' });
-        if (!trustRes.ok) console.error('[login] trust-device call failed', trustRes.status, await trustRes.text());
+        if (!trustRes.ok) {
+          console.error('[login] trust-device call failed', trustRes.status, await trustRes.text());
+          toast('Signed in, but this device could not be remembered. You will be asked for a code next time.', 'info');
+        }
       } catch (err) {
         console.error('[login] trust-device call errored', err);
+        toast('Signed in, but this device could not be remembered. You will be asked for a code next time.', 'info');
       }
     }
 
@@ -106,7 +115,7 @@ export default function StaffLoginPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'inherit' }}>
 
-      {/* ── Left panel ── */}
+      {/*  Left panel  */}
       <div
         style={{
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
@@ -161,7 +170,7 @@ export default function StaffLoginPage() {
         <p style={{ fontSize: 11, color: '#3A4382' }}>© 2026 Leadway Health Limited. All rights reserved.</p>
       </div>
 
-      {/* ── Right panel ── */}
+      {/*  Right panel  */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: 32 }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
 
@@ -246,7 +255,7 @@ export default function StaffLoginPage() {
                     <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  Verifying…
+                  Verifying...
                 </>
               ) : 'Continue →'}
             </button>
@@ -324,7 +333,7 @@ export default function StaffLoginPage() {
                     </p>
                     <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}
                       style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' }}>
-                      <option value="">Select a client…</option>
+                      <option value="">Select a client...</option>
                       {clients.map((c) => (
                         <option key={c.companyId} value={c.companyId}>{c.companyName || c.companyId}</option>
                       ))}
@@ -356,7 +365,7 @@ export default function StaffLoginPage() {
                     <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  Signing in…
+                  Signing in...
                 </>
               ) : 'Sign in to Corporate Portal →'}
             </button>

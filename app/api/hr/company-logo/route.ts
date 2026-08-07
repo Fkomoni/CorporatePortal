@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid image data.' }, { status: 400 });
   }
   if (logoDataUrl.length > MAX_DATA_URL_LENGTH) {
-    return NextResponse.json({ error: 'Logo is too large — please use an image under 300 KB.' }, { status: 413 });
+    return NextResponse.json({ error: 'Logo is too large. Please use an image under 300 KB.' }, { status: 413 });
   }
 
   await prisma.companyBranding.upsert({

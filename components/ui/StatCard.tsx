@@ -5,12 +5,12 @@
 //
 // `trend` is optional on purpose. Several of these metrics have no history
 // stored anywhere yet (member counts, for instance), and drawing an invented
-// line next to a real figure would imply a trend nobody measured — so when
+// line next to a real figure would imply a trend nobody measured: so when
 // there's no series the card simply renders without one.
 export interface StatCardProps {
   label: string;
   sub?: string;
-  /** Colour for the sub line — used when it carries a delta or status tone. */
+  /** Colour for the sub line: used when it carries a delta or status tone. */
   subColor?: string;
   /** Pre-formatted so callers control currency, thousands separators and dashes. */
   value: string;
@@ -90,7 +90,7 @@ export function StatCard({
 
         <div style={{ flex: '1 1 0%', minWidth: 0 }}>
           <p style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            {loading ? '…' : value}
+            {loading ? '...' : value}
           </p>
           <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginTop: 5 }} className="truncate">{label}</p>
           {sub && (

@@ -86,7 +86,7 @@ export async function POST(req: Request) {
   try {
     const token = await getServiceToken();
 
-    // Flag emails/mobiles already registered to another member in this group —
+    // Flag emails/mobiles already registered to another member in this group -
     // Prognosis's AddDependentsOnly accepts duplicates silently, so check first.
     try {
       for (const dep of dependents) {
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     }
 
     // Dedup against the principal's existing family by date of birth, and
-    // enforce the scheme's max family size — both checked here because
+    // enforce the scheme's max family size: both checked here because
     // AddDependentsOnly doesn't validate either itself.
     try {
       const family = await getPrincipalFamily(BASE, token, groupId, String(parentCif));
@@ -173,7 +173,7 @@ export async function POST(req: Request) {
       EnrolleePictureType: dep.enrolleePictureType ?? '',
       NIN: dep.nin ?? '',
       // HR is adding this dependant directly (not via a self-enrolment
-      // link) — the plan should be active immediately, not queued pending.
+      // link): the plan should be active immediately, not queued pending.
       Activated: true,
     }));
 
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: apiMessage || `Failed (${apiStatus})` }, { status: 422 });
     }
 
-    // Normalise response — Prognosis returns array under data[]
+    // Normalise response. Prognosis returns array under data[]
     const dataArr = Array.isArray(r?.data) ? (r.data as Record<string, unknown>[]) : [];
     const enrolled = dataArr.map((d) => {
       const membershipNo = String(d?.MembershipNo ?? d?.membershipNo ?? '');
@@ -220,7 +220,7 @@ export async function POST(req: Request) {
     });
 
     // Record each CIF as portal-sourced (true submission timestamp) regardless
-    // of auto-approve outcome — see add/route.ts for why this matters if it
+    // of auto-approve outcome. See add/route.ts for why this matters if it
     // ends up stuck in Pending Enrolees.
     for (const dep of enrolled) {
       if (!dep.cifNumber) continue;
@@ -235,7 +235,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // HR-initiated registrations should not sit in Prognosis's pending queue —
+    // HR-initiated registrations should not sit in Prognosis's pending queue -
     // auto-approve immediately rather than waiting on manual insurer action.
     // ApproveEnrollees operates on each beneficiary's own CIF, not the family's
     // parentCif, so every newly added dependant must be approved individually.

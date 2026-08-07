@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 <body style="margin:0;padding:0;background:#F7F8FC;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
     <div style="background:linear-gradient(135deg,#131C4E,#3A4382);padding:32px 40px;">
-      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.7);">Leadway Health — Corporate Portal</p>
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.7);">Leadway Health. Corporate Portal</p>
       <p style="margin:0;font-size:22px;font-weight:800;color:#fff;">Pre-employment Screening Request</p>
     </div>
 
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
 </body>
 </html>`;
 
-  const subject = `Pre-employment Screening Request — ${body.candidateName} [${companyName}]`;
+  const subject = `Pre-employment Screening Request: ${body.candidateName} [${companyName}]`;
 
   try {
     const token = await getServiceToken();

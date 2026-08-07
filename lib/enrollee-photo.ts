@@ -18,7 +18,7 @@ function str(obj: Record<string, unknown>, ...keys: string[]): string {
 export interface ResolvedPhoto {
   photo: string | null;
   photoType: string;
-  /** Which field it came from — useful in logs when a photo doesn't show up. */
+  /** Which field it came from: useful in logs when a photo doesn't show up. */
   source: string;
 }
 

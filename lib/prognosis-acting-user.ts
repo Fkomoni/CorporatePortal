@@ -2,7 +2,7 @@
 //
 // Prognosis validates the `useremail` field on ApproveEnrollees,
 // RejectEnrollees and TerminateMember against its OWN user list, and refuses
-// anything it doesn't know with "Invalid user." — including HR logins that are
+// anything it doesn't know with "Invalid user.": including HR logins that are
 // perfectly valid on our side. Probing with a nonexistent CIF, so useremail is
 // judged in isolation, showed:
 //

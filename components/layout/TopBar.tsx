@@ -24,7 +24,7 @@ export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
   const initials = userName
     .split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
-  // ⌘K / Ctrl-K focuses search — the shortcut the field advertises, so it has to
+  // ⌘K / Ctrl-K focuses search: the shortcut the field advertises, so it has to
   // actually work.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,7 +68,7 @@ export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
       <div className="flex items-center" style={{ gap: 10 }}>
         <form onSubmit={submitSearch} className="relative hidden sm:block">
           {/* A real submit button, not a decorative icon. It looks like the
-              obvious way to run the search, so it has to actually do it —
+              obvious way to run the search, so it has to actually do it -
               pressing Enter was previously the only way. */}
           <button
             type="submit"
@@ -85,7 +85,7 @@ export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search members, ID or phone…"
+            placeholder="Search members, ID or phone..."
             style={{
               height: 42, width: 320, paddingLeft: 40, paddingRight: 58,
               fontSize: 13, borderRadius: 12, border: '1px solid #EDEEF2',

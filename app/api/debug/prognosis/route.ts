@@ -48,7 +48,7 @@ export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // groupId comes from the session (HR user's companyId) — never hardcoded.
+  // groupId comes from the session (HR user's companyId): never hardcoded.
   // Staff/admin can override via ?groupId= for debugging only.
   const { searchParams } = new URL(req.url);
   const sessionGroupId = session.user.companyId;

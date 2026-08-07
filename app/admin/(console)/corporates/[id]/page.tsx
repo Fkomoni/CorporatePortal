@@ -42,7 +42,7 @@ const initRoles: Role[] = [
 ];
 
 const fmtDate = (d: string) => {
-  if (!d) return '—';
+  if (!d) return '-';
   const dt = new Date(d);
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
 };
@@ -107,7 +107,7 @@ export default function CorporateDetailPage() {
   const [hrAccessLoading, setHrAccessLoading] = useState(false);
   const [hrAccessError, setHrAccessError]     = useState('');
 
-  // Dashboard notice — the announcement bar HR sees on their Overview page.
+  // Dashboard notice: the announcement bar HR sees on their Overview page.
   const [noticeDraft, setNoticeDraft]   = useState('');
   const [noticeSaved, setNoticeSaved]   = useState('');
   const [noticeBusy, setNoticeBusy]     = useState(false);
@@ -238,7 +238,7 @@ export default function CorporateDetailPage() {
     Inactive: { bg: '#F9FAFB', text: '#6B7280', dot: '#9CA3AF' },
   };
 
-  // ── Loading ──
+  //  Loading
   if (loading) {
     return (
       <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -260,7 +260,7 @@ export default function CorporateDetailPage() {
     );
   }
 
-  // ── Not found ──
+  //  Not found
   if (notFound || !corp) {
     return (
       <div style={{ padding: 48, textAlign: 'center' }}>
@@ -315,7 +315,7 @@ export default function CorporateDetailPage() {
       } else {
         setShowEmailToast({ ok: true, msg: `Signup email sent to ${signupEmail}` });
         setTimeout(() => setShowEmailToast(null), 4000);
-        // Keep modal open to show registration link and debug response — staff can close it
+        // Keep modal open to show registration link and debug response: staff can close it
       }
     } catch {
       setSignupError('Network error. Please try again.');
@@ -385,8 +385,8 @@ export default function CorporateDetailPage() {
                 <button onClick={toggleHrAccess} disabled={hrAccessLoading}
                   style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, border: corp.hrAccountActive ? '1px solid #FECACA' : '1px solid #A7F3D0', borderRadius: 14, background: corp.hrAccountActive ? '#FEF2F2' : '#ECFDF5', color: corp.hrAccountActive ? '#DC2626' : '#059669', cursor: hrAccessLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
                   {corp.hrAccountActive
-                    ? <><ShieldOff style={{ width: 14, height: 14 }} /> {hrAccessLoading ? 'Revoking…' : 'Revoke HR Access'}</>
-                    : <><ShieldCheck style={{ width: 14, height: 14 }} /> {hrAccessLoading ? 'Restoring…' : 'Restore HR Access'}</>}
+                    ? <><ShieldOff style={{ width: 14, height: 14 }} /> {hrAccessLoading ? 'Revoking...' : 'Revoke HR Access'}</>
+                    : <><ShieldCheck style={{ width: 14, height: 14 }} /> {hrAccessLoading ? 'Restoring...' : 'Restore HR Access'}</>}
                 </button>
               )}
             </div>
@@ -410,7 +410,7 @@ export default function CorporateDetailPage() {
           <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{hrAccessError}</div>
         )}
 
-        {/* ── DETAIL VIEW ── */}
+        {/*  DETAIL VIEW  */}
         {view === 'detail' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -440,8 +440,8 @@ export default function CorporateDetailPage() {
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F1F5', display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 16 }}>
                 {[
                   { label: 'Start Date',     value: fmtDate(corp.dateProvisioned) },
-                  { label: 'Contact Person', value: corp.contactName || '—' },
-                  { label: 'Admin Email',    value: corp.adminEmail  || '—' },
+                  { label: 'Contact Person', value: corp.contactName || '-' },
+                  { label: 'Admin Email',    value: corp.adminEmail  || '-' },
                   { label: 'Active Members', value: corp.activeMembers.toLocaleString() },
                   { label: 'Brand Colours',  value: null },
                 ].map(({ label, value }) => (
@@ -473,7 +473,7 @@ export default function CorporateDetailPage() {
                   onClick={() => saveNotice(noticeDraft)}
                   disabled={noticeBusy || noticeDraft === noticeSaved}
                   style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: noticeDraft === noticeSaved ? '#C4C9D9' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', cursor: noticeBusy || noticeDraft === noticeSaved ? 'default' : 'pointer' }}>
-                  {noticeBusy ? 'Saving…' : 'Publish Notice'}
+                  {noticeBusy ? 'Saving...' : 'Publish Notice'}
                 </button>
                 {noticeSaved.trim() && (
                   <button
@@ -500,7 +500,7 @@ export default function CorporateDetailPage() {
           </div>
         )}
 
-        {/* ── ACCESS / ROLE ADMINISTRATION ── */}
+        {/*  ACCESS / ROLE ADMINISTRATION  */}
         {view === 'access' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
@@ -586,7 +586,7 @@ export default function CorporateDetailPage() {
         )}
       </div>
 
-      {/* TOAST — SIGNUP EMAIL */}
+      {/* TOAST. SIGNUP EMAIL */}
       {showEmailToast && (
         <div style={{ position: 'fixed', bottom: 32, right: 32, background: showEmailToast.ok ? '#131C4E' : '#EF4444', color: '#fff', borderRadius: 14, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 100, fontSize: 13, fontWeight: 600 }}>
           <span style={{ width: 20, height: 20, borderRadius: '50%', background: showEmailToast.ok ? '#10B981' : '#fff', color: showEmailToast.ok ? '#fff' : '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>{showEmailToast.ok ? '✓' : '✕'}</span>
@@ -594,7 +594,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* MODAL — SEND SIGNUP EMAIL */}
+      {/* MODAL. SEND SIGNUP EMAIL */}
       {showSignupModal && corp && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget && !signupLoading) setShowSignupModal(false); }}>
@@ -652,7 +652,7 @@ export default function CorporateDetailPage() {
                 </div>
               )}
 
-              {/* Registration link — copyable */}
+              {/* Registration link: copyable */}
               {signupLink && (
                 <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -687,14 +687,14 @@ export default function CorporateDetailPage() {
               <button onClick={sendSignupEmail} disabled={signupLoading}
                 style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 24, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', cursor: signupLoading ? 'not-allowed' : 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', opacity: signupLoading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Send style={{ width: 13, height: 13 }} />
-                {signupLoading ? 'Sending…' : 'Send Email'}
+                {signupLoading ? 'Sending...' : 'Send Email'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL — ADD NEW ROLE */}
+      {/* MODAL. ADD NEW ROLE */}
       {showRoleModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowRoleModal(false); }}>
@@ -752,7 +752,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* MODAL — ASSIGN USER */}
+      {/* MODAL. ASSIGN USER */}
       {showAssignModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowAssignModal(false); }}>
@@ -810,7 +810,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* MODAL — DELETE ROLE CONFIRM */}
+      {/* MODAL. DELETE ROLE CONFIRM */}
       {showDeleteRole && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 20, width: 400, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.20)', textAlign: 'center' }}>
@@ -835,7 +835,7 @@ export default function CorporateDetailPage() {
         </div>
       )}
 
-      {/* MODAL — EDIT CORPORATE */}
+      {/* MODAL. EDIT CORPORATE */}
       {showEditModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,78,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowEditModal(false); }}>

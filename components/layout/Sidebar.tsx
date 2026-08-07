@@ -74,10 +74,10 @@ const NAV_GROUPS: Array<{
   },
 ];
 
-// The API formats the policy period for prose — "1st January 2026 – 31st
-// December 2026" — which wraps to two ragged lines in a 240px sidebar and
+// The API formats the policy period for prose, "1st January 2026-31st
+// December 2026", which wraps to two ragged lines in a 240px sidebar and
 // becomes the largest thing in the client chip. Compacting it to
-// "1 Jan 2026 – 31 Dec 2026" keeps the exact dates on one line.
+// "1 Jan 2026-31 Dec 2026" keeps the exact dates on one line.
 function compactPeriod(period: string): string {
   return period
     .replace(/(\d+)(st|nd|rd|th)\b/g, '$1')
@@ -151,7 +151,7 @@ export function Sidebar() {
   // server-side, so this is cheap even though the sidebar is on every page.
   const [policyPeriod, setPolicyPeriod] = useState<string | null>(null);
   const [activeLives, setActiveLives] = useState<number | null>(null);
-  // Pending-enrolments badge — ?count=1 is served from a server-side cache.
+  // Pending-enrolments badge: ?count=1 is served from a server-side cache.
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   useEffect(() => {
     if (!isAdminRole(userRole)) return;
@@ -185,7 +185,7 @@ export function Sidebar() {
       className="fixed top-0 left-0 h-screen w-[240px] flex flex-col z-40"
       style={{ background: '#101A44' }}
     >
-      {/* Logo — served as a plain static asset (no /_next/image optimizer
+      {/* Logo: served as a plain static asset (no /_next/image optimizer
           dependency), with a text-wordmark fallback so the header can never
           show a broken-image glyph. */}
       <div style={{ padding: '18px 16px 14px' }}>
@@ -208,7 +208,7 @@ export function Sidebar() {
 
       {/* Client chip. The company name leads; the group ID is labelled rather
           than left as a bare number; the policy period is compacted to a single
-          line. There is deliberately no dropdown affordance — an HR account is
+          line. There is deliberately no dropdown affordance: an HR account is
           scoped to exactly one company, so a chevron here promised a switcher
           that does not exist. */}
       <div style={{
@@ -228,7 +228,7 @@ export function Sidebar() {
               {companyName}
             </p>
             <p style={{ fontSize: 10, color: '#7A83A8', marginTop: 3, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Group ID {companyId || '—'}
+              Group ID {companyId || '-'}
             </p>
           </div>
         </div>

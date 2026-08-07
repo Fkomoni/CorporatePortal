@@ -57,7 +57,7 @@ function extractDate(row: Record<string, unknown>): Date | null {
   if (!raw) return null;
   // Prognosis sends this as dd/mm/yyyy (e.g. "12/07/2026" = 12 July 2026).
   // new Date(raw) parses slash dates as US mm/dd/yyyy, silently flipping day
-  // and month whenever the day is <=12 — check this shape before falling
+  // and month whenever the day is <=12. Check this shape before falling
   // back to the generic parser.
   const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) {
@@ -69,19 +69,19 @@ function extractDate(row: Record<string, unknown>): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-// Normalises Prognosis's free-text Memberstatus into one of our three states —
+// Normalises Prognosis's free-text Memberstatus into one of our three states -
 // mirrors mapStatus() in app/api/hr/members/route.ts. Only "Pending" members
 // actually require HR approval; "Active" dependants already went through.
 function classifyStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
   const s = raw.toLowerCase();
-  // Termination keywords checked first — see mapStatus() in
+  // Termination keywords checked first. See mapStatus() in
   // app/api/hr/members/route.ts for why order matters here.
   if (s.includes('terminat') || s.includes('cancel') || s.includes('inactive') || s.includes('deleted')) return 'Terminated';
   if (s.includes('active') || s === '1' || s === 'true') return 'Active';
   return 'Pending';
 }
 
-// ViewMembersByStatus returns MembershipStartDate as "25-Jul-2026" — the cover
+// ViewMembersByStatus returns MembershipStartDate as "25-Jul-2026": the cover
 // start date the member was registered with. Normalise to yyyy-mm-dd without
 // going through Date parsing, which is locale/format sensitive on this shape.
 const MONTHS: Record<string, string> = {
@@ -100,7 +100,7 @@ function toIsoDateOnly(raw: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-// Prognosis DOB comes back as "14-Dec-1974" — parseable by Date, but guard
+// Prognosis DOB comes back as "14-Dec-1974": parseable by Date, but guard
 // against odd formats before computing age from it.
 function computeAge(dobRaw: string): number | null {
   if (!dobRaw) return null;
@@ -117,7 +117,7 @@ function computeAge(dobRaw: string): number | null {
 // (relationship, gender, staff ID, scheme, registration date, and the full
 // enrolee ID). ClientPlanBeneficiariesNoPagitation carries all of them and is
 // confirmed to include portal-registered/pending members, so one group-level
-// call enriches every pending row — no per-member requests.
+// call enriches every pending row: no per-member requests.
 //
 // The memberstatus param makes no difference on this endpoint (active and
 // inactive return an identical row set), so it's fetched once.
@@ -166,7 +166,7 @@ export interface PendingMemberRow {
   terminationDate: string;
   registrationDate: string | null;
   registrationSource: 'Corporate Portal' | 'Enrolee App';
-  // Cover start date the member was registered with (yyyy-mm-dd) — Prognosis's
+  // Cover start date the member was registered with (yyyy-mm-dd). Prognosis's
   // own MembershipStartDate, so it's present however the member registered.
   // Falls back to the startDate we recorded on the HR invitation.
   coverStartDate?: string | null;
@@ -184,7 +184,7 @@ export interface PendingGroup {
   members: PendingMemberRow[];
 }
 
-// Invitations HR has sent but the staff member/dependant hasn't used yet —
+// Invitations HR has sent but the staff member/dependant hasn't used yet -
 // they haven't registered with Prognosis at all, so they can't appear in
 // ViewPortalRegisteredMembersPerGroup_pendingActivation. Surfaced separately
 // so HR can see who still needs to act, and delete/resend the link.
@@ -215,10 +215,10 @@ export async function GET(req: Request) {
   const from = searchParams.get('from'); // yyyy-mm-dd
   const to = searchParams.get('to');
 
-  // ?count=1 — badge mode. The sidebar shows a pending-enrolments count on
+  // ?count=1: badge mode. The sidebar shows a pending-enrolments count on
   // every page; serving it from a short cache avoids hammering Prognosis.
   // The full listing below always runs fresh, so the page itself never goes
-  // stale — the badge may lag mutations by up to the TTL, which is fine.
+  // stale: the badge may lag mutations by up to the TTL, which is fine.
   const countOnly = searchParams.get('count') === '1';
   if (countOnly) {
     const cached = countCache.get(groupId);
@@ -229,7 +229,7 @@ export async function GET(req: Request) {
 
   try {
     const token = await getServiceToken();
-    // ViewMembersByStatus with statusIds=2,8,11,12 — covers the same "pending"
+    // ViewMembersByStatus with statusIds=2,8,11,12: covers the same "pending"
     // buckets as the old ViewPortalRegisteredMembersPerGroup_pendingActivation
     // endpoint. Row shape is CONFIRMED from production and is leaner than the
     // legacy endpoint's: Cif_Number, Parent_Cif, MembershipNo, Suffix,
@@ -240,7 +240,7 @@ export async function GET(req: Request) {
     // Notably ABSENT: Relationship, Sex/Gender, EmployeeCode, Scheme, any
     // registration-date field, and a populated MembershipNo (it comes back ""
     // for pending members). All of those are filled in from
-    // ClientPlanBeneficiariesNoPagitation — see fetchBeneficiaryDetails.
+    // ClientPlanBeneficiariesNoPagitation. See fetchBeneficiaryDetails.
     const res = await fetch(`${BASE}/api/CorporatePortal/ViewMembersByStatus?groupId=${encodeURIComponent(groupId)}&statusIds=2,8,11,12`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
@@ -257,7 +257,7 @@ export async function GET(req: Request) {
     // Fields ViewMembersByStatus doesn't return, keyed by CIF.
     const details = await fetchBeneficiaryDetails(BASE, token, String(groupId));
 
-    // Dedupe by Cif_Number — ViewMembersPerGroup can return the same member more
+    // Dedupe by Cif_Number. ViewMembersPerGroup can return the same member more
     // than once (e.g. one row per scheme/policy period), which otherwise renders
     // as duplicate rows in the same family group. Keep the Active record when
     // duplicates disagree on status.
@@ -279,9 +279,9 @@ export async function GET(req: Request) {
       // from ClientPlanBeneficiariesNoPagitation, keyed by this member's CIF.
       const d = details.get(str(row, 'cif_number', 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber')) ?? {};
       // ViewPortalRegisteredMembersPerGroup_pendingActivation uses its own
-      // (differently-cased) field names from ViewMembersPerGroup — e.g.
+      // (differently-cased) field names from ViewMembersPerGroup: e.g.
       // "cif_number", "Membershipno", "Registrationdate", lowercase "scheme",
-      // and — confusingly — "member" for this member's own surname (NOT
+      // and, confusingly, "member" for this member's own surname (NOT
       // "psurname"/"pfirstname", which describe the *principal*'s name).
       const cifNumber = str(row, 'cif_number', 'Cif_Number', 'CIF_Number', 'CifNo', 'Cif', 'cifNumber');
       const parentCifRaw = str(row, 'Parent_Cif', 'ParentCif', 'parentCif', 'Parent_CIF');
@@ -295,14 +295,14 @@ export async function GET(req: Request) {
         || str(d, 'Enrolleeid', 'EnrolleeId', 'enrolleeid');
       const suffix = str(row, 'suffix', 'Suffix');
       // Prognosis's membership number is only unique per-family; the full
-      // enrolee identifier is "<membershipNo>/<suffix>" (e.g. 25231697/0) —
+      // enrolee identifier is "<membershipNo>/<suffix>" (e.g. 25231697/0) -
       // without the suffix it looks truncated/incomplete on screen.
       const membershipNo = membershipNoBase
         ? (membershipNoBase.includes('/') ? membershipNoBase : `${membershipNoBase}/${suffix || '0'}`)
         : membershipNoBase;
       const isPrincipal = suffix === '0' || (!suffix && (!parentCifRaw || parentCifRaw === '0' || parentCifRaw === cifNumber));
       const dob = str(row, 'DOB', 'DateOfBirth', 'Date_Of_Birth');
-      // Relationship is now returned directly by Prognosis (e.g. "Main member", "Spouse", "Child") —
+      // Relationship is now returned directly by Prognosis (e.g. "Main member", "Spouse", "Child") -
       // trim stray whitespace/tabs and only fall back to Suffix-based inference if it's missing.
       const relationshipRaw = (
         str(row, 'Relationship', 'Member_Relationship', 'RelationshipType')
@@ -343,13 +343,13 @@ export async function GET(req: Request) {
         // have it (see the trueDate note below).
         _date: extractDate(row) ?? extractDate(d),
         // "PrincipalMember" gives the principal's first name even on a
-        // dependant-only row — used purely as a header fallback below when
+        // dependant-only row: used purely as a header fallback below when
         // no actual principal row is present in this snapshot.
         _principalHint: str(row, 'PrincipalMember'),
       };
     }).map((r) => ({ ...r, registrationDate: r._date ? r._date.toISOString().slice(0, 10) : null }));
 
-    // Date filter — only applied to rows where a date could be resolved,
+    // Date filter: only applied to rows where a date could be resolved,
     // so an unrecognised date field on Prognosis's side doesn't blank the list.
     const fromDate = from ? new Date(from) : null;
     const toDate = to ? new Date(to) : null;
@@ -365,7 +365,7 @@ export async function GET(req: Request) {
     });
 
     // Header details (staff name, scheme, contact info) come from ANY row in the
-    // family — the principal is usually Active by the time a dependant is added,
+    // family: the principal is usually Active by the time a dependant is added,
     // so we still need their name even though they won't appear in the approval list.
     const headerByParentCif = new Map<string, { principalName: string; employeeCode: string; schemeName: string; email: string; mobile: string }>();
     for (const r of filtered) {
@@ -382,8 +382,8 @@ export async function GET(req: Request) {
     }
 
     // This endpoint (ViewPortalRegisteredMembersPerGroup_pendingActivation) only
-    // ever returns members genuinely awaiting activation — including principals
-    // who self-registered via their own link — so no extra status filtering here.
+    // ever returns members genuinely awaiting activation, including principals
+    // who self-registered via their own link, so no extra status filtering here.
     const pendingBeneficiaries = filtered;
 
     // Registrations submitted through an HR-issued self-service link are
@@ -391,7 +391,7 @@ export async function GET(req: Request) {
     // that ISN'T in there came straight from the Enrolee mobile app.
     const linkCifSet = new Set<string>();
     const linkCifDates = new Map<string, string>();
-    // Cover start date HR chose when issuing the invitation — approval should
+    // Cover start date HR chose when issuing the invitation: approval should
     // honour this rather than defaulting to the day HR happens to approve.
     const linkCifStartDates = new Map<string, string>();
     if (pendingBeneficiaries.length > 0) {
@@ -425,7 +425,7 @@ export async function GET(req: Request) {
       void _date; void _principalHint;
       // Prognosis's own date field on this endpoint reflects the plan's
       // effective/start date, not when the registration was actually
-      // submitted — for anything that came through our portal (link or HR
+      // submitted: for anything that came through our portal (link or HR
       // direct), we recorded the real submission timestamp ourselves, so
       // prefer that over Prognosis's field.
       const trueDate = linkCifDates.get(r.cifNumber) ?? member.registrationDate;
@@ -443,7 +443,7 @@ export async function GET(req: Request) {
 
     const groupList = [...groups.values()].sort((a, b) => (b.registrationDate ?? '').localeCompare(a.registrationDate ?? ''));
 
-    // Invitations HR sent that haven't been used (or expired) yet — the
+    // Invitations HR sent that haven't been used (or expired) yet: the
     // member/dependant hasn't registered at all, so they show as a distinct
     // "Awaiting Enrolment" row rather than mixed into the Prognosis-derived list.
     let invitations: PendingInvitation[] = [];
@@ -480,7 +480,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ totalBeneficiaries: pendingBeneficiaries.length });
     }
 
-    // Earliest effective date HR may approve with — the approve sheet uses it
+    // Earliest effective date HR may approve with: the approve sheet uses it
     // as the date picker's floor.
     const policyYearStart = await getPolicyYearStart(groupId);
 

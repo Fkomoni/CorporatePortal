@@ -1,4 +1,4 @@
-// "Remember this device for 45 days" for internal staff sign-in — skips the
+// "Remember this device for 45 days" for internal staff sign-in: skips the
 // OTP step on a recognized browser. Only ever an opaque random token in the
 // cookie; the DB stores its hash, same pattern as OTP storage, so a stolen
 // cookie value alone can't be reverse-engineered into anything meaningful

@@ -165,9 +165,9 @@ interface AuditLogEntry {
 type Tab = 'users' | 'profile' | 'account' | 'help' | 'audit';
 
 function formatLastLogin(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
@@ -187,13 +187,13 @@ export default function AdministrationPage() {
   const { data: session, status: sessionStatus } = useSession();
   const isAdmin = isAdminRole((session?.user as { role?: string })?.role);
   // Internal Leadway staff acting as HR for a client may never create roles
-  // or add secondary users — only the real HR admin, or a colleague that
+  // or add secondary users: only the real HR admin, or a colleague that
   // HR itself invited as Admin, can do that.
   const isInternalStaff = Boolean((session?.user as { isInternalStaff?: boolean })?.isInternalStaff);
 
   const [activeTab, setActiveTab]   = useState<Tab>('users');
 
-  // Non-admins only get My Account + Help — bounce them off restricted tabs
+  // Non-admins only get My Account + Help: bounce them off restricted tabs
   useEffect(() => {
     if (sessionStatus === 'authenticated' && !isAdmin && (activeTab === 'users' || activeTab === 'profile' || activeTab === 'audit')) {
       setActiveTab('account');
@@ -211,7 +211,10 @@ export default function AdministrationPage() {
   useEffect(() => {
     fetch('/api/hr/company-logo').then((r) => r.json()).then((d) => {
       if (d.logoUrl) { setLogoUrl(d.logoUrl); setLogoSavedUrl(d.logoUrl); }
-    }).catch(() => {});
+    })
+      // Without this the panel shows the empty upload state for a company that
+      // already has a logo saved, inviting HR to upload it a second time.
+      .catch(() => setLogoErr('Could not load your saved logo. Reload before uploading a new one.'));
   }, []);
 
   async function saveLogo() {
@@ -223,11 +226,19 @@ export default function AdministrationPage() {
         body: JSON.stringify({ logoDataUrl: logoUrl }),
       });
       const json = await res.json();
-      if (!res.ok) { setLogoErr(json.error ?? 'Failed to save logo.'); return; }
+      if (!res.ok) {
+        setLogoErr(json.error ?? 'Failed to save logo.');
+        toast(json.error ?? 'Could not save your logo.', 'error');
+        return;
+      }
       setLogoSavedUrl(logoUrl);
       setLogoMsg('Logo saved');
       setTimeout(() => setLogoMsg(''), 2500);
-    } catch { setLogoErr('Network error. Please try again.'); }
+      toast('Logo saved. It will appear on your invoices and emails.', 'success');
+    } catch {
+      setLogoErr('Network error. Please try again.');
+      toast('Network error. Your logo was not saved.', 'error');
+    }
     finally { setLogoBusy(false); }
   }
 
@@ -287,7 +298,7 @@ export default function AdministrationPage() {
   }
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // 2FA state — twoFaActive mirrors the persisted server-side setting
+  // 2FA state: twoFaActive mirrors the persisted server-side setting
   const [twoFaEnabled, setTwoFaEnabled] = useState(false); // wizard open
   const [twoFaSetup, setTwoFaSetup]     = useState<'choose' | 'sms-number' | 'scan'>('choose');
   const [twoFaMethod, setTwoFaMethod]   = useState<'email' | 'sms'>('email');
@@ -307,7 +318,11 @@ export default function AdministrationPage() {
       // has on file for this HR user so the SMS setup field isn't blank.
       if (d.mobile) setTwoFaMobile(d.mobile);
       else if (d.suggestedMobile) setTwoFaMobile(d.suggestedMobile);
-    }).catch(() => {});
+    })
+      // Failing silently left the panel showing two-factor as OFF for an account
+      // that may well have it ON: the one place in the app where a silent
+      // fallback states the opposite of the truth about someone's security.
+      .catch(() => setTwoFaError('Could not read your two-factor status. Reload the page before changing it.'));
   }, []);
 
   async function start2FaSetup(method: 'email' | 'sms' = twoFaMethod, mobile?: string) {
@@ -354,7 +369,7 @@ export default function AdministrationPage() {
     finally { setTwoFaBusy(false); }
   }
 
-  // Custom roles state — persisted to localStorage so they survive refresh
+  // Custom roles state: persisted to localStorage so they survive refresh
   type CustomRole = { id: string; role: string; desc: string; colorKey: string; modules?: Record<string, boolean> };
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [rolesLoaded, setRolesLoaded] = useState(false);
@@ -368,7 +383,7 @@ export default function AdministrationPage() {
     try {
       const stored = localStorage.getItem('lw_custom_roles');
       if (stored) setCustomRoles(JSON.parse(stored));
-    } catch { /* corrupt storage — start fresh */ }
+    } catch { /* corrupt storage: start fresh */ }
     setRolesLoaded(true);
   }, []);
   useEffect(() => {
@@ -390,7 +405,7 @@ export default function AdministrationPage() {
   function deleteRole(r: CustomRole) {
     const assigned = portalUsers.filter((u) => u.role === r.role).length;
     if (assigned > 0) {
-      setRoleError(`Cannot delete "${r.role}" — ${assigned} user${assigned !== 1 ? 's are' : ' is'} assigned to it. Reassign ${assigned !== 1 ? 'them' : 'the user'} first, or edit the role instead.`);
+      setRoleError(`Cannot delete "${r.role}": ${assigned} user${assigned !== 1 ? 's are' : ' is'} assigned to it. Reassign ${assigned !== 1 ? 'them' : 'the user'} first, or edit the role instead.`);
       return;
     }
     setRoleError('');
@@ -445,15 +460,16 @@ export default function AdministrationPage() {
       if (!res.ok) { setInviteError(json.error ?? 'Failed to send invitation.'); return; }
       setInviteSent(json.emailSent
         ? `Invitation sent to ${inviteForm.email}.`
-        : `Account created for ${inviteForm.email}, but the email could not be sent — try again or contact support.`);
+        : `Account created for ${inviteForm.email}, but the email could not be sent. Try again or contact support.`);
       setInviteForm({ name: '', email: '', role: 'Viewer' });
       // Refresh the users table so the pending account appears
-      fetch('/api/hr/portal-users').then((r) => r.json()).then((d) => { if (d.users) setPortalUsers(d.users); }).catch(() => {});
+      fetch('/api/hr/portal-users').then((r) => r.json()).then((d) => { if (d.users) setPortalUsers(d.users); })
+        .catch(() => toast('The invitation was sent, but this table could not be refreshed. Reload to see the new account.', 'info'));
     } catch { setInviteError('Network error. Please try again.'); }
     finally { setInviteBusy(false); }
   }
 
-  // Profile form — initialised from API data
+  // Profile form: initialised from API data
   const [profile, setProfile] = useState({ displayName: '', jobTitle: '', email: '', phone: '' });
 
   useEffect(() => {
@@ -515,7 +531,7 @@ export default function AdministrationPage() {
   function handleLogoFile(file: File) {
     setLogoErr(''); setLogoMsg('');
     if (file.size > 300 * 1024) {
-      setLogoErr('Logo is too large — please use an image under 300 KB.');
+      setLogoErr('Logo is too large. Please use an image under 300 KB.');
       return;
     }
     const reader = new FileReader();
@@ -564,7 +580,7 @@ export default function AdministrationPage() {
           ))}
         </div>
 
-        {/* ── USERS & ACCESS ── */}
+        {/*  USERS & ACCESS  */}
         {activeTab === 'users' && isAdmin && (
           <>
             <div style={{ ...card, padding: '20px 24px' }}>
@@ -609,7 +625,7 @@ export default function AdministrationPage() {
                         </button>
                       </div>
                       <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 5 }}>{r.role}</p>
-                      <p style={{ fontSize: 11, color: '#9CA3B8', lineHeight: 1.6, marginBottom: 10 }}>{r.desc || '—'}</p>
+                      <p style={{ fontSize: 11, color: '#9CA3B8', lineHeight: 1.6, marginBottom: 10 }}>{r.desc || '-'}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: c.bg, color: c.text }}>Custom</span>
                         {assignedCount > 0 && (
@@ -688,7 +704,7 @@ export default function AdministrationPage() {
                 <div>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Portal Users</p>
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
-                    {loading ? 'Loading…' : `${portalUsers.length} user${portalUsers.length !== 1 ? 's' : ''}`}
+                    {loading ? 'Loading...' : `${portalUsers.length} user${portalUsers.length !== 1 ? 's' : ''}`}
                   </p>
                 </div>
                 {!isInternalStaff && (
@@ -723,7 +739,7 @@ export default function AdministrationPage() {
                     </div>
                     <button onClick={sendInvite} disabled={inviteBusy}
                       style={{ height: 42, padding: '0 22px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, cursor: inviteBusy ? 'wait' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 8px rgba(245,107,34,0.28)', opacity: inviteBusy ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-                      {inviteBusy ? 'Sending…' : 'Send Invitation'}
+                      {inviteBusy ? 'Sending...' : 'Send Invitation'}
                     </button>
                   </div>
                   {inviteError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{inviteError}</p>}
@@ -740,7 +756,7 @@ export default function AdministrationPage() {
               {loading ? (
                 <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: 10, color: '#9CA3B8' }}>
                   <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                  <span style={{ fontSize: 13 }}>Loading users…</span>
+                  <span style={{ fontSize: 13 }}>Loading users...</span>
                 </div>
               ) : portalUsers.length === 0 ? (
                 <div style={{ padding: '32px 24px', color: '#9CA3B8', fontSize: 13 }}>No portal users found.</div>
@@ -771,7 +787,7 @@ export default function AdministrationPage() {
                           disabled={togglingUser === u.id}
                           onClick={() => toggleUserStatus(u)}
                           style={{ height: 30, padding: '0 12px', fontSize: 11, fontWeight: 500, color: u.status === 'Active' ? '#EF4444' : '#059669', border: `1px solid ${u.status === 'Active' ? '#FECACA' : '#A7F3D0'}`, borderRadius: 8, background: u.status === 'Active' ? '#FEF2F2' : '#ECFDF5', cursor: togglingUser === u.id ? 'wait' : 'pointer', opacity: togglingUser === u.id ? 0.6 : 1 }}>
-                          {togglingUser === u.id ? '…' : u.status === 'Active' ? 'Disable' : 'Enable'}
+                          {togglingUser === u.id ? '...' : u.status === 'Active' ? 'Disable' : 'Enable'}
                         </button>
                       </div>
                     </div>
@@ -782,7 +798,7 @@ export default function AdministrationPage() {
           </>
         )}
 
-        {/* ── COMPANY PROFILE ── */}
+        {/*  COMPANY PROFILE  */}
         {activeTab === 'profile' && isAdmin && (
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -823,7 +839,7 @@ export default function AdministrationPage() {
                   <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button onClick={saveLogo} disabled={logoBusy || logoUrl === logoSavedUrl}
                       style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700, background: logoUrl === logoSavedUrl ? '#E5E7F1' : 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: logoUrl === logoSavedUrl ? '#9CA3B8' : '#fff', border: 'none', borderRadius: 10, cursor: logoBusy ? 'wait' : logoUrl === logoSavedUrl ? 'default' : 'pointer', boxShadow: logoUrl === logoSavedUrl ? 'none' : '0 2px 8px rgba(245,107,34,0.28)', opacity: logoBusy ? 0.6 : 1 }}>
-                      {logoBusy ? 'Saving…' : logoUrl === logoSavedUrl ? 'Saved' : 'Save Logo'}
+                      {logoBusy ? 'Saving...' : logoUrl === logoSavedUrl ? 'Saved' : 'Save Logo'}
                     </button>
                     <button onClick={removeLogo} disabled={logoBusy}
                       style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 600, background: '#fff', color: '#9CA3B8', border: '1px solid #E5E7F1', borderRadius: 10, cursor: logoBusy ? 'wait' : 'pointer' }}>Remove</button>
@@ -841,15 +857,15 @@ export default function AdministrationPage() {
                 </div>
                 {loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3B8', fontSize: 13 }}>
-                    <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading…
+                    <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading...
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
                     {[
-                      { label: 'Company Name',  value: cp?.companyName  || '—' },
-                      { label: 'Group ID',      value: cp?.companyId    || '—' },
-                      { label: 'Policy Number', value: cp?.policyNumber || '—' },
-                      { label: 'HR Contact',    value: cp?.user?.name   || '—' },
+                      { label: 'Company Name',  value: cp?.companyName  || '-' },
+                      { label: 'Group ID',      value: cp?.companyId    || '-' },
+                      { label: 'Policy Number', value: cp?.policyNumber || '-' },
+                      { label: 'HR Contact',    value: cp?.user?.name   || '-' },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <label style={labelStyle}>{label}</label>
@@ -872,14 +888,14 @@ export default function AdministrationPage() {
                 </div>
                 {loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3B8', fontSize: 13 }}>
-                    <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading…
+                    <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading...
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {[
-                      { label: 'Policy Start', value: cp?.scheme?.policyStartFmt || '—' },
-                      { label: 'Renewal Date', value: cp?.scheme?.policyEndFmt   || '—' },
-                      { label: 'Active Since',  value: cp?.scheme?.activeSince    || '—' },
+                      { label: 'Policy Start', value: cp?.scheme?.policyStartFmt || '-' },
+                      { label: 'Renewal Date', value: cp?.scheme?.policyEndFmt   || '-' },
+                      { label: 'Active Since',  value: cp?.scheme?.activeSince    || '-' },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <label style={labelStyle}>{label}</label>
@@ -907,7 +923,7 @@ export default function AdministrationPage() {
           </div>
         )}
 
-        {/* ── MY ACCOUNT ── */}
+        {/*  MY ACCOUNT  */}
         {activeTab === 'account' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -940,7 +956,7 @@ export default function AdministrationPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Phone Number</label>
-                    <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="+234 …" style={inputStyle}
+                    <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="+234 ..." style={inputStyle}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                   </div>
@@ -994,7 +1010,7 @@ export default function AdministrationPage() {
                   <button
                     onClick={handleChangePassword} disabled={pwSaving}
                     style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 24, cursor: pwSaving ? 'wait' : 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', opacity: pwSaving ? 0.6 : 1 }}>
-                    {pwSaving ? 'Updating…' : 'Update Password'}
+                    {pwSaving ? 'Updating...' : 'Update Password'}
                   </button>
                   {pwSaved && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ Password updated</span>}
                 </div>
@@ -1053,7 +1069,7 @@ export default function AdministrationPage() {
                           ))}
                         </div>
                         {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
-                        {twoFaBusy && <p style={{ marginTop: 10, fontSize: 12, color: '#9CA3B8' }}>Sending verification code…</p>}
+                        {twoFaBusy && <p style={{ marginTop: 10, fontSize: 12, color: '#9CA3B8' }}>Sending verification code...</p>}
                       </div>
                     )}
 
@@ -1066,7 +1082,7 @@ export default function AdministrationPage() {
                         <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>Enter the mobile number to receive your code</p>
                         <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 14 }}>We'll text a one-time verification code to this number.</p>
                         <label style={labelStyle}>Mobile Number</label>
-                        <input autoFocus value={twoFaMobile} onChange={(e) => setTwoFaMobile(e.target.value)} placeholder="+234 …" style={{ ...inputStyle, marginBottom: 14 }}
+                        <input autoFocus value={twoFaMobile} onChange={(e) => setTwoFaMobile(e.target.value)} placeholder="+234 ..." style={{ ...inputStyle, marginBottom: 14 }}
                           onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
                           onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                         <button onClick={async () => {
@@ -1076,7 +1092,7 @@ export default function AdministrationPage() {
                           }}
                           disabled={!twoFaMobile.trim() || twoFaBusy}
                           style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaMobile.trim() && !twoFaBusy ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaMobile.trim() && !twoFaBusy ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaMobile.trim() && !twoFaBusy ? 'pointer' : 'not-allowed' }}>
-                          {twoFaBusy ? 'Sending…' : 'Send Code'}
+                          {twoFaBusy ? 'Sending...' : 'Send Code'}
                         </button>
                         {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
                       </div>
@@ -1101,13 +1117,13 @@ export default function AdministrationPage() {
                             onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                           <button onClick={() => { if (twoFaCode.length === 6 && !twoFaBusy) verify2Fa(); }}
                             style={{ height: 42, padding: '0 20px', fontSize: 13, fontWeight: 700, background: twoFaCode.length === 6 && !twoFaBusy ? 'linear-gradient(135deg,#F56B22,#FF8C4B)' : '#E5E7F1', color: twoFaCode.length === 6 && !twoFaBusy ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: twoFaCode.length === 6 && !twoFaBusy ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
-                            {twoFaBusy ? 'Verifying…' : 'Verify'}
+                            {twoFaBusy ? 'Verifying...' : 'Verify'}
                           </button>
                         </div>
                         {twoFaError && <p style={{ marginTop: 10, fontSize: 12, color: '#DC2626' }}>{twoFaError}</p>}
                         <button onClick={() => { if (!twoFaBusy) start2FaSetup(twoFaMethod, twoFaMobile); }} disabled={twoFaBusy}
                           style={{ marginTop: 10, background: 'none', border: 'none', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: twoFaBusy ? 'wait' : 'pointer', padding: 0 }}>
-                          {twoFaBusy ? 'Sending…' : 'Resend Code'}
+                          {twoFaBusy ? 'Sending...' : 'Resend Code'}
                         </button>
                       </div>
                     )}
@@ -1133,7 +1149,7 @@ export default function AdministrationPage() {
                         onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
                       <button onClick={() => { if (disablePw && !twoFaBusy) disable2Fa(); }} disabled={!disablePw || twoFaBusy}
                         style={{ height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: disablePw && !twoFaBusy ? '#DC2626' : '#E5E7F1', color: disablePw && !twoFaBusy ? '#fff' : '#9CA3B8', border: 'none', borderRadius: 14, cursor: disablePw && !twoFaBusy ? 'pointer' : 'not-allowed' }}>
-                        {twoFaBusy ? 'Disabling…' : 'Disable 2FA'}
+                        {twoFaBusy ? 'Disabling...' : 'Disable 2FA'}
                       </button>
                       <button onClick={() => { setShowDisable(false); setDisablePw(''); setTwoFaError(''); }}
                         style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
@@ -1173,7 +1189,7 @@ export default function AdministrationPage() {
           </div>
         )}
 
-        {/* ── HELP & DOWNLOADS ── */}
+        {/*  HELP & DOWNLOADS  */}
         {activeTab === 'help' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1228,14 +1244,14 @@ export default function AdministrationPage() {
           </div>
         )}
 
-        {/* ── AUDIT TRAIL ── */}
+        {/*  AUDIT TRAIL  */}
         {activeTab === 'audit' && isAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Activity Audit Trail</p>
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>
-                  {auditLoading ? 'Loading…' : `${auditTotal} event${auditTotal !== 1 ? 's' : ''} recorded for your company`}
+                  {auditLoading ? 'Loading...' : `${auditTotal} event${auditTotal !== 1 ? 's' : ''} recorded for your company`}
                 </p>
               </div>
               <button
@@ -1257,7 +1273,7 @@ export default function AdministrationPage() {
               {auditLoading ? (
                 <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: 10, color: '#9CA3B8' }}>
                   <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                  <span style={{ fontSize: 13 }}>Loading audit log…</span>
+                  <span style={{ fontSize: 13 }}>Loading audit log...</span>
                 </div>
               ) : auditLogs.length === 0 ? (
                 <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3B8' }}>

@@ -1,4 +1,4 @@
-// Nigerian mobile number handling, in one place — used by every form that
+// Nigerian mobile number handling, in one place: used by every form that
 // collects a phone number and by every route that forwards one to Prognosis.
 //
 // Accepted input shapes (all the same number):
@@ -8,7 +8,7 @@
 //   +2348012345678   E.164
 // Separators (spaces, dashes, brackets) are ignored.
 //
-// The 10-digit core must start 7, 8 or 9 — every Nigerian mobile network code
+// The 10-digit core must start 7, 8 or 9: every Nigerian mobile network code
 // (70x, 71x, 80x, 81x, 90x, 91x) falls in that range, while landlines and
 // invalid junk do not. Prognosis stores these as +234XXXXXXXXXX.
 
@@ -24,7 +24,7 @@ export function digitsOnly(value: string): string {
 function coreDigits(value: unknown): string {
   const raw = String(value ?? '').trim();
   // Separators are fine, but anything else (letters especially) means this was
-  // never a phone number — don't strip it down into a plausible-looking one.
+  // never a phone number. Don't strip it down into a plausible-looking one.
   if (/[^\d\s()+.\-]/.test(raw)) return '';
   const d = digitsOnly(raw);
   if (!d) return '';
@@ -43,7 +43,7 @@ export function isValidNigerianMobile(value: unknown): boolean {
 /**
  * Normalises to the +234XXXXXXXXXX form Prognosis expects.
  * Returns '' for empty input, and the original trimmed value when it isn't a
- * recognisable Nigerian mobile — callers should validate first rather than rely
+ * recognisable Nigerian mobile: callers should validate first rather than rely
  * on this to sanitise.
  */
 export function normalizeNigerianMobile(value: unknown): string {
@@ -55,7 +55,7 @@ export function normalizeNigerianMobile(value: unknown): string {
 
 /** Shared message so every form/route words the rejection identically. */
 export const MOBILE_FORMAT_MESSAGE =
-  'Enter a valid Nigerian mobile number — 11 digits starting with 0 (e.g. 08012345678).';
+  'Enter a valid Nigerian mobile number: 11 digits starting with 0 (e.g. 08012345678).';
 
 /**
  * Validates an optional mobile field. Returns an error message, or null if the
@@ -73,7 +73,7 @@ export function validateMobile(value: unknown, { required = false, label = 'Mobi
  * empty or already acceptable, so it can be rendered unconditionally.
  *
  * Inputs strip non-digits and cap at 11, so in practice the only way to be wrong
- * is to stop short — say how many digits are missing rather than waiting for a
+ * is to stop short: say how many digits are missing rather than waiting for a
  * submit-time rejection.
  */
 export function mobileLengthHint(value: unknown): string | null {

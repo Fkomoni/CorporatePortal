@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
+import { useToast } from '@/components/ui/Toast';
 
-// ── Health Talk Topics ────────────────────────────────────────────────────────
+//  Health Talk Topics
 
 const HEALTH_TALK_CATEGORIES: { category: string; color: string; topics: string[] }[] = [
   {
@@ -158,12 +159,12 @@ const HEALTH_TALK_CATEGORIES: { category: string; color: string; topics: string[
   },
 ];
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
+//  Mock data
 
 const INITIAL_TALK_LOG = [
   { id: 1, category: 'Non-Communicable Diseases', topic: 'Hypertension: Causes, Risks and Management', format: 'Onsite',  requestedDate: 'Jun 10, 2026', scheduledDate: 'Jun 25, 2026', status: 'Confirmed' },
   { id: 2, category: 'Mental Wellness',           topic: 'Stress and Coping Strategies',               format: 'Virtual', requestedDate: 'Jun 5, 2026',  scheduledDate: 'Jun 18, 2026', status: 'Completed' },
-  { id: 3, category: 'Human Behaviour',           topic: 'Nutrition and Balanced Diet',                format: 'Onsite',  requestedDate: 'May 28, 2026', scheduledDate: '—',            status: 'Requested' },
+  { id: 3, category: 'Human Behaviour',           topic: 'Nutrition and Balanced Diet',                format: 'Onsite',  requestedDate: 'May 28, 2026', scheduledDate: '-',            status: 'Requested' },
 ];
 
 const TALK_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -197,7 +198,7 @@ const INITIAL_SENT_LINKS = [
   { id: 4, name: 'Grace Ihejirika', email: 'g.ihejirika@dangote.com', spouse: false, sentDate: 'Jun 19, 2026', status: 'Pending'   },
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+//  Helpers
 
 function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
@@ -224,9 +225,10 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 
 type Tab = 'talks' | 'screening' | 'dashboard';
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+//  Page
 
 export default function WellnessPage() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('talks');
 
   // Health talks form
@@ -252,7 +254,7 @@ export default function WellnessPage() {
   const [scrSubmitting, setScrSubmitting] = useState(false);
   const [scrError, setScrError]       = useState<string | null>(null);
 
-  // Send screening link form — member search
+  // Send screening link form: member search
   const [linkQuery, setLinkQuery]         = useState('');
   const [linkResults, setLinkResults]     = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -328,7 +330,7 @@ export default function WellnessPage() {
           ))}
         </div>
 
-        {/* ── HEALTH TALKS ── */}
+        {/*  HEALTH TALKS  */}
         {activeTab === 'talks' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
             <div style={{ ...card, padding: '28px' }}>
@@ -367,7 +369,7 @@ export default function WellnessPage() {
                     style={{ ...inputStyle, appearance: 'none' }}
                     onFocus={focusIn} onBlur={focusOut}
                   >
-                    <option value="">Select a category…</option>
+                    <option value="">Select a category...</option>
                     {HEALTH_TALK_CATEGORIES.map((c) => (
                       <option key={c.category} value={c.category}>{c.category}</option>
                     ))}
@@ -382,7 +384,7 @@ export default function WellnessPage() {
                     style={{ ...inputStyle, appearance: 'none', opacity: talkCategory ? 1 : 0.5, cursor: talkCategory ? 'pointer' : 'not-allowed' }}
                     onFocus={focusIn} onBlur={focusOut}
                   >
-                    <option value="">{talkCategory ? 'Select a topic…' : 'Choose a category first'}</option>
+                    <option value="">{talkCategory ? 'Select a topic...' : 'Choose a category first'}</option>
                     {(HEALTH_TALK_CATEGORIES.find((c) => c.category === talkCategory)?.topics ?? []).map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
@@ -421,23 +423,26 @@ export default function WellnessPage() {
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error ?? 'Failed to send');
-                    setTalkLog((prev) => [{ id: Date.now(), category: talkCategory, topic: talkTopic, format: talkType === 'onsite' ? 'Onsite' : 'Virtual', requestedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), scheduledDate: talkDate ? new Date(talkDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', status: 'Requested' }, ...prev]);
+                    toast('Health talk request sent to Client Services.', 'success');
+                    setTalkLog((prev) => [{ id: Date.now(), category: talkCategory, topic: talkTopic, format: talkType === 'onsite' ? 'Onsite' : 'Virtual', requestedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), scheduledDate: talkDate ? new Date(talkDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-', status: 'Requested' }, ...prev]);
                     setTalkSent(true); setTalkCategory(''); setTalkTopic(''); setTalkDate(''); setTalkAttendees(''); setTalkNotes('');
                   } catch (e) {
-                    setTalkError(e instanceof Error ? e.message : 'Failed to send request');
+                    const msg = e instanceof Error ? e.message : 'Failed to send request';
+                    setTalkError(msg);
+                    toast(msg, 'error');
                   } finally {
                     setTalkSubmitting(false);
                   }
                 }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: talkSubmitting ? 'wait' : 'pointer', opacity: (!talkTopic || !talkDate || !talkAttendees) ? 0.5 : 1, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', transition: 'opacity 0.2s' }}>
-                <Send style={{ width: 14, height: 14 }} /> {talkSubmitting ? 'Sending…' : 'Send Request to Client Services'}
+                <Send style={{ width: 14, height: 14 }} /> {talkSubmitting ? 'Sending...' : 'Send Request to Client Services'}
               </button>
 
               {talkError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginTop: 16 }}><p style={{ fontSize: 13, color: '#DC2626' }}>{talkError}</p></div>}
-              {talkSent && <SuccessBanner message="Request sent to clientservices@leadway.com — they will reach out within 1 business day to confirm." />}
+              {talkSent && <SuccessBanner message="Request sent to clientservices@leadway.com: they will reach out within 1 business day to confirm." />}
             </div>
 
-            {/* Topic browser sidebar — accordion */}
+            {/* Topic browser sidebar: accordion */}
             <div style={{ ...card, overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #F0F1F5' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Leadway HMO Topic Library</p>
@@ -491,7 +496,7 @@ export default function WellnessPage() {
           </div>
         )}
 
-        {/* ── HEALTH SCREENINGS ── */}
+        {/*  HEALTH SCREENINGS  */}
         {activeTab === 'screening' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20, alignItems: 'start' }}>
 
@@ -538,18 +543,21 @@ export default function WellnessPage() {
                       });
                       const data = await res.json();
                       if (!res.ok) throw new Error(data.error ?? 'Failed to send');
+                      toast('Screening request sent to Client Services.', 'success');
                       setScrSent(true); setScrParticipants(''); setScrDate(''); setScrVenue(''); setScrNotes('');
                     } catch (e) {
-                      setScrError(e instanceof Error ? e.message : 'Failed to send request');
+                      const msg = e instanceof Error ? e.message : 'Failed to send request';
+                      setScrError(msg);
+                      toast(msg, 'error');
                     } finally {
                       setScrSubmitting(false);
                     }
                   }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: scrSubmitting ? 'wait' : 'pointer', opacity: (!scrParticipants || !scrDate || !scrVenue) ? 0.5 : 1, background: 'linear-gradient(135deg,#2563EB,#3B82F6)', boxShadow: '0 2px 10px rgba(37,99,235,0.28)', transition: 'opacity 0.2s' }}>
-                  <Send style={{ width: 14, height: 14 }} /> {scrSubmitting ? 'Sending…' : 'Submit to Client Services'}
+                  <Send style={{ width: 14, height: 14 }} /> {scrSubmitting ? 'Sending...' : 'Submit to Client Services'}
                 </button>
                 {scrError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginTop: 16 }}><p style={{ fontSize: 13, color: '#DC2626' }}>{scrError}</p></div>}
-                {scrSent && <SuccessBanner message="Screening request sent to clientservices@leadway.com — they will confirm logistics within 2 business days." />}
+                {scrSent && <SuccessBanner message="Screening request sent to clientservices@leadway.com: they will confirm logistics within 2 business days." />}
               </div>
             </div>
 
@@ -575,7 +583,7 @@ export default function WellnessPage() {
                       <input
                         value={linkQuery}
                         onChange={(e) => handleLinkSearch(e.target.value)}
-                        placeholder="Type name or enrolee ID…"
+                        placeholder="Type name or enrolee ID..."
                         style={{ ...inputStyle, paddingLeft: 38, paddingRight: selectedMember ? 36 : 14 }}
                         onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; if (linkQuery && !selectedMember) handleLinkSearch(linkQuery); }}
                         onBlur={(e) => { e.currentTarget.style.borderColor = selectedMember ? '#A7F3D0' : '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }}
@@ -641,7 +649,7 @@ export default function WellnessPage() {
                       )}
                       <div>
                         <label style={labelStyle}>Personal Message (optional)</label>
-                        <textarea value={linkMessage} onChange={(e) => setLinkMessage(e.target.value)} rows={2} placeholder="Add a short note to accompany the link…" style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none', fontFamily: 'inherit' }} onFocus={focusIn} onBlur={focusOut} />
+                        <textarea value={linkMessage} onChange={(e) => setLinkMessage(e.target.value)} rows={2} placeholder="Add a short note to accompany the link..." style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none', fontFamily: 'inherit' }} onFocus={focusIn} onBlur={focusOut} />
                       </div>
                     </>
                   )}
@@ -682,7 +690,7 @@ export default function WellnessPage() {
           </div>
         )}
 
-        {/* ── SCREENING DASHBOARD ── */}
+        {/*  SCREENING DASHBOARD  */}
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -693,7 +701,7 @@ export default function WellnessPage() {
               <Info style={{ width: 16, height: 16, color: '#B45309', flexShrink: 0, marginTop: 1 }} />
               <p style={{ fontSize: 12, color: '#78350F', lineHeight: 1.6 }}>
                 <strong>Illustrative figures.</strong> Screening counts and the recent-screenings list below are sample data.
-                They will switch to live numbers once the screening feed is connected — don&apos;t report these to your board yet.
+                They will switch to live numbers once the screening feed is connected. Don&apos;t report these to your board yet.
               </p>
             </div>
 
@@ -701,8 +709,8 @@ export default function WellnessPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16 }}>
               {[
                 { label: 'Total Eligible Members', value: SCREENING_STATS.totalEligible, sub: 'Principal members on active plans', color: '#131C4E', pct: undefined },
-                { label: 'Screened — HR Referral',  value: SCREENING_STATS.hrReferral,    sub: 'Via links sent by your team',        color: '#F56B22', pct: pctHr       },
-                { label: 'Screened — Leadway System', value: SCREENING_STATS.leadwaySystem, sub: 'Booked directly through Leadway',   color: '#2563EB', pct: pctLeadway  },
+                { label: 'Screened. HR Referral',  value: SCREENING_STATS.hrReferral,    sub: 'Via links sent by your team',        color: '#F56B22', pct: pctHr       },
+                { label: 'Screened. Leadway System', value: SCREENING_STATS.leadwaySystem, sub: 'Booked directly through Leadway',   color: '#2563EB', pct: pctLeadway  },
               ].map(({ label, value, sub, color, pct }) => (
                 <div key={label} style={{ ...card, padding: '22px 24px' }}>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{label}</p>
@@ -759,7 +767,7 @@ export default function WellnessPage() {
                   <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Latest completed annual medical screenings</p>
                 </div>
                 {/* These rows come from RECENT_SCREENINGS, a hardcoded
-                    constant — there is no screening backend yet. The badge
+                    constant: there is no screening backend yet. The badge
                     said "Live data", which invited HR to act on invented
                     names and dates. */}
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 99, padding: '4px 12px' }}>
@@ -830,8 +838,8 @@ export default function WellnessPage() {
                       <span style={{ fontSize: 11, color: '#9CA3B8' }}>{t.requestedDate}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Clock style={{ width: 11, height: 11, color: t.scheduledDate === '—' ? '#D1D5DB' : '#059669' }} />
-                      <span style={{ fontSize: 11, color: t.scheduledDate === '—' ? '#D1D5DB' : '#059669', fontWeight: t.scheduledDate === '—' ? 400 : 600 }}>{t.scheduledDate}</span>
+                      <Clock style={{ width: 11, height: 11, color: t.scheduledDate === '-' ? '#D1D5DB' : '#059669' }} />
+                      <span style={{ fontSize: 11, color: t.scheduledDate === '-' ? '#D1D5DB' : '#059669', fontWeight: t.scheduledDate === '-' ? 400 : 600 }}>{t.scheduledDate}</span>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: sc.bg, color: sc.text, width: 'fit-content' }}>{t.status}</span>
                   </div>

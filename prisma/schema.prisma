@@ -27,7 +27,7 @@ model User {
   // ChangePassword can't be called) sets this back to false so the login
   // gate doesn't require a Prognosis check it knows is now out of sync.
   prognosisSynced Boolean @default(false)
-  // Pending login/setup OTP (sha256 hash) — cleared once used
+  // Pending login/setup OTP (sha256 hash): cleared once used
   loginOtpHash      String?
   loginOtpExpiresAt DateTime?
   loginOtpAttempts  Int       @default(0)
@@ -41,12 +41,12 @@ model User {
 }
 
 // Internal Leadway staff (Active Directory accounts, validated live via
-// Prognosis's ExternalPortalLogin — never a locally-set/reset password).
+// Prognosis's ExternalPortalLogin: never a locally-set/reset password).
 // A staff member picks one linked client (StaffClientAccess) per login and
 // operates in that client's exact HR portal for the session.
 //
 // Prognosis recognizing a @leadway.com AD account is NOT sufficient to use
-// this portal — a row must exist here AND be active. Rows are only ever
+// this portal: a row must exist here AND be active. Rows are only ever
 // created explicitly (by an admin enabling someone on /admin/staff-access),
 // never auto-created on login, so having a valid Leadway email/password
 // alone can't grant access to anyone not deliberately approved.
@@ -70,7 +70,7 @@ model StaffUser {
   @@map("staff_users")
 }
 
-// "Remember this device for 45 days" — skips the OTP step on a recognized
+// "Remember this device for 45 days": skips the OTP step on a recognized
 // browser. The cookie itself only ever holds a random opaque token; the
 // hash stored here is what's actually checked, same pattern as OTP storage.
 model StaffTrustedDevice {
@@ -85,7 +85,7 @@ model StaffTrustedDevice {
 }
 
 // Which client companies a given Leadway staff email may act as HR for.
-// Managed entirely by us — Prognosis has no equivalent endpoint.
+// Managed entirely by us. Prognosis has no equivalent endpoint.
 model StaffClientAccess {
   id           String   @id @default(cuid())
   staffEmail   String
@@ -167,9 +167,9 @@ model MemberInvitation {
   groupId      String
   scope         String    @default("self") // "self" | "self-dependent" | "dependent-only"
   inviteType    String    @default("principal") // "principal" | "dependent"
-  parentCif     String?   // CIF of principal — required for inviteType=dependent
+  parentCif     String?   // CIF of principal: required for inviteType=dependent
   maxDependents Int       @default(1)
-  startDate     String?   // Cover start date (yyyy-mm-dd), set by HR — the member cannot change it
+  startDate     String?   // Cover start date (yyyy-mm-dd), set by HR: the member cannot change it
   usedCount     Int       @default(0)
   used          Boolean   @default(false)
   usedAt        DateTime?
@@ -182,7 +182,7 @@ model MemberInvitation {
 }
 
 // Tracks which corporates have been sent the portal welcome email, and to
-// which HR email — lets the sync cron detect new groups and HR email changes.
+// which HR email: lets the sync cron detect new groups and HR email changes.
 model CorporateSyncState {
   id                String    @id @default(cuid())
   groupId           String    @unique
@@ -211,7 +211,7 @@ model CompanyBranding {
   @@map("company_branding")
 }
 
-// HR-raised Service Desk requests — replaces the page's original mock
+// HR-raised Service Desk requests: replaces the page's original mock
 // tickets. Status transitions beyond Open/Closed are done by Leadway staff
 // out-of-band for now; the human-readable reference is derived from seq
 // (REQ-0007), which Postgres allocates atomically.

@@ -1,10 +1,10 @@
 // Terminates a member's cover. TerminateMember is now confirmed to accept
 // terminationdate directly (today or future-dated) alongside a reason and
-// the acting user's email — so every termination is sent to Prognosis
+// the acting user's email: so every termination is sent to Prognosis
 // immediately and Prognosis handles the actual effective timing itself.
 // (ScheduledTermination/the process-terminations cron predate this and are
 // kept only to finish any rows already queued from before this endpoint
-// accepted a date — new requests no longer need local scheduling.)
+// accepted a date: new requests no longer need local scheduling.)
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit';
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   if (!effectiveDate) return NextResponse.json({ error: 'Effective date is required.' }, { status: 400 });
   if (!reason) return NextResponse.json({ error: 'A reason for termination is required.' }, { status: 400 });
 
-  // Only today or a future date is allowed — no backdated terminations
+  // Only today or a future date is allowed: no backdated terminations
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const chosen = new Date(effectiveDate); chosen.setHours(0, 0, 0, 0);
   if (isNaN(chosen.getTime())) return NextResponse.json({ error: 'Invalid effective date.' }, { status: 400 });

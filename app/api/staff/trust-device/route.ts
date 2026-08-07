@@ -1,5 +1,5 @@
 // Called right after a successful staff sign-in, only if the user opted
-// into "Remember this device for 45 days" — sets the trust cookie so the
+// into "Remember this device for 45 days": sets the trust cookie so the
 // next login from this browser skips the OTP step.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
@@ -12,7 +12,7 @@ export async function POST() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   // id is the underlying StaffUser id for both the general staff console
   // session (loginType 'staff') and an internal-admin-as-HR session
-  // (loginType 'hr' with isInternalStaff) — never for a real HR/company account.
+  // (loginType 'hr' with isInternalStaff): never for a real HR/company account.
   if (session.user.loginType !== 'staff' && !session.user.isInternalStaff) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

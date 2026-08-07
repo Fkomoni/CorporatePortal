@@ -40,7 +40,7 @@ export interface BenefitCategory {
 }
 
 // Limit is often a bare number (e.g. 50000) but can also be a word like
-// "Unlimited" — only currency-format it when it's actually numeric.
+// "Unlimited": only currency-format it when it's actually numeric.
 function formatLimit(raw: unknown): string {
   if (raw == null || raw === '') return '';
   const n = Number(raw);
@@ -68,12 +68,12 @@ interface BenefitRow {
 }
 
 // Confirmed valid `benefit` query values for GetSchemeBenefits. Prognosis only
-// populates the `Benefit` name on a row when this param is passed — an
+// populates the `Benefit` name on a row when this param is passed: an
 // unfiltered call returns every row with Benefit:"" and is useless for
 // building categories, so we fetch all 5 confirmed types and merge them.
 // ChronicMedicines and Surgery both come back tagged Benefit:"Major Disease
 // Benefit" (distinguished only by DeptCode CHMEDS/SURG), while MajorDisease
-// returns the full superset including those same rows — so we claim rows for
+// returns the full superset including those same rows: so we claim rows for
 // Chronic Medications / Surgery first (by RowId) and only let the remaining,
 // unclaimed rows fall through as "Major Disease Benefit".
 const BENEFIT_QUERIES: { param: string; label: string }[] = [

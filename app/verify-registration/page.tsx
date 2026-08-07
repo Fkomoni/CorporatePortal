@@ -13,7 +13,7 @@ function VerifyForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  // NOTE: the OTP is never read from the URL — it must be typed manually from
+  // NOTE: the OTP is never read from the URL: it must be typed manually from
   // the separate OTP message (2FA). Do not re-add a `code` param prefill.
   const urlEmail        = searchParams?.get('email') ?? '';
   const urlGroupId      = searchParams?.get('groupId') ?? '';
@@ -51,9 +51,9 @@ function VerifyForm() {
     e.target.style.boxShadow   = 'none';
   };
 
-  // ── Step 1: collect password, then request the OTP now that the user is
+  //  Step 1: collect password, then request the OTP now that the user is
   // actually ready to use it (rather than it being sent automatically with
-  // the welcome email, which risks expiring before they get here) ──────────
+  // the welcome email, which risks expiring before they get here)
   async function handleSetPassword(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -65,9 +65,9 @@ function VerifyForm() {
     if (!phone.trim())                    { setError('Phone number is required.'); return; }
     if (password !== confirm)             { setError('Passwords do not match.'); return; }
     if (password.length < 8)             { setError('Password must be at least 8 characters long.'); return; }
-    if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A–Z).'); return; }
-    if (!/[a-z]/.test(password))         { setError('Password must include at least one lowercase letter (a–z).'); return; }
-    if (!/[0-9]/.test(password))         { setError('Password must include at least one number (0–9).'); return; }
+    if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A-Z).'); return; }
+    if (!/[a-z]/.test(password))         { setError('Password must include at least one lowercase letter (a-z).'); return; }
+    if (!/[0-9]/.test(password))         { setError('Password must include at least one number (0-9).'); return; }
     if (!/[^A-Za-z0-9]/.test(password)) { setError('Password must include at least one special character.'); return; }
 
     setLoading(true);
@@ -80,7 +80,7 @@ function VerifyForm() {
   }
 
   // Shared by the initial "Continue to Verification" submit and the OTP
-  // step's "Resend code" button — both just need a fresh code sent.
+  // step's "Resend code" button: both just need a fresh code sent.
   async function requestOtp(): Promise<boolean> {
     try {
       const res = await fetch('/api/hr/request-registration-otp', {
@@ -115,7 +115,7 @@ function VerifyForm() {
     }
   }
 
-  // ── Step 2: submit OTP + password ────────────────────────────────────────
+  //  Step 2: submit OTP + password
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -159,7 +159,7 @@ function VerifyForm() {
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7,
   };
 
-  // ── Password strength (5 criteria per Leadway policy) ───────────────────
+  //  Password strength (5 criteria per Leadway policy)
   let strength = 0;
   if (password.length >= 8)            strength++;
   if (/[A-Z]/.test(password))          strength++;
@@ -172,7 +172,7 @@ function VerifyForm() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'inherit' }}>
 
-      {/* ── Left panel ── */}
+      {/*  Left panel  */}
       <div
         style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: '50%', padding: '44px 52px', background: '#131C4E' }}
         className="hidden lg:flex"
@@ -186,7 +186,7 @@ function VerifyForm() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>
-              Account Setup — HR Access
+              Account Setup. HR Access
             </p>
             <h1 style={{ fontSize: 36, fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 16 }}>
               Welcome to<br />the Corporate<br />Portal.
@@ -218,7 +218,7 @@ function VerifyForm() {
         <p style={{ fontSize: 11, color: '#3A4382' }}>© 2025 Leadway Health Limited. All rights reserved.</p>
       </div>
 
-      {/* ── Right panel ── */}
+      {/*  Right panel  */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: 32, overflowY: 'auto' }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
 
@@ -227,7 +227,7 @@ function VerifyForm() {
             <Image src="/leadway-logo.jpeg" alt="Leadway Health HMO" width={140} height={42} style={{ borderRadius: 6, objectFit: 'contain' }} />
           </div>
 
-          {/* ── Success ── */}
+          {/*  Success  */}
           {stage === 'success' && (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ECFDF5', border: '2px solid #6EE7B7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
@@ -235,12 +235,12 @@ function VerifyForm() {
               </div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Account Ready!</h2>
               <p style={{ fontSize: 14, color: '#6B7480', lineHeight: 1.6 }}>
-                Your account has been set up successfully.<br />Redirecting you to sign in…
+                Your account has been set up successfully.<br />Redirecting you to sign in...
               </p>
             </div>
           )}
 
-          {/* ── Step indicator ── */}
+          {/*  Step indicator  */}
           {stage !== 'success' && (
             <>
               {/* Badge */}
@@ -272,7 +272,7 @@ function VerifyForm() {
             </>
           )}
 
-          {/* ── Step 1: Set Password ── */}
+          {/*  Step 1: Set Password  */}
           {stage === 'password' && (
             <>
               <h2 style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>Set Up Your Account</h2>
@@ -309,7 +309,7 @@ function VerifyForm() {
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Gender</label>
                     <select value={gender} onChange={(e) => setGender(e.target.value)} required autoComplete="sex" name="gender" style={inputStyle}>
-                      <option value="">Select…</option>
+                      <option value="">Select...</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
@@ -362,7 +362,7 @@ function VerifyForm() {
 
                 <button type="submit" disabled={loading || !email || !firstName || !surname || !dob || !gender || !phone || !password || !confirm || password !== confirm}
                   style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !email || !firstName || !surname || !dob || !gender || !phone || !password || !confirm || password !== confirm) ? 0.55 : 1, marginTop: 4 }}>
-                  {loading ? 'Registering…' : 'Continue to Verification →'}
+                  {loading ? 'Registering...' : 'Continue to Verification →'}
                 </button>
               </form>
 
@@ -373,7 +373,7 @@ function VerifyForm() {
             </>
           )}
 
-          {/* ── Step 2: OTP ── */}
+          {/*  Step 2: OTP  */}
           {stage === 'otp' && (
             <>
               <h2 style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>Verify Your Identity</h2>
@@ -413,7 +413,7 @@ function VerifyForm() {
                         <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                       </svg>
-                      Verifying…
+                      Verifying...
                     </>
                   ) : 'Verify & Access Portal →'}
                 </button>
@@ -425,7 +425,7 @@ function VerifyForm() {
                   </button>
                   <button type="button" onClick={handleResendOtp} disabled={resending}
                     style={{ height: 40, borderRadius: 10, border: 'none', background: 'transparent', color: '#F56B22', fontSize: 12, fontWeight: 600, cursor: resending ? 'wait' : 'pointer', padding: 0 }}>
-                    {resending ? 'Sending…' : 'Resend code'}
+                    {resending ? 'Sending...' : 'Resend code'}
                   </button>
                 </div>
               </form>
@@ -447,7 +447,7 @@ export default function VerifyRegistrationPage() {
   return (
     <Suspense fallback={
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
-        <p style={{ fontSize: 14, color: '#9CA3B8' }}>Loading…</p>
+        <p style={{ fontSize: 14, color: '#9CA3B8' }}>Loading...</p>
       </div>
     }>
       <VerifyForm />

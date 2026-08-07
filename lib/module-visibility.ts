@@ -1,4 +1,4 @@
-// ── Per-module visibility types ──────────────────────────────────────────────
+//  Per-module visibility types
 
 export type DashboardVis = {
   showKpiCards:       boolean; // 4 KPI stat cards
@@ -59,7 +59,7 @@ export type ServiceDeskVis = {
   showSlaColumn:    boolean; // SLA column
 };
 
-// ── Defaults ─────────────────────────────────────────────────────────────────
+//  Defaults
 
 export const DEFAULTS: {
   dashboard:   DashboardVis;
@@ -110,7 +110,7 @@ export const DEFAULTS: {
 
 export type ModuleKey = keyof typeof DEFAULTS;
 
-// ── Storage helpers ───────────────────────────────────────────────────────────
+//  Storage helpers
 
 const DEFAULT_COMPANY_ID = 'corp-001';
 
@@ -140,7 +140,7 @@ export function saveVis<K extends ModuleKey>(module: K, v: typeof DEFAULTS[K], c
   localStorage.setItem(storageKey(module, cid), JSON.stringify(v));
 }
 
-// ── Back-compat re-exports for claims page ────────────────────────────────────
+//  Back-compat re-exports for claims page
 
 export type ClaimsVisibility = ClaimsVis;
 export const DEFAULT_CLAIMS_VISIBILITY = DEFAULTS.claims;

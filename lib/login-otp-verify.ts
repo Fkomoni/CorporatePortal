@@ -1,4 +1,4 @@
-// OTP verification for HR 2FA — kept separate from issuance (lib/login-otp.ts)
+// OTP verification for HR 2FA: kept separate from issuance (lib/login-otp.ts)
 // because this module is reachable from Edge middleware via auth.ts and must
 // not pull in email templating or other Node-only dependencies.
 import crypto from 'crypto';

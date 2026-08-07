@@ -8,7 +8,7 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
   .replace(/\/api$/, '')
   .replace(/\/$/, '');
 
-// ── Service token (6-hour cache) ──────────────────────────────────────────────
+//  Service token (6-hour cache)
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
@@ -35,7 +35,7 @@ async function getServiceToken(): Promise<string> {
   return token;
 }
 
-// ── GetAllPolicies (24-hour cache) ────────────────────────────────────────────
+//  GetAllPolicies (24-hour cache)
 let allPoliciesCache: Record<string, unknown>[] | null = null;
 let allPoliciesExpiry = 0;
 
@@ -53,14 +53,14 @@ async function getAllPolicies(token: string): Promise<Record<string, unknown>[]>
   return rows;
 }
 
-// ── Response cache (10-minute TTL) ────────────────────────────────────────────
+//  Response cache (10-minute TTL)
 // The sidebar fetches this route on every page and the dashboard adds several
 // upstream Prognosis calls per request; one cached payload per company keeps
 // that to one upstream round-trip per TTL. `?refresh=1` bypasses it.
 const statsCache = new Map<string, { expires: number; payload: unknown }>();
 const STATS_TTL_MS = 10 * 60 * 1000;
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+//  HTTP helper
 async function fetchJson(token: string, path: string): Promise<{ data: unknown; ok: boolean }> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -131,7 +131,7 @@ function extractDateStr(p: Record<string, unknown>, ...keys: string[]): string {
   return '';
 }
 
-// ── Policy matching ───────────────────────────────────────────────────────────
+//  Policy matching
 function findPolicy(
   policies: Record<string, unknown>[],
   groupId: string,
@@ -169,7 +169,7 @@ function findPolicy(
   }, null);
 }
 
-// ── Actuarial constants ───────────────────────────────────────────────────────
+//  Actuarial constants
 const PREMIUM_KEYS = [
   'IndividualPremiumFees','Member_Premium','ActualPremium','BasePremiumIndividual',
   'PremiumAmount','Premium','Amount','TotalPremium','GrossPremium','NetPremium',
@@ -207,7 +207,7 @@ function daysApart(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
-// ── Actuarial computation ─────────────────────────────────────────────────────
+//  Actuarial computation
 interface LossRatioResult {
   totalPremium: number;
   earnedPremium: number;
@@ -230,7 +230,7 @@ interface LossRatioResult {
    *  they are in the total but cannot be placed on the trend. */
   undatedPaidCount: number;
   undatedPaidAmount: number;
-  /** Cumulative paid-claims loss ratio by month — the KPI sparkline's trend. */
+  /** Cumulative paid-claims loss ratio by month: the KPI sparkline's trend. */
   lossRatioMonthly: { month: string; pct: number }[];
 }
 
@@ -284,7 +284,7 @@ export function computeLossRatio({
   // Two separate monthly maps, because they answer different questions.
   //
   // `monthly` feeds the IBNR reserve and keeps its deliberately strict test
-  // (exact CLAIM_STATUS "Paid Claims", AmtPaid only) — a reserving input should
+  // (exact CLAIM_STATUS "Paid Claims", AmtPaid only): a reserving input should
   // not quietly widen.
   //
   // `monthlySpend` feeds the Claims Spend Trend chart and the loss-ratio
@@ -347,7 +347,7 @@ export function computeLossRatio({
     }
 
     // Chart bucket: same claim, same amount as the headline total. paidAmt is
-    // the effective figure by this point — the AmtClaimed fallback has already
+    // the effective figure by this point: the AmtClaimed fallback has already
     // been applied above.
     if (isPaid && paidAmt > 0) {
       if (td && (!ps || td >= ps)) {
@@ -373,7 +373,7 @@ export function computeLossRatio({
   }
 
   // Cumulative paid-claims loss ratio at each month end. Paid-only (no
-  // outstanding/IBNR component) — it draws a sparkline, not a reported figure.
+  // outstanding/IBNR component): it draws a sparkline, not a reported figure.
   const lossRatioMonthly: { month: string; pct: number }[] = [];
   if (hasPolicy && totalPremium > 0 && totalPolicyDays > 0) {
     let cum = 0;
@@ -455,7 +455,7 @@ function sumCanonicalPaid(rows: Record<string, unknown>[]): number {
   return [...seen.values()].reduce((s, v) => s + v, 0);
 }
 
-// ── Scheme Health Score ───────────────────────────────────────────────────────
+//  Scheme Health Score
 function computeHealthScore({
   lossRatio, cor, utilizationRate, outstandingClaims, paidClaims,
 }: {
@@ -482,7 +482,7 @@ function computeHealthScore({
     : cor <= 125 ? 30
     : 10;
 
-  // Utilization rate (20%) — 15–35% is the healthy range
+  // Utilization rate (20%): 15-35% is the healthy range
   const u = utilizationRate;
   const utilScore = u === null ? 50
     : u >= 15 && u <= 35 ? 100
@@ -510,7 +510,7 @@ function computeHealthScore({
   return { score, label };
 }
 
-// Store this month's snapshot; read previous quarter for trend (raw SQL — graceful if table not yet migrated)
+// Store this month's snapshot; read previous quarter for trend (raw SQL: graceful if table not yet migrated)
 async function upsertHealthSnapshot(groupId: string, yearMonth: string, snap: {
   score: number; lossRatio: number | null; cor: number | null; utilRate: number | null; riskStatus: string | null;
 }): Promise<void> {
@@ -523,7 +523,7 @@ async function upsertHealthSnapshot(groupId: string, yearMonth: string, snap: {
          score=$4,"lossRatio"=$5,cor=$6,"utilRate"=$7,"riskStatus"=$8,"updatedAt"=NOW()`,
       id, groupId, yearMonth, snap.score, snap.lossRatio, snap.cor, snap.utilRate, snap.riskStatus,
     );
-  } catch { /* table not yet migrated — silent until first deploy */ }
+  } catch { /* table not yet migrated: silent until first deploy */ }
 }
 
 async function getPreviousQuarterScore(groupId: string, currentYM: string): Promise<number | null> {
@@ -540,7 +540,7 @@ async function getPreviousQuarterScore(groupId: string, currentYM: string): Prom
   } catch { return null; }
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+//  Types
 export interface DashboardStats {
   activeLives: number | null;
   principalLives: number | null;
@@ -600,7 +600,7 @@ export interface DashboardStats {
   policyToDate: string | null;
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
+//  Route handler
 export async function GET(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -631,7 +631,7 @@ export async function GET(request: Request) {
 
     const premiumRaw = premiumResult.data;
 
-    // ── Policy period + brokerage from GetAllPolicies ────────────────────────
+    //  Policy period + brokerage from GetAllPolicies
     const policy = findPolicy(allPolicies, groupId, policyNumber);
 
     let policyPeriod: string | null   = null;
@@ -647,7 +647,7 @@ export async function GET(request: Request) {
       const toD     = parseDate(toStr);
 
       if (fromD && toD) {
-        policyPeriod   = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+        policyPeriod   = `${fmtOrdinalDate(fromD)} - ${fmtOrdinalDate(toD)}`;
         policyYear     = fromD.getFullYear();
         policyFromDate = fromStr;
         policyToDate   = toStr;
@@ -659,7 +659,7 @@ export async function GET(request: Request) {
       brokerage = parseFloat(String(brokerateRaw).replace(/[^0-9.]/g, '')) || 0;
     }
 
-    // ── Active lives from GetGroupPremium ────────────────────────────────────
+    //  Active lives from GetGroupPremium
     const rows = toRows(premiumRaw);
 
     // Fallback: derive policy dates from premium rows when GetAllPolicies didn't resolve them
@@ -673,7 +673,7 @@ export async function GET(request: Request) {
         if (fromD && toD) {
           policyFromDate = fromStr;
           policyToDate   = toStr;
-          policyPeriod   = `${fmtOrdinalDate(fromD)} – ${fmtOrdinalDate(toD)}`;
+          policyPeriod   = `${fmtOrdinalDate(fromD)} - ${fmtOrdinalDate(toD)}`;
           policyYear     = fromD.getFullYear();
         }
       }
@@ -688,7 +688,7 @@ export async function GET(request: Request) {
     const principalLives = [...activeIds].filter((id) => id.endsWith('/0')).length || null;
     const dependantLives = activeLives !== null && principalLives !== null ? activeLives - principalLives : null;
 
-    // ── New members this calendar month ──────────────────────────────────────
+    //  New members this calendar month
     const now = new Date();
     const currentYear  = now.getFullYear();
     const currentMonth = now.getMonth();
@@ -718,7 +718,7 @@ export async function GET(request: Request) {
 
     // Active-membership growth: of the members active today, how many had
     // started by each of the last six month-ends. (Members who left along the
-    // way aren't represented — this tracks growth of the current book.)
+    // way aren't represented: this tracks growth of the current book.)
     const memberMonthly: { month: string; count: number }[] = [];
     if (memberStartMap.size > 0) {
       const starts = [...memberStartMap.values()];
@@ -729,7 +729,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // ── Fetch claims using actual policy dates (not calendar year) ────────────
+    //  Fetch claims using actual policy dates (not calendar year)
     const cy = new Date().getFullYear();
     const toISO = (raw: string | null) => {
       if (!raw) return null;
@@ -740,7 +740,7 @@ export async function GET(request: Request) {
     const claimsFromDate = toISO(policyFromDate) ?? `${cy}-01-01`;
     const claimsToDate   = toISO(policyToDate)   ?? `${cy}-12-31`;
 
-    // Prior policy year, same elapsed window — the like-for-like "vs last year"
+    // Prior policy year, same elapsed window: the like-for-like "vs last year"
     // comparison for Claims Paid. Skipped when policy dates didn't resolve.
     const psD = parseDate(policyFromDate ?? '');
     const peD = parseDate(policyToDate ?? '');
@@ -784,7 +784,7 @@ export async function GET(request: Request) {
       ? +sumCanonicalPaid(rawPrevPaidRows).toFixed(2)
       : null;
 
-    // ── Invoice summary (first row of GetInvoiceReceiptHistory) ───────────────
+    //  Invoice summary (first row of GetInvoiceReceiptHistory)
     const invoiceRows = toRows(invoiceResult.data);
     const invoiceSummary = invoiceRows[0] ?? null;
     const invoiceOutstanding = invoiceSummary ? toNumber(invoiceSummary.OutstandingBalance) : null;
@@ -794,7 +794,7 @@ export async function GET(request: Request) {
     const invoiceReceiptNumber = invoiceSummary && String(invoiceSummary.ReceiptNumber ?? '').trim()
       ? String(invoiceSummary.ReceiptNumber).trim() : null;
 
-    // ── Actuarial: earned premium, incurred claims, loss ratio, COR ──────────
+    //  Actuarial: earned premium, incurred claims, loss ratio, COR
     const claimRows = toRows(claimsRaw);
 
     const lr = computeLossRatio({
@@ -807,7 +807,7 @@ export async function GET(request: Request) {
       paidClaimsOverride: paidClaimsResult.ok && canonicalClaimsPaid > 0 ? canonicalClaimsPaid : undefined,
     });
 
-    // ── Utilization metrics ───────────────────────────────────────────────────
+    //  Utilization metrics
     const uniqueClaimNos = new Set(
       claimRows.map((r) => String(r.claim_id ?? r.ClaimNumber ?? r.Claim_Number ?? '').trim()).filter(Boolean)
     );
@@ -824,7 +824,7 @@ export async function GET(request: Request) {
         ? Math.round((membersUtilized / activeLives) * 100)
         : null;
 
-    // ── Top 5 providers ───────────────────────────────────────────────────────
+    //  Top 5 providers
     const providerMap = new Map<string, { location: string; visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
       const name     = String(r.provider ?? r.Provider ?? r.ProviderName ?? '').trim();
@@ -850,7 +850,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.amtPaid - a.amtPaid);
     const topProviders = allProvidersSorted.slice(0, 5);
 
-    // ── Top 5 service types ───────────────────────────────────────────────────
+    //  Top 5 service types
     const serviceMap = new Map<string, { visits: Set<string>; amtPaid: number }>();
     for (const r of claimRows) {
       const svc      = String(r.service ?? r.SERVICE ?? r.ServiceType ?? r.Service ?? '').trim();
@@ -875,7 +875,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.visits - a.visits)
       .slice(0, 5);
 
-    // ── Top Conditions from real diagnosis data ───────────────────────────────
+    //  Top Conditions from real diagnosis data
     const CONDITION_BUCKETS: [RegExp, string][] = [
       [/malaria|artemether|artesunate|coartem|lumefantrine|chloroquine|quinine/i, 'Malaria'],
       [/hypertension|antihypertens|amlodipine|lisinopril|losartan|valsartan|atenolol|nifedipine|ramipril|telmisartan|bisoprolol|exforge|cardiotan|perindopril/i, 'Hypertension'],
@@ -920,7 +920,7 @@ export async function GET(request: Request) {
       ? claimRows.reduce((sum, r) => sum + (toNumber(r.AmtClaimed ?? r.AmountClaimed) ?? 0), 0)
       : null;
 
-    // ── Scheme Health Score ───────────────────────────────────────────────────
+    //  Scheme Health Score
     const hs = computeHealthScore({
       lossRatio:       lr.lossRatio,
       cor:             lr.cor,

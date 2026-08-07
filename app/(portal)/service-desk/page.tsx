@@ -53,7 +53,7 @@ const SUMMARY_STATUSES: { label: string; color: string; tint: string; icon: Reac
 ];
 
 function ServiceDeskInner() {
-  // ?new=1 opens the request form straight away — the dashboard's "Raise
+  // ?new=1 opens the request form straight away: the dashboard's "Raise
   // request" quick action lands here.
   const openFormOnLoad = useSearchParams().get('new') === '1';
   const [showForm, setShowForm] = useState(openFormOnLoad);
@@ -65,10 +65,10 @@ function ServiceDeskInner() {
   useEffect(() => { setVis(getVis('serviceDesk')); }, []);
   const { toast } = useToast();
   // Shown in the routing notice so HR sees the exact subject line before
-  // submitting — the server builds the real one from the same session field.
+  // submitting: the server builds the real one from the same session field.
   const companyName = useSession().data?.user?.companyName ?? '';
 
-  // Real requests from Postgres — null while the first load is in flight.
+  // Real requests from Postgres: null while the first load is in flight.
   const [requests, setRequests] = useState<ServiceRequestRow[] | null>(null);
   const [loadError, setLoadError] = useState('');
   const loadRequests = useCallback(() => {
@@ -112,7 +112,7 @@ function ServiceDeskInner() {
   function readAsBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      // readAsDataURL gives "data:<mime>;base64,<data>" — Prognosis wants the
+      // readAsDataURL gives "data:<mime>;base64,<data>". Prognosis wants the
       // payload only, and takes the content type as a separate field.
       reader.onload = () => resolve(String(reader.result ?? '').split(',')[1] ?? '');
       reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
@@ -130,7 +130,7 @@ function ServiceDeskInner() {
 
     for (const file of incoming) {
       if (files.length + accepted.length >= MAX_ATTACHMENTS) {
-        problems.push(`Only ${MAX_ATTACHMENTS} files can be attached — ${file.name} was not added.`);
+        problems.push(`Only ${MAX_ATTACHMENTS} files can be attached: ${file.name} was not added.`);
         continue;
       }
       if (files.some((f) => f.fileName === file.name)) {
@@ -160,7 +160,7 @@ function ServiceDeskInner() {
 
   async function handleSubmit() {
     if (submitting) return;
-    // The category picks the mailbox, so it is no longer optional — silently
+    // The category picks the mailbox, so it is no longer optional: silently
     // defaulting to General sent enrolment and billing requests to the wrong
     // desk.
     if (!formCategory) { toast('Please choose a category so your request reaches the right team.', 'error'); return; }
@@ -188,11 +188,11 @@ function ServiceDeskInner() {
       if (json.notified === false) {
         toast(`Request ${ref} saved, but the notification email could not be sent. Please call your account manager.`, 'error');
       } else {
-        toast(`Request ${ref} sent to our ${formCategory} desk — you are copied on the email.`);
+        toast(`Request ${ref} sent to our ${formCategory} desk: you are copied on the email.`);
       }
       loadRequests();
     } catch {
-      toast('Network error — please try again.', 'error');
+      toast('Network error. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -289,7 +289,7 @@ function ServiceDeskInner() {
                 </span>
                 {/* SLA tracking needs staff-side workflows that don't exist
                     yet, so the column stays honest with a placeholder. */}
-                {vis.showSlaColumn && <span style={{ fontSize: 11, color: '#C4C9D9' }}>—</span>}
+                {vis.showSlaColumn && <span style={{ fontSize: 11, color: '#C4C9D9' }}>-</span>}
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.submittedDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
               </div>
@@ -303,7 +303,7 @@ function ServiceDeskInner() {
               </div>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E' }}>
-                  {requests === null ? 'Loading requests…' : loadError ? 'Could not load requests' : tickets.length === 0 ? 'No requests yet' : 'No matching requests'}
+                  {requests === null ? 'Loading requests...' : loadError ? 'Could not load requests' : tickets.length === 0 ? 'No requests yet' : 'No matching requests'}
                 </p>
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>
                   {requests === null ? 'One moment.' : loadError ? loadError : tickets.length === 0 ? 'Raise your first request with the New Request button.' : 'Try adjusting your search term'}
@@ -327,11 +327,11 @@ function ServiceDeskInner() {
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Category</label>
                   <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: `1px solid ${formCategory ? '#E5E7F1' : '#F6C9AC'}`, borderRadius: 14, background: '#FAFBFC', color: formCategory ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
-                    <option value="">Select the team that should handle this…</option>
+                    <option value="">Select the team that should handle this...</option>
                     {REQUEST_ROUTES.map((r) => <option key={r.category} value={r.category}>{r.category}</option>)}
                   </select>
                   {/* The category decides which Leadway mailbox receives the
-                      request, so the hint is worth the vertical space — a
+                      request, so the hint is worth the vertical space: a
                       misrouted ticket costs a day. */}
                   <p style={{ fontSize: 11.5, color: selectedRoute ? '#6B7480' : '#C2410C', lineHeight: 1.5, marginTop: 7 }}>
                     {selectedRoute
@@ -402,7 +402,7 @@ function ServiceDeskInner() {
                   )}
                 </div>
               </div>
-              {/* Tells HR what happens on submit: which desk it reaches, and
+              {/* Tells HR what happens on submit, which desk it reaches, and
                   that they stay in the thread. Without this the CC is
                   invisible and HR chases a request they think vanished. */}
               {selectedRoute && (
@@ -417,7 +417,7 @@ function ServiceDeskInner() {
               )}
               <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: selectedRoute ? 'none' : '1px solid #F0F1F5' }}>
                 <button onClick={() => setShowForm(false)} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7480', border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: submitting ? 'wait' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Submitting…' : 'Submit Request'}</button>
+                <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: submitting ? 'wait' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Submitting...' : 'Submit Request'}</button>
               </div>
             </div>
           </div>
@@ -427,7 +427,7 @@ function ServiceDeskInner() {
   );
 }
 
-// useSearchParams() requires a Suspense boundary above it to prerender —
+// useSearchParams() requires a Suspense boundary above it to prerender -
 // same pattern as the People page.
 export default function ServiceDeskPage() {
   return (

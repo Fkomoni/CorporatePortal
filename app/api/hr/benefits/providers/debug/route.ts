@@ -49,12 +49,12 @@ export async function GET(req: Request) {
     status: authResult.status,
     ok: authResult.ok,
     tokenFound: !!token,
-    tokenPreview: token ? `${token.slice(0, 12)}…` : null,
+    tokenPreview: token ? `${token.slice(0, 12)}...` : null,
     bodyPreview: authResult.bodyPreview,
   };
 
   if (!token) {
-    return NextResponse.json({ authSummary, error: 'Auth failed — no token extracted', base: BASE });
+    return NextResponse.json({ authSummary, error: 'Auth failed: no token extracted', base: BASE });
   }
 
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };

@@ -1,8 +1,8 @@
-// Server-only half of Service Desk routing: which mailbox owns each queue,
+// Server-only half of Service Desk routing, which mailbox owns each queue,
 // what the email looks like, and sending it through Prognosis.
 //
 // Kept apart from lib/service-request-routes.ts because that module is
-// imported by the Service Desk client page — internal mailbox addresses have
+// imported by the Service Desk client page: internal mailbox addresses have
 // no business in a browser bundle.
 import { getServiceToken } from '@/lib/corporate-welcome';
 import { renderEmailTemplate } from '@/lib/email-template';
@@ -14,7 +14,7 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
 
 // A queue moving to a different team is an ops change, not a code change, so
 // each address can be corrected from Render's environment without a deploy.
-// Unset — the normal case — keeps the address below.
+// Unset, the normal case, keeps the address below.
 const env = (name: string, fallback: string) => (process.env[name] || '').trim() || fallback;
 
 interface Mailbox {
@@ -55,14 +55,14 @@ const MAILBOXES: Record<string, Mailbox> = {
  * sends as the Prognosis service account and the payload has no Reply-To
  * field, so an agent pressing Reply answers the queue itself. CC is the only
  * thing that puts HR into the thread. Only the raiser is copied, never the
- * whole HR team — a case review can carry a named member's clinical detail.
+ * whole HR team: a case review can carry a named member's clinical detail.
  */
 export function recipientsFor(category: string, hrEmail: string): { to: string; cc: string } {
   const box = MAILBOXES[category] ?? MAILBOXES['General Enquiries'];
   const cc = [...box.cc, hrEmail]
     .map((a) => a.trim().toLowerCase())
     .filter((a) => a && a !== box.to.toLowerCase());
-  // Comma-separated — the format Prognosis already accepts for CC on the
+  // Comma-separated: the format Prognosis already accepts for CC on the
   // onboarding and invoice-reminder mails. EmailAddress must stay a single
   // address: a list there returns HTTP 200 with "fail: Invalid email address
   // format" in the body, which is how the backdate alerts were silently lost.
@@ -119,8 +119,8 @@ export function renderRequestEmail(input: RequestEmailInput): string {
       : '<em style="color:#9CA3B8;">HR did not add any detail beyond the subject line above.</em>',
     details: [
       { label: 'Reference', value: `<span style="font-family:monospace;">${esc(input.reference)}</span>` },
-      { label: 'Company', value: esc(input.companyName || '—') },
-      { label: 'Group ID', value: esc(input.groupId || '—') },
+      { label: 'Company', value: esc(input.companyName || '-') },
+      { label: 'Group ID', value: esc(input.groupId || '-') },
       { label: 'Request type', value: esc(input.route.category) },
       { label: 'Raised by', value: esc(who) },
       // The address to answer on. SendEmailAlert has no Reply-To field, so
@@ -143,7 +143,7 @@ export function renderRequestEmail(input: RequestEmailInput): string {
         : []),
     ],
     footnote:
-      `${esc(who)} is copied on this email — Reply All reaches them directly. ` +
+      `${esc(who)} is copied on this email. Reply All reaches them directly. ` +
       `Reference ${esc(input.reference)} is visible to them in the Corporate Portal, so quoting it keeps both sides on the same request.`,
   });
 }
@@ -176,7 +176,7 @@ export async function sendServiceRequestEmail(
         Subject: subject,
         MessageBody: renderRequestEmail(input),
         // Prognosis expects FileName / ContentType / Base64Data, and null
-        // rather than [] when there is nothing to attach — that is the shape
+        // rather than [] when there is nothing to attach: that is the shape
         // every other working sender in this codebase uses.
         Attachments: input.attachments?.length
           ? input.attachments.map((a) => ({
@@ -198,7 +198,7 @@ export async function sendServiceRequestEmail(
     // the body, so the status code alone is not enough to call this a success.
     if (!res.ok || /fail/i.test(text)) {
       const error = `HTTP ${res.status}: ${text.slice(0, 200)}`;
-      console.error(`[service-request] Email FAILED → ${to} (cc: ${cc || 'none'}) — ${error}`);
+      console.error(`[service-request] Email FAILED → ${to} (cc: ${cc || 'none'}): ${error}`);
       return { sent: false, to, cc, error };
     }
     const files = input.attachments?.length
@@ -208,7 +208,7 @@ export async function sendServiceRequestEmail(
     return { sent: true, to, cc };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
-    console.error(`[service-request] Email FAILED → ${to} (cc: ${cc || 'none'}) — ${error}`);
+    console.error(`[service-request] Email FAILED → ${to} (cc: ${cc || 'none'}): ${error}`);
     return { sent: false, to, cc, error };
   }
 }

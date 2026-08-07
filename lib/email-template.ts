@@ -43,7 +43,7 @@ export function renderEmailTemplate(opts: EmailTemplateOptions): string {
     <!-- Letterhead as a two-cell table, not flex: Outlook desktop drops
          display:flex and would stack the logo above the category label. The
          wordmark is leadway-health-logo.png (605x200) rather than
-         leadway-logo.jpeg — the JPEG is a 1600x1600 square, so constraining it
+         leadway-logo.jpeg: the JPEG is a 1600x1600 square, so constraining it
          by height rendered the brand as a 28px stamp. -->
     <table role="presentation" width="100%" style="border-collapse:collapse;border-bottom:3px solid #F56B22;">
       <tr>

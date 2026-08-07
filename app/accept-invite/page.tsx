@@ -36,9 +36,9 @@ function AcceptInviteForm() {
     setError('');
     if (password !== confirm)            { setError('Passwords do not match.'); return; }
     if (password.length < 8)             { setError('Password must be at least 8 characters long.'); return; }
-    if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A–Z).'); return; }
-    if (!/[a-z]/.test(password))         { setError('Password must include at least one lowercase letter (a–z).'); return; }
-    if (!/[0-9]/.test(password))         { setError('Password must include at least one number (0–9).'); return; }
+    if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A-Z).'); return; }
+    if (!/[a-z]/.test(password))         { setError('Password must include at least one lowercase letter (a-z).'); return; }
+    if (!/[0-9]/.test(password))         { setError('Password must include at least one number (0-9).'); return; }
     if (!/[^A-Za-z0-9]/.test(password)) { setError('Password must include at least one special character.'); return; }
 
     setLoading(true);
@@ -72,7 +72,7 @@ function AcceptInviteForm() {
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7,
   };
 
-  // Strength meter — 5 criteria per Leadway policy
+  // Strength meter: 5 criteria per Leadway policy
   let strength = 0;
   if (password.length >= 8)            strength++;
   if (/[A-Z]/.test(password))          strength++;
@@ -103,7 +103,7 @@ function AcceptInviteForm() {
             <CheckCircle2 style={{ width: 32, height: 32, color: '#10B981' }} />
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: '#131C4E', marginBottom: 8 }}>Account Activated!</h2>
-          <p style={{ fontSize: 14, color: '#6B7480', lineHeight: 1.6 }}>Your account is ready.<br />Redirecting you to sign in…</p>
+          <p style={{ fontSize: 14, color: '#6B7480', lineHeight: 1.6 }}>Your account is ready.<br />Redirecting you to sign in...</p>
         </div>
       ) : (
         <>
@@ -158,7 +158,7 @@ function AcceptInviteForm() {
 
             <button type="submit" disabled={loading || !password || !confirm || password !== confirm}
               style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !password || !confirm || password !== confirm) ? 0.55 : 1 }}>
-              {loading ? 'Activating…' : 'Activate Account →'}
+              {loading ? 'Activating...' : 'Activate Account →'}
             </button>
           </form>
         </>
@@ -174,7 +174,7 @@ function AcceptInviteForm() {
 export default function AcceptInvitePage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: 32 }}>
-      <Suspense fallback={<p style={{ fontSize: 14, color: '#9CA3B8' }}>Loading…</p>}>
+      <Suspense fallback={<p style={{ fontSize: 14, color: '#9CA3B8' }}>Loading...</p>}>
         <AcceptInviteForm />
       </Suspense>
     </div>

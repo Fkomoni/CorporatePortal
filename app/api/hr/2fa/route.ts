@@ -25,7 +25,7 @@ function str(row: Record<string, unknown>, ...keys: string[]): string {
 
 // Best-effort lookup of a mobile number already on file in Prognosis for this
 // HR user, so the SMS 2FA setup screen isn't blank when a number already
-// exists there — matched by email against the group's member list.
+// exists there: matched by email against the group's member list.
 async function findPrognosisMobile(email: string, groupId: string | null): Promise<string> {
   if (!email || !groupId) return '';
   try {

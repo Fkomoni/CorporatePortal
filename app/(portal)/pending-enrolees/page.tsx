@@ -25,7 +25,7 @@ interface BeneficiaryRow {
   email: string;
   schemeName: string;
   registrationSource: 'Corporate Portal' | 'Enrolee App';
-  // Cover start date HR chose when issuing the invitation — the date approval
+  // Cover start date HR chose when issuing the invitation: the date approval
   // should default to, so it isn't silently reset to the day HR approves.
   coverStartDate: string | null;
 }
@@ -41,16 +41,16 @@ function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
         cifNumber: m.cifNumber,
         parentCif: g.parentCif,
         staffName: g.principalName || `CIF ${g.parentCif}`,
-        beneficiaryName: m.fullName || '—',
+        beneficiaryName: m.fullName || '-',
         relationship: m.relationship || 'Dependant',
         age: m.age,
         dateOfBirth: m.dateOfBirth || '',
         registrationDate: m.registrationDate,
-        membershipNo: m.membershipNo || '—',
-        sex: m.sex || '—',
+        membershipNo: m.membershipNo || '-',
+        sex: m.sex || '-',
         status: m.status,
         email: g.email,
-        schemeName: m.schemeName || g.schemeName || '—',
+        schemeName: m.schemeName || g.schemeName || '-',
         registrationSource: m.registrationSource,
         coverStartDate: m.coverStartDate ?? null,
       });
@@ -77,12 +77,12 @@ export default function PendingEnroleesPage() {
   const [busyCif, setBusyCif] = useState<string | null>(null); // parentCif or 'bulk'
   const [showBackdateModal, setShowBackdateModal] = useState(false);
   const [backdateAgreed, setBackdateAgreed] = useState(false);
-  // Earliest effective date HR may approve with — start of the group's current
+  // Earliest effective date HR may approve with: start of the group's current
   // policy year, from the API. Cover can't begin before the group was rated.
   const [policyYearStart, setPolicyYearStart] = useState('');
 
   // Prognosis needs an explicit dd/mm/yyyy effective/termination date for
-  // every approve/reject decision — it drives the member's waiting period,
+  // every approve/reject decision: it drives the member's waiting period,
   // so it can't be silently defaulted to "today" behind HR's back.
   function toDdMmYyyy(isoDate: string): string {
     const [y, m, d] = isoDate.split('-');
@@ -133,7 +133,7 @@ export default function PendingEnroleesPage() {
     setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.rowId)));
   }
 
-  // ApproveEnrollees/RejectEnrollees each act on a single member's own CIF —
+  // ApproveEnrollees/RejectEnrollees each act on a single member's own CIF -
   // remove by that CIF, not the whole family's parentCif, so acting on one
   // dependant never drops unrelated siblings from the pending list.
   function removeCifNumbers(cifs: Set<string>) {
@@ -194,7 +194,7 @@ export default function PendingEnroleesPage() {
   }
 
   async function handleApproveConfirm(cifs: string[], agreedOverride = false) {
-    // These three bail-outs never reach the server, so log them too — a toast
+    // These three bail-outs never reach the server, so log them too: a toast
     // alone makes a blocked approval look like a backend failure.
     console.log('[approve] attempt', { cifs, approveDate, policyYearStart, today: todayIso(), backdateAgreed, agreedOverride });
     if (!approveDate) {
@@ -209,7 +209,7 @@ export default function PendingEnroleesPage() {
     // but HR must accept the backdate warning first.
     const agreed = backdateAgreed || agreedOverride;
     if (approveDate < todayIso() && !agreed) {
-      console.log('[approve] backdated — showing acknowledgement modal');
+      console.log('[approve] backdated: showing acknowledgement modal');
       setShowBackdateModal(true); return;
     }
     console.log('[approve] passing client checks, calling API');
@@ -296,7 +296,7 @@ export default function PendingEnroleesPage() {
       <TopBar title="Pending Enrolees" subtitle="Beneficiaries enrolment awaiting your approval" />
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* Summary strip — every figure is counted off the queue already on
+        {/* Summary strip: every figure is counted off the queue already on
             screen, so it can never disagree with the tables below. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 16 }}>
           <StatCard
@@ -389,7 +389,7 @@ export default function PendingEnroleesPage() {
                       </button>
                       <button onClick={() => handleResendInvitation(inv.token, inv.email)} disabled={busy}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 9, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', cursor: busy ? 'wait' : 'pointer' }}>
-                        <RefreshCw style={{ width: 11, height: 11 }} /> {busy ? '…' : 'Resend Link'}
+                        <RefreshCw style={{ width: 11, height: 11 }} /> {busy ? '...' : 'Resend Link'}
                       </button>
                     </div>
                   </div>
@@ -424,7 +424,7 @@ export default function PendingEnroleesPage() {
                 </button>
                 <button onClick={() => openApproveSheet('bulk')} disabled={busyCif === 'bulk'}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: busyCif === 'bulk' ? 'wait' : 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.28)' }}>
-                  <Check style={{ width: 13, height: 13 }} /> {busyCif === 'bulk' ? 'Approving…' : 'Approve Selected'}
+                  <Check style={{ width: 13, height: 13 }} /> {busyCif === 'bulk' ? 'Approving...' : 'Approve Selected'}
                 </button>
               </div>
             )}
@@ -448,13 +448,13 @@ export default function PendingEnroleesPage() {
                   }
                   return (
                     <p style={{ fontSize: 11.5, color: '#6B7280', marginTop: 6 }}>
-                      No invitation cover start date on record for {approvingCifs.length > 1 ? 'these members' : 'this member'} — defaulted to today.
+                      No invitation cover start date on record for {approvingCifs.length > 1 ? 'these members' : 'this member'}: defaulted to today.
                     </p>
                   );
                 })()}
                 {approveDate && approveDate < todayIso() && (
                   <p style={{ fontSize: 11.5, color: '#B45309', marginTop: 4, fontWeight: 600 }}>
-                    This is a backdated effective date — you will be asked to acknowledge the backdating terms.
+                    This is a backdated effective date: you will be asked to acknowledge the backdating terms.
                   </p>
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
@@ -462,7 +462,7 @@ export default function PendingEnroleesPage() {
                     style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
                   <button onClick={() => handleApproveConfirm(approvingCifs)} disabled={busyCif !== null || !approveDate}
                     style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: !approveDate ? '#E5E7F1' : 'linear-gradient(135deg,#10B981,#059669)', cursor: busyCif !== null || !approveDate ? 'not-allowed' : 'pointer' }}>
-                    {busyCif !== null ? 'Approving…' : 'Confirm Approve'}
+                    {busyCif !== null ? 'Approving...' : 'Confirm Approve'}
                   </button>
                 </div>
               </div>
@@ -485,7 +485,7 @@ export default function PendingEnroleesPage() {
                     style={{ height: 38, padding: '0 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280', border: '1px solid #E5E7F1', borderRadius: 10, background: '#fff', cursor: 'pointer' }}>Cancel</button>
                   <button onClick={() => handleDecline(decliningCifs)} disabled={busyCif !== null || !declineReason.trim() || !declineDate}
                     style={{ height: 38, padding: '0 18px', fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 10, background: (!declineReason.trim() || !declineDate) ? '#E5E7F1' : 'linear-gradient(135deg,#EF4444,#DC2626)', cursor: (busyCif !== null || !declineReason.trim() || !declineDate) ? 'not-allowed' : 'pointer' }}>
-                    {busyCif !== null ? 'Declining…' : 'Confirm Decline'}
+                    {busyCif !== null ? 'Declining...' : 'Confirm Decline'}
                   </button>
                 </div>
               </div>
@@ -518,8 +518,8 @@ export default function PendingEnroleesPage() {
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.staffName}</span>
                     <span style={{ fontWeight: 600, color: '#131C4E' }}>{row.beneficiaryName}</span>
                     <span>{row.relationship}</span>
-                    <span>{row.age != null ? row.age : '—'}</span>
-                    <span>{row.registrationDate || '—'}</span>
+                    <span>{row.age != null ? row.age : '-'}</span>
+                    <span>{row.registrationDate || '-'}</span>
                     <span>{row.schemeName}</span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20, display: 'inline-block', width: 'fit-content', color: row.registrationSource === 'Corporate Portal' ? '#2563EB' : '#7C3AED', background: row.registrationSource === 'Corporate Portal' ? '#EFF6FF' : '#F5F3FF' }}>
                       {row.registrationSource}
@@ -534,7 +534,7 @@ export default function PendingEnroleesPage() {
                       </button>
                       <button onClick={() => openApproveSheet(row.cifNumber)} disabled={isBusy}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 9, background: 'linear-gradient(135deg,#10B981,#059669)', cursor: isBusy ? 'wait' : 'pointer' }}>
-                        <Check style={{ width: 11, height: 11 }} /> {busyCif === row.cifNumber ? '…' : 'Approve'}
+                        <Check style={{ width: 11, height: 11 }} /> {busyCif === row.cifNumber ? '...' : 'Approve'}
                       </button>
                     </div>
                   </div>

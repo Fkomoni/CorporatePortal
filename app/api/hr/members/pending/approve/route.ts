@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'parentCif is required' }, { status: 400 });
   }
 
-  // ApproveEnrollees requires an explicit dd/mm/yyyy effective date — it
+  // ApproveEnrollees requires an explicit dd/mm/yyyy effective date: it
   // drives the member's waiting period on Prognosis, so HR must choose it
   // rather than have it silently default to "today".
   const effectiveDate = String(body.effectiveDate ?? '').trim();
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     console.error(`[pending/approve] REJECTED (${attemptTag}): effectiveDate missing/malformed ("${effectiveDate}")`);
     return NextResponse.json({ error: 'effectiveDate (dd/mm/yyyy) is required' }, { status: 400 });
   }
-  // Backdating IS allowed here — a member who registered against an invitation
+  // Backdating IS allowed here: a member who registered against an invitation
   // dated (say) 1 July but only gets approved in August must still have cover
   // effective from 1 July, otherwise the date HR committed to when issuing the
   // link is silently lost. Two bounds apply: the date can never precede the
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
   }
 
   // ApproveEnrollees operates on a single member's own CIF, not a family
-  // grouping — approve every member in this family (principal + dependants)
+  // grouping. Approve every member in this family (principal + dependants)
   // individually. Fall back to just the parentCif if no member list was sent.
   const cifNumbers = [...new Set((body.cifNumbers ?? [parentCif]).map((c) => String(c).trim()).filter(Boolean))];
   const userEmail = session.user.email ?? '';
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
   // approval, which made dependants unapprovable while principals went through
   // fine: a principal is compared against its own family (itself excluded, so
   // it rarely matches), whereas a dependant is compared against its real
-  // siblings — and twins share a date of birth. HR had no way to override a
+  // siblings, and twins share a date of birth. HR had no way to override a
   // false positive. The match is now reported back as a warning so HR can act
   // on a genuine duplicate, without the approval itself being blocked.
   const groupId = session.user.companyId ?? '';
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       console.log(`[pending/approve] dependant dedup (${attemptTag}): dob=${body.dateOfBirth} familySize=${family.length} match=${dupe ? `${dupe.name}/${dupe.cifNumber}` : 'none'}`);
       if (dupe) {
         duplicateWarning = `Another member under this principal shares this date of birth (${dupe.name}, CIF ${dupe.cifNumber}). If this is a duplicate registration rather than e.g. a twin, terminate the extra record.`;
-        console.warn(`[pending/approve] possible duplicate (${attemptTag}): ${dupe.name}/${dupe.cifNumber} — approving anyway`);
+        console.warn(`[pending/approve] possible duplicate (${attemptTag}): ${dupe.name}/${dupe.cifNumber}: approving anyway`);
       }
     } catch (e) {
       console.warn('[pending/approve] Dependent dedup check failed, proceeding without it:', e);
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
   const failures = results.filter((r) => !r.success);
   const recordsUpdated = results.reduce((sum, r) => sum + (r.recordsUpdated ?? 0), 0) || undefined;
   // Prognosis files every decision under one account, not the HR user who made
-  // it — record which, so the real actor stays traceable on our side.
+  // it: record which, so the real actor stays traceable on our side.
   const attributedTo = results.find((r) => r.prognosisUserEmail)?.prognosisUserEmail ?? null;
 
   console.log(`[pending/approve] result: ${failures.length === 0 ? 'success' : 'failed'} recordsUpdated=${recordsUpdated ?? 0} errors=${failures.map((f) => f.error).join('; ')}`);

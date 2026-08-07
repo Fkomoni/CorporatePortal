@@ -1,7 +1,7 @@
 // Server-side timing for API routes that call Prognosis.
 //
-// The portal's perceived slowness has two possible sources — our own JS/render
-// cost, and upstream Prognosis latency — and they need different fixes. This
+// The portal's perceived slowness has two possible sources, our own JS/render
+// cost, and upstream Prognosis latency, and they need different fixes. This
 // logs one line per request with a per-call breakdown so the split is visible
 // in Render's logs without wiring up an APM.
 //

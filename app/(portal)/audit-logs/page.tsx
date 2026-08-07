@@ -126,7 +126,7 @@ export default function HRAuditLogsPage() {
             <div>
               <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Activity History</p>
               <p style={{ fontSize: 12, color: '#9CA3B8' }}>
-                {loading ? 'Loading…' : `${total.toLocaleString()} event${total !== 1 ? 's' : ''} recorded`}
+                {loading ? 'Loading...' : `${total.toLocaleString()} event${total !== 1 ? 's' : ''} recorded`}
               </p>
             </div>
           </div>
@@ -136,7 +136,7 @@ export default function HRAuditLogsPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter by user, action…"
+                placeholder="Filter by user, action..."
                 style={{ height: 36, padding: '0 14px 0 30px', fontSize: 12, border: '1px solid #E5E7F1', borderRadius: 20, background: '#fff', outline: 'none', width: 220 }}
               />
             </div>
@@ -164,12 +164,12 @@ export default function HRAuditLogsPage() {
           </div>
 
           {loading ? (
-            <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3B8', fontSize: 13 }}>Loading audit log…</div>
+            <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3B8', fontSize: 13 }}>Loading audit log...</div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: '56px 24px', textAlign: 'center' }}>
               <ClipboardList style={{ width: 36, height: 36, margin: '0 auto 12px', color: '#E5E7F1' }} />
               <p style={{ fontSize: 14, fontWeight: 600, color: '#131C4E', marginBottom: 4 }}>No activity recorded yet</p>
-              <p style={{ fontSize: 12, color: '#9CA3B8' }}>Actions taken in the portal — viewing members, claims, changing passwords — will appear here</p>
+              <p style={{ fontSize: 12, color: '#9CA3B8' }}>Actions taken in the portal, viewing members, claims, changing passwords, will appear here</p>
             </div>
           ) : (
             filtered.map((log) => {

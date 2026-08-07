@@ -1,6 +1,6 @@
 // Registers a new HR admin with Prognosis so it recognises the account for
 // future login validation. Called from the verify-registration flow once the
-// HR user has filled in their details, before the OTP is issued — OTP
+// HR user has filled in their details, before the OTP is issued. OTP
 // generation/verification itself remains entirely ours (see login-otp.ts).
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -30,7 +30,7 @@ export interface CorporateUserSignUpResult {
   error?: string;
   raw?: unknown;
   // True only when the account already existed and this call didn't change
-  // its password — Prognosis's stored password may not be the one just
+  // its password. Prognosis's stored password may not be the one just
   // submitted, so callers must not treat this as "password now in sync".
   alreadyExisted?: boolean;
 }
@@ -90,13 +90,13 @@ export async function callCorporateUserSignUp(
     const r = raw as Record<string, unknown>;
 
     // Prognosis sometimes returns HTTP 200 with a logical error embedded in
-    // the body (e.g. { status: 500, ... } or { Message: "..." }) — inspect
+    // the body (e.g. { status: 500, ... } or { Message: "..." }): inspect
     // the body, not just res.ok.
     const bodyStatus = r?.status ?? r?.Status;
     const message = String(r?.message ?? r?.Message ?? r?.ErrorMessage ?? '');
 
     // "already taken" means this HR user already completed CorporateUserSignUp
-    // on a prior attempt (e.g. a resend-OTP retry, or revisiting the link) —
+    // on a prior attempt (e.g. a resend-OTP retry, or revisiting the link) -
     // that's success, not a failure to surface and block on.
     if (/already taken|already exist/i.test(message)) {
       return { success: true, alreadyExisted: true, raw };

@@ -1,6 +1,6 @@
 // Confirms the registration OTP (issued by /api/hr/request-registration-otp,
 // generated and verified entirely by us) and sets the local password hash.
-// Prognosis is not called here at all — email authorisation already happened
+// Prognosis is not called here at all: email authorisation already happened
 // when the OTP was requested (Company_Email1 check), and Prognosis's own
 // ClientAppVerifyRegistration turned out to be an unreliable gate for this
 // (fails with "Insured Client is not valid" for contacts it doesn't
@@ -29,9 +29,9 @@ export async function POST(req: Request) {
 
   // Leadway password complexity policy
   if (password.length < 8)              return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 });
-  if (!/[A-Z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one uppercase letter (A–Z).' }, { status: 400 });
-  if (!/[a-z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one lowercase letter (a–z).' }, { status: 400 });
-  if (!/[0-9]/.test(password))          return NextResponse.json({ error: 'Password must include at least one number (0–9).' }, { status: 400 });
+  if (!/[A-Z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one uppercase letter (A-Z).' }, { status: 400 });
+  if (!/[a-z]/.test(password))          return NextResponse.json({ error: 'Password must include at least one lowercase letter (a-z).' }, { status: 400 });
+  if (!/[0-9]/.test(password))          return NextResponse.json({ error: 'Password must include at least one number (0-9).' }, { status: 400 });
   if (!/[^A-Za-z0-9]/.test(password))  return NextResponse.json({ error: 'Password must include at least one special character.' }, { status: 400 });
 
   try {

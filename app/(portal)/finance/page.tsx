@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
+import { useToast } from '@/components/ui/Toast';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+//  Types
 interface InvoiceHistory {
   HasOutstanding?: number;
   TotalAmount?: number | null;
@@ -34,12 +35,12 @@ interface InvoiceData {
 type InvoiceType = 'additions' | 'deletions' | 'endorsement';
 type Tab = 'overview' | 'generate' | 'schedule';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+//  Helpers
 const fmt = (n: number | null | undefined) =>
-  n != null ? `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+  n != null ? `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
 
 const fmtDate = (d: string | null | undefined) =>
-  d ? new Date(d).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  d ? new Date(d).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
 const PREMIUM_KEYS = ['IndividualPremiumFees', 'ActualPremium', 'BasePremiumIndividual', 'PremiumAmount', 'Premium', 'premium', 'Production_Amount'];
 const NAME_KEYS = ['Member_CustomerName', 'EnrolleeName', 'Enrollee_Name', 'FullName', 'Full_Name', 'MemberName', 'PatientName'];
@@ -53,7 +54,7 @@ function getStr(row: InvoiceRow, ...keys: string[]): string {
     const v = row[k];
     if (v != null && String(v).trim() && String(v).trim().toLowerCase() !== 'null') return String(v).trim();
   }
-  return '—';
+  return '-';
 }
 
 function getNum(row: InvoiceRow, ...keys: string[]): number {
@@ -88,7 +89,7 @@ function printInvoice() {
   window.print();
 }
 
-// ── Invoice type config ───────────────────────────────────────────────────────
+//  Invoice type config
 const INVOICE_TYPES: { id: InvoiceType; label: string; desc: string; color: string; icon: React.ReactNode }[] = [
   {
     id: 'additions',
@@ -113,8 +114,9 @@ const INVOICE_TYPES: { id: InvoiceType; label: string; desc: string; color: stri
   },
 ];
 
-// ── Component ─────────────────────────────────────────────────────────────────
+//  Component
 export default function FinancePage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('additions');
   const [fromDate, setFromDate] = useState('');
@@ -203,16 +205,18 @@ export default function FinancePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setSaveError(
-          data.outstandingBalance
-            ? `Outstanding balance of ${fmt(data.outstandingBalance)} on receipt ${data.existingReceiptNumber}. Please clear before generating a new invoice.`
-            : data.error ?? 'Failed to save invoice'
-        );
+        const msg = data.outstandingBalance
+          ? `Outstanding balance of ${fmt(data.outstandingBalance)} on receipt ${data.existingReceiptNumber}. Please clear before generating a new invoice.`
+          : data.error ?? 'Failed to save invoice';
+        setSaveError(msg);
+        toast(msg, 'error');
         return;
       }
       setSavedReceipt(data.receiptNumber);
+      toast(`Invoice saved as receipt ${data.receiptNumber}.`, 'success');
     } catch {
       setSaveError('Network error. Please try again.');
+      toast('Network error. The invoice was not saved.', 'error');
     } finally {
       setSaving(false);
     }
@@ -220,7 +224,7 @@ export default function FinancePage() {
 
   const hasOutstanding = (history?.HasOutstanding ?? 0) === 1;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  //  Render
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
       <style>{`
@@ -249,7 +253,7 @@ export default function FinancePage() {
           </div>
         )}
 
-        {/* Summary cards — the shared StatCard, so Finance matches People,
+        {/* Summary cards: the shared StatCard, so Finance matches People,
             Claims and the dashboard. It renders its own loading state, which
             replaces the separate spinner grid that used to sit below. */}
         {(historyLoading || history) && (
@@ -297,7 +301,7 @@ export default function FinancePage() {
           ))}
         </div>
 
-        {/* ── OVERVIEW TAB ──────────────────────────────────────────────────── */}
+        {/*  OVERVIEW TAB  */}
         {tab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Payment timeline */}
@@ -366,7 +370,7 @@ export default function FinancePage() {
                     </thead>
                     <tbody>
                       {historyList.map((row, i) => {
-                        const receipt = String(row.ReceiptNumber ?? row.receiptnumber ?? '—');
+                        const receipt = String(row.ReceiptNumber ?? row.receiptnumber ?? '-');
                         const created = String(row.createddate ?? row.DatePaid ?? row.datepaid ?? '');
                         const total = Number(row.TotalAmount ?? row.totalamount ?? 0);
                         const paid = Number(row.AmountPaid ?? row.amountpaid ?? 0);
@@ -376,11 +380,11 @@ export default function FinancePage() {
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid #F7F8FA' }}>
                             <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#131C4E' }}>{receipt}</td>
-                            <td style={{ padding: '13px 16px', color: '#6B7280', whiteSpace: 'nowrap' }}>{created ? new Date(created).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                            <td style={{ padding: '13px 16px', color: '#6B7280', whiteSpace: 'nowrap' }}>{created ? new Date(created).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
                             <td style={{ padding: '13px 16px', fontWeight: 700, color: '#131C4E' }}>{fmt(total)}</td>
                             <td style={{ padding: '13px 16px', color: '#059669', fontWeight: 600 }}>{fmt(paid)}</td>
                             <td style={{ padding: '13px 16px', color: outstanding > 0 ? '#DC2626' : '#059669', fontWeight: 600 }}>{outstanding > 0 ? fmt(outstanding) : 'Nil'}</td>
-                            <td style={{ padding: '13px 16px', color: '#6B7280', whiteSpace: 'nowrap' }}>{nextDue ? new Date(nextDue).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                            <td style={{ padding: '13px 16px', color: '#6B7280', whiteSpace: 'nowrap' }}>{nextDue ? new Date(nextDue).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
                             <td style={{ padding: '13px 16px' }}>
                               <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, background: isPaid ? '#ECFDF5' : '#FEF2F2', color: isPaid ? '#059669' : '#DC2626' }}>
                                 {isPaid ? 'Paid' : 'Outstanding'}
@@ -397,13 +401,13 @@ export default function FinancePage() {
           </div>
         )}
 
-        {/* ── GENERATE INVOICE TAB ──────────────────────────────────────────── */}
+        {/*  GENERATE INVOICE TAB  */}
         {tab === 'generate' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Type selector */}
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Step 1 — Select Invoice Type</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Step 1. Select Invoice Type</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
                 {INVOICE_TYPES.map((t) => (
                   <button key={t.id} onClick={() => { setInvoiceType(t.id); setInvoiceData(null); setSavedReceipt(''); setSaveError(''); }}
@@ -601,7 +605,7 @@ export default function FinancePage() {
           </div>
         )}
 
-        {/* ── SCHEDULE TAB ─────────────────────────────────────────────────── */}
+        {/*  SCHEDULE TAB  */}
         {tab === 'schedule' && (
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
             {scheduleLoading ? (
@@ -636,7 +640,7 @@ export default function FinancePage() {
                         const due = getStr(row, 'NextDue', 'DueDate', 'due_date', 'nextdue');
                         const amount = getNum(row, 'NextDueAmount', 'Amount', 'AmountDue', 'amount');
                         const receipt = getStr(row, 'ReceiptNumber', 'receiptnumber', 'InvoiceNo');
-                        const isPast = due !== '—' && new Date(due) < new Date();
+                        const isPast = due !== '-' && new Date(due) < new Date();
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid #F7F8FA' }}>
                             <td style={{ padding: '14px 20px', color: '#9CA3B8', fontSize: 11 }}>{i + 1}</td>
