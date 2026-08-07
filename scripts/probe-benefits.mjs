@@ -5,14 +5,24 @@
 // PROGNOSIS_USERNAME / PROGNOSIS_PASSWORD the app uses, so there is nothing to
 // pass but the schemes you want.
 //
+// GetEnrolleeBenefitsByScheme_<Category> takes a schemeId and nothing else. It
+// does not know or care which group a scheme belongs to, so any scheme ID works
+// with no group involved:
+//
 //   node scripts/probe-benefits.mjs 1322
-//   node scripts/probe-benefits.mjs 1322 1400 --category=Dental,Optical
-//   node scripts/probe-benefits.mjs --code=204166,204167 --group=1001
-//   node scripts/probe-benefits.mjs --group=1001            # list schemes only
+//   node scripts/probe-benefits.mjs 204166 204167 204168      # any group
 //   node scripts/probe-benefits.mjs 1322 --category=Dental --raw
 //
-// Scheme codes (204166) are not what the endpoint takes; it wants the numeric
-// PlanID (1322). --code resolves them via GetPolicySchemes, which needs --group.
+// --identify says what an unknown number is, by trying it as a scheme ID and as
+// a group ID and reporting which one answers:
+//
+//   node scripts/probe-benefits.mjs --identify=204166,204167
+//
+// The remaining flags are only for turning an alphanumeric scheme code such as
+// AFRICMAX into its numeric PlanID, which does need to know the group:
+//
+//   node scripts/probe-benefits.mjs --group=1001               # list its schemes
+//   node scripts/probe-benefits.mjs --code=AFRICMAX --group=1001
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '').replace(/\/$/, '');
@@ -31,6 +41,7 @@ const flag = (name) => {
 const ids = args.filter((a) => !a.startsWith('--'));
 const codes = flag('code').split(',').map((s) => s.trim()).filter(Boolean);
 const group = flag('group');
+const identify = flag('identify').split(',').map((s) => s.trim()).filter(Boolean);
 const wanted = flag('category').split(',').map((s) => s.trim()).filter(Boolean);
 const categories = wanted.length ? wanted : CATEGORIES;
 const showRaw = args.includes('--raw');
@@ -91,9 +102,44 @@ async function probe(token, schemeId, category) {
   }
 }
 
+async function identifyOne(token, n) {
+  // As a scheme: the benefits endpoint answers with rows.
+  const asScheme = await probe(token, n, 'Dental');
+  // As a group: GetPolicySchemes answers with that group's scheme list.
+  let asGroup = [];
+  try { asGroup = await schemesFor(token, n); } catch { /* reported as none */ }
+
+  const schemeRows = asScheme.rows.length;
+  const verdict = schemeRows > 0 && asGroup.length > 0 ? 'BOTH (ambiguous)'
+    : schemeRows > 0 ? 'a scheme ID (PlanID)'
+    : asGroup.length > 0 ? 'a group ID'
+    : 'neither a scheme ID nor a group ID';
+
+  console.log(`\n${n}: ${verdict}`);
+  if (schemeRows > 0) {
+    const benefits = [...new Set(asScheme.rows.map((r) => r.Benefit).filter(Boolean))];
+    const schemeField = [...new Set(asScheme.rows.map((r) => r.Scheme))];
+    console.log(`   as scheme: ${schemeRows} Dental rows, benefits ${benefits.join(', ')}, Scheme field ${schemeField.join(',')}`);
+  } else {
+    console.log(`   as scheme: HTTP ${asScheme.status}, no rows`);
+  }
+  if (asGroup.length > 0) {
+    console.log(`   as group:  ${asGroup.length} scheme(s)`);
+    for (const s of asGroup) console.log(`     PlanID ${String(s.schemeId).padEnd(8)} code ${String(s.schemeCode).padEnd(12)} ${s.schemeName}`);
+  } else {
+    console.log('   as group:  no schemes returned');
+  }
+}
+
 (async () => {
   const token = await login();
   console.log(`token ok, base ${BASE}\n`);
+
+  if (identify.length) {
+    console.log('Identifying, by asking the API rather than guessing:');
+    for (const n of identify) await identifyOne(token, n);
+    return;
+  }
 
   const targets = ids.map((id) => ({ schemeId: id, label: `schemeId ${id}` }));
 
@@ -121,9 +167,11 @@ async function probe(token, schemeId, category) {
 
   for (const t of targets) {
     console.log(`\n${'='.repeat(72)}\n${t.label}\n${'='.repeat(72)}`);
+    const found_ = [], absent_ = [];
     for (const category of categories) {
       const r = await probe(token, t.schemeId, category);
       const found = r.status === 200 && r.rows.length > 0;
+      (found ? found_ : absent_).push(category);
       if (!found) {
         // Only noise when the caller asked for this category explicitly.
         if (wanted.length) console.log(`  ${category.padEnd(14)} HTTP ${r.status}  no rows${r.text ? `  ${r.text.slice(0, 90)}` : ''}`);
@@ -141,5 +189,10 @@ async function probe(token, schemeId, category) {
       }
       if (showRaw) console.log(JSON.stringify(r.raw, null, 2));
     }
+    // Without this a scheme that answers nothing produces no output at all,
+    // which is indistinguishable from the script having failed.
+    console.log(`\n  found ${found_.length}: ${found_.join(', ') || 'none'}`);
+    console.log(`  absent ${absent_.length}: ${absent_.join(', ') || 'none'}`);
+    if (!found_.length) console.log(`  -> ${t.schemeId} returned no benefits for any category. Try --identify=${t.schemeId}`);
   }
 })().catch((e) => { console.error('\nFAILED:', e.message); process.exit(1); });
