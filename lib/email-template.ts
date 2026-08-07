@@ -40,10 +40,19 @@ export function renderEmailTemplate(opts: EmailTemplateOptions): string {
 <body style="margin:0;padding:0;background:#F7F8FC;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
-    <div style="padding:24px 32px;border-bottom:3px solid #F56B22;display:flex;align-items:center;justify-content:space-between;">
-      <img src="${APP_BASE}/leadway-logo.jpeg" alt="Leadway Health" height="28" style="height:28px;object-fit:contain;display:block;" />
-      <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3B8;">${opts.category}</span>
-    </div>
+    <!-- Letterhead as a two-cell table, not flex: Outlook desktop drops
+         display:flex and would stack the logo above the category label. The
+         wordmark is leadway-health-logo.png (605x200) rather than
+         leadway-logo.jpeg — the JPEG is a 1600x1600 square, so constraining it
+         by height rendered the brand as a 28px stamp. -->
+    <table role="presentation" width="100%" style="border-collapse:collapse;border-bottom:3px solid #F56B22;">
+      <tr>
+        <td style="padding:22px 32px;vertical-align:middle;">
+          <img src="${APP_BASE}/leadway-health-logo.png" alt="Leadway Health" width="121" height="40" style="width:121px;height:40px;display:block;border:0;" />
+        </td>
+        <td style="padding:22px 32px;vertical-align:middle;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3B8;white-space:nowrap;">${opts.category}</td>
+      </tr>
+    </table>
 
     <div style="padding:32px;">
       <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#F56B22;">${opts.eyebrow}</p>

@@ -5,8 +5,8 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-
-const CATEGORIES = ['Enrolment', 'Claims', 'Benefits', 'General', 'Billing', 'Provider'];
+import { REQUEST_CATEGORIES, FALLBACK_CATEGORY, routeFor } from '@/lib/service-request-routes';
+import { sendServiceRequestEmail } from '@/lib/service-request-mail';
 
 // REQ-0007-style reference derived from the atomically allocated sequence.
 function refFor(seq: number): string {
@@ -67,11 +67,14 @@ export async function POST(req: Request) {
 
   const subject = String(body.subject ?? '').trim().slice(0, 200);
   const description = String(body.description ?? '').trim().slice(0, 5000);
-  const category = CATEGORIES.includes(String(body.category)) ? String(body.category) : 'General';
+  const category = REQUEST_CATEGORIES.includes(String(body.category))
+    ? String(body.category)
+    : FALLBACK_CATEGORY;
   if (!subject) return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
 
+  let created;
   try {
-    const created = await prisma.serviceRequest.create({
+    created = await prisma.serviceRequest.create({
       data: {
         groupId,
         category,
@@ -81,16 +84,39 @@ export async function POST(req: Request) {
         createdByEmail: session.user.email ?? '',
       },
     });
-    await logAudit({
-      session,
-      action: 'CREATE_SERVICE_REQUEST',
-      resource: refFor(created.seq),
-      details: { category, subject },
-      request: req,
-    });
-    return NextResponse.json({ request: shape(created) });
   } catch (err) {
     console.error('[hr/service-requests] POST error:', err);
     return NextResponse.json({ error: 'Failed to submit request' }, { status: 500 });
   }
+
+  const reference = refFor(created.seq);
+
+  // The request is saved and already visible to HR, so routing it is a
+  // best-effort step that runs after the write and never fails the response.
+  // `notified` tells HR whether the team actually has it, instead of promising
+  // a response to an email that bounced.
+  const route = routeFor(category);
+  const mail = route
+    ? await sendServiceRequestEmail({
+        route,
+        reference,
+        companyName: session.user.companyName ?? '',
+        groupId,
+        hrName: session.user.name ?? '',
+        hrEmail: session.user.email ?? '',
+        requestSubject: subject,
+        details: description,
+        submittedAt: created.createdAt,
+      })
+    : { sent: false, to: '', cc: '' };
+
+  await logAudit({
+    session,
+    action: 'CREATE_SERVICE_REQUEST',
+    resource: reference,
+    details: { category, subject, routedTo: mail.to, cc: mail.cc, emailSent: mail.sent },
+    request: req,
+  });
+
+  return NextResponse.json({ request: shape(created), notified: mail.sent });
 }

@@ -7,6 +7,7 @@ import {
   Search, Upload, ArrowDownToLine, Plus, FileText,
   CreditCard, X, Phone, Mail, MapPin, Calendar,
   ShieldCheck, Users, Activity, AlertCircle, Send, Link2, UserPlus, Camera, Copy, Check,
+  ChevronRight, BarChart3, LineChart,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import type { Member } from '@/lib/types';
@@ -16,6 +17,7 @@ import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { StatCard } from '@/components/ui/StatCard';
 import { fetchListValues } from '@/lib/list-values-client';
+import { parseBulkRow, buildBulkFamilies, type BulkRow, type BulkFamily } from '@/lib/bulk-enrolment';
 import { Building2, Clock, MoreVertical } from 'lucide-react';
 import { digitsOnly, validateMobile, mobileLengthHint } from '@/lib/phone';
 import { isValidEmail, validateEmail } from '@/lib/email';
@@ -126,63 +128,6 @@ function Checkbox({
 
 /* ── Bulk census parsing helpers ──────────────────────────────────────── */
 
-// Excel stores a typed date as a serial number (days from 1899-12-30), and
-// xlsx hands it back as a Date when cellDates is on. HR also pastes plain
-// text. All three shapes have to resolve to YYYY-MM-DD, or fail loudly —
-// silently rejecting a date that looks right on screen is the worst outcome.
-function normaliseDob(value: unknown): string | null {
-  const iso = (y: number, m: number, d: number) => {
-    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-    const dt = new Date(Date.UTC(y, m - 1, d));
-    // Rejects impossible dates that would otherwise roll over (e.g. 31 Feb).
-    if (dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
-    if (y < 1900 || dt.getTime() > Date.now()) return null;
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  };
-
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    return iso(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate());
-  }
-
-  // Bare Excel serial, for files read without cellDates.
-  if (typeof value === 'number' && value > 0 && value < 80000) {
-    const dt = new Date(Date.UTC(1899, 11, 30) + value * 86400000);
-    return iso(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
-  }
-
-  const text = String(value ?? '').trim();
-  if (!text) return null;
-
-  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (isoMatch) return iso(+isoMatch[1], +isoMatch[2], +isoMatch[3]);
-
-  // Day-first: the format the template asks for and Nigerian convention.
-  const dmy = text.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
-  if (dmy) return iso(+dmy[3], +dmy[2], +dmy[1]);
-
-  // "1 Jan 1990" / "01 January 1990"
-  const named = text.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{4})$/);
-  if (named) {
-    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-    const m = months.indexOf(named[2].slice(0, 3).toLowerCase()) + 1;
-    if (m > 0) return iso(+named[3], m, +named[1]);
-  }
-
-  // Numeric serial that arrived as text.
-  if (/^\d+(\.\d+)?$/.test(text)) return normaliseDob(Number(text));
-
-  return null;
-}
-
-// Returns Prognosis's sexId ('1' male, '2' female), or '' when the value is
-// not recognisably either — the caller turns that into a row error.
-function parseGender(value: string): string {
-  const v = value.trim().toLowerCase();
-  if (['m', 'male', 'man', 'mr'].includes(v)) return '1';
-  if (['f', 'female', 'woman', 'mrs', 'ms', 'miss'].includes(v)) return '2';
-  return '';
-}
-
 /* ── Passport photo uploader ─────────────────────────────────────────── */
 function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: boolean }) {
   const [preview, setPreview] = useState<string | null>(null);
@@ -282,13 +227,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [bulkAction, setBulkAction] = useState<'csv' | 'invite'>('csv');
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>('');
   // Bulk CSV state
-  // dob is YYYY-MM-DD once parsed; sexId is resolved at parse time so the
-  // review table shows exactly what will be submitted.
-  interface BulkRow { idx: number; firstName: string; surname: string; otherNames: string; dob: string; gender: string; sexId: string; email: string; mobile: string; employeeCode: string; errors: string[]; }
   const [bulkStep, setBulkStep]       = useState<'upload' | 'review' | 'done'>('upload');
   const [bulkRows, setBulkRows]       = useState<BulkRow[]>([]);
-  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
-  const [bulkProgress, setBulkProgress] = useState<Map<number, { status: 'pending' | 'ok' | 'error'; msg?: string }>>(new Map());
+  const [bulkFamilies, setBulkFamilies] = useState<BulkFamily[]>([]);
+  // Family keys, not row indexes: selection is per family for the reason above.
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  // 'skipped' is distinct from 'error': the row was never sent, because it had
+  // a validation problem HR already saw on the review screen. Without it those
+  // rows disappear from the results and the counts stop adding up to the file.
+  const [bulkProgress, setBulkProgress] = useState<Map<number, { status: 'pending' | 'ok' | 'error' | 'skipped'; msg?: string }>>(new Map());
   const [bulkSchemeId, setBulkSchemeId] = useState('');
   const [bulkDragOver, setBulkDragOver] = useState(false);
   const bulkFileRef = useRef<HTMLInputElement>(null);
@@ -373,6 +320,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
   const [familyDeps, setFamilyDeps] = useState<FamilyDepDraft[]>([]);
 
   // ── Bulk helpers ─────────────────────────────────────────────────────────
+
   function parseBulkFile(file: File) {
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -384,58 +332,20 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       const wb   = XLSX.read(data, { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const raw  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
-      const rows: BulkRow[] = raw.map((r, idx) => {
-        const get = (...keys: string[]) => {
-          for (const k of keys) { const v = r[k]; if (v != null && String(v).trim()) return String(v).trim(); }
-          return '';
-        };
-        const rawOf = (...keys: string[]): unknown => {
-          for (const k of keys) { const v = r[k]; if (v != null && String(v).trim()) return v; }
-          return '';
-        };
-        const firstName    = get('First Name','FirstName','first_name','firstname');
-        const surname      = get('Last Name','LastName','Surname','surname','last_name');
-        const otherNames   = get('Other Names','OtherNames','other_names');
-        const email        = get('Email','email','Email Address');
-        const mobile       = get('Mobile','Phone','mobile','phone','Mobile Number');
-        const employeeCode = get('Employee Code','Staff ID','EmployeeCode','employee_code','staff_id','StaffID');
 
-        // DOB is read raw: typing a date into Excel turns the cell into a real
-        // date, which used to stringify to a serial number and fail validation
-        // even though it looked correct on screen.
-        const dobRaw = rawOf('Date of Birth','DOB','DateOfBirth','date_of_birth','dob');
-        const dob = normaliseDob(dobRaw);
+      // Relationship IDs are per-environment, so a dependant row cannot be
+      // resolved without the list Prognosis returned. fetchListValues is
+      // memoised, so this is free once anything in the app has loaded it.
+      const relOpts = relationshipOptions.length
+        ? relationshipOptions
+        : (await fetchListValues()).relationships ?? [];
 
-        // Gender is matched explicitly. It previously fell through to
-        // `/^f/i.test(x) ? female : male`, so any unrecognised value — a typo,
-        // a stray character — silently enrolled the person as male.
-        const genderRaw = get('Gender','Sex','gender','sex');
-        const sexId = parseGender(genderRaw);
+      const rows = raw.map((r, idx) => parseBulkRow(r, idx, relOpts, isValidEmail));
 
-        const errors: string[] = [];
-        if (!firstName)    errors.push('First Name required');
-        if (!surname)      errors.push('Last Name required');
-        if (!genderRaw)    errors.push('Gender required');
-        else if (!sexId)   errors.push('Gender must be Male or Female');
-        if (!email)        errors.push('Email required');
-        if (!mobile)       errors.push('Mobile required');
-        if (!employeeCode) errors.push('Employee Code required');
-        if (!String(dobRaw).trim()) errors.push('Date of Birth required');
-        else if (!dob)     errors.push('Date of Birth not recognised — use DD/MM/YYYY');
-        if (email && !isValidEmail(email)) errors.push('Invalid email');
-
-        return {
-          idx, firstName, surname, otherNames,
-          // Held as YYYY-MM-DD once parsed, so the review table and the submit
-          // agree on one representation.
-          dob: dob ?? String(dobRaw).trim(),
-          gender: sexId === '2' ? 'Female' : sexId === '1' ? 'Male' : genderRaw,
-          sexId,
-          email, mobile, employeeCode, errors,
-        };
-      });
+      const families = buildBulkFamilies(rows, principals);
       setBulkRows(rows);
-      setBulkSelected(new Set(rows.filter(r => r.errors.length === 0).map(r => r.idx)));
+      setBulkFamilies(families);
+      setBulkSelected(new Set(families.filter(f => !f.blocked).map(f => f.key)));
       setBulkStep('review');
     };
     reader.readAsArrayBuffer(file);
@@ -447,41 +357,59 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       // the first row as keys, so guidance goes on a second sheet rather than
       // above the headers.
       const ws = XLSX.utils.aoa_to_sheet([
-        ['First Name','Last Name','Other Names','Date of Birth','Gender','Email','Mobile','Employee Code'],
-        ['John','Doe','','01/01/1990','Male','john.doe@company.com','08012345678','EMP001'],
-        ['Amina','Bello','Ngozi','24/07/1988','Female','amina.bello@company.com','08023456789','EMP002'],
+        ['Relationship','Employee Code','Principal Employee Code','First Name','Last Name','Other Names','Date of Birth','Gender','Email','Mobile'],
+        // A worked family, so the shape is obvious without reading the notes:
+        // the employee carries the Employee Code, each dependant points back at
+        // it and leaves its own blank.
+        ['Principal','EMP001','',        'John',  'Doe',   '',      '01/01/1990','Male',  'john.doe@company.com',   '08012345678'],
+        ['Spouse',   '',      'EMP001',  'Mary',  'Doe',   '',      '14/03/1992','Female','mary.doe@company.com',   '08034567890'],
+        ['Child',    '',      'EMP001',  'Daniel','Doe',   '',      '02/09/2016','Male',  '',                       ''],
+        ['Principal','EMP002','',        'Amina', 'Bello', 'Ngozi', '24/07/1988','Female','amina.bello@company.com','08023456789'],
       ]);
-      ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
+      ws['!cols'] = [{ wch: 13 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }];
 
       const notes = XLSX.utils.aoa_to_sheet([
-        ['Bulk enrolment — principal staff only'],
+        ['Bulk enrolment — employees and their dependants'],
         [],
-        ['This upload enrols EMPLOYEES (principal members) only.'],
-        ['Dependants (spouse, children) are NOT added by this file.'],
-        ['Add dependants after enrolment from the member\'s profile, or send'],
-        ['the employee a self-enrolment link so they add their own family.'],
+        ['One row per person. An employee row and the rows of their spouse and'],
+        ['children make up one family, and a family is enrolled together.'],
+        [],
+        ['How a dependant points at its employee'],
+        ['Put the employee\'s Employee Code in the dependant\'s "Principal'],
+        ['Employee Code" column, and leave the dependant\'s own "Employee Code"'],
+        ['blank. Order does not matter — a dependant may appear above its'],
+        ['employee — but keeping the family together makes the file readable.'],
+        [],
+        ['A dependant is never enrolled before its employee exists. If both are'],
+        ['in this file they are submitted together in one step. If the employee'],
+        ['is already enrolled, leave their row out and the dependants attach to'],
+        ['the existing member. If neither is true, the dependant row is refused'],
+        ['and tells you which Employee Code it could not find.'],
         [],
         ['One plan per upload'],
         ['Do not add a plan or scheme column. You choose one plan in the'],
-        ['portal and every row in the file is enrolled on that plan. Upload'],
-        ['separate files if staff belong to different plans.'],
+        ['portal and every new employee in the file is enrolled on it. Upload'],
+        ['separate files if staff belong to different plans. Dependants joining'],
+        ['an already-enrolled employee go onto that employee\'s existing plan.'],
         [],
         ['Column rules'],
+        ['Relationship', 'Principal for the employee. Spouse / Child etc. for a dependant. Blank counts as Principal.'],
+        ['Employee Code', 'Required on employee rows — your internal staff ID. Leave blank on dependant rows.'],
+        ['Principal Employee Code', 'Required on dependant rows. The Employee Code of the employee they belong to.'],
         ['First Name', 'Required'],
         ['Last Name', 'Required'],
         ['Other Names', 'Optional'],
         ['Date of Birth', 'Required. DD/MM/YYYY. A real Excel date is fine too.'],
         ['Gender', 'Required. Type Male or Female (M or F also accepted).'],
-        ['Email', 'Required. Must be a valid address.'],
-        ['Mobile', 'Required.'],
-        ['Employee Code', 'Required. Your internal staff ID.'],
+        ['Email', 'Required for an employee. Optional for a dependant.'],
+        ['Mobile', 'Required for an employee. Optional for a dependant.'],
         [],
         ['Nothing is saved until you review the parsed rows and confirm.'],
       ]);
-      notes['!cols'] = [{ wch: 18 }, { wch: 58 }];
+      notes['!cols'] = [{ wch: 24 }, { wch: 76 }];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Staff');
+      XLSX.utils.book_append_sheet(wb, ws, 'Members');
       XLSX.utils.book_append_sheet(wb, notes, 'How to use');
       XLSX.writeFile(wb, 'bulk-enrolment-template.xlsx');
     });
@@ -491,29 +419,118 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     if (!bulkSchemeId) { toast('Please select a plan/scheme first.', 'error'); return; }
     const scheme = schemes.find(s => s.schemeId === bulkSchemeId);
     if (!scheme) { toast('Invalid scheme selected.', 'error'); return; }
-    const toSubmit = bulkRows.filter(r => bulkSelected.has(r.idx) && r.errors.length === 0);
-    if (!toSubmit.length) { toast('No valid rows selected.', 'error'); return; }
-    const initial = new Map(toSubmit.map(r => [r.idx, { status: 'pending' as const }]));
+
+    const families = bulkFamilies.filter(f => bulkSelected.has(f.key) && !f.blocked);
+    const rowsToSubmit = families.flatMap(f => f.rows.filter(r => r.errors.length === 0));
+    if (!rowsToSubmit.length) { toast('No valid rows selected.', 'error'); return; }
+
+    // Rows inside a selected family that carry their own errors are recorded as
+    // skipped rather than omitted, so the results screen accounts for every
+    // person in the families HR chose.
+    const skipped = families.flatMap(f => f.rows.filter(r => r.errors.length > 0));
+    const initial = new Map<number, { status: 'pending' | 'ok' | 'error' | 'skipped'; msg?: string }>();
+    for (const r of rowsToSubmit) initial.set(r.idx, { status: 'pending' });
+    for (const r of skipped)      initial.set(r.idx, { status: 'skipped', msg: r.errors.join(', ') });
     setBulkProgress(initial);
     setBulkStep('done');
-    for (const row of toSubmit) {
-      // Both already resolved and validated at parse time, so what HR reviewed
-      // is exactly what gets sent.
-      const dob = row.dob;
-      const sexId = row.sexId;
+
+    const mark = (idx: number, status: 'ok' | 'error', msg?: string) =>
+      setBulkProgress(prev => new Map(prev).set(idx, { status, msg }));
+
+    // dob, sexId and relationshipId were all resolved at parse time, so what HR
+    // reviewed on the previous screen is exactly what goes up.
+    const asMember = (r: BulkRow) => ({
+      firstName: r.firstName,
+      surname: r.surname,
+      otherNames: r.otherNames,
+      dateOfBirth: r.dob,
+      sexId: r.sexId,
+      email: r.email || undefined,
+      mobile: r.mobile || undefined,
+      postalTownId: '1',
+    });
+
+    for (const fam of families) {
+      const deps = fam.dependants.filter(d => d.errors.length === 0);
+
+      if (fam.principal) {
+        // Principal and dependants in one AddFamily call. Atomic by
+        // construction: there is no state where the spouse exists and the
+        // employee does not.
+        try {
+          const res = await fetch('/api/hr/members/add-family', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              schemeId: bulkSchemeId,
+              schemeName: scheme.schemeName,
+              employeeCode: fam.principal.employeeCode,
+              principal: asMember(fam.principal),
+              dependents: deps.map(d => ({ ...asMember(d), relationshipId: d.relationshipId })),
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) {
+            const msg = data.error ?? 'Failed';
+            // The call covers the whole family, so a failure fails all of it —
+            // reporting only the principal would leave dependants stuck on
+            // "Processing…" forever.
+            mark(fam.principal.idx, 'error', msg);
+            for (const d of deps) mark(d.idx, 'error', msg);
+          } else {
+            const enrolled: Array<{ isPrincipal?: boolean; enrolleeId?: string }> = data.enrolled ?? [];
+            mark(fam.principal.idx, 'ok', enrolled.find(e => e.isPrincipal)?.enrolleeId ?? '');
+            // Prognosis returns the family in the order it was sent, principal
+            // first, so dependants line up positionally.
+            const depResults = enrolled.filter(e => !e.isPrincipal);
+            deps.forEach((d, i) => mark(d.idx, 'ok', depResults[i]?.enrolleeId ?? ''));
+          }
+        } catch {
+          mark(fam.principal.idx, 'error', 'Network error');
+          for (const d of deps) mark(d.idx, 'error', 'Network error');
+        }
+        continue;
+      }
+
+      // Principal is already enrolled — attach the dependants to them.
+      // AddDependents keys off the principal's CIF, which the list does not
+      // carry, so it is read from their profile first.
+      const existing = fam.existingPrincipal;
+      if (!existing || !deps.length) {
+        for (const d of deps) mark(d.idx, 'error', 'No principal to attach to');
+        continue;
+      }
       try {
-        const res = await fetch('/api/hr/members/add', {
+        const profRes = await fetch(`/api/hr/members/enrollee-profile?enrolleeId=${encodeURIComponent(existing.employeeId)}`);
+        const prof = await profRes.json();
+        const parentCif = Number(prof?.cifNumber ?? existing.cifNumber ?? 0);
+        if (!parentCif) {
+          const msg = `Could not read ${existing.firstName} ${existing.lastName}'s record — add these dependants from their profile instead`;
+          for (const d of deps) mark(d.idx, 'error', msg);
+          continue;
+        }
+        const res = await fetch('/api/hr/members/add-dependents', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schemeId: bulkSchemeId, schemeName: scheme.schemeName, firstName: row.firstName, surname: row.surname, otherNames: row.otherNames, dateOfBirth: dob, sexId, email: row.email, mobile: row.mobile, postalTownId: '1', employeeCode: row.employeeCode }),
+          body: JSON.stringify({
+            parentCif,
+            // The existing member's own scheme wins over the bulk picker: a
+            // dependant must sit on the same plan as the principal they attach
+            // to, whatever HR chose for the new joiners in this file.
+            schemeId: prof?.schemeId || existing.schemeId || bulkSchemeId,
+            schemeName: prof?.schemeName || scheme.schemeName,
+            employeeCode: prof?.employeeCode || existing.staffId || fam.code,
+            dependents: deps.map(d => ({ ...asMember(d), relationshipId: d.relationshipId })),
+          }),
         });
         const data = await res.json();
         if (!res.ok || data.error) {
-          setBulkProgress(prev => new Map(prev).set(row.idx, { status: 'error', msg: data.error ?? 'Failed' }));
+          const msg = data.error ?? 'Failed';
+          for (const d of deps) mark(d.idx, 'error', msg);
         } else {
-          setBulkProgress(prev => new Map(prev).set(row.idx, { status: 'ok', msg: data.enrolleeId ?? '' }));
+          const enrolled: Array<{ enrolleeId?: string }> = data.enrolled ?? [];
+          deps.forEach((d, i) => mark(d.idx, 'ok', enrolled[i]?.enrolleeId ?? ''));
         }
       } catch {
-        setBulkProgress(prev => new Map(prev).set(row.idx, { status: 'error', msg: 'Network error' }));
+        for (const d of deps) mark(d.idx, 'error', 'Network error');
       }
     }
   }
@@ -1160,19 +1177,21 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           {/* ── BULK mode ── */}
           {mode === 'bulk' && bulkStep === 'upload' && (
             <>
-              {/* Scope notice — HR repeatedly expects a census upload to carry
-                  dependants and plan columns. It does neither, so say so before
-                  they build the file rather than after it fails. */}
+              {/* How families work in the file. HR builds the spreadsheet before
+                  they ever see an error message, so the rules belong here rather
+                  than in the validation output. */}
               <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16,
                 padding: '12px 14px', borderRadius: 12, background: '#EFF6FF', border: '1px solid #BAE6FD',
               }}>
                 <Users style={{ width: 15, height: 15, color: '#0284C7', flexShrink: 0, marginTop: 1 }} />
-                <p style={{ fontSize: 12, color: '#0C4A6E', lineHeight: 1.55 }}>
-                  <strong style={{ fontWeight: 700 }}>Principal staff only.</strong> This enrols employees.
-                  Dependants aren&rsquo;t added by the file — add them from the member&rsquo;s profile
-                  afterwards, or send a self-enrolment link. All rows are enrolled on the one
-                  plan you pick below.
+                <p style={{ fontSize: 12, color: '#0C4A6E', lineHeight: 1.55, minWidth: 0 }}>
+                  <strong style={{ fontWeight: 700 }}>Employees and their dependants.</strong> One row per person.
+                  Put <strong>Principal</strong> in the Relationship column for the employee, and{' '}
+                  <strong>Spouse</strong> or <strong>Child</strong> for a dependant with the employee&rsquo;s code in
+                  the <strong>Principal Employee Code</strong> column. A family is enrolled together, so a dependant
+                  is never created before its employee. If the employee is already enrolled, leave their row out
+                  and the dependants attach to the existing member. New employees go onto the one plan you pick below.
                 </p>
               </div>
 
@@ -1212,10 +1231,14 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           {/* ── BULK — Review table ── */}
           {mode === 'bulk' && bulkStep === 'review' && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>{bulkRows.length} rows found · {bulkRows.filter(r => r.errors.length === 0).length} valid</p>
-                <button onClick={() => { setBulkStep('upload'); setBulkRows([]); setBulkSelected(new Set()); }}
-                  style={{ fontSize: 12, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>← Re-upload</button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', minWidth: 0 }}>
+                  {bulkRows.length} rows · {bulkRows.filter(r => r.kind === 'principal').length} employee{bulkRows.filter(r => r.kind === 'principal').length === 1 ? '' : 's'}
+                  {bulkRows.some(r => r.kind === 'dependant') && ` · ${bulkRows.filter(r => r.kind === 'dependant').length} dependant${bulkRows.filter(r => r.kind === 'dependant').length === 1 ? '' : 's'}`}
+                  {' · '}{bulkRows.filter(r => r.errors.length === 0).length} valid
+                </p>
+                <button onClick={() => { setBulkStep('upload'); setBulkRows([]); setBulkFamilies([]); setBulkSelected(new Set()); }}
+                  style={{ fontSize: 12, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>← Re-upload</button>
               </div>
               {/* Scheme picker */}
               <div style={{ marginBottom: 12 }}>
@@ -1225,34 +1248,79 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                   {schemes.map(s => <option key={s.schemeId} value={s.schemeId}>{s.schemeName}</option>)}
                 </select>
               </div>
-              {/* Select all */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #F3F4F6' }}>
-                <input type='checkbox'
-                  checked={bulkSelected.size === bulkRows.filter(r => r.errors.length === 0).length && bulkRows.filter(r => r.errors.length === 0).length > 0}
-                  onChange={e => {
-                    if (e.target.checked) setBulkSelected(new Set(bulkRows.filter(r => r.errors.length === 0).map(r => r.idx)));
-                    else setBulkSelected(new Set());
-                  }} style={{ width: 15, height: 15, cursor: 'pointer' }} />
-                <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Select all valid ({bulkRows.filter(r => r.errors.length === 0).length})</span>
-              </div>
-              {/* Rows */}
-              <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {bulkRows.map(row => {
-                  const hasErr = row.errors.length > 0;
-                  const checked = bulkSelected.has(row.idx);
+              {/* Select all — by family, because a family is enrolled as a
+                  unit and a dependant cannot be sent without its principal. */}
+              {(() => {
+                const selectable = bulkFamilies.filter(f => !f.blocked);
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #F3F4F6' }}>
+                    <input type='checkbox'
+                      disabled={selectable.length === 0}
+                      checked={selectable.length > 0 && bulkSelected.size === selectable.length}
+                      onChange={e => setBulkSelected(e.target.checked ? new Set(selectable.map(f => f.key)) : new Set())}
+                      style={{ width: 15, height: 15, cursor: selectable.length ? 'pointer' : 'not-allowed' }} />
+                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
+                      Select all ({selectable.length} of {bulkFamilies.length} {bulkFamilies.length === 1 ? 'family' : 'families'})
+                    </span>
+                  </div>
+                );
+              })()}
+              {/* Families — the principal first, its dependants indented under
+                  it, so what will be submitted together looks like it belongs
+                  together. */}
+              <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {bulkFamilies.map(fam => {
+                  const checked = bulkSelected.has(fam.key);
+                  const famErr  = !!fam.blocked;
                   return (
-                    <div key={row.idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 12, border: `1px solid ${hasErr ? '#FEE2E2' : checked ? '#BBF7D0' : '#E5E7F1'}`, background: hasErr ? '#FFF5F5' : checked ? '#F0FFF4' : '#fff' }}>
-                      <input type='checkbox' disabled={hasErr} checked={!hasErr && checked}
-                        onChange={e => {
-                          const s = new Set(bulkSelected);
-                          if (e.target.checked) s.add(row.idx); else s.delete(row.idx);
-                          setBulkSelected(s);
-                        }} style={{ marginTop: 2, width: 14, height: 14, cursor: hasErr ? 'not-allowed' : 'pointer' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{row.firstName} {row.surname} {row.otherNames ? `(${row.otherNames})` : ''}</p>
-                        <p style={{ fontSize: 11, color: '#9CA3B8' }}>{row.employeeCode} · {row.email} · {row.mobile} · {row.dob} · {row.gender}</p>
-                        {hasErr && <p style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>{row.errors.join(', ')}</p>}
+                    <div key={fam.key} style={{ borderRadius: 12, border: `1px solid ${famErr ? '#FEE2E2' : checked ? '#BBF7D0' : '#E5E7F1'}`, background: famErr ? '#FFF5F5' : checked ? '#F0FFF4' : '#fff', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px' }}>
+                        <input type='checkbox' disabled={famErr} checked={!famErr && checked}
+                          onChange={e => {
+                            const s = new Set(bulkSelected);
+                            if (e.target.checked) s.add(fam.key); else s.delete(fam.key);
+                            setBulkSelected(s);
+                          }} style={{ marginTop: 3, width: 14, height: 14, cursor: famErr ? 'not-allowed' : 'pointer', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {fam.rows.map((row, i) => {
+                            const hasErr = row.errors.length > 0;
+                            const isDep  = row.kind === 'dependant';
+                            return (
+                              <div key={row.idx} style={{ paddingLeft: isDep ? 16 : 0, marginTop: i === 0 ? 0 : 8, borderLeft: isDep ? '2px solid #E5E7F1' : 'none', minWidth: 0 }}>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: hasErr ? '#DC2626' : '#131C4E', minWidth: 0, overflowWrap: 'anywhere' }}>
+                                  {row.firstName} {row.surname} {row.otherNames ? `(${row.otherNames})` : ''}
+                                  <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDep ? '#7C3AED' : '#0284C7' }}>
+                                    {row.relationshipLabel}
+                                  </span>
+                                </p>
+                                <p style={{ fontSize: 11, color: '#9CA3B8', minWidth: 0, overflowWrap: 'anywhere' }}>
+                                  Row {row.idx + 2}
+                                  {row.kind === 'principal' && row.employeeCode ? ` · ${row.employeeCode}` : ''}
+                                  {row.email ? ` · ${row.email}` : ''}
+                                  {row.mobile ? ` · ${row.mobile}` : ''}
+                                  {row.dob ? ` · ${row.dob}` : ''}
+                                  {row.gender ? ` · ${row.gender}` : ''}
+                                </p>
+                                {hasErr && <p style={{ fontSize: 11, color: '#DC2626', marginTop: 2, minWidth: 0, overflowWrap: 'anywhere' }}>{row.errors.join(', ')}</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
+                      {/* Where the principal is not in the file, say who the
+                          dependants are joining — otherwise the row reads as if
+                          it has no employee at all. */}
+                      {fam.existingPrincipal && !fam.principal && (
+                        <p style={{ fontSize: 11, color: '#0C4A6E', background: '#EFF6FF', borderTop: '1px solid #DBEAFE', padding: '7px 12px', lineHeight: 1.5 }}>
+                          Joining <strong>{fam.existingPrincipal.firstName} {fam.existingPrincipal.lastName}</strong>
+                          {fam.existingPrincipal.staffId ? ` (${fam.existingPrincipal.staffId})` : ''}, already enrolled — on their existing plan.
+                        </p>
+                      )}
+                      {fam.blocked && (
+                        <p style={{ fontSize: 11, color: '#B91C1C', background: '#FEF2F2', borderTop: '1px solid #FECACA', padding: '7px 12px', lineHeight: 1.5 }}>
+                          {fam.blocked}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -1264,19 +1332,30 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
           {mode === 'bulk' && bulkStep === 'done' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 4 }}>
-                Enrolment Results — {[...bulkProgress.values()].filter(v => v.status === 'ok').length} succeeded · {[...bulkProgress.values()].filter(v => v.status === 'error').length} failed · {[...bulkProgress.values()].filter(v => v.status === 'pending').length} pending
+                Enrolment Results — {[...bulkProgress.values()].filter(v => v.status === 'ok').length} succeeded
+                {' · '}{[...bulkProgress.values()].filter(v => v.status === 'error').length} failed
+                {[...bulkProgress.values()].some(v => v.status === 'skipped') && ` · ${[...bulkProgress.values()].filter(v => v.status === 'skipped').length} skipped`}
+                {' · '}{[...bulkProgress.values()].filter(v => v.status === 'pending').length} pending
               </p>
               {bulkRows.filter(r => bulkProgress.has(r.idx)).map(row => {
                 const prog = bulkProgress.get(row.idx);
-                const icon = prog?.status === 'ok' ? '✓' : prog?.status === 'error' ? '✗' : '⏳';
-                const color = prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : '#D97706';
+                const icon = prog?.status === 'ok' ? '✓' : prog?.status === 'error' ? '✗' : prog?.status === 'skipped' ? '–' : '⏳';
+                const color = prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : prog?.status === 'skipped' ? '#9CA3B8' : '#D97706';
                 return (
                   <div key={row.idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#FAFBFC' }}>
                     <span style={{ fontSize: 16, color, flexShrink: 0 }}>{icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{row.firstName} {row.surname}</p>
-                      <p style={{ fontSize: 11, color: prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : '#9CA3B8' }}>
-                        {prog?.status === 'ok' ? `Enrolled · ${prog.msg}` : prog?.status === 'error' ? prog.msg : 'Processing…'}
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', minWidth: 0, overflowWrap: 'anywhere' }}>
+                        {row.firstName} {row.surname}
+                        <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: row.kind === 'dependant' ? '#7C3AED' : '#0284C7' }}>
+                          {row.relationshipLabel}
+                        </span>
+                      </p>
+                      <p style={{ fontSize: 11, color: prog?.status === 'ok' ? '#059669' : prog?.status === 'error' ? '#DC2626' : '#9CA3B8', minWidth: 0, overflowWrap: 'anywhere' }}>
+                        {prog?.status === 'ok' ? `Enrolled · ${prog.msg}`
+                          : prog?.status === 'error' ? prog.msg
+                          : prog?.status === 'skipped' ? `Not sent — ${prog.msg}`
+                          : 'Processing…'}
                       </p>
                     </div>
                   </div>
@@ -2077,7 +2156,7 @@ function ECardModal({ member, enroleeId, avatarPreview, schemeName, memberEmail,
 }
 
 /* ── Member 360 Drawer ───────────────────────────────────────────────── */
-function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit, autoOpenECard }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean; autoOpenECard?: boolean }) {
+function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipOptions, stats, maxFamilySize, schemes, autoOpenEdit, autoOpenECard, onViewFamily }: { member: Member; index: number; onClose: () => void; onMutated: () => void; vis: PeopleVis; relationshipOptions: RelationshipOption[]; stats?: MemberStats; maxFamilySize: number; schemes: PolicyScheme[]; autoOpenEdit?: boolean; autoOpenECard?: boolean; onViewFamily: (membershipNo: string) => void }) {
   const [drawerTab, setDrawerTab]           = useState<'overview' | 'claims' | 'benefits'>('overview');
   const [showAddDependent, setShowAddDep]   = useState(false);
   const [depAction, setDepAction]           = useState<'form' | 'link'>('form');
@@ -2273,6 +2352,45 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
   const grad   = avatarGradients[index % avatarGradients.length];
   const enroleeId = member.employeeId;
   const depCount  = member.dependants ?? 0;
+  // "26320219/0" → "26320219". A family shares the membership number and
+  // differs only by suffix, so this is what finds the principal's dependants.
+  const membershipNo = String(member.employeeId).split('/')[0];
+
+  // Real per-category spend for this member, from their own claims. The claims
+  // feed already classifies every claim into these five buckets, so no mapping
+  // is invented here — categories with no claims simply do not appear.
+  const spendByCategory = (() => {
+    const palette: Record<string, string> = {
+      Outpatient: '#F56B22', Inpatient: '#2563EB', Dental: '#F59E0B',
+      Optical: '#7C3AED', Maternity: '#EC4899',
+    };
+    const totals = new Map<string, { amount: number; visits: number }>();
+    for (const c of stats?.recentClaims ?? []) {
+      const cur = totals.get(c.category) ?? { amount: 0, visits: 0 };
+      totals.set(c.category, { amount: cur.amount + (c.amount || 0), visits: cur.visits + 1 });
+    }
+    const total = [...totals.values()].reduce((sum, t) => sum + t.amount, 0);
+    const rows = [...totals.entries()]
+      .map(([category, t]) => ({
+        category,
+        amount: t.amount,
+        visits: t.visits,
+        pct: total > 0 ? Math.round((t.amount / total) * 100) : 0,
+        color: palette[category] ?? '#9CA3B8',
+      }))
+      .sort((a, b) => b.amount - a.amount);
+    return { rows, total };
+  })();
+
+  const dobDate = member.dateOfBirth ? new Date(member.dateOfBirth) : null;
+  const dobValid = !!dobDate && !isNaN(dobDate.getTime());
+  // Compared against todayIso rather than Date.now() so this stays a pure
+  // render. ISO dates compare correctly as strings.
+  const dobImplausible = dobValid
+    && (dobDate!.toISOString().slice(0, 10) > todayIso || dobDate!.getFullYear() < 1900);
+  const dobDisplay = dobValid
+    ? dobDate!.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
 
   function openSendIdSheet() {
     setSendIdEmail(bioEmail || '');
@@ -2560,8 +2678,16 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
       <div style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 460, background: '#fff', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Member 360</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #F0F1F5', flexShrink: 0, gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E', whiteSpace: 'nowrap' }}>Member 360</p>
+            {/* Cover state at the very top: the one thing HR checks before
+                anything else, and the header is visible while the body scrolls. */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 7, fontSize: 10.5, fontWeight: 700, background: status.bg, color: status.text, whiteSpace: 'nowrap' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: status.dot }} />
+              {member.status === 'Active' ? 'Active Member' : member.status}
+            </span>
+          </div>
           <button onClick={onClose}
             style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3B8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#F7F8FA'; }}
@@ -2579,16 +2705,17 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               </div>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2 }}>{member.firstName} {member.lastName}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: '#131C4E', lineHeight: 1.2, overflowWrap: 'anywhere' }}>{member.firstName} {member.lastName}</p>
+              {/* One wrapping row of chips rather than two fixed rows: the four
+                  facts HR identifies a member by read as a set, and Member Type
+                  was plain grey text that disappeared next to the chips. */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF3E8', color: '#F56B22', padding: '3px 8px', borderRadius: 6, fontFamily: 'monospace' }}>{enroleeId}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                 <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: plan.bg, color: plan.text }}>{member.plan}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: status.bg, color: status.text }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: status.dot }} />{member.status}
                 </span>
-                <span style={{ fontSize: 11, color: '#B8BFD0' }}>{member.type}</span>
+                <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: '#EEF2FF', color: '#3A4382' }}>{member.type}</span>
               </div>
             </div>
           </div>
@@ -2615,28 +2742,71 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
           </div>
         </div>
 
-        {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
-          {[
-            { label: 'Dependants',  value: String(member.dependants ?? 0),                                  Icon: Users,       color: '#3A4382', bg: '#EEF2FF' },
-            { label: 'Spend YTD',   value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—', Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5' },
-          ].map((k, ki) => (
-            <div key={k.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRight: ki < 1 ? '1px solid #F0F1F5' : 'none' }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
-                <k.Icon style={{ width: 15, height: 15, color: k.color }} strokeWidth={1.75} />
+        {/* KPI strip. Both tiles were previously dead numbers; each now leads
+            somewhere, which is the whole point of a "360" view — the count of
+            dependants is only useful if you can get to them. */}
+        <div style={{ padding: '14px 24px 16px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', border: '1px solid #EDEEF2', borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
+            {([
+              {
+                label: 'Dependants',
+                value: String(depCount),
+                Icon: Users, color: '#3A4382', bg: '#EEF2FF',
+                // With dependants, jump to them. With none, the useful action is
+                // to add one — but only a principal can have any.
+                action: depCount > 0
+                  ? { label: 'View dependants', run: () => onViewFamily(membershipNo) }
+                  : member.type === 'Principal'
+                    ? { label: 'Add a dependant', run: () => { setDepLinkEmail(bioEmail || member.email || ''); setShowAddDep(true); } }
+                    : null,
+              },
+              {
+                label: 'Spend YTD',
+                value: stats ? `₦${Math.round(stats.totalSpendYtd).toLocaleString()}` : '—',
+                Icon: ShieldCheck, color: '#10B981', bg: '#ECFDF5',
+                // Opens the Claims tab, which had been built but left
+                // unreachable — the tab strip only rendered Overview/Benefits.
+                action: stats && stats.recentClaims.length > 0
+                  ? { label: 'View spending', run: () => setDrawerTab('claims') }
+                  : null,
+              },
+            ] as const).map((k, ki) => (
+              <div key={k.label} style={{ padding: '14px 14px 12px', borderRight: ki < 1 ? '1px solid #EDEEF2' : 'none', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <k.Icon style={{ width: 16, height: 16, color: k.color }} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: '#131C4E', lineHeight: 1.05, letterSpacing: '-0.02em', overflowWrap: 'anywhere' }}>{k.value}</p>
+                    <p style={{ fontSize: 10.5, color: '#9CA3B8', fontWeight: 500, marginTop: 3 }}>{k.label}</p>
+                  </div>
+                </div>
+                {k.action && (
+                  <button onClick={k.action.run}
+                    style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, fontWeight: 700, color: '#3A4382', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                    {k.action.label} <ChevronRight style={{ width: 13, height: 13 }} />
+                  </button>
+                )}
               </div>
-              <p style={{ fontSize: 22, fontWeight: 900, color: '#131C4E', lineHeight: 1, letterSpacing: '-0.02em' }}>{k.value}</p>
-              <p style={{ fontSize: 10, color: '#9CA3B8', fontWeight: 500, marginTop: 3 }}>{k.label}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Tabs */}
+        {/* Claims was missing from this strip while the panel below it was fully
+            built, so a member's claim history was unreachable. */}
         <div style={{ display: 'flex', borderBottom: '1px solid #F0F1F5', flexShrink: 0, padding: '0 24px' }}>
-          {(['overview', 'benefits'] as const).map((tab) => (
-            <button key={tab} onClick={() => setDrawerTab(tab)}
-              style={{ padding: '13px 0', marginRight: 28, fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: drawerTab === tab ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${drawerTab === tab ? '#F56B22' : 'transparent'}` }}>
-              {tab === 'overview' ? 'Overview' : 'Benefits'}
+          {([
+            { id: 'overview', label: 'Overview' },
+            { id: 'claims',   label: 'Claims', count: stats?.recentClaims.length ?? 0 },
+            { id: 'benefits', label: 'Benefits' },
+          ] as const).map((tab) => (
+            <button key={tab.id} onClick={() => setDrawerTab(tab.id)}
+              style={{ padding: '13px 0', marginRight: 26, fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s', color: drawerTab === tab.id ? '#F56B22' : '#9CA3B8', borderBottom: `2px solid ${drawerTab === tab.id ? '#F56B22' : 'transparent'}`, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {tab.label}
+              {'count' in tab && tab.count > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: drawerTab === tab.id ? '#FFF3E8' : '#F1F5F9', color: drawerTab === tab.id ? '#F56B22' : '#9CA3B8' }}>{tab.count}</span>
+              )}
             </button>
           ))}
         </div>
@@ -2673,21 +2843,30 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               <div style={{ height: 1, background: '#F0F1F5', marginBottom: 24 }} />
 
               <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Personal Details</p>
+              {/* Plan, Member Type and Dependants used to repeat here — they are
+                  already a chip, a chip and a KPI tile a few centimetres above.
+                  Dropping the three restates nothing and loses nothing. */}
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '18px 20px', marginBottom: 24 }}>
                 {[
-                  { label: 'Date of Birth',       value: member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
+                  { label: 'Date of Birth',       value: dobDisplay, warn: dobImplausible },
                   { label: 'Gender',              value: member.gender },
-                  { label: 'Plan',                value: member.plan },
-                  { label: 'Member Type',         value: member.type },
-                  { label: 'Phone',               value: bioPhone || '—' },
                   { label: 'Staff ID',            value: bioStaffId || '—' },
+                  { label: 'Phone',               value: bioPhone || '—' },
                   { label: 'State',               value: member.location || '—' },
-                  { label: 'Dependants',          value: String(member.dependants ?? 0) },
                   { label: 'Individual Premium',  value: member.premium != null ? `₦${Math.round(member.premium).toLocaleString('en-NG')}` : '—' },
                 ].map((row) => (
-                  <div key={row.label}>
+                  <div key={row.label} style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 10, color: '#B0B7C9', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{row.label}</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>{row.value}</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: row.warn ? '#B45309' : '#131C4E', overflowWrap: 'anywhere' }}>{row.value}</p>
+                    {/* A date of birth in the future or before 1900 is bad data
+                        in the source record, not a rendering problem. Showing it
+                        with a flag tells HR to get it corrected; hiding it would
+                        leave them trusting a nonsense age. */}
+                    {row.warn && (
+                      <p style={{ fontSize: 10.5, color: '#B45309', marginTop: 3, lineHeight: 1.45 }}>
+                        Not a valid date of birth — please correct this record.
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2709,7 +2888,19 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                   ))}
                 </div>
               ) : (
-                <p style={{ fontSize: 13, color: '#C4C9D9' }}>No utilization data for this member yet.</p>
+                // A bare grey line read like a rendering failure. Saying what
+                // makes the number appear turns a dead end into an explanation.
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #EDEEF2', background: '#FAFBFC' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <LineChart style={{ width: 15, height: 15, color: '#3A4382' }} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>No utilisation yet for this member.</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3, lineHeight: 1.5 }}>
+                      Spend, visits and average per visit appear here once their first claim is processed.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -2762,39 +2953,77 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             </div>
           )}
 
-          {/* ── Benefits ── */}
+          {/* ── Benefits ──
+              This panel used to show five hardcoded rows — ₦28,500 outpatient,
+              "1% utilised" and so on — identical for every member in every
+              company, presented as that member's own utilisation. It is now
+              built from the member's actual claims.
+
+              The denominator is deliberately the member's own total spend, not a
+              benefit limit. Limits are real and available per scheme, but the
+              categories Prognosis returns on a benefit schedule do not map
+              one-to-one onto the five buckets claims are classified into, so any
+              "x% of limit" figure here would be a guess. The plan's real limits
+              are one click away instead. */}
           {drawerTab === 'benefits' && (
             <div style={{ padding: '22px 24px' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Benefit Limits · {member.plan}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                {[
-                  { cat: 'Outpatient', limit: '₦5,000,000', used: '₦28,500',   pct: 1,  color: '#F56B22' },
-                  { cat: 'Inpatient',  limit: '₦5,000,000', used: '₦312,000',  pct: 6,  color: '#2563EB' },
-                  { cat: 'Dental',     limit: '₦150,000',   used: '₦45,000',   pct: 30, color: '#F59E0B' },
-                  { cat: 'Optical',    limit: '₦80,000',    used: '₦22,000',   pct: 28, color: '#7C3AED' },
-                  { cat: 'Maternity',  limit: '₦400,000',   used: '₦0',        pct: 0,  color: '#EC4899' },
-                ].map((b) => {
-                  const barColor = b.pct > 80 ? '#EF4444' : b.pct > 50 ? '#F59E0B' : b.color;
-                  return (
-                    <div key={b.cat}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#C4C9D9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+                Spend by benefit category · {new Date().getFullYear()}
+              </p>
+
+              {spendByCategory.total > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  {spendByCategory.rows.map((b) => (
+                    <div key={b.category}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                           <span style={{ width: 8, height: 8, borderRadius: '50%', background: b.color, display: 'block', flexShrink: 0 }} />
-                          <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{b.cat}</p>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflowWrap: 'anywhere' }}>{b.category}</p>
                         </div>
-                        <div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#131C4E' }}>{b.used}</span>
-                          <span style={{ fontSize: 11, color: '#B0B7C9' }}> / {b.limit}</span>
+                        <div style={{ flexShrink: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>₦{b.amount.toLocaleString()}</span>
                         </div>
                       </div>
                       <div style={{ height: 6, background: '#F0F1F5', borderRadius: 99, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 99, background: barColor, width: `${b.pct}%`, minWidth: b.pct > 0 ? 6 : 0, transition: 'width 0.4s' }} />
+                        <div style={{ height: '100%', borderRadius: 99, background: b.color, width: `${b.pct}%`, minWidth: b.pct > 0 ? 6 : 0, transition: 'width 0.4s' }} />
                       </div>
-                      <p style={{ fontSize: 10, color: '#B0B7C9', marginTop: 4 }}>{b.pct}% utilised</p>
+                      <p style={{ fontSize: 10, color: '#B0B7C9', marginTop: 4 }}>
+                        {b.pct}% of their spend · {b.visits} claim{b.visits === 1 ? '' : 's'}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid #F0F1F5' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#9CA3B8' }}>Total</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>₦{spendByCategory.total.toLocaleString()}</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #EDEEF2', background: '#FAFBFC' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <BarChart3 style={{ width: 15, height: 15, color: '#3A4382' }} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>No claims on this member yet.</p>
+                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3, lineHeight: 1.5 }}>
+                      Their spend will break down by category here once a claim is processed. What they are covered for is set by the {member.plan}.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* The plan's actual limits and exclusions, from the benefit
+                  schedule — the honest home for "what is this member entitled
+                  to", rather than numbers invented in this drawer. */}
+              <a href="/benefits"
+                style={{ marginTop: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 16px', borderRadius: 12, border: '1px solid #E5E7F1', background: '#fff', textDecoration: 'none' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                  <BarChart3 style={{ width: 15, height: 15, color: '#3A4382', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: '#131C4E' }}>
+                    {member.plan} limits &amp; exclusions
+                  </span>
+                </span>
+                <ChevronRight style={{ width: 15, height: 15, color: '#9CA3B8', flexShrink: 0 }} />
+              </a>
             </div>
           )}
         </div>
@@ -3884,6 +4113,15 @@ function MembersPageInner() {
           schemes={schemes}
           autoOpenEdit={activeMember.autoOpenEdit}
           autoOpenECard={activeMember.autoOpenECard}
+          // "View dependants" in the drawer. Dependants share the principal's
+          // membership number and differ only by suffix, so searching the
+          // number without its suffix lists the whole family — but only once
+          // the list is showing beneficiaries rather than principals only.
+          onViewFamily={(membershipNo) => {
+            setViewBeneficiaries(true);
+            setSearch(membershipNo);
+            setActiveMember(null);
+          }}
         />
       )}
 

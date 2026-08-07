@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
-  Plus, Paperclip, Search, MessageSquare, X,
+  Plus, Paperclip, Search, MessageSquare, X, Send,
   CircleDot, Loader, Building2, UserRound, CheckCircle2,
 } from 'lucide-react';
 import { ServiceDeskVis, DEFAULTS, getVis } from '@/lib/module-visibility';
+import { REQUEST_ROUTES, FALLBACK_CATEGORY, routeFor } from '@/lib/service-request-routes';
 import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
 import { useToast } from '@/components/ui/Toast';
@@ -25,14 +27,14 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   'Closed':          { bg: '#F1F5F9', text: '#475569',  dot: '#94A3B8' },
 };
 
-const categoryColors: Record<string, { bg: string; text: string }> = {
-  'Enrolment': { bg: '#EFF6FF', text: '#2563EB' },
-  'Claims':    { bg: '#FFF7ED', text: '#C2410C' },
-  'Benefits':  { bg: '#EEF2FF', text: '#3730A3' },
-  'General':   { bg: '#F1F5F9', text: '#475569' },
-  'Billing':   { bg: '#FFFBEB', text: '#D97706' },
-  'Provider':  { bg: '#FFF1F2', text: '#BE123C' },
-};
+// Chip colours come from the routing table, so a queue's colour, its label and
+// the mailbox it reaches are defined in one place. Requests raised before the
+// five queues existed carry categories like "Claims" or "Provider" and fall
+// back to neutral grey rather than disappearing.
+const NEUTRAL_CHIP = { tint: '#F1F5F9', text: '#475569' };
+function chipFor(category: string) {
+  return routeFor(category) ?? NEUTRAL_CHIP;
+}
 
 // Counted off the ticket list rather than hardcoded. The previous fixed
 // numbers (4 / 6 / 2 / 1 / 28) disagreed with the table right below them, so
@@ -57,6 +59,9 @@ function ServiceDeskInner() {
   const [vis, setVis] = useState<ServiceDeskVis>(DEFAULTS.serviceDesk);
   useEffect(() => { setVis(getVis('serviceDesk')); }, []);
   const { toast } = useToast();
+  // Shown in the routing notice so HR sees the exact subject line before
+  // submitting — the server builds the real one from the same session field.
+  const companyName = useSession().data?.user?.companyName ?? '';
 
   // Real requests from Postgres — null while the first load is in flight.
   const [requests, setRequests] = useState<ServiceRequestRow[] | null>(null);
@@ -88,22 +93,34 @@ function ServiceDeskInner() {
   const [formSubject, setFormSubject] = useState('');
   const [formDetails, setFormDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const selectedRoute = routeFor(formCategory);
 
   async function handleSubmit() {
     if (submitting) return;
+    // The category picks the mailbox, so it is no longer optional — silently
+    // defaulting to General sent enrolment and billing requests to the wrong
+    // desk.
+    if (!formCategory) { toast('Please choose a category so your request reaches the right team.', 'error'); return; }
     if (!formSubject.trim()) { toast('Please enter a subject for your request.', 'error'); return; }
     setSubmitting(true);
     try {
       const res = await fetch('/api/hr/service-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: formCategory || 'General', subject: formSubject, description: formDetails }),
+        body: JSON.stringify({ category: formCategory || FALLBACK_CATEGORY, subject: formSubject, description: formDetails }),
       });
       const json = await res.json();
       if (!res.ok) { toast(json.error ?? 'Failed to submit request.', 'error'); return; }
+      const ref = json.request?.ticketId ?? '';
       setShowForm(false);
       setFormCategory(''); setFormSubject(''); setFormDetails('');
-      toast(`Request ${json.request?.ticketId ?? ''} submitted — our team will respond within 24 hours.`);
+      // The request is saved either way; only claim the team has it when the
+      // email actually went out.
+      if (json.notified === false) {
+        toast(`Request ${ref} saved, but the notification email could not be sent. Please call your account manager.`, 'error');
+      } else {
+        toast(`Request ${ref} sent to our ${formCategory} desk — you are copied on the email.`);
+      }
       loadRequests();
     } catch {
       toast('Network error — please try again.', 'error');
@@ -169,22 +186,22 @@ function ServiceDeskInner() {
 
         {/* TICKET TABLE */}
         {vis.showTicketTable && <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 164px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, padding: '12px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             {['Ticket ID', 'Subject', 'Category', 'Status', ...(vis.showSlaColumn ? ['SLA'] : []), 'Submitted', 'Updated'].map((h) => (
               <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
             ))}
           </div>
 
           {filtered.map((t) => {
-            const s   = statusColors[t.status]     ?? statusColors['Closed'];
-            const cat = categoryColors[t.category]  ?? categoryColors['General'];
+            const s   = statusColors[t.status] ?? statusColors['Closed'];
+            const cat = chipFor(t.category);
             return (
               <div key={t.id}
-                style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 140px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
+                style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 164px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
                 className="hover:bg-[#FAFBFC] last:border-0">
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{t.ticketId}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 16 }}>{t.subject}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: cat.bg, color: cat.text, width: 'fit-content' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: cat.tint, color: cat.text, width: 'fit-content', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                   {t.category}
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: s.bg, color: s.text, width: 'fit-content' }}>
@@ -230,10 +247,18 @@ function ServiceDeskInner() {
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Category</label>
-                  <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none' }}>
-                    <option value="">Select category...</option>
-                    {Object.keys(categoryColors).map((c) => <option key={c}>{c}</option>)}
+                  <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 13, border: `1px solid ${formCategory ? '#E5E7F1' : '#F6C9AC'}`, borderRadius: 14, background: '#FAFBFC', color: formCategory ? '#131C4E' : '#9CA3B8', outline: 'none' }}>
+                    <option value="">Select the team that should handle this…</option>
+                    {REQUEST_ROUTES.map((r) => <option key={r.category} value={r.category}>{r.category}</option>)}
                   </select>
+                  {/* The category decides which Leadway mailbox receives the
+                      request, so the hint is worth the vertical space — a
+                      misrouted ticket costs a day. */}
+                  <p style={{ fontSize: 11.5, color: selectedRoute ? '#6B7480' : '#C2410C', lineHeight: 1.5, marginTop: 7 }}>
+                    {selectedRoute
+                      ? selectedRoute.hint
+                      : 'Pick a category so your request reaches the right desk first time.'}
+                  </p>
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Subject</label>
@@ -252,7 +277,20 @@ function ServiceDeskInner() {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: '1px solid #F0F1F5' }}>
+              {/* Tells HR what happens on submit: which desk it reaches, and
+                  that they stay in the thread. Without this the CC is
+                  invisible and HR chases a request they think vanished. */}
+              {selectedRoute && (
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', margin: '0 24px', padding: '12px 14px', background: '#FFF7ED', border: '1px solid #FBE0CB', borderRadius: 12 }}>
+                  <Send style={{ width: 14, height: 14, color: '#F56B22', flexShrink: 0, marginTop: 1 }} />
+                  <p style={{ fontSize: 11.5, color: '#8A4A1B', lineHeight: 1.55, minWidth: 0 }}>
+                    Goes to the Leadway <strong>{selectedRoute.category}</strong> desk with the subject{' '}
+                    <span style={{ fontWeight: 600 }}>“Corporate Portal - {selectedRoute.subjectTag} - {companyName || 'your company'}”</span>.
+                    You will be copied, so replies come back to you.
+                  </p>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: selectedRoute ? 'none' : '1px solid #F0F1F5' }}>
                 <button onClick={() => setShowForm(false)} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 600, color: '#6B7480', border: '1px solid #E5E7F1', borderRadius: 24, background: '#fff', cursor: 'pointer' }}>Cancel</button>
                 <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, height: 42, fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: submitting ? 'wait' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', boxShadow: '0 3px 12px rgba(245,107,34,0.35)', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Submitting…' : 'Submit Request'}</button>
               </div>
