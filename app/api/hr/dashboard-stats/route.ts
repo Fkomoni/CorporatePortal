@@ -101,21 +101,67 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+const MONTH_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+/**
+ * Every date shape this backend has been seen to return.
+ *
+ * The previous version accepted exactly two: YYYY-MM-DD with zero-padded parts,
+ * and DD/MM/YYYY. Anything else, including the /Date(ms)/ form an ASP.NET
+ * serialiser emits, was treated as no date at all. It also sliced to 10
+ * characters first, which decapitated the timestamp forms before they could be
+ * matched. The third branch was dead code: it repeated the DD/MM/YYYY pattern,
+ * so the MM/DD/YYYY comment never applied to anything.
+ */
 function parseDate(s: string): Date | null {
-  if (!s) return null;
-  const t = String(s).trim().slice(0, 10);
-  // YYYY-MM-DD
-  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-  // DD/MM/YYYY
-  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-  // MM/DD/YYYY
-  const mdy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mdy) {
-    const d = new Date(Number(mdy[3]), Number(mdy[1]) - 1, Number(mdy[2]));
-    if (!isNaN(d.getTime())) return d;
+  const raw = String(s ?? '').trim();
+  if (!raw || raw.toLowerCase() === 'null') return null;
+
+  const mk = (y: number, m: number, d: number): Date | null => {
+    if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2200) return null;
+    const dt = new Date(y, m - 1, d);
+    // Rejects roll-over dates such as 31 February.
+    return dt.getMonth() === m - 1 && dt.getDate() === d ? dt : null;
+  };
+
+  // ASP.NET JSON: /Date(1710374400000)/ or /Date(1710374400000+0100)/
+  const dotnet = raw.match(/^\/?Date\((-?\d+)([+-]\d{4})?\)\/?$/i);
+  if (dotnet) {
+    const dt = new Date(Number(dotnet[1]));
+    return isNaN(dt.getTime()) ? null : dt;
   }
+
+  // Date-only head of an ISO or "YYYY-MM-DD HH:mm:ss" value.
+  const isoLike = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoLike) return mk(+isoLike[1], +isoLike[2], +isoLike[3]);
+
+  // Day-first with any separator: 14/03/2026, 14-03-2026, 14.03.2026
+  const dmy = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (dmy) {
+    const [, a, b, y] = dmy;
+    // Day-first is the convention here, but a value like 03/14/2026 can only be
+    // month-first, so fall back to that rather than discarding the row.
+    return mk(+y, +b, +a) ?? mk(+y, +a, +b);
+  }
+
+  // "14 Mar 2026" / "14 March 2026" / "Mar 14, 2026"
+  const dMonY = raw.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{4})/);
+  if (dMonY) {
+    const m = MONTH_ABBR.indexOf(dMonY[2].slice(0, 3).toLowerCase()) + 1;
+    if (m > 0) return mk(+dMonY[3], m, +dMonY[1]);
+  }
+  const monDY = raw.match(/^([A-Za-z]{3,})[\s-]+(\d{1,2}),?[\s-]+(\d{4})/);
+  if (monDY) {
+    const m = MONTH_ABBR.indexOf(monDY[1].slice(0, 3).toLowerCase()) + 1;
+    if (m > 0) return mk(+monDY[3], m, +monDY[2]);
+  }
+
+  // Epoch milliseconds or seconds as a bare number.
+  if (/^\d{10}$|^\d{13}$/.test(raw)) {
+    const dt = new Date(raw.length === 10 ? Number(raw) * 1000 : Number(raw));
+    if (!isNaN(dt.getTime()) && dt.getFullYear() >= 1990 && dt.getFullYear() <= 2200) return dt;
+  }
+
   return null;
 }
 
@@ -180,27 +226,68 @@ const PREMIUM_KEYS = [
 const PAID_AMOUNT_KEYS  = ['AmtPaid','PaidAmount','AmountPaid','Paid_Amount','paid_amount','ClaimPaidAmount','NetPaid','Amount_Paid','TotalPaidAmount','TotalPaid','gross_paid'];
 const BILLED_AMOUNT_KEYS = ['AmtClaimed','BilledAmount','ClaimedAmount','Amount_Billed','billed_amount','AmountBilled','ClaimAmount','Claim_Amount','GrossAmount','TotalBilled','amount_claimed','gross_claimedamt'];
 const STATUS_KEYS       = ['CLAIM_STATUS','ClaimStatus','Status','claim_status','PaymentStatus','Claim_Status'];
-const PAYMENT_DATE_KEYS = ['PaymentDate','Payment_Date','DatePaid','PaidDate','DateSettled','SettlementDate'];
-const CLAIM_DATE_KEYS   = ['TreatmentDate','DateOfService','ServiceDate','ClaimDate','Claim_Date','Treatment_Date'];
+// Matched case- and separator-insensitively, so "claim_date", "Claim_Date" and
+// "ClaimDate" are all one entry. claim_date is the spelling this endpoint
+// actually returns and the one the Claims page reads.
+const PAYMENT_DATE_KEYS = ['PaymentDate','DatePaid','PaidDate','DateSettled','SettlementDate','date_paid','settled_date','ChequeDate','ApprovedDate'];
+const CLAIM_DATE_KEYS   = ['ClaimDate','TreatmentDate','DateOfService','ServiceDate','EncounterDate','DateOfTreatment','VisitDate','date_of_service','TransactionDate','DateReceived'];
 const PAID_SUBSTRINGS   = ['paid','settled','approved','complete','processed','reimbursed'];
 
-function numField(row: Record<string, unknown>, keys: string[]): number {
-  for (const k of keys) {
-    const v = row[k];
-    if (v == null) continue;
-    if (typeof v === 'number') return v;
-    const c = String(v).replace(/[,₦$\s]/g, '').trim();
-    if (c && !isNaN(+c)) return +c;
+// Field lookup is case- and separator-insensitive.
+//
+// This endpoint's rows come back snake_cased (claim_id, claimant, nem) while the
+// alias lists below are written in Prognosis's PascalCase. An exact lookup meant
+// "claim_date" never matched "ClaimDate", so every claim looked undated and the
+// spend trend had nothing to plot even though the column was populated. Rather
+// than keep adding spellings of the same field, both are normalised to
+// alphanumerics-lowercased before comparing.
+const keyIndexCache = new WeakMap<object, Map<string, string>>();
+
+function normKey(k: string): string {
+  return k.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function keyIndex(row: Record<string, unknown>): Map<string, string> {
+  let idx = keyIndexCache.get(row);
+  if (!idx) {
+    idx = new Map();
+    // First spelling wins, so an exact-cased duplicate cannot be shadowed.
+    for (const k of Object.keys(row)) {
+      const n = normKey(k);
+      if (!idx.has(n)) idx.set(n, k);
+    }
+    keyIndexCache.set(row, idx);
   }
-  return 0;
+  return idx;
+}
+
+function rawField(row: Record<string, unknown>, keys: string[]): unknown {
+  const idx = keyIndex(row);
+  for (const k of keys) {
+    const actual = idx.get(normKey(k));
+    if (actual === undefined) continue;
+    const v = row[actual];
+    if (v == null) continue;
+    const s = String(v).trim();
+    // Prognosis sends the literal strings "null" and "NULL" for empty columns;
+    // the Claims page already filters these and this has to match it.
+    if (!s || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') continue;
+    return v;
+  }
+  return undefined;
+}
+
+function numField(row: Record<string, unknown>, keys: string[]): number {
+  const v = rawField(row, keys);
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  const c = String(v).replace(/[,₦$\s]/g, '').trim();
+  return c && !isNaN(+c) ? +c : 0;
 }
 
 function strField(row: Record<string, unknown>, keys: string[]): string {
-  for (const k of keys) {
-    const v = row[k];
-    if (v != null && String(v).trim()) return String(v);
-  }
-  return '';
+  const v = rawField(row, keys);
+  return v == null ? '' : String(v);
 }
 
 function daysApart(a: Date, b: Date): number {
@@ -796,6 +883,21 @@ export async function GET(request: Request) {
 
     //  Actuarial: earned premium, incurred claims, loss ratio, COR
     const claimRows = toRows(claimsRaw);
+
+    // The exact keys and the date value on a real row. Guessing at field
+    // spellings is what let every claim look undated in the first place; with
+    // this in the logs the next mismatch is one line to find instead of a
+    // reverse-engineering exercise.
+    if (claimRows.length > 0) {
+      const sample = claimRows[0];
+      console.log('[dashboard-stats] claim row keys:', Object.keys(sample).join(','));
+      console.log('[dashboard-stats] claim date resolved:',
+        JSON.stringify({
+          treatment: strField(sample, CLAIM_DATE_KEYS),
+          payment: strField(sample, PAYMENT_DATE_KEYS),
+          parsed: parseDate(strField(sample, CLAIM_DATE_KEYS) || strField(sample, PAYMENT_DATE_KEYS))?.toISOString() ?? null,
+        }));
+    }
 
     const lr = computeLossRatio({
       premiumRows: rows,
