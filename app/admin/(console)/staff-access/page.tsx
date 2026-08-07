@@ -10,7 +10,7 @@ interface Policy { groupId: string; name: string; schemeCode: string }
 interface AccessRow { id: string; staffEmail: string; companyId: string; companyName: string | null; policyNumber: string | null }
 interface StaffUserRow { email: string; active: boolean; role: string }
 
-const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 const inputStyle: React.CSSProperties = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
 
 export default function StaffAccessPage() {
@@ -296,7 +296,7 @@ export default function StaffAccessPage() {
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 10 }}>{email}</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {accessRows.map((r) => (
-                    <span key={r.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: '#F7F8FC', border: '1px solid #EDEEF2', fontSize: 12, color: '#374151' }}>
+                    <span key={r.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: '#F7F8FC', border: '1px solid #DEE3ED', fontSize: 12, color: '#374151' }}>
                       {r.companyName || r.companyId}
                       <button onClick={() => handleRemove(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3B8', display: 'flex' }}>
                         <Trash2 style={{ width: 12, height: 12 }} />

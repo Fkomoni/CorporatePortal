@@ -286,7 +286,7 @@ export default function FinancePage() {
         )}
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
           {(['overview', 'generate', 'schedule'] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               style={{
@@ -306,7 +306,7 @@ export default function FinancePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Payment timeline */}
             {history && (
-              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '26px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '26px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                 <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E', marginBottom: 4 }}>Payment Status</p>
                 <p style={{ fontSize: 11, color: '#9CA3B8', marginBottom: 24 }}>{history.ReceiptNumber ?? 'No active invoice'} · {history.Frequency ?? 'Monthly'} billing</p>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -334,7 +334,7 @@ export default function FinancePage() {
               </div>
             )}
             {/* Past invoices list */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
               <div style={{ padding: '20px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 800, color: '#131C4E' }}>Invoice History</p>
@@ -406,7 +406,7 @@ export default function FinancePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Type selector */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>Step 1. Select Invoice Type</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
                 {INVOICE_TYPES.map((t) => (
@@ -466,7 +466,7 @@ export default function FinancePage() {
 
             {/* Line items table */}
             {invoiceData && invoiceData.count === 0 && (
-              <div ref={tableRef} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '60px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div ref={tableRef} style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '60px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FileText style={{ width: 20, height: 20, color: '#F56B22' }} />
                 </div>
@@ -477,7 +477,7 @@ export default function FinancePage() {
               </div>
             )}
             {invoiceData && invoiceData.count > 0 && (
-              <div ref={tableRef} id="invoice-print-area" style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+              <div ref={tableRef} id="invoice-print-area" style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
                 {/* Table header */}
                 <div style={{ padding: '20px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -594,7 +594,7 @@ export default function FinancePage() {
 
             {/* Empty state */}
             {!invoiceData && !invoiceLoading && (
-              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '60px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '60px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: '#F7F8FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FileText style={{ width: 20, height: 20, color: '#9CA3B8' }} />
                 </div>
@@ -607,7 +607,7 @@ export default function FinancePage() {
 
         {/*  SCHEDULE TAB  */}
         {tab === 'schedule' && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
             {scheduleLoading ? (
               <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
                 <Loader2 style={{ width: 24, height: 24, color: '#F56B22', animation: 'spin 1s linear infinite' }} />

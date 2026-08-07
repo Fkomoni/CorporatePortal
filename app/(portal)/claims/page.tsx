@@ -169,7 +169,7 @@ export default function ClaimsPage() {
 
         {/* TOOLBAR */}
         {vis.showFilters && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', flex: '1 1 260px', minWidth: 220 }}>
                 <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
@@ -223,7 +223,7 @@ export default function ClaimsPage() {
 
         {/* CLAIMS TABLE */}
         {vis.showTable && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflowX: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflowX: 'auto' }}>
             <div
               className="grid text-[10.5px] font-bold uppercase bg-[#FAFBFC] border-b border-[#F0F1F5]"
               style={{ gridTemplateColumns: '110px 140px 110px 180px 160px 90px 100px 100px 90px 82px', columnGap: 12, padding: '12px 24px', color: '#B0B7C9', letterSpacing: '0.07em', borderTopLeftRadius: 16, borderTopRightRadius: 16, minWidth: 1280 }}>

@@ -90,7 +90,7 @@ export default function HRAuditLogsPage() {
   const totalPages  = Math.max(1, Math.ceil(total / PER_PAGE));
   const currentPage = Math.floor(offset / PER_PAGE) + 1;
 
-  const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' };
+  const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' };
 
   if (sessionStatus === 'authenticated' && !isAdmin) {
     return (

@@ -34,7 +34,7 @@ const PROVIDER_GRADS = [
 const card: React.CSSProperties = {
   background: '#fff',
   borderRadius: 16,
-  border: '1px solid #EDEEF2',
+  border: '1px solid #DEE3ED',
   boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
 };
 
@@ -334,11 +334,11 @@ export default function DashboardPage() {
                     style={{
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       gap: 10, padding: '18px 6px', background: '#fff',
-                      border: '1px solid #EDEEF2', borderRadius: 12, cursor: 'pointer',
+                      border: '1px solid #DEE3ED', borderRadius: 12, cursor: 'pointer',
                       transition: 'border-color 0.15s, box-shadow 0.15s',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.boxShadow = '0 3px 12px rgba(19,28,78,0.06)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#EDEEF2'; e.currentTarget.style.boxShadow = 'none'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#DEE3ED'; e.currentTarget.style.boxShadow = 'none'; }}
                   >
                     <Icon style={{ width: 21, height: 21, color: a.color }} strokeWidth={1.9} />
                     <span style={{ fontSize: 11.5, fontWeight: 600, color: '#131C4E', lineHeight: 1.3, textAlign: 'center' }}>{a.label}</span>
@@ -471,7 +471,7 @@ export default function DashboardPage() {
                   <select
                     value={spendRange}
                     onChange={(e) => setSpendRange(e.target.value as 'ytd' | '3m')}
-                    style={{ fontSize: 11.5, fontWeight: 600, color: '#131C4E', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 8px', background: '#fff', cursor: 'pointer' }}
+                    style={{ fontSize: 11.5, fontWeight: 600, color: '#131C4E', border: '1px solid #DEE3ED', borderRadius: 8, padding: '4px 8px', background: '#fff', cursor: 'pointer' }}
                   >
                     <option value="ytd">Policy year</option>
                     <option value="3m">Last 3 months</option>
@@ -680,7 +680,7 @@ export default function DashboardPage() {
           onClick={(e) => e.stopPropagation()}
           style={{ width: 480, height: '100vh', background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}
         >
-          <div style={{ padding: '28px 28px 16px', borderBottom: '1px solid #EDEEF2', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+          <div style={{ padding: '28px 28px 16px', borderBottom: '1px solid #DEE3ED', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
             <div>
               <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>All Provider Utilization</p>
               <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 3 }}>{liveAllProviders.length} providers · By visits &amp; spend</p>

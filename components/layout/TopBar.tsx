@@ -47,7 +47,7 @@ export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
 
   const iconButton: React.CSSProperties = {
     position: 'relative', width: 38, height: 38, borderRadius: '50%',
-    border: '1px solid #EDEEF2', background: '#fff', cursor: 'pointer',
+    border: '1px solid #DEE3ED', background: '#fff', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   };
 
@@ -88,16 +88,16 @@ export function TopBar({ title, subtitle, notificationCount }: TopBarProps) {
             placeholder="Search members, ID or phone..."
             style={{
               height: 42, width: 320, paddingLeft: 40, paddingRight: 58,
-              fontSize: 13, borderRadius: 12, border: '1px solid #EDEEF2',
+              fontSize: 13, borderRadius: 12, border: '1px solid #DEE3ED',
               background: '#fff', color: '#131C4E', outline: 'none', boxSizing: 'border-box',
             }}
             onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = '#EDEEF2'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = '#DEE3ED'; }}
           />
           <span style={{
             position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
             fontSize: 10.5, fontWeight: 700, color: '#B0B7C9',
-            background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 6,
+            background: '#F7F8FC', border: '1px solid #DEE3ED', borderRadius: 6,
             padding: '3px 6px', pointerEvents: 'none',
           }}>
             ⌘K

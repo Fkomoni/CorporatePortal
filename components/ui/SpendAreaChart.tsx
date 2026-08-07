@@ -50,7 +50,7 @@ export function SpendAreaChart({ data }: { data: { month: string; amount: number
           tickMargin={4}
         />
         <Tooltip
-          contentStyle={{ background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
+          contentStyle={{ background: '#fff', border: '1px solid #DEE3ED', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
           formatter={(v) => [fmtTooltip(Number(v)), 'Claims paid']}
         />
         <Area type="monotone" dataKey="amount" stroke="#F56B22" strokeWidth={2}

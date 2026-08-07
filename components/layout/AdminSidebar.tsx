@@ -64,9 +64,9 @@ export function AdminSidebar() {
           </div>
         </div>
         <button onClick={() => signOut({ callbackUrl: '/admin/login' })}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #DEE3ED', background: '#F7F8FC', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}
           onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; e.currentTarget.style.color = '#EF4444'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.borderColor = '#EDEEF2'; e.currentTarget.style.color = '#6B7280'; }}>
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F8FC'; e.currentTarget.style.borderColor = '#DEE3ED'; e.currentTarget.style.color = '#6B7280'; }}>
           <LogOut style={{ width: 13, height: 13 }} /> Sign Out
         </button>
       </div>
