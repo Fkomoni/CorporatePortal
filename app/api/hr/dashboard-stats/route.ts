@@ -177,6 +177,47 @@ function extractDateStr(p: Record<string, unknown>, ...keys: string[]): string {
   return '';
 }
 
+// Names that look like a date but are never the date a claim happened on.
+const NON_CLAIM_DATE = /birth|dob|expiry|expire|policyfrom|policyto|inception|created|updated|modified|renew|invoice|duedate|nextdue|joined|effective/i;
+// Preference order when falling back: when the claim happened, then when it was
+// settled, then anything else with a usable date.
+const CLAIM_DATE_HINT = /treat|service|encounter|visit|claim|incident|admission|consult/i;
+const PAID_DATE_HINT  = /paid|payment|settle|cheque|approved|processed/i;
+
+/**
+ * The date a claim happened, resolved without relying on knowing its column
+ * name in advance.
+ *
+ * The explicit alias lists are tried first. When none of them match, the row is
+ * scanned for any field whose name looks like a date and whose value actually
+ * parses, preferring treatment-like names over payment-like ones. That is what
+ * makes the spend trend independent of Prognosis's exact spelling: a column
+ * called date_of_treatment, TREAT_DT or claimdate all work without a code
+ * change, and only fields that genuinely parse as a date are considered.
+ *
+ * Dates that are never the claim date (date of birth, policy expiry, created
+ * timestamps) are excluded by name, so the fallback cannot quietly bucket a
+ * claim by the member's birthday.
+ */
+function claimDate(row: Record<string, unknown>): { date: Date | null; via: string } {
+  for (const [keys, label] of [[CLAIM_DATE_KEYS, 'alias:claim'], [PAYMENT_DATE_KEYS, 'alias:payment']] as const) {
+    const parsed = parseDate(strField(row, keys));
+    if (parsed) return { date: parsed, via: label };
+  }
+
+  const candidates: { key: string; date: Date; rank: number }[] = [];
+  for (const key of Object.keys(row)) {
+    if (!/date|dt$|_dt|day/i.test(key) || NON_CLAIM_DATE.test(key)) continue;
+    const parsed = parseDate(String(row[key] ?? ''));
+    if (!parsed) continue;
+    const rank = CLAIM_DATE_HINT.test(key) ? 0 : PAID_DATE_HINT.test(key) ? 1 : 2;
+    candidates.push({ key, date: parsed, rank });
+  }
+  if (!candidates.length) return { date: null, via: 'none' };
+  candidates.sort((a, b) => a.rank - b.rank);
+  return { date: candidates[0].date, via: `scan:${candidates[0].key}` };
+}
+
 //  Policy matching
 function findPolicy(
   policies: Record<string, unknown>[],
@@ -388,14 +429,14 @@ export function computeLossRatio({
   // the money does not exist.
   let undatedPaidCount = 0, undatedPaidAmount = 0;
 
+  // How each row's date was found, so the log can say whether the aliases hit
+  // or a scanned column had to stand in.
+  const dateSources = new Map<string, number>();
+
   for (const row of claimRows) {
-    const tdStr = row[CLAIM_DATE_KEYS[0]] != null
-      ? String(row[CLAIM_DATE_KEYS[0]])
-      : strField(row, CLAIM_DATE_KEYS);
-    // Treatment date first, payment date as a fallback: a settled claim often
-    // carries one and not the other, and either is enough to place it in a
-    // month.
-    const td = parseDate(tdStr) ?? parseDate(strField(row, PAYMENT_DATE_KEYS));
+    const resolved = claimDate(row);
+    const td = resolved.date;
+    dateSources.set(resolved.via, (dateSources.get(resolved.via) ?? 0) + 1);
     // Only filter by policy date when we have dates; otherwise include all claims
     if (hasPolicy && td && (td < ps! || td > pe!)) continue;
 
@@ -445,6 +486,11 @@ export function computeLossRatio({
         undatedPaidAmount += paidAmt;
       }
     }
+  }
+
+  if (claimRows.length > 0) {
+    console.log('[dashboard-stats] claim date sources:',
+      [...dateSources.entries()].map(([k, n]) => `${k}=${n}`).join(' '));
   }
 
   const curYm = `${asAt.getFullYear()}-${String(asAt.getMonth() + 1).padStart(2, '0')}`;

@@ -1208,7 +1208,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                 <p style={{ fontSize: 12, color: '#0C4A6E', lineHeight: 1.55, minWidth: 0 }}>
                   <strong style={{ fontWeight: 700 }}>Employees and their dependants.</strong> One row per person.
                   Put <strong>Principal</strong> in the Relationship column for the employee, and{' '}
-                  <strong>Spouse</strong> or <strong>Child</strong> for a dependant with the employee&rsquo;s code in
+                  <strong>Spouse</strong> or <strong>Child</strong>{' '}for a dependant with the employee&rsquo;s code in
                   the <strong>Principal Employee Code</strong> column. A family is enrolled together, so a dependant
                   is never created before its employee. If the employee is already enrolled, leave their row out
                   and the dependants attach to the existing member. New employees go onto the one plan you pick below.
@@ -1233,8 +1233,8 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
                   <Upload style={{ width: 22, height: 22, color: '#F56B22' }} />
                 </div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Census file here</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One employee per row</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Drop your Enrolment Upload file here</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 16 }}>Supports .csv and .xlsx · One person per row, staff and dependants</p>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                   <button onClick={() => bulkFileRef.current?.click()}
                     style={{ height: 38, padding: '0 20px', fontSize: 13, fontWeight: 600, color: '#3A4382', border: '1px solid #C7D2FE', borderRadius: 12, background: '#EEF2FF', cursor: 'pointer' }}>Browse File</button>
