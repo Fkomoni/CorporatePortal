@@ -7,6 +7,8 @@
 // stored anywhere yet (member counts, for instance), and drawing an invented
 // line next to a real figure would imply a trend nobody measured: so when
 // there's no series the card simply renders without one.
+import { ChevronRight } from 'lucide-react';
+
 export interface StatCardProps {
   label: string;
   sub?: string;
@@ -131,6 +133,14 @@ export function StatCard({
             </p>
           )}
         </div>
+
+        {/* A card that filters the page on click has to look like it does. The
+            footer link already says so where there is one, so this only appears
+            on the cards without it, which are also the ones whose right side was
+            empty for want of a trend series. */}
+        {onClick && !footer && (
+          <ChevronRight style={{ width: 18, height: 18, color: '#C4C9D9', flexShrink: 0 }} aria-hidden="true" />
+        )}
       </div>
 
       {footer && (
