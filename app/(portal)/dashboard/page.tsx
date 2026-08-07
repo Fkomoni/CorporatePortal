@@ -80,7 +80,7 @@ interface DashboardStats {
   allProviders: { name: string; location: string; visits: number; amtPaid: number }[];
   topServices: { service: string; visits: number; amtPaid: number }[];
   topConditions: { name: string; visits: number; amtPaid?: number }[];
-  monthlySpend: { month: string; amount: number }[];
+  monthlySpend: { ym: string; month: string; amount: number }[];
   undatedPaidCount?: number;
   undatedPaidAmount?: number;
   claimsPaidPrevYtd: number | null;
@@ -440,21 +440,41 @@ export default function DashboardPage() {
           const headerLink: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: '#F56B22', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 };
 
           if (vis.showSpendChart) {
-            const spend = spendRange === '3m' ? liveMonthlySpend.slice(-3) : liveMonthlySpend;
+            const window = spendRange === '3m' ? liveMonthlySpend.slice(-3) : liveMonthlySpend;
+            // A bare "Feb" cannot say which year it belongs to, and a policy
+            // year that straddles a calendar year puts two of them on one axis.
+            // The year is appended only when the window actually spans more than
+            // one, so the common case stays uncluttered.
+            const spanYears = new Set(window.map((s) => s.ym?.slice(0, 4)).filter(Boolean));
+            const spend = window.map((s) => ({
+              ...s,
+              month: spanYears.size > 1 && s.ym ? `${s.month} ${s.ym.slice(2, 4)}` : s.month,
+            }));
+            // The exact months on screen, stated once under the title, so the
+            // axis does not have to carry the year on every tick.
+            const rangeLabel = (() => {
+              if (window.length === 0) return 'Monthly';
+              const first = window[0], last = window[window.length - 1];
+              const fy = first.ym?.slice(0, 4), ly = last.ym?.slice(0, 4);
+              if (window.length === 1) return `${first.month} ${fy ?? ''}`.trim();
+              return fy && ly && fy !== ly
+                ? `${first.month} ${fy} to ${last.month} ${ly}`
+                : `${first.month} to ${last.month} ${ly ?? ''}`.trim();
+            })();
             columns.push(
               <div key="spend" style={colCard}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div>
                     <p style={colTitle}>Claims Spend Trend</p>
-                    <p style={colSub}>Monthly</p>
+                    <p style={colSub}>{rangeLabel}</p>
                   </div>
                   <select
                     value={spendRange}
                     onChange={(e) => setSpendRange(e.target.value as 'ytd' | '3m')}
                     style={{ fontSize: 11.5, fontWeight: 600, color: '#131C4E', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 8px', background: '#fff', cursor: 'pointer' }}
                   >
-                    <option value="ytd">YTD</option>
-                    <option value="3m">3M</option>
+                    <option value="ytd">Policy year</option>
+                    <option value="3m">Last 3 months</option>
                   </select>
                 </div>
                 {spend.length === 0 ? (

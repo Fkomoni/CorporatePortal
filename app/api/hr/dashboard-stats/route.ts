@@ -353,7 +353,7 @@ interface LossRatioResult {
   riskStatus: string;
   elapsedDays: number;
   totalPolicyDays: number;
-  monthlyPaid: { month: string; amount: number }[];
+  monthlyPaid: { ym: string; month: string; amount: number }[];
   /** Paid claims that carry neither a treatment date nor a payment date, so
    *  they are in the total but cannot be placed on the trend. */
   undatedPaidCount: number;
@@ -556,13 +556,22 @@ export function computeLossRatio({
     riskStatus,
     elapsedDays,
     totalPolicyDays,
+    // The whole policy year, not a fixed six months. The range selector offers
+    // "Policy year", which was a lie while the server truncated to six: in
+    // August that showed February to July and called it year-to-date. Claims are
+    // already filtered to the policy period above, so 13 is a ceiling rather
+    // than a window.
+    //
+    // `ym` travels with each point so the chart can tell February 2026 from
+    // February 2027, which a "Feb" label alone cannot when a policy year
+    // straddles a calendar year.
     monthlyPaid: Object.entries(monthlySpend)
       .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-6)
+      .slice(-13)
       .map(([ym, amount]) => {
         const [y, m] = ym.split('-').map(Number);
         const label = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' });
-        return { month: label, amount: +(amount / 1_000_000).toFixed(2) };
+        return { ym, month: label, amount: +(amount / 1_000_000).toFixed(2) };
       }),
     undatedPaidCount,
     undatedPaidAmount: +undatedPaidAmount.toFixed(2),
@@ -709,7 +718,7 @@ export interface DashboardStats {
   topServices: { service: string; visits: number; amtPaid: number }[];
   topConditions: { name: string; visits: number; amtPaid?: number }[];
   // Paid claims by month (₦ millions), last 6 months with data
-  monthlySpend: { month: string; amount: number }[];
+  monthlySpend: { ym: string; month: string; amount: number }[];
   undatedPaidCount: number;
   undatedPaidAmount: number;
   // KPI card extras
