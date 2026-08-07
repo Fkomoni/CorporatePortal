@@ -3863,7 +3863,7 @@ function MembersPageInner() {
             <div style={{ width: 1, height: 28, background: '#E5E7F1' }} />
             <button onClick={() => loadMembers(true)} disabled={refreshing}
               title="Refresh member list from Prognosis"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: refreshing ? '#F0FDF4' : 'linear-gradient(135deg,#ECFDF5,#D1FAE5)', color: '#059669', border: '1px solid #A7F3D0', borderRadius: 14, cursor: refreshing ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: refreshing ? 0.8 : 1 }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', fontSize: 13, fontWeight: 700, background: refreshing ? '#F7F8FA' : '#FFFFFF', color: '#6B7480', border: '1px solid #DEE3ED', borderRadius: 14, cursor: refreshing ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: refreshing ? 0.8 : 1 }}>
               <svg style={{ width: 15, height: 15, animation: refreshing ? 'spin 0.7s linear infinite' : 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
                 <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
@@ -4047,7 +4047,7 @@ function MembersPageInner() {
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold w-fit" style={{ background: status.bg, color: status.text }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.dot }} />{m.status}
                 </span>
-                <span className="text-[11px] text-[#9CA3B8]">{m.phone}</span>
+                <span className="text-[11px]" style={{ color: m.phone ? '#9CA3B8' : '#C4C9D9' }}>{m.phone || '-'}</span>
                 {m.type === 'Principal' ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: '#131C4E' }}>{m.dependants ?? 0}</span>

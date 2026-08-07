@@ -39,7 +39,7 @@ const NAV_GROUPS: Array<{
     section: 'Membership',
     items: [
       { href: '/members', label: 'People', icon: Users },
-      { href: '/pending-enrolees', label: 'Pending Enrolments', icon: ClipboardCheck, adminOnly: true },
+      { href: '/pending-enrolees', label: 'Pending Enrolees', icon: ClipboardCheck, adminOnly: true },
       { href: '/benefits', label: 'Benefits', icon: ShieldCheck },
     ],
   },
@@ -306,7 +306,12 @@ export function Sidebar() {
             {initials(userName) || 'U'}
           </div>
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', lineHeight: 1.3 }} className="truncate">
+            <p title={userName || undefined}
+              style={{
+                fontSize: 12.5, fontWeight: 700, color: '#fff', lineHeight: 1.3,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                overflow: 'hidden', overflowWrap: 'anywhere',
+              }}>
               {userName || 'User'}
             </p>
             <p style={{ fontSize: 10.5, color: '#8B93B5', marginTop: 1 }} className="truncate">{roleLabel}</p>
