@@ -30,13 +30,12 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPrognosisToken, PROGNOSIS_BASE as BASE } from '@/lib/prognosis';
 
-// Suffixes worth trying. Unknown ones simply 404 and are reported as absent,
-// which is the point: this is how the real list gets established.
-const CATEGORIES = [
-  'Dental', 'Optical', 'Maternity', 'InPatient', 'OutPatient',
-  'Surgery', 'Diagnostics', 'Pharmacy', 'Wellness', 'Immunisation',
-  'Physiotherapy', 'Psychiatry', 'Oncology', 'Dialysis', 'Evacuation',
-];
+// Confirmed by probing six schemes: only these two answer. Dental was the
+// endpoint supplied; Surgery was found by trial. Thirteen other guesses returned
+// nothing, so the default no longer carries names nobody has verified. Pass
+// &category= to try others, or use scripts/probe-benefits.mjs --discover, which
+// derives candidates from the scheme's own benefit names.
+const CATEGORIES = ['Dental', 'Surgery'];
 
 interface BenefitRow {
   Benefit?: string; Limit?: string | number; Used?: number; Balance?: string | number;
@@ -92,17 +91,33 @@ async function probe(token: string, schemeId: string, category: string, includeR
     try { raw = JSON.parse(text); } catch { /* non-JSON reported via sample */ }
     const list = rows(raw);
 
-    // One entry per member type, because that is the axis the app is missing:
-    // a category does not have "a limit", it has a limit per family size.
-    const byMemberType = [...new Set(list.map((r) => r.MemberType ?? 'null'))].sort().map((mt) => {
-      const forType = list.filter((r) => (r.MemberType ?? 'null') === mt);
+    // Grouped by benefit first, then member type within it. Grouping by member
+    // type alone collapsed a scheme whose rows all carry a null MemberType into
+    // one entry listing several limits with no way to tell which benefit each
+    // belonged to. A limit belongs to a benefit; the member type only subdivides
+    // it, and on many schemes there is no member type at all.
+    const benefitNames = [...new Set(list.map((r) => r.Benefit || '(unnamed)'))];
+    const byBenefit = benefitNames.map((benefit) => {
+      const forBenefit = list.filter((r) => (r.Benefit || '(unnamed)') === benefit);
+      const types = [...new Set(forBenefit.map((r) => r.MemberType ?? null))];
       return {
-        memberType: mt,
-        memberTypeId: forType[0]?.MemberTypeId ?? null,
-        isPrincipal: forType[0]?.IsPrincipal ?? null,
-        limits: [...new Set(forType.map((r) => String(r.Limit ?? '')))],
-        deptCodes: [...new Set(forType.map((r) => r.DeptCode ?? ''))],
-        rows: forType.length,
+        benefit,
+        hasMemberTypeBreakdown: types.some((t) => t != null),
+        byMemberType: types.map((mt) => {
+          const forType = forBenefit.filter((r) => (r.MemberType ?? null) === mt);
+          return {
+            memberType: mt ?? 'all members',
+            memberTypeId: forType[0]?.MemberTypeId ?? null,
+            isPrincipal: forType[0]?.IsPrincipal ?? null,
+            limit: [...new Set(forType.map((r) => (r.Limit === '' || r.Limit == null ? null : r.Limit)))],
+            used: [...new Set(forType.map((r) => r.Used ?? 0))],
+            deptCodes: [...new Set(forType.map((r) => r.DeptCode ?? '').filter(Boolean))],
+            visitsLimit: [...new Set(forType.map((r) => r.VisitsLimit ?? 0))].filter(Boolean),
+            waitingPeriod: [...new Set(forType.map((r) => r.WaitingPeriod ?? 0))].filter(Boolean),
+            excluded: forType.some((r) => r.IsExcluded === true),
+            rows: forType.length,
+          };
+        }),
       };
     });
 
@@ -116,7 +131,7 @@ async function probe(token: string, schemeId: string, category: string, includeR
       benefits: [...new Set(list.map((r) => r.Benefit ?? ''))].filter(Boolean),
       distinctLimits: [...new Set(list.map((r) => String(r.Limit ?? '')))].filter(Boolean),
       anyExcluded: list.some((r) => r.IsExcluded === true),
-      byMemberType,
+      byBenefit,
       ...(includeRaw ? { raw } : {}),
       ...(res.ok ? {} : { sample: text.slice(0, 300) }),
     };
