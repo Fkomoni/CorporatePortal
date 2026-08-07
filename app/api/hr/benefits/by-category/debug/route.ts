@@ -10,14 +10,22 @@
 // it: which category suffixes exist, whether every scheme answers them, and
 // whether the numbers differ by member type.
 //
+// The endpoint takes a schemeId and nothing else: it does not know which group a
+// scheme belongs to, so any scheme ID works here whether or not it belongs to the
+// signed-in company.
+//
 //   /api/hr/benefits/by-category/debug
-//     ?schemeId=1322,1400          numeric PlanIDs, comma-separated
-//     ?schemeCode=204166,204167    scheme codes, resolved to PlanIDs first
+//     ?schemeId=1322,204166        numeric PlanIDs, any group
 //     &category=Dental,Optical     default: every suffix in CATEGORIES
 //     &raw=1                       include the full upstream payload
 //
-// With neither schemeId nor schemeCode it lists the signed-in company's schemes
-// with both identifiers, so you can see what to pass.
+// Codes are alphanumeric (AFRICMAX, NGMAXFAM22), not numeric, and turning one
+// into a PlanID is the only part that needs a group:
+//
+//     ?schemeCode=AFRICMAX         resolved against the signed-in company
+//     ?schemeCode=AFRICMAX&groupId=1001    or against any group
+//
+// With neither, it lists the company's schemes with both identifiers.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getPrognosisToken, PROGNOSIS_BASE as BASE } from '@/lib/prognosis';
@@ -136,7 +144,9 @@ export async function GET(req: Request) {
 
   try {
     const token = await getPrognosisToken();
-    const groupId = session.user.companyId ?? '';
+    // Codes only exist within a group, so allow pointing at one other than the
+    // caller's own. Scheme IDs never need it.
+    const groupId = q.get('groupId') ?? session.user.companyId ?? '';
     const catalogue = await listSchemes(token, groupId);
 
     // Scheme codes are not what the endpoint takes, so resolve them first.
@@ -147,14 +157,20 @@ export async function GET(req: Request) {
       if (hit?.schemeId) resolved.push({ schemeId: hit.schemeId, from: `code ${code}`, schemeName: hit.schemeName });
       else unresolved.push(code);
     }
+    // A scheme ID is probed as given. Looking it up in the catalogue is only to
+    // put a name on it, and not finding one is not a reason to skip it.
     for (const id of ids) {
       const hit = catalogue.schemes.find((s) => s.schemeId === id);
-      resolved.push({ schemeId: id, from: `schemeId ${id}`, schemeName: hit?.schemeName });
+      resolved.push({
+        schemeId: id,
+        from: `schemeId ${id}`,
+        schemeName: hit?.schemeName ?? '(not in this group\'s scheme list, probing anyway)',
+      });
     }
 
     if (resolved.length === 0) {
       return NextResponse.json({
-        hint: 'Pass ?schemeId=1322 or ?schemeCode=204166 (comma-separated). Add &category=Dental to narrow, &raw=1 for the full payload.',
+        hint: 'Pass ?schemeId=1322 (numeric, any group, comma-separated). Codes are alphanumeric: ?schemeCode=AFRICMAX resolves against a group, add &groupId=1001 for a different one. &category=Dental narrows, &raw=1 dumps the payload.',
         groupId,
         schemesForThisCompany: catalogue,
         categoriesProbedByDefault: CATEGORIES,
@@ -178,7 +194,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       groupId,
-      ...(unresolved.length ? { unresolvedCodes: unresolved, note: 'Those codes are not on this company\'s scheme list.' } : {}),
+      ...(unresolved.length ? {
+        unresolvedCodes: unresolved,
+        note: `Not on group ${groupId}'s scheme list. Codes are alphanumeric such as AFRICMAX; if these are numeric they are probably scheme IDs, so pass them as ?schemeId= instead.`,
+      } : {}),
       results,
     });
   } catch (err) {
