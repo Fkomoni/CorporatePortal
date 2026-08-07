@@ -28,6 +28,13 @@ export interface StatCardProps {
   onClick?: () => void;
 }
 
+// Decoration, so it is the thing that yields when the card is narrow: the
+// wrapper may shrink to SPARK_MIN and the SVG scales with it. Four of these
+// cards across a dashboard leaves roughly 285px each, and a fixed 90px line was
+// taking a third of that from the label.
+const SPARK_W = 64;
+const SPARK_MIN = 40;
+
 function Sparkline({ points, color }: { points: number[]; color: string }) {
   const w = 90;
   const h = 34;
@@ -47,10 +54,23 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
   const last = coords[coords.length - 1];
 
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ flexShrink: 0, overflow: 'visible' }} aria-hidden="true">
-      <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={last[0]} cy={last[1]} r={2.6} fill={color} />
-    </svg>
+    <div style={{ flex: `0 1 ${SPARK_W}px`, minWidth: SPARK_MIN, maxWidth: SPARK_W, lineHeight: 0 }}>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        // The line squeezes horizontally rather than being cropped. Stroke width
+        // is given in absolute units so it stays 2px however the box scales.
+        preserveAspectRatio="none"
+        style={{ width: '100%', height: h, overflow: 'visible' }}
+        aria-hidden="true"
+      >
+        <path
+          d={line} fill="none" stroke={color} strokeWidth={2}
+          strokeLinecap="round" strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        <circle cx={last[0]} cy={last[1]} r={2.6} fill={color} />
+      </svg>
+    </div>
   );
 }
 
@@ -88,19 +108,29 @@ export function StatCard({
           <Icon style={{ width: 21, height: 21, color }} strokeWidth={1.9} />
         </div>
 
+        {/* The sparkline sits on the value's row rather than beside the whole
+            block, so the label and sub get the column's full width.
+            Previously all three shared it with a fixed 90px line, which left
+            about 84px at four cards across and truncated the label to
+            "Active Me..." and the delta to "▲ 10 this mo...". Measured: the
+            longest label in the app, "Total Number of Staff", needs 131px and
+            now has 164px. The value strings it does share with are short. */}
         <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-          <p style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            {loading ? '...' : value}
-          </p>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginTop: 5 }} className="truncate">{label}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <p style={{ fontSize: 26, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.02em', lineHeight: 1.1, minWidth: 0, overflowWrap: 'anywhere' }}>
+              {loading ? '...' : value}
+            </p>
+            {showTrend && <Sparkline points={trend!} color={trendColor ?? color} />}
+          </div>
+          {/* These wrap rather than truncate. A card may be a line taller; a
+              metric may not be unreadable. */}
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginTop: 6, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{label}</p>
           {sub && (
-            <p style={{ fontSize: 11, color: subColor ?? '#9CA3B8', fontWeight: subColor ? 600 : 400, marginTop: 2 }} className="truncate">
+            <p style={{ fontSize: 11, color: subColor ?? '#9CA3B8', fontWeight: subColor ? 600 : 400, marginTop: 3, lineHeight: 1.4, overflowWrap: 'anywhere' }}>
               {sub}
             </p>
           )}
         </div>
-
-        {showTrend && <Sparkline points={trend!} color={trendColor ?? color} />}
       </div>
 
       {footer && (
