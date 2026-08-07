@@ -52,7 +52,7 @@ const FIELDS: Record<SourceKey, { key: string; label: string; from: (r: Row) => 
     { key: 'amtClaimed', label: 'Amt Claimed', from: (r) => r.amtClaimed },
     { key: 'amtPaid',    label: 'Amt Paid',    from: (r) => r.amount },
     { key: 'status',     label: 'Status',      from: (r) => r.status },
-    { key: 'date',       label: 'Date',        from: (r) => r.submittedDate },
+    { key: 'date',       label: 'Treatment Date', from: (r) => r.submittedDate },
   ],
 };
 

@@ -321,6 +321,12 @@ export async function GET(req: Request) {
         rejectedAmount,
         status,
         rawStatus,
+        // Despite the name, this is the TREATMENT date: when the member
+        // received care. It comes from TreatmentDate / claim_date /
+        // DateOfService / ClaimDate above, never from PaymentDate, which this
+        // route does not read at all. The field is called submittedDate because
+        // ClaimRecord in lib/types.ts shares the name with Service Desk, where
+        // it really is a submission date. Surfaced to HR as "Treatment Date".
         submittedDate: fmtDateStr(dateStr),
         caseId: isReimbursementById.get(claimRef) ? caseIdByClaimId.get(claimRef) : undefined,
       });
