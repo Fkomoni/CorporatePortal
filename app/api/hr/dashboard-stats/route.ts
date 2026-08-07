@@ -226,11 +226,18 @@ interface LossRatioResult {
   elapsedDays: number;
   totalPolicyDays: number;
   monthlyPaid: { month: string; amount: number }[];
+  /** Paid claims that carry neither a treatment date nor a payment date, so
+   *  they are in the total but cannot be placed on the trend. */
+  undatedPaidCount: number;
+  undatedPaidAmount: number;
   /** Cumulative paid-claims loss ratio by month — the KPI sparkline's trend. */
   lossRatioMonthly: { month: string; pct: number }[];
 }
 
-function computeLossRatio({
+// Exported for testing: the monthly bucketing below has to agree with the
+// headline paid figure, and that invariant is worth asserting directly rather
+// than eyeballing a chart.
+export function computeLossRatio({
   premiumRows, claimRows, claimsOk, policyStart, policyEnd, brokerage = 0, today = new Date(), paidClaimsOverride,
 }: {
   premiumRows: Record<string, unknown>[];
@@ -274,13 +281,34 @@ function computeLossRatio({
   }
 
   let paid = 0, outstanding = 0;
+  // Two separate monthly maps, because they answer different questions.
+  //
+  // `monthly` feeds the IBNR reserve and keeps its deliberately strict test
+  // (exact CLAIM_STATUS "Paid Claims", AmtPaid only) — a reserving input should
+  // not quietly widen.
+  //
+  // `monthlySpend` feeds the Claims Spend Trend chart and the loss-ratio
+  // sparkline, and uses exactly the same paid test and amount as the headline
+  // Paid Claims figure. They used to share the strict map, which is why the
+  // chart could read "No claims data yet" while the KPI above it showed a real
+  // number: a claim whose status was "Paid" rather than "Paid Claims", or whose
+  // AmtPaid was 0 with the value in AmtClaimed, counted toward the total and
+  // contributed nothing to the trend.
   const monthly: Record<string, number> = {};
+  const monthlySpend: Record<string, number> = {};
+  // Paid claims that carry no usable date at all. They belong in the total but
+  // cannot be placed on a month, so the chart says so rather than pretending
+  // the money does not exist.
+  let undatedPaidCount = 0, undatedPaidAmount = 0;
 
   for (const row of claimRows) {
     const tdStr = row[CLAIM_DATE_KEYS[0]] != null
       ? String(row[CLAIM_DATE_KEYS[0]])
       : strField(row, CLAIM_DATE_KEYS);
-    const td = parseDate(tdStr);
+    // Treatment date first, payment date as a fallback: a settled claim often
+    // carries one and not the other, and either is enough to place it in a
+    // month.
+    const td = parseDate(tdStr) ?? parseDate(strField(row, PAYMENT_DATE_KEYS));
     // Only filter by policy date when we have dates; otherwise include all claims
     if (hasPolicy && td && (td < ps! || td > pe!)) continue;
 
@@ -317,6 +345,19 @@ function computeLossRatio({
       const ym = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}`;
       monthly[ym] = (monthly[ym] ?? 0) + amt;
     }
+
+    // Chart bucket: same claim, same amount as the headline total. paidAmt is
+    // the effective figure by this point — the AmtClaimed fallback has already
+    // been applied above.
+    if (isPaid && paidAmt > 0) {
+      if (td && (!ps || td >= ps)) {
+        const ym = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}`;
+        monthlySpend[ym] = (monthlySpend[ym] ?? 0) + paidAmt;
+      } else if (!td) {
+        undatedPaidCount += 1;
+        undatedPaidAmount += paidAmt;
+      }
+    }
   }
 
   const curYm = `${asAt.getFullYear()}-${String(asAt.getMonth() + 1).padStart(2, '0')}`;
@@ -336,7 +377,7 @@ function computeLossRatio({
   const lossRatioMonthly: { month: string; pct: number }[] = [];
   if (hasPolicy && totalPremium > 0 && totalPolicyDays > 0) {
     let cum = 0;
-    for (const [ym, amt] of Object.entries(monthly).sort(([a], [b]) => a.localeCompare(b))) {
+    for (const [ym, amt] of Object.entries(monthlySpend).sort(([a], [b]) => a.localeCompare(b))) {
       cum += amt;
       const [y, m] = ym.split('-').map(Number);
       const monthEnd = new Date(y, m, 0); // day 0 of next month = last day of m
@@ -382,7 +423,7 @@ function computeLossRatio({
     riskStatus,
     elapsedDays,
     totalPolicyDays,
-    monthlyPaid: Object.entries(monthly)
+    monthlyPaid: Object.entries(monthlySpend)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-6)
       .map(([ym, amount]) => {
@@ -390,6 +431,8 @@ function computeLossRatio({
         const label = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' });
         return { month: label, amount: +(amount / 1_000_000).toFixed(2) };
       }),
+    undatedPaidCount,
+    undatedPaidAmount: +undatedPaidAmount.toFixed(2),
     lossRatioMonthly: lossRatioMonthly.slice(-6),
   };
 }
@@ -534,6 +577,8 @@ export interface DashboardStats {
   topConditions: { name: string; visits: number; amtPaid?: number }[];
   // Paid claims by month (₦ millions), last 6 months with data
   monthlySpend: { month: string; amount: number }[];
+  undatedPaidCount: number;
+  undatedPaidAmount: number;
   // KPI card extras
   claimsPaidPrevYtd: number | null;   // prior policy year, same elapsed window
   claimsYoYPct: number | null;        // claimsPaid vs claimsPaidPrevYtd
@@ -939,6 +984,8 @@ export async function GET(request: Request) {
       topServices,
       topConditions,
       monthlySpend: lr.monthlyPaid,
+      undatedPaidCount: lr.undatedPaidCount,
+      undatedPaidAmount: lr.undatedPaidAmount,
       claimsPaidPrevYtd,
       claimsYoYPct: claimsPaidPrevYtd !== null && claimsPaidPrevYtd > 0
         ? Math.round(((lr.paidClaims - claimsPaidPrevYtd) / claimsPaidPrevYtd) * 100)
