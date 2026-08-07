@@ -86,7 +86,7 @@ export function StatCard({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       style={{
-        background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2',
+        background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED',
         boxShadow: '0 1px 3px rgba(19,28,78,0.04)',
         display: 'flex', flexDirection: 'column',
         cursor: onClick ? 'pointer' : 'default', transition: 'box-shadow 0.15s, transform 0.15s',
@@ -140,7 +140,7 @@ export function StatCard({
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '11px 22px', width: '100%', textAlign: 'left',
             fontSize: 12, fontWeight: 700, color: '#F56B22',
-            background: 'none', border: 'none', borderTop: '1px solid #F1F2F7',
+            background: 'none', border: 'none', borderTop: '1px solid #F0F1F5',
             cursor: 'pointer',
           }}
         >

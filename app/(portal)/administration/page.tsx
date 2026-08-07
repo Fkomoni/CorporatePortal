@@ -545,7 +545,7 @@ export default function AdministrationPage() {
     if (file && file.type.startsWith('image/')) handleLogoFile(file);
   }
 
-  const card = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+  const card = { background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 
   const allTabs: { key: Tab; label: string; adminOnly?: boolean }[] = [
     { key: 'users',   label: 'Users & Access',   adminOnly: true },
@@ -568,7 +568,7 @@ export default function AdministrationPage() {
       <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* TAB SWITCHER */}
-        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', width: 'fit-content' }}>
           {tabs.map(({ key, label }) => (
             <button key={key} onClick={() => { setActiveTab(key); if (key === 'audit' && auditLogs.length === 0) loadAuditLogs(); }}
               style={{ padding: '9px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
@@ -642,7 +642,7 @@ export default function AdministrationPage() {
               )}
 
               {showRoleForm && (
-                <div style={{ marginTop: 20, padding: '20px', background: '#FAFBFC', borderRadius: 14, border: '1px solid #EDEEF2' }}>
+                <div style={{ marginTop: 20, padding: '20px', background: '#FAFBFC', borderRadius: 14, border: '1px solid #DEE3ED' }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 16 }}>{editingRoleId ? 'Edit Role' : 'New Role'}</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16, marginBottom: 16 }}>
                     <div>
@@ -853,7 +853,7 @@ export default function AdministrationPage() {
               <div style={{ ...card, padding: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Company Details</p>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 10px' }}>Read-only · Managed by Leadway Health</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #DEE3ED', borderRadius: 8, padding: '4px 10px' }}>Read-only · Managed by Leadway Health</span>
                 </div>
                 {loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3B8', fontSize: 13 }}>
@@ -884,7 +884,7 @@ export default function AdministrationPage() {
               <div style={{ ...card, padding: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Scheme Info</p>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '4px 10px' }}>Read-only</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', background: '#F7F8FC', border: '1px solid #DEE3ED', borderRadius: 8, padding: '4px 10px' }}>Read-only</span>
                 </div>
                 {loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3B8', fontSize: 13 }}>

@@ -673,7 +673,7 @@ export default function EnrollPage() {
             {errorDebug && (
               <div style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px' }}>
                 <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Debug. Prognosis request/response</p>
-                <pre style={{ fontSize: 11, color: '#131C4E', background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 260, overflowY: 'auto', margin: 0 }}>
+                <pre style={{ fontSize: 11, color: '#131C4E', background: '#F7F8FC', border: '1px solid #DEE3ED', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 260, overflowY: 'auto', margin: 0 }}>
                   {JSON.stringify(errorDebug, null, 2)}
                 </pre>
               </div>
@@ -684,7 +684,7 @@ export default function EnrollPage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
           {/* Photo */}
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>Passport Photo *</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ width: 80, height: 80, borderRadius: 16, background: '#F7F8FC', border: '2px dashed #E5E7F1', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -704,7 +704,7 @@ export default function EnrollPage() {
           </div>
 
           {/* Personal Details */}
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Personal Details</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
               <Field label="First Name *" value={firstName} onChange={setFirstName} placeholder="e.g. Amaka" required />
@@ -733,7 +733,7 @@ export default function EnrollPage() {
           </div>
 
           {/* Contact Details */}
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Contact Details</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
               <Field
@@ -756,7 +756,7 @@ export default function EnrollPage() {
           </div>
 
           {/* Medical */}
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '24px 28px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '24px 28px' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>Medical Information</p>
             <div>
               <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Pre-existing Conditions</p>

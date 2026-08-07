@@ -251,7 +251,7 @@ export default function PortalSettingsPage() {
       <div style={{ padding: '32px 36px', display: 'flex', gap: 24, alignItems: 'flex-start' }}>
 
         {/* Left: module nav */}
-        <div style={{ width: 210, flexShrink: 0, background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', overflow: 'hidden' }}>
+        <div style={{ width: 210, flexShrink: 0, background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid #F0F1F5' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Modules</p>
           </div>
@@ -284,7 +284,7 @@ export default function PortalSettingsPage() {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Module header */}
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <mod.Icon style={{ width: 22, height: 22, color: '#F56B22' }} />
             </div>
@@ -312,7 +312,7 @@ export default function PortalSettingsPage() {
           </div>
 
           {/* Section toggles */}
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', overflow: 'hidden' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', overflow: 'hidden' }}>
             {sections.map((s, i) => {
               const on = currentVis[s.key as string] ?? true;
               const Icon = s.Icon;

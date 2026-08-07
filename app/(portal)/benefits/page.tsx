@@ -150,7 +150,7 @@ function BenefitsPageInner() {
 
         {/* Main tabs */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', gap: 4, background: '#fff', borderRadius: 14, padding: 4, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             {(['plans', 'providers'] as const).filter((t) => t === 'plans' ? vis.showBenefitPlans : vis.showProviderSearch).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 style={{
@@ -210,7 +210,7 @@ function BenefitsPageInner() {
             {bensLoading && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 16 }}>
                 {[1,2,3,4].map((i) => (
-                  <div key={i} style={{ height: 200, borderRadius: 20, background: '#F7F8FC', border: '1px solid #EDEEF2', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <div key={i} style={{ height: 200, borderRadius: 20, background: '#F7F8FC', border: '1px solid #DEE3ED', animation: 'pulse 1.5s ease-in-out infinite' }} />
                 ))}
               </div>
             )}
@@ -218,7 +218,7 @@ function BenefitsPageInner() {
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{bensError}</div>
             )}
             {!bensLoading && !bensError && categories.length === 0 && activeSchemeId && (
-              <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', padding: '48px 40px', textAlign: 'center' }}>
+              <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #DEE3ED', padding: '48px 40px', textAlign: 'center' }}>
                 <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                   <FileText style={{ width: 26, height: 26, color: '#D97706' }} strokeWidth={1.5} />
                 </div>
@@ -239,7 +239,7 @@ function BenefitsPageInner() {
                   const totalItems = b.covered.length + b.excluded.length;
                   const isMajorDisease = b.category.toLowerCase().includes('major disease');
                   return (
-                    <div key={b.category} style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                    <div key={b.category} style={{ background: '#fff', borderRadius: 20, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 28px', borderBottom: isMajorDisease ? 'none' : '1px solid #F0F1F5' }}>
                         <div style={{ width: 52, height: 52, borderRadius: 14, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <Icon style={{ width: 24, height: 24, color: meta.color }} strokeWidth={1.75} />
@@ -317,7 +317,7 @@ function BenefitsPageInner() {
             )}
 
             {/* Search + filters */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 480 }}>
                 <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#C4C9D9' }} />
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, city or state..."
@@ -353,7 +353,7 @@ function BenefitsPageInner() {
             {provLoading && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[1,2,3,4,5].map((i) => (
-                  <div key={i} style={{ height: 80, borderRadius: 14, background: '#F7F8FC', border: '1px solid #EDEEF2', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <div key={i} style={{ height: 80, borderRadius: 14, background: '#F7F8FC', border: '1px solid #DEE3ED', animation: 'pulse 1.5s ease-in-out infinite' }} />
                 ))}
               </div>
             )}
@@ -361,7 +361,7 @@ function BenefitsPageInner() {
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>{provError}</div>
             )}
             {!provLoading && !provError && providers.length === 0 && activeSchemeId && (
-              <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', padding: '48px 40px', textAlign: 'center' }}>
+              <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #DEE3ED', padding: '48px 40px', textAlign: 'center' }}>
                 <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                   <MapPin style={{ width: 26, height: 26, color: '#D97706' }} strokeWidth={1.5} />
                 </div>
@@ -377,7 +377,7 @@ function BenefitsPageInner() {
                 {filteredProviders.map((p, idx) => {
                   const tc = TYPE_COLORS[p.type] ?? { bg: '#F1F5F9', color: '#475569' };
                   return (
-                    <div key={`${p.id}-${idx}`} style={{ background: '#fff', borderRadius: 14, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 20 }}>
+                    <div key={`${p.id}-${idx}`} style={{ background: '#fff', borderRadius: 14, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 20 }}>
                       <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <MapPin style={{ width: 20, height: 20, color: '#F56B22' }} />
                       </div>

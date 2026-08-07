@@ -1560,7 +1560,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                     const principalCurrentDeps = memberType === 'existing' ? (selectedPrincipal?.dependants ?? 0) : 0;
                     const depSlotsLeft = Math.max(0, depSchemeMaxFamily - 1 - principalCurrentDeps);
                     return (
-                      <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', padding: '12px 16px', marginBottom: 14 }}>
+                      <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #DEE3ED', padding: '12px 16px', marginBottom: 14 }}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>How many dependants can this link register?</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <button onClick={() => setLinkMaxDeps((n) => Math.max(1, n - 1))}
@@ -1833,7 +1833,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       {addDepsNow && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           {familyDeps.map((dep, i) => (
-                            <div key={i} style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', padding: 14 }}>
+                            <div key={i} style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #DEE3ED', padding: 14 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                                 <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Dependant {i + 1}</span>
                                 <button type="button" onClick={() => setFamilyDeps((prev) => prev.filter((_, j) => j !== i))}
@@ -2766,7 +2766,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
             somewhere, which is the whole point of a "360" view: the count of
             dependants is only useful if you can get to them. */}
         <div style={{ padding: '14px 24px 16px', borderBottom: '1px solid #F0F1F5', flexShrink: 0 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', border: '1px solid #EDEEF2', borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', border: '1px solid #DEE3ED', borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
             {([
               {
                 label: 'Dependants',
@@ -2791,7 +2791,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                   : null,
               },
             ] as const).map((k, ki) => (
-              <div key={k.label} style={{ padding: '14px 14px 12px', borderRight: ki < 1 ? '1px solid #EDEEF2' : 'none', minWidth: 0 }}>
+              <div key={k.label} style={{ padding: '14px 14px 12px', borderRight: ki < 1 ? '1px solid #DEE3ED' : 'none', minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <k.Icon style={{ width: 16, height: 16, color: k.color }} strokeWidth={1.75} />
@@ -2910,7 +2910,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
               ) : (
                 // A bare grey line read like a rendering failure. Saying what
                 // makes the number appear turns a dead end into an explanation.
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #EDEEF2', background: '#FAFBFC' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #DEE3ED', background: '#FAFBFC' }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <LineChart style={{ width: 15, height: 15, color: '#3A4382' }} strokeWidth={1.75} />
                   </div>
@@ -3018,7 +3018,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #EDEEF2', background: '#FAFBFC' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid #DEE3ED', background: '#FAFBFC' }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <BarChart3 style={{ width: 15, height: 15, color: '#3A4382' }} strokeWidth={1.75} />
                   </div>
@@ -3516,7 +3516,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
                   {/* Max dependents selector */}
-                  <div style={{ background: '#F7F8FC', borderRadius: 14, border: '1px solid #EDEEF2', padding: '14px 16px' }}>
+                  <div style={{ background: '#F7F8FC', borderRadius: 14, border: '1px solid #DEE3ED', padding: '14px 16px' }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                       How many dependants can this link register?
                     </p>
@@ -3758,7 +3758,7 @@ function MembersPageInner() {
   const toggleAll    = () => setSelected(allSelected ? [] : filtered.map((m) => m.id));
 
   const card: React.CSSProperties = {
-    background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   };
 
   // Covered lives = Active only, for uniformity across all views
@@ -3982,7 +3982,7 @@ function MembersPageInner() {
                       disabled={disabled}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', fontSize: 12, fontWeight: 600, borderRadius: 14,
-                        border: `1px solid ${enabled ? border : '#EDEEF2'}`, background: enabled ? bg : '#F7F8FA', color: enabled ? color : '#C4C9D9',
+                        border: `1px solid ${enabled ? border : '#DEE3ED'}`, background: enabled ? bg : '#F7F8FA', color: enabled ? color : '#C4C9D9',
                         cursor: disabled ? (enabled ? 'wait' : 'not-allowed') : 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.7 : 1,
                       }}>
                       <Icon style={{ width: 13, height: 13 }} /> {busy ? `${label}...` : label}

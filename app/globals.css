@@ -27,7 +27,12 @@
 
   --color-surface:        #F7F8FC;
   --color-surface-card:   #FFFFFF;
-  --color-surface-border: #EDEEF2;
+  /* The one neutral border in the app: every card, panel and input outline.
+     It was #EDEEF2, which sits 1.16:1 against a white card and read as no
+     border at all on the #F7F8FC page. #DEE3ED is 1.29:1, enough to separate
+     cards while staying below the text and the internal row dividers in the
+     visual hierarchy. Change it here and in the inline styles together. */
+  --color-surface-border: #DEE3ED;
   --color-surface-muted:  #FAFBFC;
 
   --color-ink:             #131C4E;

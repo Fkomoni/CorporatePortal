@@ -326,7 +326,7 @@ export default function PendingEnroleesPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Calendar style={{ width: 14, height: 14, color: '#9CA3B8' }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Registered between</span>
@@ -357,7 +357,7 @@ export default function PendingEnroleesPage() {
         )}
 
         {!loading && !error && invitations.length > 0 && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid #F0F1F5' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Awaiting Enrolment</p>
               <p style={{ fontSize: 11.5, color: '#9CA3B8', marginTop: 2 }}>Invited but haven&apos;t used their self-enrolment link yet.</p>
@@ -400,7 +400,7 @@ export default function PendingEnroleesPage() {
         )}
 
         {!loading && !error && rows.length === 0 && invitations.length === 0 && (
-          <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDEEF2', padding: '48px 40px', textAlign: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #DEE3ED', padding: '48px 40px', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <ClipboardCheck style={{ width: 26, height: 26, color: '#059669' }} strokeWidth={1.5} />
             </div>
@@ -492,7 +492,7 @@ export default function PendingEnroleesPage() {
             )}
 
             {/* Table */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
               <div style={{ minWidth: 1180 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) minmax(0,1fr) 0.7fr 0.35fr 0.75fr 0.75fr 0.8fr 0.75fr 0.4fr 0.75fr 190px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
                 <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleAll} style={{ cursor: 'pointer' }} />

@@ -228,7 +228,7 @@ export default function CorporateDetailPage() {
     load();
   }, [id]);
 
-  const card: React.CSSProperties        = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+  const card: React.CSSProperties        = { background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
   const inputStyle: React.CSSProperties  = { width: '100%', height: 42, padding: '0 14px', fontSize: 13, border: '1px solid #E5E7F1', borderRadius: 14, background: '#FAFBFC', color: '#131C4E', outline: 'none', boxSizing: 'border-box' };
   const labelStyle: React.CSSProperties  = { fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'block' };
 
@@ -417,7 +417,7 @@ export default function CorporateDetailPage() {
             {/* COMPANY CARD */}
             <div style={{ ...card, padding: '28px 28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-                <div style={{ width: 80, height: 80, borderRadius: 20, background: '#F1F2F8', border: '1px solid #EDEEF2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 80, height: 80, borderRadius: 20, background: '#F1F2F8', border: '1px solid #DEE3ED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: 22, fontWeight: 900, color: '#C4C9D9', letterSpacing: '-0.04em' }}>{corpInitials}</span>
                 </div>
 
@@ -491,7 +491,7 @@ export default function CorporateDetailPage() {
             <div style={{ ...card, padding: '28px', textAlign: 'center' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E', marginBottom: 6 }}>Portal Preview</p>
               <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: 20 }}>Live preview of the HR portal as this client's users see it</p>
-              <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #EDEEF2', height: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <div style={{ background: '#F7F8FC', borderRadius: 12, border: '1px solid #DEE3ED', height: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 16, color: '#fff' }}>{corpInitials}</div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{corp.name}</p>
                 <p style={{ fontSize: 11, color: '#9CA3B8' }}>Portal preview · 1 of 2 pages</p>
@@ -535,7 +535,7 @@ export default function CorporateDetailPage() {
                           <MoreHorizontal style={{ width: 15, height: 15, color: '#6B7280' }} />
                         </button>
                         {menuOpen === role.id && (
-                          <div style={{ position: 'absolute', right: 0, top: 38, background: '#fff', border: '1px solid #EDEEF2', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 50, minWidth: 130, overflow: 'hidden' }}>
+                          <div style={{ position: 'absolute', right: 0, top: 38, background: '#fff', border: '1px solid #DEE3ED', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 50, minWidth: 130, overflow: 'hidden' }}>
                             <button
                               onClick={() => setMenuOpen(null)}
                               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 13, fontWeight: 500, color: '#131C4E', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
@@ -604,14 +604,14 @@ export default function CorporateDetailPage() {
                 <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>Send Signup Email</p>
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Invite the HR admin to set up their account</p>
               </div>
-              <button onClick={() => !signupLoading && setShowSignupModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => !signupLoading && setShowSignupModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #DEE3ED', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X style={{ width: 14, height: 14, color: '#6B7280' }} />
               </button>
             </div>
 
             <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Read-only scheme code */}
-              <div style={{ background: '#F7F8FC', borderRadius: 12, padding: '12px 16px', border: '1px solid #EDEEF2' }}>
+              <div style={{ background: '#F7F8FC', borderRadius: 12, padding: '12px 16px', border: '1px solid #DEE3ED' }}>
                 <p style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Policy / Scheme Code</p>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{corp.schemeCode}</p>
               </div>
@@ -669,10 +669,10 @@ export default function CorporateDetailPage() {
 
               {/* Prognosis response debug panel */}
               {signupDebug && (
-                <div style={{ background: '#F7F8FC', border: '1px solid #EDEEF2', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ background: '#F7F8FC', border: '1px solid #DEE3ED', borderRadius: 10, padding: '12px 14px' }}>
                   <p style={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Prognosis API Response</p>
                   <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>HTTP {signupDebug.httpStatus} · {signupDebug.httpStatus >= 200 && signupDebug.httpStatus < 300 ? '✓ OK' : '✗ Error'}</p>
-                  <pre style={{ fontSize: 11, color: '#131C4E', background: '#fff', border: '1px solid #EDEEF2', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflowY: 'auto', margin: 0 }}>
+                  <pre style={{ fontSize: 11, color: '#131C4E', background: '#fff', border: '1px solid #DEE3ED', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflowY: 'auto', margin: 0 }}>
                     {JSON.stringify(signupDebug.prognosisResponse, null, 2)}
                   </pre>
                 </div>
@@ -704,7 +704,7 @@ export default function CorporateDetailPage() {
                 <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>Add New Role</p>
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Set a name and configure permissions</p>
               </div>
-              <button onClick={() => setShowRoleModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setShowRoleModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #DEE3ED', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X style={{ width: 14, height: 14, color: '#6B7280' }} />
               </button>
             </div>
@@ -721,7 +721,7 @@ export default function CorporateDetailPage() {
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Permissions</p>
                   <p style={{ fontSize: 11, color: '#9CA3B8' }}>Enable or disable what this role can access</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#FAFBFC', borderRadius: 12, border: '1px solid #EDEEF2', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#FAFBFC', borderRadius: 12, border: '1px solid #DEE3ED', marginBottom: 10 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>All Access</p>
                   <Toggle on={allOn} onChange={() => {
                     const newVal = !allOn;
@@ -762,7 +762,7 @@ export default function CorporateDetailPage() {
                 <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>Assign User</p>
                 <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Add a person who can access this portal</p>
               </div>
-              <button onClick={() => setShowAssignModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setShowAssignModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #DEE3ED', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X style={{ width: 14, height: 14, color: '#6B7280' }} />
               </button>
             </div>
@@ -842,7 +842,7 @@ export default function CorporateDetailPage() {
           <div style={{ background: '#fff', borderRadius: 20, width: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.20)' }}>
             <div style={{ padding: '24px 28px', borderBottom: '1px solid #F0F1F5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <p style={{ fontSize: 16, fontWeight: 700, color: '#131C4E' }}>Edit Corporate</p>
-              <button onClick={() => setShowEditModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #EDEEF2', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setShowEditModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #DEE3ED', background: '#F7F8FC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X style={{ width: 14, height: 14, color: '#6B7280' }} />
               </button>
             </div>

@@ -82,7 +82,7 @@ export default function CorporatesPage() {
   const safePage   = Math.min(page, totalPages);
   const paged      = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
-  const card = { background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+  const card = { background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 
   // Page number buttons: show up to 5 around current page
   const pageButtons = () => {

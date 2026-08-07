@@ -270,13 +270,13 @@ export default function ReportsPage() {
   }, [builderCols, builderName, builderSource, loadRows, markRun, toast]);
 
   const inputStyle: React.CSSProperties = {
-    height: 44, padding: '0 12px', fontSize: 13, border: '1px solid #EDEEF2',
+    height: 44, padding: '0 12px', fontSize: 13, border: '1px solid #DEE3ED',
     borderRadius: 12, background: '#fff', color: '#131C4E', outline: 'none',
     boxSizing: 'border-box', width: '100%',
   };
   const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#6B7480', marginBottom: 6, display: 'block' };
   const card: React.CSSProperties = {
-    background: '#fff', borderRadius: 16, border: '1px solid #EDEEF2',
+    background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED',
     boxShadow: '0 1px 3px rgba(19,28,78,0.04)',
   };
 
@@ -304,10 +304,10 @@ export default function ReportsPage() {
                 </div>
                 <p style={{ fontSize: 11, fontWeight: 600, color: hsColor, marginTop: 4 }}>● {health.label}</p>
               </div>
-              <div style={{ width: 1, height: 44, background: '#EDEEF2' }} />
+              <div style={{ width: 1, height: 44, background: '#DEE3ED' }} />
               <div style={{ flex: 1, maxWidth: 320 }}>
                 <p style={{ fontSize: 10, fontWeight: 600, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Score Trend</p>
-                <div style={{ height: 5, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: 5, background: '#DEE3ED', borderRadius: 99, overflow: 'hidden' }}>
                   <div style={{ width: `${health.score}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg,${hsColor === '#10B981' ? '#10B981,#34D399' : hsColor === '#D97706' ? '#F59E0B,#FCD34D' : '#F56B22,#FF8C4B'})` }} />
                 </div>
                 <p style={{ fontSize: 11, color: '#B0B7C9', marginTop: 5 }}>{health.trendLabel ?? 'Building trend data...'}</p>
@@ -369,7 +369,7 @@ export default function ReportsPage() {
                   ))}
                 </div>
               </div>
-              <div style={{ height: 7, background: '#EDEEF2', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ height: 7, background: '#DEE3ED', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
                 <div style={{ width: `${Math.min(u.lossRatioPct ?? 0, 100)}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#10B981 0%,#F59E0B 55%,#EF4444 85%)' }} />
               </div>
               <div style={{ display: 'flex', gap: 24 }}>
@@ -426,7 +426,7 @@ export default function ReportsPage() {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px',
                 fontSize: 13, fontWeight: 700, color: '#6B7480', background: '#fff',
-                border: '1px solid #EDEEF2', borderRadius: 12, cursor: 'pointer',
+                border: '1px solid #DEE3ED', borderRadius: 12, cursor: 'pointer',
               }}>
               <RotateCcw style={{ width: 15, height: 15 }} /> Reset
             </button>
@@ -516,7 +516,7 @@ export default function ReportsPage() {
                 display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 18px',
                 fontSize: 13, fontWeight: 700, color: builderOpen ? '#6B7480' : '#fff',
                 background: builderOpen ? '#fff' : 'linear-gradient(135deg,#F56B22,#FF8C4B)',
-                border: builderOpen ? '1px solid #EDEEF2' : 'none',
+                border: builderOpen ? '1px solid #DEE3ED' : 'none',
                 borderRadius: 12, cursor: 'pointer', flexShrink: 0,
               }}>
               {builderOpen ? <><X style={{ width: 15, height: 15 }} /> Close</> : <>Build custom report →</>}
@@ -560,7 +560,7 @@ export default function ReportsPage() {
                         fontSize: 12.5, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
                         color: on ? '#F56B22' : '#6B7480',
                         background: on ? '#FFF3E8' : '#fff',
-                        border: `1px solid ${on ? '#FFD5B8' : '#EDEEF2'}`,
+                        border: `1px solid ${on ? '#FFD5B8' : '#DEE3ED'}`,
                       }}>
                       {on && <Check style={{ width: 13, height: 13 }} />}
                       {f.label}
