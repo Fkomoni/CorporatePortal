@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ClipboardCheck, Check, X, RefreshCw, Calendar, Users, UserRound, MailPlus } from 'lucide-react';
+import { ClipboardCheck, Check, X, RefreshCw, Calendar, CalendarClock, Users, UserRound, MailPlus } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
 import { useToast } from '@/components/ui/Toast';
@@ -28,6 +28,29 @@ interface BeneficiaryRow {
   // Cover start date HR chose when issuing the invitation: the date approval
   // should default to, so it isn't silently reset to the day HR approves.
   coverStartDate: string | null;
+}
+
+// A termination HR has already requested for a date that hasn't arrived. The
+// member is still on cover and still claiming until then, which is why these
+// are their own bucket rather than a status on the approval queue.
+interface ScheduledTerminationRow {
+  id: string;
+  cifNumber: string;
+  memberName: string | null;
+  effectiveDate: string;
+  requestedBy: string;
+  requestedAt: string;
+}
+
+// "28 Aug 2026". The leaving date is the whole point of the row, so it is
+// spelled out rather than left as an ISO timestamp or a bare 28/08.
+function longDate(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
 function flattenRows(groups: PendingGroup[]): BeneficiaryRow[] {
@@ -80,6 +103,13 @@ export default function PendingEnroleesPage() {
   // Earliest effective date HR may approve with: start of the group's current
   // policy year, from the API. Cover can't begin before the group was rated.
   const [policyYearStart, setPolicyYearStart] = useState('');
+  // Terminations HR has scheduled for a future date. Loaded separately: they
+  // come from our own table, not from Prognosis, because Prognosis has no
+  // future-dated termination and only hears about one on the day it takes
+  // effect. Read-only for non-admin HR, whose fetch is refused; the section
+  // simply doesn't appear for them.
+  const [scheduledTerminations, setScheduledTerminations] = useState<ScheduledTerminationRow[]>([]);
+  const [cancellingTermination, setCancellingTermination] = useState<string | null>(null);
 
   // Prognosis needs an explicit dd/mm/yyyy effective/termination date for
   // every approve/reject decision: it drives the member's waiting period,
@@ -111,6 +141,40 @@ export default function PendingEnroleesPage() {
   }, [from, to]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Kept out of load() so a refused or failed lookup here never blanks the
+  // approval queue, which is what the page is actually for.
+  const loadScheduledTerminations = useCallback(() => {
+    fetch('/api/hr/members/terminate/scheduled')
+      .then((r) => (r.ok ? r.json() : { scheduled: [] }))
+      .then((d) => setScheduledTerminations(d.scheduled ?? []))
+      .catch(() => { /* the bucket just stays empty */ });
+  }, []);
+
+  useEffect(() => { loadScheduledTerminations(); }, [loadScheduledTerminations]);
+
+  async function cancelScheduledTermination(row: ScheduledTerminationRow) {
+    if (cancellingTermination) return;
+    setCancellingTermination(row.id);
+    try {
+      const res = await fetch('/api/hr/members/terminate/scheduled', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: row.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast(friendlyError(data.error, 'Could not cancel this termination.'), 'error');
+        return;
+      }
+      toast(`Termination cancelled for ${row.memberName || row.cifNumber}.`, 'success');
+      setScheduledTerminations((prev) => prev.filter((r) => r.id !== row.id));
+    } catch {
+      toast('Network error. Please try again.', 'error');
+    } finally {
+      setCancellingTermination(null);
+    }
+  }
 
   const rows = useMemo(() => flattenRows(groups), [groups]);
   // The API normalises Prognosis's "Main Member" to "Principal"; anything else
@@ -298,7 +362,7 @@ export default function PendingEnroleesPage() {
 
         {/* Summary strip: every figure is counted off the queue already on
             screen, so it can never disagree with the tables below. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${scheduledTerminations.length > 0 ? 5 : 4},minmax(0,1fr))`, gap: 16 }}>
           <StatCard
             label="Awaiting Approval"
             sub={`${groups.length} staff record${groups.length === 1 ? '' : 's'}`}
@@ -323,6 +387,16 @@ export default function PendingEnroleesPage() {
             value={invitations.length.toLocaleString()}
             icon={MailPlus} color="#7C3AED" tint="#F5F3FF" loading={loading}
           />
+          {/* Only when there are any: a permanent zero would read as "none
+              scheduled" to HR whose role can't see this list at all. */}
+          {scheduledTerminations.length > 0 && (
+            <StatCard
+              label="Pending Terminations"
+              sub="Still on cover until the date"
+              value={scheduledTerminations.length.toLocaleString()}
+              icon={CalendarClock} color="#EA580C" tint="#FFF7ED" loading={false}
+            />
+          )}
         </div>
 
         {/* Filters */}
@@ -399,7 +473,50 @@ export default function PendingEnroleesPage() {
           </div>
         )}
 
-        {!loading && !error && rows.length === 0 && invitations.length === 0 && (
+        {/* Terminations HR has already requested, dated ahead. Nothing here is
+            terminated: the member is on cover, claiming, and counted in the
+            premium until the effective date, which is exactly why this is a
+            separate bucket instead of a Terminated badge on the roster. */}
+        {scheduledTerminations.length > 0 && (
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #F0F1F5' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Pending Terminations</p>
+              <p style={{ fontSize: 11.5, color: '#9CA3B8', marginTop: 2 }}>
+                Scheduled to leave the scheme. Still covered until their date, and cancellable up to it.
+              </p>
+            </div>
+            <div style={{ minWidth: 860 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) 0.9fr 0.9fr minmax(0,1.1fr) 0.8fr 120px', gap: 10, padding: '12px 20px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5', fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span>Member</span>
+                <span>Enrolee ID</span>
+                <span>Leaving On</span>
+                <span>Requested By</span>
+                <span>Requested On</span>
+                <span>Actions</span>
+              </div>
+              {scheduledTerminations.map((t) => {
+                const busy = cancellingTermination === t.id;
+                return (
+                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) 0.9fr 0.9fr minmax(0,1.1fr) 0.8fr 120px', gap: 10, padding: '14px 20px', borderBottom: '1px solid #F7F8FA', fontSize: 12.5, color: '#374151', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.memberName || '-'}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{t.cifNumber}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, background: '#FFF7ED', color: '#C2410C', width: 'fit-content' }}>
+                      {longDate(t.effectiveDate)}
+                    </span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.requestedBy}</span>
+                    <span style={{ color: '#9CA3B8' }}>{shortDate(t.requestedAt)}</span>
+                    <button onClick={() => cancelScheduledTermination(t)} disabled={busy}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', fontSize: 11.5, fontWeight: 700, color: '#374151', border: '1px solid #E5E7F1', borderRadius: 9, background: '#fff', cursor: busy ? 'wait' : 'pointer', width: 'fit-content' }}>
+                      <X style={{ width: 11, height: 11 }} /> {busy ? '...' : 'Cancel'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && rows.length === 0 && invitations.length === 0 && scheduledTerminations.length === 0 && (
           <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #DEE3ED', padding: '48px 40px', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <ClipboardCheck style={{ width: 26, height: 26, color: '#059669' }} strokeWidth={1.5} />

@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
-import type { Member } from '@/lib/types';
+import { isCoveredStatus, type Member } from '@/lib/types';
 import { logAudit } from '@/lib/audit';
 import { cacheGet, cacheSet, cacheBust } from '@/lib/server-cache';
 import { createTimer } from '@/lib/perf-timing';
@@ -83,12 +83,16 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
   return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
 }
 
-function mapStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
+function mapStatus(raw: string): Member['status'] {
   const s = raw.toLowerCase();
-  // Check termination/cancellation keywords FIRST. Prognosis's status text
-  // for a member mid-termination can read "Active - Pending Termination" or
-  // similar, which contains "active" too. Checking that substring first
-  // would misclassify an already-terminated-in-progress member as Active.
+  // A termination dated in the future has not happened. Prognosis writes these
+  // as "Active - Pending Termination", which contains both "active" and
+  // "terminat", so it has to be recognised before either: reading it as
+  // Terminated tells HR a member is off cover months before they are, and
+  // reading it as Active hides a departure that is already agreed.
+  if (/terminat/.test(s) && /pending|scheduled|schedule|awaiting|future|request/.test(s)) return 'Pending Termination';
+  // Termination/cancellation keywords ahead of "active" for the same reason:
+  // any remaining status text that mentions both is a member on the way out.
   if (s.includes('terminat') || s.includes('cancel') || s.includes('inactive') || s.includes('deleted')) return 'Terminated';
   if (s.includes('active') || s === '1' || s === 'true') return 'Active';
   return 'Pending';
@@ -557,7 +561,12 @@ export async function GET(req: Request) {
     const dedupedById = new Map<string, Member>();
     for (const m of members) {
       const existing = dedupedById.get(m.employeeId);
-      if (!existing || existing.status !== 'Active' || m.status === 'Active') {
+      // A scheduled departure only ever appears on the terminated list; the
+      // premium source carries the same member as plain Active, because they
+      // are still on cover. Both rows are true, but only one of them says the
+      // cover ends, so Active does not displace it.
+      if (existing?.status === 'Pending Termination' && m.status === 'Active') continue;
+      if (!existing || existing.status !== 'Active' || m.status === 'Active' || m.status === 'Pending Termination') {
         dedupedById.set(m.employeeId, m);
       }
     }
@@ -590,7 +599,9 @@ export async function GET(req: Request) {
 
     // Summary stats
     const now          = new Date();
-    const activeCount  = members.filter((m) => m.status === 'Active').length;
+    // Covered lives, which includes members with a termination dated ahead:
+    // they are on the scheme and on the premium until that date arrives.
+    const activeCount  = members.filter((m) => isCoveredStatus(m.status)).length;
     const newThisMonth = members.filter((m) => {
       if (!m.enrollmentDate) return false;
       const s = m.enrollmentDate.trim().slice(0, 10);
@@ -613,8 +624,8 @@ export async function GET(req: Request) {
       stats: {
         activeCount,
         totalCount: members.length,
-        principalCount: members.filter((m) => m.type === 'Principal' && m.status === 'Active').length,
-        dependantCount:  members.filter((m) => m.type === 'Dependant'  && m.status === 'Active').length,
+        principalCount: members.filter((m) => m.type === 'Principal' && isCoveredStatus(m.status)).length,
+        dependantCount:  members.filter((m) => m.type === 'Dependant'  && isCoveredStatus(m.status)).length,
         newThisMonth,
         pendingCount,
       },

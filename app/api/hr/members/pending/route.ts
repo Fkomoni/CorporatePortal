@@ -72,10 +72,13 @@ function extractDate(row: Record<string, unknown>): Date | null {
 // Normalises Prognosis's free-text Memberstatus into one of our three states -
 // mirrors mapStatus() in app/api/hr/members/route.ts. Only "Pending" members
 // actually require HR approval; "Active" dependants already went through.
-function classifyStatus(raw: string): 'Active' | 'Pending' | 'Terminated' {
+function classifyStatus(raw: string): 'Active' | 'Pending' | 'Pending Termination' | 'Terminated' {
   const s = raw.toLowerCase();
-  // Termination keywords checked first. See mapStatus() in
-  // app/api/hr/members/route.ts for why order matters here.
+  // A termination dated in the future has not happened, and a member waiting
+  // on one is still covered. Recognised before the termination keywords
+  // because Prognosis writes it as "Active - Pending Termination", which
+  // contains both. See mapStatus() in app/api/hr/members/route.ts.
+  if (/terminat/.test(s) && /pending|scheduled|schedule|awaiting|future|request/.test(s)) return 'Pending Termination';
   if (s.includes('terminat') || s.includes('cancel') || s.includes('inactive') || s.includes('deleted')) return 'Terminated';
   if (s.includes('active') || s === '1' || s === 'true') return 'Active';
   return 'Pending';

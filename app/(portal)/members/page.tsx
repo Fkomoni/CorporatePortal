@@ -10,7 +10,7 @@ import {
   ChevronRight, BarChart3, LineChart,
 } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
-import type { Member } from '@/lib/types';
+import { isCoveredStatus, type Member } from '@/lib/types';
 import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
 import { dependantRelationships, toIsoDate, coverStartFloor } from '@/lib/relationship-options';
@@ -37,6 +37,9 @@ const planColors: Record<string, { bg: string; text: string }> = {
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   'Active':     { bg: '#ECFDF5', text: '#059669', dot: '#10B981' },
   'Pending':    { bg: '#FFFBEB', text: '#D97706', dot: '#F59E0B' },
+  // Still on cover, with an end date already agreed. Its own colour because
+  // red would say the member is off the scheme when they are not.
+  'Pending Termination': { bg: '#FFF7ED', text: '#C2410C', dot: '#F97316' },
   'Terminated': { bg: '#FEF2F2', text: '#DC2626', dot: '#EF4444' },
 };
 
@@ -3816,9 +3819,10 @@ function MembersPageInner() {
     background: '#fff', borderRadius: 16, border: '1px solid #DEE3ED', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   };
 
-  // Covered lives = Active only, for uniformity across all views
-  const principalCount = liveMembers.filter((m) => m.type === 'Principal' && m.status === 'Active').length;
-  const dependantCount = liveMembers.filter((m) => m.type === 'Dependant' && m.status === 'Active').length;
+  // Covered lives, for uniformity across all views. A member with a
+  // termination dated ahead is still one: they leave on that date, not today.
+  const principalCount = liveMembers.filter((m) => m.type === 'Principal' && isCoveredStatus(m.status)).length;
+  const dependantCount = liveMembers.filter((m) => m.type === 'Dependant' && isCoveredStatus(m.status)).length;
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>

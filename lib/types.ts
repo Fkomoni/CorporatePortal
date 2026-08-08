@@ -10,13 +10,27 @@ export interface Member {
   dateOfBirth: string;
   plan: 'Plus Plan' | 'Pro Plan' | 'Max Plan' | 'Promax Plan' | 'Magnum Plan';
   type: 'Principal' | 'Dependant';
-  status: 'Active' | 'Pending' | 'Terminated';
+  // "Pending Termination" is its own state, not a kind of Terminated: the
+  // member is still covered and still claiming until the effective date.
+  status: 'Active' | 'Pending' | 'Pending Termination' | 'Terminated';
   location: string;
   enrollmentDate: string;
   dependants?: number;
   premium?: number;
   cifNumber?: string;
   schemeId?: string;
+}
+
+/**
+ * Whether a member is on cover right now.
+ *
+ * A scheduled departure is not a departure: someone leaving on 28 Aug is
+ * covered, claiming and premium-bearing until that date, so every headcount
+ * that means "covered lives" has to include them. Kept as one predicate so the
+ * roster, the summary cards and the wellness roster cannot drift apart on it.
+ */
+export function isCoveredStatus(status: Member['status']): boolean {
+  return status === 'Active' || status === 'Pending Termination';
 }
 
 export interface Invoice {

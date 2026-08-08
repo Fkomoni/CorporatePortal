@@ -6,7 +6,7 @@ import {
   Video, MapPin, Users, Send, CheckCircle,
   Activity, Mail, Link2, Clock, TrendingUp, Stethoscope, Search, X, Info,
 } from 'lucide-react';
-import type { Member } from '@/lib/types';
+import { isCoveredStatus, type Member } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
 
 //  Health Talk Topics
@@ -292,7 +292,7 @@ export default function WellnessPage() {
     setSelectedMember(null);
     if (!q.trim()) { setLinkResults([]); return; }
     const lower = q.toLowerCase();
-    const principals = (roster ?? []).filter((m) => m.type === 'Principal' && m.status === 'Active');
+    const principals = (roster ?? []).filter((m) => m.type === 'Principal' && isCoveredStatus(m.status));
     setLinkResults(
       principals.filter((m) =>
         `${m.firstName} ${m.lastName}`.toLowerCase().includes(lower) ||
@@ -618,7 +618,7 @@ export default function WellnessPage() {
                             ? 'Loading your staff list...'
                             : linkQuery.trim()
                               ? 'No active staff match that name or enrolee ID.'
-                              : `Searching ${roster.filter((m) => m.type === 'Principal' && m.status === 'Active').length.toLocaleString()} active staff on your scheme.`}
+                              : `Searching ${roster.filter((m) => m.type === 'Principal' && isCoveredStatus(m.status)).length.toLocaleString()} active staff on your scheme.`}
                       </p>
                     )}
 
