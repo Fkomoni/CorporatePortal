@@ -672,6 +672,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     }
   }
 
+  // A spouse must have a mobile number, enforced on submit. The label says so up
+  // front rather than letting HR fill the form and be refused at the end.
+  const spouseSelected = (relationshipOptions.find((r) => r.value === relId)?.text ?? '')
+    .toLowerCase().includes('spouse');
+
   const inputStyle: React.CSSProperties = {
     width: '100%', height: 40, padding: '0 14px', fontSize: 13,
     border: '1.5px solid #E5E7F1', borderRadius: 12, background: '#FAFBFC',
@@ -1751,12 +1756,15 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       { label: 'Surname *',       value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
                       { label: 'Other Names',     value: otherNames, set: setOtherNames, ph: 'Middle name(s)' },
                       ...(memberType !== 'existing' ? [{ label: 'Employee Code *', value: empCode, set: setEmpCode, ph: 'e.g. EMP-9988' }] : []),
-                      // Optional on a dependant: the add-dependents route has always
-                      // accepted them empty, so the asterisks were asking for
-                      // details HR often does not have for a child.
-                      { label: memberType === 'existing' ? 'Email' : 'Email *', value: email, set: setEmail, ph: 'amaka@company.com', type: 'email' },
-                      { label: memberType === 'existing' ? 'Mobile' : 'Mobile *', value: mobile, set: setMobile, ph: '08012345678', type: 'tel' },
-                      { label: 'Alt. Mobile',     value: mobile2,    set: setMobile2,    ph: '07012345678',   type: 'tel' },
+                      // Said out loud rather than implied by a missing asterisk.
+                      // add-dependents has always accepted these empty, and HR
+                      // often has neither for a child. Mobile is the exception:
+                      // a spouse needs one, so the label follows the chosen
+                      // relationship instead of claiming optional and then
+                      // refusing the submit.
+                      { label: memberType === 'existing' ? 'Email (Optional)' : 'Email *', value: email, set: setEmail, ph: 'amaka@company.com', type: 'email' },
+                      { label: memberType !== 'existing' ? 'Mobile *' : spouseSelected ? 'Mobile * (required for a spouse)' : 'Mobile (Optional)', value: mobile, set: setMobile, ph: '08012345678', type: 'tel' },
+                      { label: 'Alt. Mobile (Optional)', value: mobile2, set: setMobile2, ph: '07012345678', type: 'tel' },
                       { label: 'Date of Birth *', value: dob,        set: setDob,        ph: '',              type: 'date' },
                       { label: 'NIN',             value: nin,        set: (v: string) => setNin(digitsOnly(v).slice(0, 11)), ph: 'e.g. 12345678901' },
                     ].map((f) => (
