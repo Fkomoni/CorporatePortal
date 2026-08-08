@@ -14,6 +14,8 @@ export type AuditAction =
   // Someone tried to change their password in the portal, which no longer
   // changes anything: Prognosis holds the sign-in password.
   | 'CHANGE_PASSWORD_REFUSED'
+  // Bulk repair of principals whose relationship Prognosis holds wrongly.
+  | 'REPAIR_RELATIONSHIP'
   | 'ENABLE_2FA'
   | 'INVITE_USER'
   | 'UPDATE_COMPANY_LOGO'

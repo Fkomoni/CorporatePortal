@@ -14,6 +14,8 @@ import { logAudit } from '@/lib/audit';
 import { sexIdFromText } from '@/lib/gender';
 import { validateMobile, normalizeNigerianMobile as normalizePhone } from '@/lib/phone';
 import { validateEmail, normalizeEmail } from '@/lib/email';
+import { getPrincipalRelationshipId } from '@/lib/principal-relationship';
+import { buildMemberWritePayload, s, n } from '@/lib/member-write-payload';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -57,59 +59,6 @@ export interface UpdateInfoPayload {
   photo?: string;         // base64, principals only
   photoType?: string;
   nin?: string;           // 11-digit NIN, Prognosis requires this on every save, even if unrelated fields are the only ones changing
-}
-
-function s(v: unknown): string {
-  return v == null || String(v).trim().toLowerCase() === 'null' ? '' : String(v).trim();
-}
-function n(v: unknown): number {
-  const num = Number(v);
-  return Number.isFinite(num) ? num : 0;
-}
-// UpdateBiodata/UpdateBeneficiary reject any DateOfBirth/startdate/Effectivedate
-// with a time component: bio reads return full ISO timestamps.
-function dateOnly(v: unknown): string {
-  const str = s(v);
-  const match = str.match(/^\d{4}-\d{2}-\d{2}/);
-  return match ? match[0] : '';
-}
-// Bio may return a label or numeric ID; write endpoint wants "1"-"4" as a string.
-function maritalStatusId(row: Record<string, unknown>): string {
-  const raw = s(row['Member_MaritalStatusID']) || s(row['Member_maritalstatusDescr']);
-  if (/^[1-4]$/.test(raw)) return raw;
-  const label = raw.toLowerCase();
-  if (label.startsWith('single')) return '1';
-  if (label.startsWith('married')) return '2';
-  if (label.startsWith('divorced')) return '3';
-  if (label.startsWith('widow')) return '4';
-  return '';
-}
-// Confirmed FK mapping from Prognosis: Spouse=23, Son=8, Daughter=7, everything
-// else (Father/Mother/Brother/Sister/Other)=41. 30="Main member" must never be
-// sent for a dependant, but here we're editing an existing record, so we
-// carry forward whatever numeric ID Prognosis already has, falling back to
-// this mapping only if it's missing.
-function relationshipId(row: Record<string, unknown>): string {
-  const existing = s(row['Member_RelationshipID']);
-  if (/^\d+$/.test(existing)) return existing;
-  const label = s(row['Member_RelationshipToPrincipal']).toLowerCase();
-  if (label.startsWith('spouse')) return '23';
-  if (label.startsWith('son')) return '8';
-  if (label.startsWith('daughter')) return '7';
-  if (label) return '41';
-  return '';
-}
-// LGAID is 0 when unset, but sending the string "0" makes Prognosis look up a
-// nonexistent LGA and throw a server-side FK exception.
-function postalTownId(row: Record<string, unknown>): string {
-  const v = s(row['LGAID']);
-  return v === '0' ? '' : v;
-}
-// Empty string trips an internal type-conversion exception on these two -
-// must be null, not "", when unset.
-function nullableStr(v: unknown): string | null {
-  const str = s(v);
-  return str ? str : null;
 }
 
 export async function POST(req: Request) {
@@ -174,59 +123,15 @@ export async function POST(req: Request) {
     // every field below must be sent. We read the member's current bio and
     // map every field onto this write shape unchanged, then overlay only the
     // 1-2 fields HR actually edited on top.
-    const payload: Record<string, unknown> = {
-      groupid: n(groupId) || n(row['Client_GroupID']) || 0,
-      MemberShipNo: s(row['Member_EnrolleeID']) || enrolleeId,
-      Parent_Cif: n(row['Member_ParentMemberUniqueID']),
-      Cif_number: n(cifNumber),
-      FirstName: s(row['Member_FirstName']),
-      Surname: s(row['Member_Surname']),
-      othernames: s(row['Member_othernames']),
-      DateOfBirth: dateOfBirth ? dateOnly(dateOfBirth) : dateOnly(row['Member_DateOfBirth']),
-      startdate: dateOnly(row['Member_Entry_date']),
-      employmentdate: dateOnly(row['Member_Entry_date']),
-      Sex_ID: sexId || sexIdFromText(row['Member_Gender']),
-      MaritalStatus: maritalStatusId(row),
-      EmailAdress: email ? normalizeEmail(email) : s(row['Member_EmailAddress_One']),
-      Home_Phone: s(row['Member_Phone_Three']),
-      Work_Phone: s(row['Member_Phone_Four']),
-      Mobile: mobile ? normalizePhone(mobile) : normalizePhone(row['Member_Phone_One']),
-      Mobile2: normalizePhone(row['Member_Phone_Two']),
-      Postal_Phone: normalizePhone(row['Member_Phone_Five']),
-      Hospital: s(row['Member_PCP']),
-      Scheme: s(row['Member_Plan']),
-      schemeid: n(row['Member_PlanID']),
-      MemberType: s(row['Member_Membertype']) || s(row['Member_MemberTypeID']),
-      BaseAmount: Math.round(n(row['Member_IndividualPremium'])),
-      // regionid=0 gets rejected outright ("Invalid state of origin"/"Invalid
-      // country"): some dependant bio records have no StateID on file at
-      // all, so fall back to a valid default rather than sending 0.
-      regionid: n(row['StateID']) || 1,
-      titleid: n(row['Member_TitleID']),
-      Physical_Add1: (isPrincipal && address) || s(row['Member_Address']),
-      Postal_Town_ID: postalTownId(row),
-      Relationship_ID: relationshipId(row),
-      BloodGroup: s(row['Member_BloodGroup']),
-      genotype: s(row['Member_Genotype']),
-      PreExistingCondition: nullableStr(row['PreExistingCondition']),
-      OfflineID: nullableStr(row['OfflineID']),
-      DeviceID: nullableStr(row['MobileAppDeviceID']),
-      employeecode: s(row['Member_staffid']),
-      // Required keys, but only populated when actually uploading/clearing a
-      // photo: echoing back the existing stored photo trips Prognosis's
-      // ~900KB payload limit.
-      EnrolleePicture: isPrincipal && photo ? rawPhoto : '',
-      EnrolleePictureType: isPrincipal && photo ? (photoType || 'jpeg') : '',
-      surburb_id: n(row['surburb_id']),
-      idTypeID: s(row['idTypeID']),
-      cadre: s(row['Member_cadre']),
-      registrationsource: 'CorporatePortal',
-      UserCaptured: enrolleeId,
-      Effectivedate: dateOnly(row['Member_Entry_date']),
-      Reason: 'Profile self-service update',
-      memberNin: nin || s(row['NIN']),
-      Dependents: n(row['Member_FamilyNo']),
-    };
+    // Built by the shared writer so the relationship repair produces identical
+    // records. Relationship_ID is the only field whose behaviour changed: a
+    // principal is now written as the main member instead of falling through to
+    // 41 (Other) or a blank.
+    const mainMemberId = await getPrincipalRelationshipId(token);
+    const payload = buildMemberWritePayload({
+      row, enrolleeId, groupId, cifNumber, isPrincipal: !!isPrincipal, mainMemberId,
+      overrides: { dateOfBirth, sexId, email, mobile, address, nin, photo: rawPhoto, photoType },
+    });
 
     const endpoint = isPrincipal ? 'UpdateBiodata' : 'UpdateBeneficiary';
     console.log(`[hr/members/update-info] ${endpoint} payload: ${JSON.stringify({ ...payload, EnrolleePicture: payload.EnrolleePicture ? `<${String(payload.EnrolleePicture).length} chars>` : '' })}`);
