@@ -11,8 +11,8 @@ export type AuditAction =
   | 'EXPORT_CLAIMS'
   | 'CHANGE_PASSWORD'
   | 'CHANGE_PASSWORD_FAILED'
-  // Someone tried to change their password in the portal, which no longer
-  // changes anything: Prognosis holds the sign-in password.
+  // Kept for rows written while the portal could not change a password at all.
+  // It changes both sides now, so nothing emits this any more.
   | 'CHANGE_PASSWORD_REFUSED'
   // Bulk repair of principals whose relationship Prognosis holds wrongly.
   | 'REPAIR_RELATIONSHIP'
