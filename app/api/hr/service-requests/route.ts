@@ -11,6 +11,7 @@ import {
   attachmentContentType, attachmentError, formatBytes,
 } from '@/lib/service-request-routes';
 import { sendServiceRequestEmail, RequestAttachment } from '@/lib/service-request-mail';
+import { newResponseToken, responseTokenExpiry, responseUrl } from '@/lib/service-request-response';
 
 // REQ-0007-style reference derived from the atomically allocated sequence.
 function refFor(seq: number): string {
@@ -30,8 +31,24 @@ function shape(r: any) {
     lastUpdated: r.updatedAt.toISOString().slice(0, 10),
     createdByName: r.createdByName,
     attachments: r.attachmentNames ?? [],
+    // Every reply Leadway have sent through the emailed link, oldest first. The
+    // token itself is never exposed here: HR reads the thread, they do not need
+    // the credential that wrote it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    responses: (r.responses ?? []).map((x: any) => ({
+      id: x.id,
+      body: x.body,
+      authorName: x.authorName ?? null,
+      status: x.status,
+      createdAt: x.createdAt.toISOString(),
+    })),
   };
 }
+
+/** Every reply on a request, oldest first. */
+const withResponses = {
+  responses: { orderBy: { createdAt: 'asc' } },
+} as const;
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -49,6 +66,7 @@ export async function GET(req: Request) {
       where: { groupId },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      include: withResponses,
     });
     return NextResponse.json({ requests: rows.map(shape) });
   } catch (err) {
@@ -110,6 +128,9 @@ export async function POST(req: Request) {
 
   let created;
   try {
+    // Minted at creation so the link can go out with the email. It opens this
+    // one request and nothing else, and is retired when the request is resolved.
+    const token = newResponseToken();
     created = await prisma.serviceRequest.create({
       data: {
         groupId,
@@ -119,6 +140,8 @@ export async function POST(req: Request) {
         createdByName: session.user.name ?? '',
         createdByEmail: session.user.email ?? '',
         attachmentNames: attachments.map((a) => a.fileName),
+        responseToken: token,
+        responseTokenExpires: responseTokenExpiry(new Date()),
       },
     });
   } catch (err) {
@@ -165,6 +188,7 @@ export async function POST(req: Request) {
         submittedAt: created.createdAt,
         attachments,
         assignedAdmins,
+        responseUrl: created.responseToken ? responseUrl(created.responseToken) : undefined,
       })
     : { sent: false, to: '', cc: '' };
 

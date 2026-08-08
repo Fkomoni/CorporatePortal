@@ -17,11 +17,20 @@ import { TopBar } from '@/components/layout/TopBar';
 import { StatCard } from '@/components/ui/StatCard';
 import { useToast } from '@/components/ui/Toast';
 
+// One reply from Leadway, written through the link in their email.
+interface ResponseEntry {
+  id: string; body: string; authorName: string | null; status: string; createdAt: string;
+}
+
 // Row shape returned by /api/hr/service-requests.
 interface ServiceRequestRow {
   id: string; ticketId: string; category: string; subject: string;
   description: string; status: string; submittedDate: string; lastUpdated: string;
   attachments?: string[];
+  // Everything Leadway have said on this request, oldest first. A thread, not a
+  // single answer: they may respond, wait on the client, and respond again
+  // before resolving it.
+  responses?: ResponseEntry[];
 }
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
@@ -29,6 +38,9 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   'In Progress':     { bg: '#FFFBEB', text: '#D97706',  dot: '#F59E0B' },
   'Awaiting Client': { bg: '#EFF6FF', text: '#2563EB',  dot: '#3B82F6' },
   'Awaiting Leadway':{ bg: '#F5F3FF', text: '#7C3AED',  dot: '#8B5CF6' },
+  // Set by Leadway through the emailed response link.
+  'Responded':       { bg: '#EFF6FF', text: '#2563EB',  dot: '#3B82F6' },
+  'Resolved':        { bg: '#ECFDF5', text: '#059669',  dot: '#10B981' },
   'Closed':          { bg: '#F1F5F9', text: '#475569',  dot: '#94A3B8' },
 };
 
@@ -265,9 +277,10 @@ function ServiceDeskInner() {
             const s   = statusColors[t.status] ?? statusColors['Closed'];
             const cat = chipFor(t.category);
             return (
-              <div key={t.id}
-                style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 164px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #F7F8FA', cursor: 'pointer', transition: 'background 0.12s' }}
-                className="hover:bg-[#FAFBFC] last:border-0">
+              <div key={t.id} style={{ borderBottom: '1px solid #F7F8FA' }} className="last:border-0">
+              <div
+                style={{ display: 'grid', gridTemplateColumns: `110px minmax(0,1fr) 164px 160px${vis.showSlaColumn ? ' 110px' : ''} 100px 100px`, columnGap: 12, alignItems: 'center', padding: '16px 24px', cursor: 'pointer', transition: 'background 0.12s' }}
+                className="hover:bg-[#FAFBFC]">
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F56B22', fontFamily: 'monospace' }}>{t.ticketId}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: 16 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#131C4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</span>
@@ -292,6 +305,36 @@ function ServiceDeskInner() {
                 {vis.showSlaColumn && <span style={{ fontSize: 11, color: '#C4C9D9' }}>-</span>}
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.submittedDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
                 <span style={{ fontSize: 11, color: '#9CA3B8' }}>{new Date(t.lastUpdated).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}</span>
+              </div>
+
+              {/* Leadway's replies, under the ticket they belong to, oldest
+                  first. This is the point of the emailed link: the answer lands
+                  where the next person at the company will look, instead of in
+                  one inbox. A resolution reads green, a response blue, so HR can
+                  see at a glance whether the request is finished. */}
+              {!!t.responses?.length && (
+                <div style={{ margin: '0 24px 16px 134px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {t.responses.map((r) => {
+                    const closed = r.status === 'Resolved';
+                    return (
+                      <div key={r.id} style={{
+                        padding: '13px 16px', borderRadius: 12,
+                        background: closed ? '#F0FDF4' : '#F5F9FF',
+                        border: `1px solid ${closed ? '#A7F3D0' : '#BFDBFE'}`,
+                      }}>
+                        <p style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: closed ? '#059669' : '#2563EB', marginBottom: 6 }}>
+                          {closed ? 'Resolution' : 'Response'} from Leadway Health
+                        </p>
+                        <p style={{ fontSize: 13, color: closed ? '#065F46' : '#1E3A5F', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{r.body}</p>
+                        <p style={{ fontSize: 11, color: closed ? '#059669' : '#3B6FB8', marginTop: 7 }}>
+                          {r.authorName ? `${r.authorName} · ` : ''}
+                          {new Date(r.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               </div>
             );
           })}

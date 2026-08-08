@@ -12,8 +12,12 @@ export default auth((req) => {
   if (pathname.startsWith('/api/')) return NextResponse.next();
 
   const isAdminRoute  = pathname === '/admin' || pathname.startsWith('/admin/');
-  // /verify-registration and /enroll/* are public — unauthenticated users must reach them freely
-  const isPublicPage  = pathname === '/verify-registration' || pathname === '/accept-invite' || pathname === '/enroll' || pathname.startsWith('/enroll/');
+  // /verify-registration, /enroll/* and /respond/* are public — unauthenticated
+  // users must reach them freely. /respond/* is where Leadway staff answer a
+  // service request from the emailed link: they hold no portal login, so it sits
+  // at its own top-level path rather than under /service-desk, where a future
+  // change to the portal's rules could silently expose or block it.
+  const isPublicPage  = pathname === '/verify-registration' || pathname === '/accept-invite' || pathname === '/enroll' || pathname.startsWith('/enroll/') || pathname.startsWith('/respond/');
   const isPortalRoute = !isAdminRoute && !pathname.startsWith('/login') && !isPublicPage;
   const isStaffLogin  = pathname === '/admin/login';
   const isHrLogin     = pathname === '/login';

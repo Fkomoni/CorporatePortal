@@ -230,11 +230,41 @@ model ServiceRequest {
   // nothing, but HR opening REQ-0148 three weeks later still needs to know
   // what they sent with it.
   attachmentNames String[] @default([])
+  // Single-purpose link mailed to the queue, so Leadway staff can answer a
+  // request without a portal login. Scoped to this one request: it carries no
+  // session and grants nothing beyond reading and answering it. Cleared once
+  // the request is resolved, and ignored after responseTokenExpires, so a
+  // forwarded email does not stay live indefinitely.
+  responseToken        String?   @unique
+  responseTokenExpires DateTime?
+  // Every reply, oldest first. A thread rather than one field: Leadway may
+  // answer, wait for the client, and answer again before resolving, and a
+  // single column would have let the second reply erase the first.
+  responses      ServiceRequestResponse[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([groupId, createdAt])
   @@map("service_requests")
+}
+
+// One entry in a request's thread, written from the emailed link. Kept as rows
+// rather than a JSON column so they order and page naturally, and so a reply is
+// never lost to a concurrent write.
+model ServiceRequestResponse {
+  id         String   @id @default(cuid())
+  requestId  String
+  body       String
+  authorName String?
+  // The status set with this entry: Responded or Resolved. Recording it per
+  // entry means the thread shows which reply closed the request.
+  status     String   @default("Responded")
+  createdAt  DateTime @default(now())
+
+  request    ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@map("service_request_responses")
 }
 
 // Future-dated terminations: TerminateMember has no date parameter, so a

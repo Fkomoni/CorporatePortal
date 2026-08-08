@@ -110,6 +110,8 @@ export interface RequestEmailInput {
   attachments?: RequestAttachment[];
   /** Leadway staff with Client HR Desk Access for this company. */
   assignedAdmins?: string[];
+  /** Where to answer this request without a portal login. */
+  responseUrl?: string;
 }
 
 export function renderRequestEmail(input: RequestEmailInput): string {
@@ -157,6 +159,17 @@ export function renderRequestEmail(input: RequestEmailInput): string {
           }]
         : []),
     ],
+    // The whole point of the link: an answer typed here lands on the ticket HR
+    // already has open, instead of in one person's sent items.
+    ...(input.responseUrl
+      ? {
+          cta: {
+            label: 'Respond to this request',
+            url: input.responseUrl,
+            note: 'Opens this one request. No login needed, and your reply goes straight onto their ticket.',
+          },
+        }
+      : {}),
     footnote:
       `${esc(who)} is copied on this email. Reply All reaches them directly. ` +
       `Reference ${esc(input.reference)} is visible to them in the Corporate Portal, so quoting it keeps both sides on the same request.`,

@@ -25,6 +25,10 @@ export interface EmailTemplateOptions {
   details?: EmailDetailRow[];
   /** Optional muted footnote below the details */
   footnote?: string;
+  /** Optional action button below the details. Outlook ignores border-radius on
+   *  an anchor, so it is drawn as a single-cell table with the padding on the
+   *  cell: the button keeps its shape there instead of collapsing to a link. */
+  cta?: { label: string; url: string; note?: string };
 }
 
 export function renderEmailTemplate(opts: EmailTemplateOptions): string {
@@ -68,6 +72,16 @@ export function renderEmailTemplate(opts: EmailTemplateOptions): string {
       <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:${opts.footnote ? '20px' : '4px'};">
         ${detailRows}
       </table>` : ''}
+
+      ${opts.cta ? `
+      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:4px 0 ${opts.footnote ? '20px' : '4px'};">
+        <tr>
+          <td style="background:#F56B22;border-radius:24px;padding:13px 28px;text-align:center;">
+            <a href="${opts.cta.url}" style="color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;display:inline-block;">${opts.cta.label}</a>
+          </td>
+        </tr>
+      </table>
+      ${opts.cta.note ? `<p style="margin:0 0 ${opts.footnote ? '18px' : '4px'};font-size:12px;color:#9CA3B8;line-height:1.6;">${opts.cta.note}</p>` : ''}` : ''}
 
       ${opts.footnote ? `<p style="margin:0;font-size:12px;color:#9CA3B8;line-height:1.6;">${opts.footnote}</p>` : ''}
     </div>
