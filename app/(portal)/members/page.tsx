@@ -13,6 +13,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import type { Member } from '@/lib/types';
 import type { MemberStats } from '@/app/api/hr/members/route';
 import type { PolicyScheme } from '@/app/api/hr/benefits/schemes/route';
+import { dependantRelationships, toIsoDate, coverStartFloor } from '@/lib/relationship-options';
 import { useToast } from '@/components/ui/Toast';
 import { BackdateWarningModal } from '@/components/BackdateWarningModal';
 import { StatCard } from '@/components/ui/StatCard';
@@ -185,7 +186,7 @@ function PhotoUpload({ size = 88, compact = false }: { size?: number; compact?: 
   );
 }
 
-interface RelationshipOption { text: string; value: string; }
+import type { RelationshipOption } from '@/lib/relationship-options';
 interface ListItem { text: string; value: string; }
 
 
@@ -684,7 +685,9 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
     const agreed = backdateAgreed || agreedOverride;
     const relevantBackdateDate =
       mode === 'individual' && actionType === 'link' ? linkStartDate
-      : mode === 'individual' && actionType === 'form' && memberType !== 'existing' ? startDate
+      // Was restricted to memberType !== 'existing' because dependants had no
+      // date field. They do now, so they get the same backdate warning.
+      : mode === 'individual' && actionType === 'form' ? startDate
       : '';
     if (relevantBackdateDate && policyYearStart && relevantBackdateDate < policyYearStart) {
       setFormError('Cover start date cannot be earlier than the start of the current policy year.');
@@ -757,6 +760,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         if (depRelText.includes('spouse') && !mobile) {
           setFormError('Mobile number is required for a spouse.'); return;
         }
+        const principalStart = toIsoDate(selectedPrincipal.enrollmentDate);
+        if (startDate && principalStart && startDate < principalStart) {
+          setFormError(`Cover start date cannot be earlier than ${selectedPrincipal.firstName}'s own start date (${new Date(principalStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}).`);
+          return;
+        }
         // Use live profile from Prognosis API; fall back to local member data
         const profile = principalProfile;
         const resolvedCif        = profile?.cifNumber || selectedPrincipal.cifNumber || '';
@@ -772,6 +780,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             parentCif: Number(resolvedCif) || resolvedCif,
             schemeId: resolvedSchemeId, schemeName: resolvedSchemeName,
             employeeCode: resolvedEmpCode,
+            startDate, backdateAcknowledged: agreed,
             dependents: [{
               firstName, surname, otherNames, dateOfBirth: dob,
               sexId, maritalStatus, email, mobile,
@@ -1058,7 +1067,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Relationship *</p>
                         <select value={depRel} onChange={(e) => setDepRel(e.target.value)} style={{ ...depInputStyle, appearance: 'none', cursor: 'pointer' }}>
                           <option value="">Select</option>
-                          {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                          {dependantRelationships(relationshipOptions).map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
                         </select>
                       </div>
                       <div>
@@ -1742,8 +1751,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                       { label: 'Surname *',       value: surname,    set: setSurname,    ph: 'e.g. Okafor'    },
                       { label: 'Other Names',     value: otherNames, set: setOtherNames, ph: 'Middle name(s)' },
                       ...(memberType !== 'existing' ? [{ label: 'Employee Code *', value: empCode, set: setEmpCode, ph: 'e.g. EMP-9988' }] : []),
-                      { label: 'Email *',         value: email,      set: setEmail,      ph: 'amaka@company.com', type: 'email' },
-                      { label: 'Mobile *',        value: mobile,     set: setMobile,     ph: '08012345678',   type: 'tel' },
+                      // Optional on a dependant: the add-dependents route has always
+                      // accepted them empty, so the asterisks were asking for
+                      // details HR often does not have for a child.
+                      { label: memberType === 'existing' ? 'Email' : 'Email *', value: email, set: setEmail, ph: 'amaka@company.com', type: 'email' },
+                      { label: memberType === 'existing' ? 'Mobile' : 'Mobile *', value: mobile, set: setMobile, ph: '08012345678', type: 'tel' },
                       { label: 'Alt. Mobile',     value: mobile2,    set: setMobile2,    ph: '07012345678',   type: 'tel' },
                       { label: 'Date of Birth *', value: dob,        set: setDob,        ph: '',              type: 'date' },
                       { label: 'NIN',             value: nin,        set: (v: string) => setNin(digitsOnly(v).slice(0, 11)), ph: 'e.g. 12345678901' },
@@ -1791,18 +1803,39 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Relationship to Principal *</p>
                         <select value={relId} onChange={(e) => setRelId(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }} onFocus={focusOn} onBlur={focusOff}>
                           <option value="">Select relationship</option>
-                          {relationshipOptions.map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                          {dependantRelationships(relationshipOptions).map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
                         </select>
                       </div>
                     )}
 
-                    {memberType !== 'existing' && (
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Cover Start Date <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(leave blank to start today; may be backdated to the start of the policy year)</span></p>
-                        <input type="date" value={startDate} min={policyYearStart || undefined} onChange={(e) => setStartDate(e.target.value)}
-                          style={{ ...inputStyle, maxWidth: 260 }} onFocus={focusOn} onBlur={focusOff} />
-                      </div>
-                    )}
+                    {/* Cover start date, on both paths. A dependant added to an
+                        existing principal had no date field at all and always
+                        started today, so there was no way to align them with the
+                        rest of the family. Their floor is the later of the policy
+                        year start and the principal's own start date, since cover
+                        cannot begin before the person they are joining. The server
+                        re-checks both against Prognosis. */}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      {(() => {
+                        const principalStart = memberType === 'existing' ? toIsoDate(selectedPrincipal?.enrollmentDate) : '';
+                        const floor = coverStartFloor(policyYearStart, principalStart);
+                        return (
+                          <>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#F56B22', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+                              Cover Start Date{' '}
+                              <span style={{ color: '#B0B7C9', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                                (leave blank to start today
+                                {memberType === 'existing' && principalStart
+                                  ? `; not earlier than ${new Date(principalStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}, when ${selectedPrincipal?.firstName ?? 'the principal'}'s own cover started`
+                                  : '; may be backdated to the start of the policy year'})
+                              </span>
+                            </p>
+                            <input type="date" value={startDate} min={floor || undefined} onChange={(e) => setStartDate(e.target.value)}
+                              style={{ ...inputStyle, maxWidth: 260 }} onFocus={focusOn} onBlur={focusOff} />
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   <div>
@@ -1854,7 +1887,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                                 <select value={dep.relationshipId} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
                                   onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, relationshipId: e.target.value } : d))}>
                                   <option value="">Relationship *</option>
-                                  {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
+                                  {dependantRelationships(relationshipOptions).map((r) => <option key={r.value} value={r.value}>{r.text}</option>)}
                                 </select>
                                 <input value={dep.mobile} placeholder="Mobile (optional)" type="tel" inputMode="numeric" maxLength={11} style={inputStyle}
                                   onChange={(e) => setFamilyDeps((prev) => prev.map((d, j) => j === i ? { ...d, mobile: digitsOnly(e.target.value) } : d))} />
@@ -3476,7 +3509,7 @@ function Member360Drawer({ member, index, onClose, onMutated, vis, relationshipO
                       <select value={depRelId} onChange={(e) => setDepRelId(e.target.value)}
                         style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 13, border: '1.5px solid #E5E7F1', borderRadius: 10, background: '#FAFBFC', color: depRelId ? '#131C4E' : '#9CA3B8', outline: 'none', boxSizing: 'border-box', appearance: 'none', cursor: 'pointer' }}>
                         <option value="">Select relationship</option>
-                        {relationshipOptions.filter((r) => r.text !== 'Main member').map((r) => (
+                        {dependantRelationships(relationshipOptions).map((r) => (
                           <option key={r.value} value={r.value}>{r.text}</option>
                         ))}
                       </select>
