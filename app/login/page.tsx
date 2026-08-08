@@ -89,8 +89,8 @@ export default function LoginPage() {
         body: JSON.stringify({ action: 'request', email: forgotEmail.trim() }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setForgotError(json.error ?? 'Failed to send reset code.'); return; }
-      setForgotInfo('If an account exists for this email, a reset code has been sent.');
+      if (!res.ok) { setForgotError(json.error ?? 'Failed to send the code.'); return; }
+      setForgotInfo('If an account exists for this email, a code has been sent.');
       setForgotStep('reset');
     } catch {
       setForgotError('Network error. Please try again.');
@@ -102,12 +102,12 @@ export default function LoginPage() {
   async function handleForgotReset(e: React.FormEvent) {
     e.preventDefault();
     setForgotError('');
-    if (!forgotCode.trim()) { setForgotError('Please enter the reset code.'); return; }
-    if (forgotPassword !== forgotConfirm) { setForgotError('Passwords do not match.'); return; }
-    if (forgotPassword.length < 8) { setForgotError('Password must be at least 8 characters long.'); return; }
-    if (!/[A-Z]/.test(forgotPassword) || !/[a-z]/.test(forgotPassword) || !/[0-9]/.test(forgotPassword) || !/[^A-Za-z0-9]/.test(forgotPassword)) {
-      setForgotError('Password must include uppercase, lowercase, a number and a special character.'); return;
-    }
+    if (!forgotCode.trim()) { setForgotError('Please enter the code.'); return; }
+    if (!forgotPassword) { setForgotError('Enter your Leadway Health password.'); return; }
+    if (forgotPassword !== forgotConfirm) { setForgotError('The two entries do not match.'); return; }
+    // No complexity rules: this is an existing Leadway Health password, not a new
+    // one, and the portal's own rules would reject correct passwords that predate
+    // them, leaving the account locked out for the wrong reason.
     setForgotLoading(true);
     try {
       const res = await fetch('/api/hr/forgot-password', {
@@ -115,7 +115,7 @@ export default function LoginPage() {
         body: JSON.stringify({ action: 'reset', email: forgotEmail.trim(), code: forgotCode.trim(), newPassword: forgotPassword }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setForgotError(json.error ?? 'Failed to reset password.'); return; }
+      if (!res.ok) { setForgotError(json.error ?? 'Could not restore access. Please try again.'); return; }
       setForgotStep('done');
     } catch {
       setForgotError('Network error. Please try again.');
@@ -347,12 +347,12 @@ export default function LoginPage() {
           {forgotStep ? (
             <>
               <h2 style={{ fontSize: 32, fontWeight: 700, color: INK, letterSpacing: '-0.025em', marginBottom: 8 }}>
-                {forgotStep === 'done' ? 'Password reset' : 'Reset your password'}
+                {forgotStep === 'done' ? 'Access restored' : 'Restore your access'}
               </h2>
               <p style={{ fontSize: 14.5, fontWeight: 500, color: MUTED, marginBottom: 32 }}>
-                {forgotStep === 'email' && 'Enter your account email and we’ll send you a reset code.'}
-                {forgotStep === 'reset' && <>Enter the code sent to <strong style={{ color: INK, fontWeight: 600 }}>{forgotEmail}</strong> and choose a new password.</>}
-                {forgotStep === 'done' && 'Your password has been reset. You can now sign in with your new password.'}
+                {forgotStep === 'email' && 'Enter your account email and we’ll send you a code.'}
+                {forgotStep === 'reset' && <>Enter the code sent to <strong style={{ color: INK, fontWeight: 600 }}>{forgotEmail}</strong>, then your Leadway Health password.</>}
+                {forgotStep === 'done' && 'Your portal sign-in now matches your Leadway Health password.'}
               </p>
 
               {forgotStep === 'email' && (
@@ -367,7 +367,7 @@ export default function LoginPage() {
                   {forgotError && <div role="alert" style={errorBox}>{forgotError}</div>}
                   <button type="submit" disabled={forgotLoading} className="btn-lift"
                     style={{ ...primaryBtn, opacity: forgotLoading ? 0.7 : 1, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
-                    {forgotLoading ? 'Sending...' : <>Send reset code <ArrowRight style={{ width: 17, height: 17 }} /></>}
+                    {forgotLoading ? 'Sending...' : <>Send code <ArrowRight style={{ width: 17, height: 17 }} /></>}
                   </button>
                   <button type="button" onClick={closeForgot} style={{ ...linkBtn, color: MUTED, textAlign: 'center' }}>
                     ← Back to sign in
@@ -381,7 +381,7 @@ export default function LoginPage() {
                     <div style={{ ...errorBox, background: '#ECFDF3', color: '#027A48', border: '1px solid #A6F4C5' }}>{forgotInfo}</div>
                   )}
                   <div>
-                    <label htmlFor="forgot-code" style={LABEL}>Reset code</label>
+                    <label htmlFor="forgot-code" style={LABEL}>Emailed code</label>
                     <input id="forgot-code" type="text" inputMode="numeric" value={forgotCode} autoFocus required
                       onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder="000000"
@@ -389,7 +389,7 @@ export default function LoginPage() {
                       style={{ ...FIELD, ...INPUT, width: '100%', height: 62, fontSize: 26, fontWeight: 700, letterSpacing: '0.34em', textAlign: 'center' }} />
                   </div>
                   <div>
-                    <label htmlFor="forgot-pass" style={LABEL}>New password</label>
+                    <label htmlFor="forgot-pass" style={LABEL}>Your Leadway Health password</label>
                     <Field icon={Lock} trailing={
                       <button type="button" onClick={() => setForgotShowPass(!forgotShowPass)}
                         aria-label={forgotShowPass ? 'Hide password' : 'Show password'}
@@ -402,11 +402,12 @@ export default function LoginPage() {
                         placeholder="••••••••" style={INPUT} />
                     </Field>
                     <p style={{ fontSize: 12, fontWeight: 500, color: FAINT, marginTop: 8 }}>
-                      Minimum 8 characters, with uppercase, lowercase, a number and a special character.
+                      Sign-in is checked against Leadway Health every time, so the portal cannot set a password of
+                      its own. Enter the password Leadway Health holds for you and the portal will match it.
                     </p>
                   </div>
                   <div>
-                    <label htmlFor="forgot-confirm" style={LABEL}>Confirm new password</label>
+                    <label htmlFor="forgot-confirm" style={LABEL}>Confirm password</label>
                     <Field icon={Lock}>
                       <input id="forgot-confirm" type={forgotShowPass ? 'text' : 'password'} value={forgotConfirm}
                         onChange={(e) => setForgotConfirm(e.target.value)} required autoComplete="new-password"
@@ -422,7 +423,7 @@ export default function LoginPage() {
                   </div>
                   <button type="submit" disabled={forgotLoading} className="btn-lift"
                     style={{ ...primaryBtn, opacity: forgotLoading ? 0.7 : 1, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
-                    {forgotLoading ? 'Resetting...' : <>Reset password <ArrowRight style={{ width: 17, height: 17 }} /></>}
+                    {forgotLoading ? 'Checking...' : <>Restore access <ArrowRight style={{ width: 17, height: 17 }} /></>}
                   </button>
                 </form>
               )}

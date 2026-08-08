@@ -1,7 +1,8 @@
 // Adds a principal AND their dependants in a single atomic call, using
 // Prognosis's AddFamily endpoint: confirmed shape: one AddBeneficiary array
 // where every entry (principal included) sends Parent_Cif: 0 and is
-// differentiated purely by Relationship_ID ("1" = principal). Prognosis
+// differentiated purely by Relationship_ID (the main-member ID, resolved from
+// GetBeneficiaryRelationship rather than hardcoded). Prognosis
 // groups them into one family itself; we don't resolve/pass a parent CIF.
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
@@ -12,6 +13,7 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 import { prisma } from '@/lib/prisma';
+import { getPrincipalRelationshipId } from '@/lib/principal-relationship';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -70,7 +72,7 @@ export interface FamilyMember {
   enrolleePicture?: string;
   enrolleePictureType?: string;
   nin?: string;
-  // Only meaningful for dependants: the principal is always forced to "1".
+  // Only meaningful for dependants: the principal's own is resolved, not passed.
   relationshipId?: string;
 }
 
@@ -144,6 +146,7 @@ export async function POST(req: Request) {
 
   try {
     const token = await getServiceToken();
+    const principalRelationshipId = await getPrincipalRelationshipId(token);
 
     // Flag emails/mobiles already registered to another member in this group -
     // AddFamily accepts duplicates silently, so check every member first.
@@ -171,7 +174,9 @@ export async function POST(req: Request) {
       Sex_ID: m.sexId,
       MaritalStatus: m.maritalStatus ?? '',
       titleid: 0,
-      Relationship_ID: isPrincipal ? '1' : String(m.relationshipId),
+      // Principal's ID resolved from GetBeneficiaryRelationship, not hardcoded:
+      // this was "1", which is not what Prognosis reads back as a main member.
+      Relationship_ID: isPrincipal ? principalRelationshipId : String(m.relationshipId),
       EmailAdress: normalizeEmail(m.email),
       Home_Phone: '',
       Work_Phone: '',

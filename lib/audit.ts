@@ -11,6 +11,9 @@ export type AuditAction =
   | 'EXPORT_CLAIMS'
   | 'CHANGE_PASSWORD'
   | 'CHANGE_PASSWORD_FAILED'
+  // Someone tried to change their password in the portal, which no longer
+  // changes anything: Prognosis holds the sign-in password.
+  | 'CHANGE_PASSWORD_REFUSED'
   | 'ENABLE_2FA'
   | 'INVITE_USER'
   | 'UPDATE_COMPANY_LOGO'

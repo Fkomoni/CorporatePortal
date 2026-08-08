@@ -16,17 +16,24 @@ function AcceptInviteForm() {
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
+  // Prognosis registers the account on submit and CorporateUserSignUp requires
+  // these, so the invitation cannot be completed without them.
+  const [dob, setDob]           = useState('');
+  const [gender, setGender]     = useState('');
+  const [phone, setPhone]       = useState('');
   const [showPass, setShowPass] = useState(false);
   const [showConf, setShowConf] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [done, setDone]         = useState(false);
 
-  const fi = (e: React.FocusEvent<HTMLInputElement>) => {
+  // Typed on the element the handlers actually touch, so the same pair works for
+  // the select as well as the inputs.
+  const fi = (e: React.FocusEvent<HTMLElement>) => {
     e.target.style.borderColor = '#F56B22';
     e.target.style.boxShadow   = '0 0 0 3px rgba(245,107,34,0.10)';
   };
-  const fo = (e: React.FocusEvent<HTMLInputElement>) => {
+  const fo = (e: React.FocusEvent<HTMLElement>) => {
     e.target.style.borderColor = '#E5E7F1';
     e.target.style.boxShadow   = 'none';
   };
@@ -34,6 +41,9 @@ function AcceptInviteForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (!dob)                            { setError('Date of birth is required.'); return; }
+    if (!gender)                         { setError('Gender is required.'); return; }
+    if (!phone.trim())                   { setError('Phone number is required.'); return; }
     if (password !== confirm)            { setError('Passwords do not match.'); return; }
     if (password.length < 8)             { setError('Password must be at least 8 characters long.'); return; }
     if (!/[A-Z]/.test(password))         { setError('Password must include at least one uppercase letter (A-Z).'); return; }
@@ -46,7 +56,7 @@ function AcceptInviteForm() {
       const res = await fetch('/api/hr/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, email, password }),
+        body: JSON.stringify({ token, email, password, dateOfBirth: dob, gender, phone: phone.trim() }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -114,10 +124,35 @@ function AcceptInviteForm() {
 
           <h2 style={{ fontSize: 24, fontWeight: 800, color: '#131C4E', marginBottom: 6 }}>Set Up Your Account</h2>
           <p style={{ fontSize: 14, color: '#6B7480', marginBottom: 28, lineHeight: 1.5 }}>
-            Create a password for <strong style={{ color: '#131C4E' }}>{email}</strong> to activate your Corporate Portal account.
+            Set up <strong style={{ color: '#131C4E' }}>{email}</strong> to activate your Corporate Portal account. Your
+            details are registered with Leadway Health, which is where your sign-in password is checked each time.
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Date of Birth</label>
+                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required
+                  max={new Date().toISOString().slice(0, 10)}
+                  style={inputStyle} onFocus={fi} onBlur={fo} />
+              </div>
+              <div>
+                <label style={labelStyle}>Gender</label>
+                <select value={gender} onChange={(e) => setGender(e.target.value)} required
+                  style={{ ...inputStyle, appearance: 'none' }} onFocus={fi} onBlur={fo}>
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Phone Number</label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required
+                placeholder="e.g. 08012345678" style={inputStyle} onFocus={fi} onBlur={fo} />
+            </div>
+
             <div>
               <label style={labelStyle}>Password</label>
               <div style={{ position: 'relative' }}>
@@ -156,8 +191,8 @@ function AcceptInviteForm() {
               <div style={{ fontSize: 13, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{error}</div>
             )}
 
-            <button type="submit" disabled={loading || !password || !confirm || password !== confirm}
-              style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !password || !confirm || password !== confirm) ? 0.55 : 1 }}>
+            <button type="submit" disabled={loading || !password || !confirm || password !== confirm || !dob || !gender || !phone.trim()}
+              style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 12px rgba(245,107,34,0.30)', opacity: (loading || !password || !confirm || password !== confirm || !dob || !gender || !phone.trim()) ? 0.55 : 1 }}>
               {loading ? 'Activating...' : 'Activate Account →'}
             </button>
           </form>

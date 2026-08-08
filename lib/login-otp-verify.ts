@@ -12,9 +12,18 @@ export function hashOtp(code: string): string {
 
 export type OtpCheck = 'ok' | 'invalid' | 'expired' | 'locked';
 
-// Verifies and consumes the pending OTP for a user. Increments the attempt
-// counter on failure and invalidates the code after MAX_ATTEMPTS.
-export async function verifyLoginOtp(userId: string, code: string): Promise<OtpCheck> {
+// Verifies the pending OTP for a user, consuming it on success. Increments the
+// attempt counter on failure and invalidates the code after MAX_ATTEMPTS.
+//
+// Pass consume: false when a later step can still fail and the code should
+// survive for a retry. The password reset does this: it checks the code, then
+// asks Prognosis to confirm the password, and burning the emailed code on a
+// mistyped password would send the user back for a new one every time.
+export async function verifyLoginOtp(
+  userId: string,
+  code: string,
+  options: { consume?: boolean } = {},
+): Promise<OtpCheck> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user?.loginOtpHash || !user.loginOtpExpiresAt) return 'invalid';
 
@@ -32,10 +41,14 @@ export async function verifyLoginOtp(userId: string, code: string): Promise<OtpC
     return attempts >= MAX_ATTEMPTS ? 'locked' : 'invalid';
   }
 
-  // Success: consume the code
+  if (options.consume !== false) await consumeLoginOtp(userId);
+  return 'ok';
+}
+
+/** Clears a pending OTP and its attempt counter. */
+export async function consumeLoginOtp(userId: string): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: { loginOtpHash: null, loginOtpExpiresAt: null, loginOtpAttempts: 0 },
   });
-  return 'ok';
 }

@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
 import {
-  Heart, Video, MapPin, Users, Send, CheckCircle,
+  Video, MapPin, Users, Send, CheckCircle,
   Activity, Mail, Link2, Clock, TrendingUp, Stethoscope, Search, X, Info,
 } from 'lucide-react';
-import { mockMembers } from '@/lib/mock-data';
 import type { Member } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
 
@@ -159,13 +158,21 @@ const HEALTH_TALK_CATEGORIES: { category: string; color: string; topics: string[
   },
 ];
 
-//  Mock data
+//  Request logs
+//
+// Both logs below start empty and only hold what HR submitted since the page
+// loaded. Prognosis has no endpoint that lists previously submitted wellness
+// requests, so there is nothing to load them from: the alternative was the
+// invented rows that used to sit here, which read as a history HR could act on.
 
-const INITIAL_TALK_LOG = [
-  { id: 1, category: 'Non-Communicable Diseases', topic: 'Hypertension: Causes, Risks and Management', format: 'Onsite',  requestedDate: 'Jun 10, 2026', scheduledDate: 'Jun 25, 2026', status: 'Confirmed' },
-  { id: 2, category: 'Mental Wellness',           topic: 'Stress and Coping Strategies',               format: 'Virtual', requestedDate: 'Jun 5, 2026',  scheduledDate: 'Jun 18, 2026', status: 'Completed' },
-  { id: 3, category: 'Human Behaviour',           topic: 'Nutrition and Balanced Diet',                format: 'Onsite',  requestedDate: 'May 28, 2026', scheduledDate: '-',            status: 'Requested' },
-];
+interface TalkLogRow {
+  id: number; category: string; topic: string; format: string;
+  requestedDate: string; scheduledDate: string; status: string;
+}
+
+interface SentLinkRow {
+  id: number; name: string; email: string; spouse: boolean; sentDate: string; status: string;
+}
 
 const TALK_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Requested: { bg: '#FFFBEB', text: '#D97706' },
@@ -174,29 +181,10 @@ const TALK_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Cancelled: { bg: '#FEF2F2', text: '#DC2626' },
 };
 
-const SCREENING_STATS = {
-  totalEligible:  1247,
-  hrReferral:      143,
-  leadwaySystem:   289,
-  totalScreened:   432,
-  pending:         815,
-  spouseScreened:   98,
-};
-
-const RECENT_SCREENINGS = [
-  { name: 'Adewale Adeyemi',  empId: 'EMP-0042', type: 'HR Referral',    date: 'Jun 20, 2026', status: 'Completed' },
-  { name: 'Chisom Okafor',    empId: 'EMP-0117', type: 'Leadway System', date: 'Jun 19, 2026', status: 'Completed' },
-  { name: 'Fatima Al-Hassan', empId: 'EMP-0203', type: 'HR Referral',    date: 'Jun 18, 2026', status: 'Completed' },
-  { name: 'Emeka Nwosu',      empId: 'EMP-0089', type: 'Leadway System', date: 'Jun 17, 2026', status: 'Completed' },
-  { name: 'Ngozi Eze',        empId: 'EMP-0155', type: 'HR Referral',    date: 'Jun 15, 2026', status: 'Completed' },
-];
-
-const INITIAL_SENT_LINKS = [
-  { id: 1, name: 'Bello Usman',     email: 'b.usman@dangote.com',     spouse: true,  sentDate: 'Jun 22, 2026', status: 'Booked'    },
-  { id: 2, name: 'Amaka Obi',       email: 'a.obi@dangote.com',       spouse: false, sentDate: 'Jun 21, 2026', status: 'Pending'   },
-  { id: 3, name: 'Tunde Fashola',   email: 't.fashola@dangote.com',   spouse: true,  sentDate: 'Jun 20, 2026', status: 'Completed' },
-  { id: 4, name: 'Grace Ihejirika', email: 'g.ihejirika@dangote.com', spouse: false, sentDate: 'Jun 19, 2026', status: 'Pending'   },
-];
+/** "7 Aug 2026", the format used by the rest of the portal. */
+function shortDate(d: Date): string {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 //  Helpers
 
@@ -218,6 +206,7 @@ function SuccessBanner({ message }: { message: string }) {
 }
 
 const statusColors: Record<string, { bg: string; text: string }> = {
+  Requested: { bg: '#FFFBEB', text: '#D97706' },
   Pending:   { bg: '#FFFBEB', text: '#D97706' },
   Booked:    { bg: '#EFF6FF', text: '#2563EB' },
   Completed: { bg: '#ECFDF5', text: '#059669' },
@@ -243,7 +232,7 @@ export default function WellnessPage() {
   const [talkSent, setTalkSent]       = useState(false);
   const [talkSubmitting, setTalkSubmitting] = useState(false);
   const [talkError, setTalkError]     = useState<string | null>(null);
-  const [talkLog, setTalkLog]         = useState(INITIAL_TALK_LOG);
+  const [talkLog, setTalkLog]         = useState<TalkLogRow[]>([]);
 
   // Onsite screening form
   const [scrParticipants, setScrParticipants] = useState('');
@@ -262,8 +251,17 @@ export default function WellnessPage() {
   const [linkSpouseEmail, setLinkSpouseEmail] = useState('');
   const [linkMessage, setLinkMessage]       = useState('');
   const [linkSent, setLinkSent]             = useState(false);
-  const [sentLinks, setSentLinks]           = useState(INITIAL_SENT_LINKS);
+  const [linkSubmitting, setLinkSubmitting] = useState(false);
+  const [linkError, setLinkError]           = useState<string | null>(null);
+  const [sentLinks, setSentLinks]           = useState<SentLinkRow[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // The real scheme roster, for the member search and the eligible-lives count.
+  // This is the same source the People page reads, with skipClaims=1 because
+  // neither of those two things needs claim history.
+  const [roster, setRoster]           = useState<Member[] | null>(null);
+  const [eligible, setEligible]       = useState<number | null>(null);
+  const [rosterError, setRosterError] = useState<string | null>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -274,12 +272,27 @@ export default function WellnessPage() {
     return () => document.removeEventListener('mousedown', onOutside);
   }, []);
 
+  // One fetch on mount to fill the roster.
+  useEffect(() => {
+    fetch('/api/hr/members?skipClaims=1')
+      .then((r) => r.json())
+      .then((d: { members?: Member[]; stats?: { principalCount?: number }; error?: string }) => {
+        if (d.error) throw new Error(d.error);
+        setRoster(d.members ?? []);
+        setEligible(typeof d.stats?.principalCount === 'number' ? d.stats.principalCount : null);
+      })
+      .catch((e) => {
+        setRoster([]);
+        setRosterError(e instanceof Error ? e.message : 'Could not load your staff list.');
+      });
+  }, []);
+
   function handleLinkSearch(q: string) {
     setLinkQuery(q);
     setSelectedMember(null);
     if (!q.trim()) { setLinkResults([]); return; }
     const lower = q.toLowerCase();
-    const principals = mockMembers.filter((m) => m.type === 'Principal' && m.status === 'Active');
+    const principals = (roster ?? []).filter((m) => m.type === 'Principal' && m.status === 'Active');
     setLinkResults(
       principals.filter((m) =>
         `${m.firstName} ${m.lastName}`.toLowerCase().includes(lower) ||
@@ -305,10 +318,6 @@ export default function WellnessPage() {
     { key: 'screening', label: 'Health Screenings',  Icon: Stethoscope },
     { key: 'dashboard', label: 'Screening Dashboard', Icon: TrendingUp  },
   ];
-
-  const pctScreened = Math.round((SCREENING_STATS.totalScreened / SCREENING_STATS.totalEligible) * 100);
-  const pctHr       = Math.round((SCREENING_STATS.hrReferral    / SCREENING_STATS.totalEligible) * 100);
-  const pctLeadway  = Math.round((SCREENING_STATS.leadwaySystem  / SCREENING_STATS.totalEligible) * 100);
 
   return (
     <div style={{ background: '#F7F8FC', minHeight: '100%' }}>
@@ -596,6 +605,23 @@ export default function WellnessPage() {
                       )}
                     </div>
 
+                    {/* This searches the real scheme roster now, so it has to say
+                        when the roster is still arriving or failed to load, rather
+                        than looking like a search that found nobody. Hidden while
+                        the dropdown is open so the dropdown stays anchored to the
+                        input: it is positioned against this whole block. */}
+                    {!selectedMember && linkResults.length === 0 && (
+                      <p style={{ fontSize: 11, color: rosterError ? '#DC2626' : '#9CA3B8', marginTop: 6, lineHeight: 1.5 }}>
+                        {rosterError
+                          ? `Staff list unavailable. ${rosterError}`
+                          : roster === null
+                            ? 'Loading your staff list...'
+                            : linkQuery.trim()
+                              ? 'No active staff match that name or enrolee ID.'
+                              : `Searching ${roster.filter((m) => m.type === 'Principal' && m.status === 'Active').length.toLocaleString()} active staff on your scheme.`}
+                      </p>
+                    )}
+
                     {/* Dropdown results */}
                     {linkResults.length > 0 && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid #E5E7F1', borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', overflow: 'hidden', marginTop: 4 }}>
@@ -655,24 +681,71 @@ export default function WellnessPage() {
                   )}
                 </div>
                 <button
-                  disabled={!selectedMember}
-                  onClick={() => {
+                  disabled={!selectedMember || linkSubmitting}
+                  onClick={async () => {
                     if (!selectedMember) return;
-                    setSentLinks([{ id: Date.now(), name: `${selectedMember.firstName} ${selectedMember.lastName}`, email: selectedMember.email, spouse: linkSpouse, sentDate: 'Jun 25, 2026', status: 'Pending' }, ...sentLinks]);
-                    setSelectedMember(null); setLinkQuery(''); setLinkSpouse(false); setLinkSpouseEmail(''); setLinkMessage('');
-                    setLinkSent(true); setTimeout(() => setLinkSent(false), 4000);
+                    if (linkSpouse && !linkSpouseEmail.trim()) {
+                      setLinkError('Add the spouse email, or switch Include Spouse off.');
+                      toast('Add the spouse email, or switch Include Spouse off.', 'error');
+                      return;
+                    }
+                    const member = selectedMember;
+                    const memberName = `${member.firstName} ${member.lastName}`;
+                    setLinkSubmitting(true); setLinkError(null);
+                    try {
+                      const res = await fetch('/api/hr/wellness/request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          type: 'bookingLink',
+                          memberName,
+                          memberId: member.employeeId,
+                          memberEmail: member.email,
+                          memberPlan: member.plan,
+                          includeSpouse: linkSpouse,
+                          spouseEmail: linkSpouse ? linkSpouseEmail.trim() : '',
+                          linkMessage,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error ?? 'Failed to send');
+                      toast(`Booking link requested for ${memberName}.`, 'success');
+                      setSentLinks((prev) => [{
+                        id: Date.now(), name: memberName, email: member.email,
+                        spouse: linkSpouse, sentDate: shortDate(new Date()), status: 'Requested',
+                      }, ...prev]);
+                      setSelectedMember(null); setLinkQuery(''); setLinkSpouse(false); setLinkSpouseEmail(''); setLinkMessage('');
+                      setLinkSent(true); setTimeout(() => setLinkSent(false), 6000);
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : 'Failed to send request';
+                      setLinkError(msg);
+                      toast(msg, 'error');
+                    } finally {
+                      setLinkSubmitting(false);
+                    }
                   }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: selectedMember ? 'pointer' : 'not-allowed', opacity: selectedMember ? 1 : 0.45, background: 'linear-gradient(135deg,#059669,#10B981)', boxShadow: selectedMember ? '0 2px 10px rgba(5,150,105,0.28)' : 'none', transition: 'all 0.2s' }}>
-                  <Mail style={{ width: 14, height: 14 }} /> Send Booking Link
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 28px', fontSize: 13, fontWeight: 700, color: '#fff', border: 'none', borderRadius: 24, cursor: linkSubmitting ? 'wait' : selectedMember ? 'pointer' : 'not-allowed', opacity: selectedMember ? 1 : 0.45, background: 'linear-gradient(135deg,#059669,#10B981)', boxShadow: selectedMember ? '0 2px 10px rgba(5,150,105,0.28)' : 'none', transition: 'all 0.2s' }}>
+                  <Mail style={{ width: 14, height: 14 }} /> {linkSubmitting ? 'Sending...' : 'Request Booking Link'}
                 </button>
-                {linkSent && <SuccessBanner message="Booking link sent! The member will receive an email with instructions to schedule their screening." />}
+                {linkError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginTop: 16 }}><p style={{ fontSize: 13, color: '#DC2626' }}>{linkError}</p></div>}
+                {linkSent && <SuccessBanner message="Sent to clientservices@leadway.com, with you in copy. They issue the booking link to the member." />}
               </div>
 
-              {/* Sent links log */}
+              {/* Requests raised from this session. Prognosis has no endpoint that
+                  lists past booking-link requests, so this is a record of what
+                  was sent since the page loaded and says so. */}
               <div style={{ ...card, overflow: 'hidden' }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid #F0F1F5' }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Recently Sent Links</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#131C4E' }}>Booking Links Requested</p>
+                  <p style={{ fontSize: 11, color: '#9CA3B8', marginTop: 2 }}>Requests you have raised since opening this page</p>
                 </div>
+                {sentLinks.length === 0 && (
+                  <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+                    <p style={{ fontSize: 12.5, color: '#9CA3B8', lineHeight: 1.6 }}>
+                      Nothing requested yet. Search for a member above to request their booking link.
+                    </p>
+                  </div>
+                )}
                 {sentLinks.slice(0, 6).map((l, i) => {
                   const sc = statusColors[l.status] ?? statusColors['Pending'];
                   return (
@@ -694,109 +767,61 @@ export default function WellnessPage() {
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            {/* Every figure on this tab comes from the SCREENING_STATS and
-                RECENT_SCREENINGS constants. Saying so once here is better than
-                letting HR quote invented coverage numbers to their board. */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 18px', borderRadius: 14, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
-              <Info style={{ width: 16, height: 16, color: '#B45309', flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: 12, color: '#78350F', lineHeight: 1.6 }}>
-                <strong>Illustrative figures.</strong> Screening counts and the recent-screenings list below are sample data.
-                They will switch to live numbers once the screening feed is connected. Don&apos;t report these to your board yet.
-              </p>
-            </div>
-
-            {/* Stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16 }}>
-              {[
-                { label: 'Total Eligible Members', value: SCREENING_STATS.totalEligible, sub: 'Principal members on active plans', color: '#131C4E', pct: undefined },
-                { label: 'Screened. HR Referral',  value: SCREENING_STATS.hrReferral,    sub: 'Via links sent by your team',        color: '#F56B22', pct: pctHr       },
-                { label: 'Screened. Leadway System', value: SCREENING_STATS.leadwaySystem, sub: 'Booked directly through Leadway',   color: '#2563EB', pct: pctLeadway  },
-              ].map(({ label, value, sub, color, pct }) => (
-                <div key={label} style={{ ...card, padding: '22px 24px' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{label}</p>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 4 }}>
-                    <p style={{ fontSize: 36, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>{value.toLocaleString()}</p>
-                    {pct !== undefined && <p style={{ fontSize: 15, fontWeight: 700, color, marginBottom: 4 }}>{pct}%</p>}
-                  </div>
-                  <p style={{ fontSize: 12, color: '#9CA3B8', marginBottom: pct !== undefined ? 10 : 0 }}>{sub}</p>
-                  {pct !== undefined && (
-                    <div style={{ height: 6, borderRadius: 99, background: '#F0F1F5', overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', borderRadius: 99, background: color, transition: 'width 0.6s ease' }} />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Total screened + pending */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
-              <div style={{ ...card, padding: '22px 24px' }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Total Screened (All Sources)</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div>
-                    <p style={{ fontSize: 36, fontWeight: 800, color: '#059669', letterSpacing: '-0.03em', lineHeight: 1 }}>{SCREENING_STATS.totalScreened.toLocaleString()}</p>
-                    <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>of {SCREENING_STATS.totalEligible.toLocaleString()} eligible · {pctScreened}% coverage</p>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ height: 10, borderRadius: 99, background: '#F0F1F5', overflow: 'hidden' }}>
-                      <div style={{ width: `${pctScreened}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#F56B22,#059669)', transition: 'width 0.6s ease' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                      <p style={{ fontSize: 10, fontWeight: 600, color: '#059669' }}>Screened {pctScreened}%</p>
-                      <p style={{ fontSize: 10, fontWeight: 600, color: '#9CA3B8' }}>Pending {100 - pctScreened}%</p>
-                    </div>
-                  </div>
-                </div>
+            {/* One real figure and an explanation of what is missing, in place of
+                the six invented counts that used to sit here. The eligible count
+                is the active principal count from the scheme roster; screening
+                completions live in Leadway's clinical system and no endpoint
+                publishes them to the portal, so there is nothing honest to put
+                in a coverage bar yet. */}
+            <div style={{ display: 'grid', gridTemplateColumns: '300px minmax(0,1fr)', gap: 16, alignItems: 'stretch' }}>
+              <div style={{ ...card, padding: '22px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Eligible for Annual Screening</p>
+                <p style={{ fontSize: 36, fontWeight: 800, color: '#131C4E', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  {rosterError ? 'Unavailable' : eligible === null ? '...' : eligible.toLocaleString()}
+                </p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 6, lineHeight: 1.5 }}>
+                  {rosterError
+                    ? 'Your staff list could not be loaded. Reload the page to try again.'
+                    : 'Active staff on your scheme. Each is entitled to one annual medical.'}
+                </p>
               </div>
 
-              <div style={{ ...card, padding: '22px 24px' }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Spouse Screenings Completed</p>
-                <p style={{ fontSize: 36, fontWeight: 800, color: '#7C3AED', letterSpacing: '-0.03em', lineHeight: 1 }}>{SCREENING_STATS.spouseScreened}</p>
-                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>Spousal coverage across active plans</p>
-                <div style={{ marginTop: 10, height: 6, borderRadius: 99, background: '#F0F1F5', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.round((SCREENING_STATS.spouseScreened / SCREENING_STATS.totalEligible) * 100)}%`, height: '100%', borderRadius: 99, background: '#7C3AED', transition: 'width 0.6s ease' }} />
+              <div style={{ ...card, padding: '22px 24px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 11, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Info style={{ width: 17, height: 17, color: '#2563EB' }} />
                 </div>
-              </div>
-            </div>
-
-            {/* Recent screenings table */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
                 <div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Recent Screenings</p>
-                  <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Latest completed annual medical screenings</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#131C4E' }}>Screening results are not published to the portal yet</p>
+                  <p style={{ fontSize: 12.5, color: '#6B7280', marginTop: 6, lineHeight: 1.65 }}>
+                    Completed annual medicals are recorded by the screening provider and held in Leadway Health&apos;s
+                    clinical system. There is no feed into the portal, so this tab can tell you who is eligible but not
+                    who has attended. For a completion list covering your scheme, ask your account manager for the
+                    screening report.
+                  </p>
+                  <p style={{ fontSize: 12.5, color: '#6B7280', marginTop: 8, lineHeight: 1.65 }}>
+                    Requests you raise here are logged below and go straight to client services.
+                  </p>
                 </div>
-                {/* These rows come from RECENT_SCREENINGS, a hardcoded
-                    constant: there is no screening backend yet. The badge
-                    said "Live data", which invited HR to act on invented
-                    names and dates. */}
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 99, padding: '4px 12px' }}>
-                  Sample data
-                </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px 160px 140px 100px', columnGap: 12, padding: '10px 24px', background: '#FAFBFC', borderBottom: '1px solid #F0F1F5' }}>
-                {['Member', 'Emp ID', 'Source', 'Date', 'Status'].map((h) => (
-                  <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#B0B7C9', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
-                ))}
+            </div>
+
+            {/* Screening completions: the frame stays so it is clear what will
+                appear here, but with no rows rather than invented ones. */}
+            <div style={{ ...card, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 24px', borderBottom: '1px solid #F0F1F5' }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Screening Completions</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 2 }}>Staff who have attended their annual medical</p>
               </div>
-              {RECENT_SCREENINGS.map((s, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px 160px 140px 100px', columnGap: 12, alignItems: 'center', padding: '14px 24px', borderBottom: i < RECENT_SCREENINGS.length - 1 ? '1px solid #F7F8FA' : 'none' }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#131C4E' }}>{s.name}</p>
-                  <p style={{ fontSize: 12, color: '#9CA3B8' }}>{s.empId}</p>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600,
-                    color: s.type === 'HR Referral' ? '#F56B22' : '#2563EB',
-                    background: s.type === 'HR Referral' ? '#FFF5EF' : '#EFF6FF',
-                    padding: '3px 10px', borderRadius: 8, width: 'fit-content' }}>
-                    {s.type === 'HR Referral' ? <Link2 style={{ width: 10, height: 10 }} /> : <Activity style={{ width: 10, height: 10 }} />}
-                    {s.type}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Clock style={{ width: 12, height: 12, color: '#9CA3B8' }} />
-                    <span style={{ fontSize: 12, color: '#9CA3B8' }}>{s.date}</span>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#ECFDF5', color: '#059669', width: 'fit-content' }}>{s.status}</span>
+              <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 13, background: '#F0F1F5', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Stethoscope style={{ width: 20, height: 20, color: '#9CA3B8' }} />
                 </div>
-              ))}
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#6B7280' }}>No completion records available</p>
+                <p style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4, maxWidth: 460, marginInline: 'auto', lineHeight: 1.6 }}>
+                  Attendance is captured by the screening provider, not the portal. This list fills in once that
+                  feed is connected.
+                </p>
+              </div>
             </div>
 
             {/* Health Talks Log */}

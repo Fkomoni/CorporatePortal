@@ -8,6 +8,7 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
 import { prisma } from '@/lib/prisma';
+import { getPrincipalRelationshipId } from '@/lib/principal-relationship';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -127,6 +128,7 @@ export async function POST(req: Request) {
 
   try {
     const token = await getServiceToken();
+    const principalRelationshipId = await getPrincipalRelationshipId(token);
 
     // Flag emails/mobiles already registered to another member in this group -
     // Prognosis's AddPrincipalOnly accepts duplicates silently, so check first.
@@ -161,10 +163,10 @@ export async function POST(req: Request) {
       Sex_ID: sexId,
       MaritalStatus: body.maritalStatus ?? '',
       titleid: 0,
-      // Prognosis's confirmed AddPrincipalOnly/AddFamily shape uses "1" for
-      // the principal's own Relationship_ID (previously sent as "30", which
-      // is a dependent-type relationship: corrected per their updated docs).
-      Relationship_ID: '1',
+      // Resolved from GetBeneficiaryRelationship, not hardcoded. This was "1",
+      // which is not the main-member ID: Prognosis's own records return
+      // Relationship_id 30 against "Main member". See lib/principal-relationship.
+      Relationship_ID: principalRelationshipId,
       EmailAdress: normalizeEmail(email),
       Home_Phone: '',
       Work_Phone: '',

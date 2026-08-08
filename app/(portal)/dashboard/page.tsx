@@ -208,6 +208,8 @@ export default function DashboardPage() {
   const claimsYoYPct          = stats?.claimsYoYPct         ?? null;
   const memberMonthly         = stats?.memberMonthly        ?? [];
   const lossRatioMonthly      = stats?.lossRatioMonthly     ?? [];
+  const totalPremium          = stats?.totalPremium         ?? null;
+  const policyYear            = stats?.policyYear           ?? null;
   const invoiceOutstanding    = stats?.invoiceOutstanding   ?? null;
   const invoiceHasOutstanding = stats?.invoiceHasOutstanding ?? false;
   const invoiceNextDue        = stats?.invoiceNextDue       ?? null;
@@ -274,16 +276,23 @@ export default function DashboardPage() {
               footer: { label: 'View loss ratio report', onClick: () => router.push('/reports') },
             },
             {
-              value: vis.showAmounts && invoiceOutstanding !== null ? fmtNaira(invoiceOutstanding) : '-',
-              label: 'Outstanding Invoice',
-              sub: invoiceOutstanding === null ? 'No invoice data'
-                : invoiceHasOutstanding ? dueLabel(invoiceNextDue)
-                : 'All clear',
-              subColor: invoiceOutstanding === null ? undefined : invoiceHasOutstanding ? '#EF4444' : '#10B981',
+              // Gross written premium: the sum of every IndividualPremiumFees row
+              // on GetGroupPremium for the policy period, which is what the route
+              // already computes as totalPremium and what Finance itemises member
+              // by member. Written, not earned, so it counts the full year's
+              // premium for every life written on the policy including any since
+              // terminated: that is why it can exceed what the active-lives count
+              // beside it would suggest. Earned premium, the time-apportioned
+              // figure, stays on Insights & Reports where the loss ratio uses it.
+              value: vis.showAmounts && totalPremium !== null && totalPremium > 0 ? fmtNaira(totalPremium) : '-',
+              label: 'Gross Written Premium',
+              sub: totalPremium === null || totalPremium === 0
+                ? 'No premium data'
+                : policyYear !== null ? `Policy year ${policyYear}` : 'Sum of individual premiums',
               icon: Wallet,
-              color: invoiceHasOutstanding ? '#EF4444' : '#F56B22',
-              tint: invoiceHasOutstanding ? '#FEF2F2' : '#FFF5EF',
-              footer: { label: 'View invoices', onClick: () => router.push('/finance') },
+              color: '#F56B22',
+              tint: '#FFF5EF',
+              footer: { label: 'View premium breakdown', onClick: () => router.push('/finance') },
             },
           ];
           return (
