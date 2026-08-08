@@ -358,16 +358,16 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
       // the first row as keys, so guidance goes on a second sheet rather than
       // above the headers.
       const ws = XLSX.utils.aoa_to_sheet([
-        ['Relationship','Employee Code','Principal Employee Code','First Name','Last Name','Other Names','Date of Birth','Gender','Email','Mobile'],
-        // A worked family, so the shape is obvious without reading the notes:
-        // the employee carries the Employee Code, each dependant points back at
-        // it and leaves its own blank.
-        ['Principal','EMP001','',        'John',  'Doe',   '',      '01/01/1990','Male',  'john.doe@company.com',   '08012345678'],
-        ['Spouse',   '',      'EMP001',  'Mary',  'Doe',   '',      '14/03/1992','Female','mary.doe@company.com',   '08034567890'],
-        ['Child',    '',      'EMP001',  'Daniel','Doe',   '',      '02/09/2016','Male',  '',                       ''],
-        ['Principal','EMP002','',        'Amina', 'Bello', 'Ngozi', '24/07/1988','Female','amina.bello@company.com','08023456789'],
+        ['Relationship','Employee Code','First Name','Last Name','Other Names','Date of Birth','Gender','Email','Mobile'],
+        // A worked family, so the shape is obvious without reading the notes.
+        // One Employee Code column throughout: the employee's own code, repeated
+        // on each of their dependants. Relationship already says which is which.
+        ['Principal','EMP001','John',  'Doe',   '',      '01/01/1990','Male',  'john.doe@company.com',   '08012345678'],
+        ['Spouse',   'EMP001','Mary',  'Doe',   '',      '14/03/1992','Female','mary.doe@company.com',   '08034567890'],
+        ['Child',    'EMP001','Daniel','Doe',   '',      '02/09/2016','Male',  '',                       ''],
+        ['Principal','EMP002','Amina', 'Bello', 'Ngozi', '24/07/1988','Female','amina.bello@company.com','08023456789'],
       ]);
-      ws['!cols'] = [{ wch: 13 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }];
+      ws['!cols'] = [{ wch: 13 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }];
 
       const notes = XLSX.utils.aoa_to_sheet([
         ['Bulk enrolment: employees and their dependants'],
@@ -376,10 +376,12 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         ['children make up one family, and a family is enrolled together.'],
         [],
         ['How a dependant points at its employee'],
-        ['Put the employee\'s Employee Code in the dependant\'s "Principal'],
-        ['Employee Code" column, and leave the dependant\'s own "Employee Code"'],
-        ['blank. Order does not matter, a dependant may appear above its'],
-        ['employee, but keeping the family together makes the file readable.'],
+        ['Repeat the employee\'s Employee Code on the dependant\'s row. There is'],
+        ['one Employee Code column for everyone: on an employee row it is their'],
+        ['own code, on a dependant row it is the code of the employee they'],
+        ['belong to. The Relationship column already says which. Order does not'],
+        ['matter, a dependant may appear above its employee, but keeping the'],
+        ['family together makes the file readable.'],
         [],
         ['A dependant is never enrolled before its employee exists. If both are'],
         ['in this file they are submitted together in one step. If the employee'],
@@ -395,8 +397,7 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         [],
         ['Column rules'],
         ['Relationship', 'Principal for the employee. Spouse / Child etc. for a dependant. Blank counts as Principal.'],
-        ['Employee Code', 'Required on employee rows: your internal staff ID. Leave blank on dependant rows.'],
-        ['Principal Employee Code', 'Required on dependant rows. The Employee Code of the employee they belong to.'],
+        ['Employee Code', 'Required on every row. The employee\'s own staff ID, repeated on each of their dependants.'],
         ['First Name', 'Required'],
         ['Last Name', 'Required'],
         ['Other Names', 'Optional'],
@@ -404,6 +405,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
         ['Gender', 'Required. Type Male or Female (M or F also accepted).'],
         ['Email', 'Required for an employee. Optional for a dependant.'],
         ['Mobile', 'Required for an employee. Optional for a dependant.'],
+        [],
+        [],
+        ['Older files'],
+        ['A file with a separate "Principal Employee Code" column still uploads.'],
+        ['That column is no longer in this template, but it is still read.'],
         [],
         ['Nothing is saved until you review the parsed rows and confirm.'],
       ]);
@@ -1222,10 +1228,11 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
                 <p style={{ fontSize: 12, color: '#0C4A6E', lineHeight: 1.55, minWidth: 0 }}>
                   <strong style={{ fontWeight: 700 }}>Employees and their dependants.</strong> One row per person.
                   Put <strong>Principal</strong> in the Relationship column for the employee, and{' '}
-                  <strong>Spouse</strong> or <strong>Child</strong>{' '}for a dependant with the employee&rsquo;s code in
-                  the <strong>Principal Employee Code</strong> column. A family is enrolled together, so a dependant
-                  is never created before its employee. If the employee is already enrolled, leave their row out
-                  and the dependants attach to the existing member. New employees go onto the one plan you pick below.
+                  <strong>Spouse</strong> or <strong>Child</strong>{' '}for a dependant. There is one{' '}
+                  <strong>Employee Code</strong> column: the employee&rsquo;s own code, repeated on each of their
+                  dependants. A family is enrolled together, so a dependant is never created before its employee.
+                  If the employee is already enrolled, leave their row out and the dependants attach to the
+                  existing member. New employees go onto the one plan you pick below.
                 </p>
               </div>
 

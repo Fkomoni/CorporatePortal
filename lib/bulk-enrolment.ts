@@ -128,8 +128,10 @@ export interface BulkRow {
   /** Prognosis relationshipId. Empty for principals. */
   relationshipId: string;
   employeeCode: string;
-  /** Employee Code this row belongs to: its own for a principal, the
-   *  Principal Employee Code for a dependant. */
+  /** The family this row belongs to. One Employee Code column carries it for
+   *  everyone: a principal's own code, and for a dependant the code of the
+   *  principal they belong to. Relationship already says which, so a second
+   *  column only created a choice HR could get wrong. */
   familyKey: string;
   firstName: string; surname: string; otherNames: string;
   dob: string; gender: string; sexId: string;
@@ -166,6 +168,8 @@ const COLUMNS = {
   mobile:        ['Mobile','Phone','mobile','phone','Mobile Number'],
   employeeCode:  ['Employee Code','Staff ID','EmployeeCode','employee_code','staff_id','StaffID'],
   relationship:  ['Relationship','relationship','Relation','Member Type','MemberType','Dependant Type','Dependent Type'],
+  // Retired from the template but still read, so sheets HR already has keep
+  // working. On a dependant row it means the same thing Employee Code now does.
   principalCode: ['Principal Employee Code','PrincipalEmployeeCode','Principal Staff ID','Principal Code','principal_employee_code','Principal Employee code'],
   dob:           ['Date of Birth','DOB','DateOfBirth','date_of_birth','dob'],
   gender:        ['Gender','Sex','gender','sex'],
@@ -233,7 +237,9 @@ export function parseBulkRow(
         ? `Relationship "${relRaw}" not recognised. Use ${relOpts.map(o => o.text).slice(0, 4).join(', ')}`
         : 'Relationship options could not be loaded. Please retry');
     }
-    if (!principalCode && !employeeCode) errors.push('Principal Employee Code required for a dependant');
+    if (!principalCode && !employeeCode) {
+      errors.push("Employee Code required: put the employee's code on this row so the dependant attaches to them");
+    }
   } else {
     if (!email)        errors.push('Email required');
     if (!mobile)       errors.push('Mobile required');
@@ -248,8 +254,10 @@ export function parseBulkRow(
       : 'Principal',
     relationshipId,
     employeeCode,
-    // A dependant may repeat the principal's code in Employee Code instead of
-    // filling Principal Employee Code; accept either.
+    // One column for everyone. Employee Code is the family key on every row;
+    // the retired Principal Employee Code column is honoured first on a
+    // dependant so older files, which may carry a different value in each,
+    // keep resolving to the family they always did.
     familyKey: isDep ? (principalCode || employeeCode) : employeeCode,
     firstName, surname, otherNames,
     // Held as YYYY-MM-DD once parsed, so the review table and the submit agree
