@@ -186,7 +186,17 @@ export function parseBulkRow(
   isValidEmail: (value: string) => boolean,
 ): BulkRow {
   const get = (keys: string[]) => {
-    for (const k of keys) { const v = record[k]; if (v != null && String(v).trim()) return String(v).trim(); }
+    for (const k of keys) {
+      const v = record[k];
+      if (v == null) continue;
+      const str = String(v).trim();
+      if (!str) continue;
+      // Excel writes 0 into an empty numeric cell, so a blank Mobile or Email
+      // column arrives as "0" and was rejected as a malformed phone number
+      // rather than treated as the empty optional field it is.
+      if (str === '0') continue;
+      return str;
+    }
     return '';
   };
   const rawOf = (keys: string[]): unknown => {

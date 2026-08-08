@@ -480,9 +480,16 @@ function AddMemberModal({ initialMode, onClose, relationshipOptions, schemes, pr
             const msg = data.error ?? 'Failed';
             // The call covers the whole family, so a failure fails all of it -
             // reporting only the principal would leave dependants stuck on
-            // "Processing..." forever.
+            // "Processing..." forever. The dependants' wording has to say the
+            // family was refused and name whose field caused it, though:
+            // repeating the raw message put "Mobile number for John TEST" on
+            // Mary's row, which reads as Mary being asked for a phone she does
+            // not need.
             mark(fam.principal.idx, 'error', msg);
-            for (const d of deps) mark(d.idx, 'error', msg);
+            const who = `${fam.principal.firstName} ${fam.principal.surname}`.trim();
+            for (const d of deps) {
+              mark(d.idx, 'error', `Not enrolled: the family is submitted together and ${who}'s row was rejected. ${msg}`);
+            }
           } else {
             const enrolled: Array<{ isPrincipal?: boolean; enrolleeId?: string }> = data.enrolled ?? [];
             mark(fam.principal.idx, 'ok', enrolled.find(e => e.isPrincipal)?.enrolleeId ?? '');
