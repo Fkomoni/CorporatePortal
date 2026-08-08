@@ -133,6 +133,25 @@ export async function POST(req: Request) {
   // `notified` tells HR whether the team actually has it, instead of promising
   // a response to an email that bounced.
   const route = routeFor(category);
+
+  // The Leadway staff who hold Client HR Desk Access for this company are the
+  // ones who actually handle the account, so they are copied on their client's
+  // requests rather than finding out when the shared mailbox forwards it.
+  // Never fatal: a request that is already saved must not fail over a lookup.
+  let assignedAdmins: string[] = [];
+  try {
+    const grants = await prisma.staffClientAccess.findMany({
+      where: { companyId: groupId },
+      select: { staffEmail: true },
+    });
+    assignedAdmins = grants.map((g) => g.staffEmail).filter(Boolean);
+    if (!assignedAdmins.length) {
+      console.warn(`[service-request] ${reference}: no Client HR Desk Access granted for group ${groupId}, no internal admin copied`);
+    }
+  } catch (e) {
+    console.error(`[service-request] ${reference}: could not read Client HR Desk Access: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
   const mail = route
     ? await sendServiceRequestEmail({
         route,
@@ -145,6 +164,7 @@ export async function POST(req: Request) {
         details: description,
         submittedAt: created.createdAt,
         attachments,
+        assignedAdmins,
       })
     : { sent: false, to: '', cc: '' };
 

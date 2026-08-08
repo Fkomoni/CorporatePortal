@@ -57,9 +57,22 @@ const MAILBOXES: Record<string, Mailbox> = {
  * thing that puts HR into the thread. Only the raiser is copied, never the
  * whole HR team: a case review can carry a named member's clinical detail.
  */
-export function recipientsFor(category: string, hrEmail: string): { to: string; cc: string } {
+/**
+ * Who receives a request.
+ *
+ * `assignedAdmins` are the Leadway staff granted Client HR Desk Access for this
+ * company. They are the people who actually handle the account, so a request
+ * from their client should not reach the queue without them on it: previously
+ * only the shared mailbox and the HR raiser were copied, and the named contact
+ * found out when someone forwarded it.
+ */
+export function recipientsFor(
+  category: string,
+  hrEmail: string,
+  assignedAdmins: string[] = [],
+): { to: string; cc: string } {
   const box = MAILBOXES[category] ?? MAILBOXES['General Enquiries'];
-  const cc = [...box.cc, hrEmail]
+  const cc = [...box.cc, ...assignedAdmins, hrEmail]
     .map((a) => a.trim().toLowerCase())
     .filter((a) => a && a !== box.to.toLowerCase());
   // Comma-separated: the format Prognosis already accepts for CC on the
@@ -95,6 +108,8 @@ export interface RequestEmailInput {
   details: string;
   submittedAt: Date;
   attachments?: RequestAttachment[];
+  /** Leadway staff with Client HR Desk Access for this company. */
+  assignedAdmins?: string[];
 }
 
 export function renderRequestEmail(input: RequestEmailInput): string {
@@ -157,7 +172,7 @@ export function renderRequestEmail(input: RequestEmailInput): string {
 export async function sendServiceRequestEmail(
   input: RequestEmailInput,
 ): Promise<{ sent: boolean; to: string; cc: string; error?: string }> {
-  const { to, cc } = recipientsFor(input.route.category, input.hrEmail);
+  const { to, cc } = recipientsFor(input.route.category, input.hrEmail, input.assignedAdmins ?? []);
   const subject = buildSubject({
     subjectTag: input.route.subjectTag,
     companyName: input.companyName,
