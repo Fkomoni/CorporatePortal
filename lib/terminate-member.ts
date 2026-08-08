@@ -52,38 +52,49 @@ export async function callTerminateMember(cifNumber: string, opts: TerminateOpti
   try {
     let token = await getServiceToken();
 
-    // Filed under the known-good account rather than the acting HR user, whose
-    // email Prognosis may not recognise. See PROGNOSIS_ACTING_USER_EMAIL. The
-    // real actor is logged here and audited by the caller.
-    if (opts.userEmail?.trim() && opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL) {
-      console.log(`[TerminateMember] cif=${cifNumber} requested by ${opts.userEmail}, filed on Prognosis as ${PROGNOSIS_ACTING_USER_EMAIL}`);
-    }
+    // The acting HR user's own email goes on the termination wherever Prognosis
+    // will take it, falling back to the shared account only when Prognosis
+    // answers "Invalid user." for that address. Every termination used to be
+    // filed under the fallback regardless of who performed it.
+    const actor = opts.userEmail?.trim() ?? '';
+    let filedAs = actor || PROGNOSIS_ACTING_USER_EMAIL;
 
-    const requestBody = JSON.stringify({
-      CifNumber: Number(cifNumber) || cifNumber,
-      rejectionreason: opts.reason,
-      terminationdate: opts.terminationDate,
-      useremail: PROGNOSIS_ACTING_USER_EMAIL,
-    });
     const url = `${BASE}/api/CorporatePortal/TerminateMember`;
-    console.log(`[TerminateMember] → POST ${url} body=${requestBody}`);
-
-    const callApi = async (t: string) =>
-      fetch(url, {
+    const callApi = async (t: string, useremail: string) => {
+      const requestBody = JSON.stringify({
+        CifNumber: Number(cifNumber) || cifNumber,
+        rejectionreason: opts.reason,
+        terminationdate: opts.terminationDate,
+        useremail,
+      });
+      console.log(`[TerminateMember] → POST ${url} body=${requestBody}`);
+      return fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json', Accept: 'application/json' },
         body: requestBody,
       });
+    };
 
-    let res = await callApi(token);
+    let res = await callApi(token, filedAs);
     if (res.status === 401 || res.status === 403) {
       cachedToken = null; tokenExpiry = 0;
       token = await getServiceToken();
-      res = await callApi(token);
+      res = await callApi(token, filedAs);
     }
 
-    const text = await res.text();
+    let text = await res.text();
     console.log(`[TerminateMember] ← HTTP ${res.status}: ${text.slice(0, 500)}`);
+
+    if (actor && filedAs === actor && /invalid user/i.test(text)) {
+      console.log(`[TerminateMember] Prognosis does not recognise ${actor}: refiling as ${PROGNOSIS_ACTING_USER_EMAIL}`);
+      filedAs = PROGNOSIS_ACTING_USER_EMAIL;
+      res = await callApi(token, filedAs);
+      text = await res.text();
+      console.log(`[TerminateMember] ← HTTP ${res.status}: ${text.slice(0, 500)}`);
+    }
+    if (filedAs !== actor) {
+      console.log(`[TerminateMember] cif=${cifNumber} requested by ${actor || 'unknown'}, filed on Prognosis as ${filedAs}`);
+    }
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { raw = text; }
     const r = raw as Record<string, unknown>;
@@ -92,14 +103,14 @@ export async function callTerminateMember(cifNumber: string, opts: TerminateOpti
     const apiMessage = String(r?.message ?? r?.Message ?? '');
 
     if (!res.ok || (apiStatus && apiStatus !== 'success')) {
-      // Every termination is filed under one account, so "Invalid user." means
-      // that account has stopped being accepted: terminations are down for
-      // everyone, not just this member or this HR user.
+      // Reaching here means the fallback was refused too: the acting user's own
+      // email was already retried against it above. That account failing takes
+      // every termination with it, not just this member.
       if (/invalid user/i.test(text)) {
-        console.error(`[TerminateMember] Prognosis no longer accepts the acting account "${PROGNOSIS_ACTING_USER_EMAIL}": all terminations will fail until this is resolved.`);
+        console.error(`[TerminateMember] Prognosis rejected both ${actor || '(no acting user)'} and the fallback account "${PROGNOSIS_ACTING_USER_EMAIL}": all terminations will fail until this is resolved.`);
         return {
           success: false,
-          error: 'Prognosis is not accepting the account this portal files terminations under, so it will not record this. This affects all terminations, not just this member. Please contact Leadway.',
+          error: 'Prognosis did not accept your account or the account this portal falls back to, so it will not record this termination. This affects all terminations, not just this member. Please contact Leadway.',
         };
       }
       // A 5xx is Prognosis failing internally, not the termination being

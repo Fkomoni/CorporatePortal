@@ -91,12 +91,24 @@ async function callDecide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts
 
 async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: DecisionOptions): Promise<ApproveResult> {
   try {
-    // Filed under the known-good account, not the acting HR user. See
-    // PROGNOSIS_ACTING_USER_EMAIL. The real actor is logged here and audited by callers.
-    if (opts.userEmail?.trim() && opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL) {
-      console.log(`[${endpoint}] cif=${opts.cifNumber} requested by ${opts.userEmail}, filed on Prognosis as ${PROGNOSIS_ACTING_USER_EMAIL}`);
+    // The acting HR user's own email goes on the decision wherever Prognosis
+    // will take it. It only falls back to the shared account when Prognosis
+    // answers "Invalid user.", which is its way of saying it does not know that
+    // address. Every decision used to be filed under the fallback regardless, so
+    // Prognosis's record showed one person approving every enrolee for every
+    // company.
+    const actor = opts.userEmail?.trim() ?? '';
+    let filedAs = actor || PROGNOSIS_ACTING_USER_EMAIL;
+    let { res, text, r } = await callDecide(endpoint, opts, filedAs);
+
+    if (actor && filedAs === actor && /invalid user/i.test(text)) {
+      console.log(`[${endpoint}] Prognosis does not recognise ${actor}: refiling as ${PROGNOSIS_ACTING_USER_EMAIL}`);
+      filedAs = PROGNOSIS_ACTING_USER_EMAIL;
+      ({ res, text, r } = await callDecide(endpoint, opts, filedAs));
     }
-    const { res, text, r } = await callDecide(endpoint, opts, PROGNOSIS_ACTING_USER_EMAIL);
+    if (filedAs !== actor) {
+      console.log(`[${endpoint}] cif=${opts.cifNumber} requested by ${actor || 'unknown'}, filed on Prognosis as ${filedAs}`);
+    }
 
     const apiStatus = String(r?.status ?? r?.Status ?? '').toLowerCase();
     const apiMessage = String(r?.message ?? r?.Message ?? '');
@@ -109,13 +121,13 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
       // principals and dependants alike. Say so, because the raw message sends
       // people looking at the wrong thing.
       if (/invalid user/i.test(text)) {
-        // Every decision goes under PROGNOSIS_ACTING_USER_EMAIL, so this means that one
-        // account has stopped being accepted: approvals are down for everyone,
-        // not just this member or this HR user.
-        console.error(`[${endpoint}] Prognosis no longer accepts the approval account "${PROGNOSIS_ACTING_USER_EMAIL}": all approvals/rejections will fail until this is resolved.`);
+        // Reaching here means the fallback was refused too: the acting user's
+        // own email was already retried against it above. That one account
+        // failing takes every approval with it, not just this member.
+        console.error(`[${endpoint}] Prognosis rejected both ${actor || '(no acting user)'} and the fallback account "${PROGNOSIS_ACTING_USER_EMAIL}": all approvals/rejections will fail until this is resolved.`);
         return {
           success: false,
-          error: `Prognosis is not accepting the account this portal files approvals under, so it will not record this decision. This affects all approvals, not just this member. Please contact Leadway.`,
+          error: `Prognosis did not accept your account or the account this portal falls back to, so it will not record this decision. This affects all approvals, not just this member. Please contact Leadway.`,
         };
       }
       // A 5xx is Prognosis failing internally, not a decision being refused -
@@ -143,7 +155,10 @@ async function decide(endpoint: 'ApproveEnrollees' | 'RejectEnrollees', opts: De
       success: true,
       message: apiMessage,
       recordsUpdated,
-      prognosisUserEmail: opts.userEmail !== PROGNOSIS_ACTING_USER_EMAIL ? PROGNOSIS_ACTING_USER_EMAIL : undefined,
+      // Only set when the decision could not be filed under the acting user, so
+      // callers can say whose name it went under instead of implying it always
+      // goes under someone else's.
+      prognosisUserEmail: filedAs !== actor ? filedAs : undefined,
     };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : `Failed to call ${endpoint}` };

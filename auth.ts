@@ -5,69 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { staffLogin } from '@/lib/prognosis-staff-login';
 import { verifyStaffLoginOtp } from '@/lib/staff-login-otp';
 import { isDeviceTrusted } from '@/lib/staff-trusted-device';
-
-const PROGNOSIS_BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
-  .replace(/\/api$/, '')
-  .replace(/\/$/, '');
-
-// Shared by both login providers — Prognosis endpoints in this system
-// routinely return HTTP 200 with a status/error field even on a rejected
-// login, so res.ok alone is never a valid pass/fail signal.
-async function validateWithPrognosis(email: string, password: string): Promise<boolean> {
-  const requestBody = JSON.stringify({
-    UserName: email,
-    Password: password,
-    RememberMe: true,
-    Email: email,
-    LogInSource: 'CorporatePortal',
-  });
-  try {
-    const res = await fetch(`${PROGNOSIS_BASE}/api/Account/ExternalPortalLogin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: requestBody,
-    });
-    const text = await res.text();
-    console.log(`[auth/validateWithPrognosis] email=${email} → HTTP ${res.status}: ${text.slice(0, 500)}`);
-
-    if (!res.ok) return false;
-
-    let data: Record<string, unknown>;
-    try { data = JSON.parse(text); } catch {
-      console.log(`[auth/validateWithPrognosis] email=${email} non-JSON response`);
-      return false;
-    }
-    const status = String(data?.status ?? data?.Status ?? '').toLowerCase();
-    if (status && !['success', 'true', '200', 'ok'].includes(status)) {
-      console.log(`[auth/validateWithPrognosis] email=${email} rejected: status=${status}`);
-      return false;
-    }
-    if (data?.ErrorMessage || data?.errorMessage || data?.error || data?.Error) {
-      console.log(`[auth/validateWithPrognosis] email=${email} rejected: error field present`);
-      return false;
-    }
-
-    const payload = (data?.result ?? data?.Result ?? data?.data ?? data?.Data) as Record<string, unknown> | Record<string, unknown>[] | null;
-    if (!payload) {
-      console.log(`[auth/validateWithPrognosis] email=${email} rejected: no result/data wrapper in response`);
-      return false;
-    }
-    const record = Array.isArray(payload) ? payload[0] as Record<string, unknown> : payload;
-    if (!record || typeof record !== 'object') {
-      console.log(`[auth/validateWithPrognosis] email=${email} rejected: wrapper payload not an object`);
-      return false;
-    }
-
-    const emailRaw = record.email ?? record.Email ?? record.EmailAddress ?? null;
-    const idRaw     = record.id ?? record.Id ?? record.userId ?? record.UserId ?? null;
-    const ok = Boolean(emailRaw && idRaw);
-    if (!ok) console.log(`[auth/validateWithPrognosis] email=${email} rejected: missing email/id in record, keys=${Object.keys(record).join(',')}`);
-    return ok;
-  } catch (err) {
-    console.error('[auth/validateWithPrognosis] Error:', err);
-    return false;
-  }
-}
+import { verifyHrPasswordWithPrognosis } from '@/lib/prognosis-hr-login';
 
 declare module 'next-auth' {
   interface User {
@@ -192,18 +130,20 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           return null;
         }
 
-        // Require Prognosis to also confirm the password before granting
-        // entry — but only for accounts it actually knows the current
-        // password for (prognosisSynced). A forgot-password reset can only
-        // update our local hash (Prognosis's ChangePassword needs the old
-        // password, which by definition is unknown), so those accounts are
-        // marked out of sync and skip this check until back in sync.
-        if (user.prognosisSynced) {
-          const prognosisValid = await validateWithPrognosis(user.email, credentials.password as string);
-          if (!prognosisValid) {
-            console.log(`[auth/hr-credentials] email=${user.email} rejected: Prognosis ExternalPortalLogin check failed`);
-            return null;
-          }
+        // Prognosis confirms the password on every HR sign-in. No exemptions:
+        // this used to run only for accounts flagged prognosisSynced, which
+        // meant any account that had been through a password reset held a
+        // portal-only password that Prognosis had never seen, and the portal
+        // let it in on the local hash alone. The flag no longer influences
+        // whether the check runs, and a check that is not 'ok' is a refusal.
+        //
+        // Deliberately fail closed. If Prognosis cannot be reached, nothing has
+        // verified the password, so there is no session: an outage locks HR out
+        // rather than falling back to the local hash.
+        const prognosis = await verifyHrPasswordWithPrognosis(user.email, credentials.password as string);
+        if (prognosis.outcome !== 'ok') {
+          console.log(`[auth/hr-credentials] email=${user.email} refused: Prognosis ${prognosis.outcome} (${prognosis.detail})`);
+          return null;
         }
 
         // 2FA: when enabled, a valid emailed OTP is required to get a session.

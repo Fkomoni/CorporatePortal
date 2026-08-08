@@ -15,7 +15,7 @@ import { prisma } from '@/lib/prisma';
 import { isEmailAuthorizedForGroup, getServiceToken } from '@/lib/corporate-welcome';
 import { issueLoginOtp } from '@/lib/login-otp';
 import { callCorporateUserSignUp } from '@/lib/corporate-user-signup';
-import { callPrognosisChangePassword } from '@/lib/corporate-change-password';
+import { verifyHrPasswordWithPrognosis } from '@/lib/prognosis-hr-login';
 
 export async function POST(req: Request) {
   let body: {
@@ -79,18 +79,39 @@ export async function POST(req: Request) {
 
     const fullName = `${firstName} ${surname}`.trim() || email;
 
-    // A genuine CorporateUserSignUp confirms Prognosis now has this exact
-    // password. If the account already existed there instead, force it into
-    // sync with a ChangePassword call: confirmed with Prognosis that
-    // OldPassword isn't actually verified, so this is safe even though we
-    // don't know the account's real prior password.
+    // A genuine CorporateUserSignUp confirms Prognosis now holds this exact
+    // password, so nothing more is needed.
+    //
+    // An account that already existed there is a different situation: Prognosis
+    // holds a password this app does not know, and it cannot be overwritten.
+    // ChangePassword carries no username, so it acts on whoever the bearer token
+    // belongs to, and the only token here is the shared integration account's:
+    // the "force into sync" call that used to run at this point was aimed at that
+    // account, not this user's. Had it landed, it would have set the integration
+    // password to whatever this person typed and taken every Prognosis call in
+    // the portal down with it once the cached token expired.
+    //
+    // So the password is verified instead of imposed. Getting it right proves
+    // ownership of the existing account and lines both sides up; getting it wrong
+    // stops here, because sign-in checks Prognosis every time and an account
+    // registered on a password Prognosis rejects could never sign in.
     let prognosisSynced = !signup.alreadyExisted;
     if (signup.alreadyExisted) {
-      const sync = await callPrognosisChangePassword(token, 'unknown', password);
-      prognosisSynced = sync.success;
-      if (!sync.success) {
-        console.warn(`[request-registration-otp] Could not force-sync existing Prognosis account for ${email}: ${sync.error}`);
+      const check = await verifyHrPasswordWithPrognosis(email, password);
+      if (check.outcome === 'unreachable') {
+        console.error(`[request-registration-otp] ${email} could not be verified: ${check.detail}`);
+        return NextResponse.json({
+          error: 'We could not reach Leadway Health to confirm your details. Please try again in a few minutes.',
+        }, { status: 503 });
       }
+      if (check.outcome !== 'ok') {
+        console.log(`[request-registration-otp] ${email} already exists at Prognosis and the password was refused: ${check.detail}`);
+        return NextResponse.json({
+          error: 'You already have a Leadway Health account with this email. Enter that account\'s password to continue, '
+            + 'or reset it with Leadway Health first.',
+        }, { status: 409 });
+      }
+      prognosisSynced = true;
     }
 
     // Pre-register the HR user record if it doesn't already exist (e.g. the

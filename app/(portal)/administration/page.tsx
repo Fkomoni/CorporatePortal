@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Plus, ArrowDownToLine, Phone, Mail, Upload, Eye, EyeOff, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
+import { Plus, ArrowDownToLine, Phone, Mail, Upload, Bell, User, Building2, Shield, X, Check, Loader2, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { useToast } from '@/components/ui/Toast';
 import { isAdminRole } from '@/lib/roles';
@@ -265,37 +265,6 @@ export default function AdministrationPage() {
   const [togglingUser, setTogglingUser]     = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState({ invoiceIssued: true, invoiceDue: true, claimUpdates: false, enrolmentConfirm: true, bulkUpload: true });
-  const [passwords, setPasswords]   = useState({ current: '', next: '', confirm: '' });
-  const [showPw, setShowPw]         = useState({ current: false, next: false, confirm: false });
-  const [pwSaved, setPwSaved]       = useState(false);
-  const [pwError, setPwError]       = useState('');
-  const [pwSaving, setPwSaving]     = useState(false);
-
-  async function handleChangePassword() {
-    setPwError(''); setPwSaved(false);
-    if (!passwords.current || !passwords.next || !passwords.confirm) { setPwError('All password fields are required.'); return; }
-    if (passwords.next !== passwords.confirm) { setPwError('New passwords do not match.'); return; }
-    setPwSaving(true);
-    try {
-      const res = await fetch('/api/hr/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword: passwords.current, newPassword: passwords.next, confirmPassword: passwords.confirm }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setPwError(json.error ?? 'Failed to change password.');
-      } else {
-        setPwSaved(true);
-        setPasswords({ current: '', next: '', confirm: '' });
-        setTimeout(() => setPwSaved(false), 2500);
-      }
-    } catch {
-      setPwError('Network error. Please try again.');
-    } finally {
-      setPwSaving(false);
-    }
-  }
   const [profileSaved, setProfileSaved] = useState(false);
 
   // 2FA state: twoFaActive mirrors the persisted server-side setting
@@ -971,49 +940,29 @@ export default function AdministrationPage() {
                 </div>
               </div>
 
-              {/* CHANGE PASSWORD */}
+              {/* PASSWORD
+                  The form that used to sit here posted to /api/hr/change-password,
+                  which now refuses: sign-in is verified against Leadway Health on
+                  every attempt and the portal cannot write a password there, so
+                  changing the local one alone would lock the account out. A form
+                  that can only ever return an error is worse than none. */}
               <div style={{ ...card, padding: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 10, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontSize: 15 }}>🔒</span>
                   </div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Change Password</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#131C4E' }}>Password</p>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400 }}>
-                  {([
-                    { key: 'current' as const, label: 'Current Password' },
-                    { key: 'next'    as const, label: 'New Password' },
-                    { key: 'confirm' as const, label: 'Confirm New Password' },
-                  ]).map(({ key, label }) => (
-                    <div key={key}>
-                      <label style={labelStyle}>{label}</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type={showPw[key] ? 'text' : 'password'}
-                          value={passwords[key]}
-                          onChange={(e) => setPasswords({ ...passwords, [key]: e.target.value })}
-                          style={{ ...inputStyle, paddingRight: 44 }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = '#F56B22'; e.currentTarget.style.background = '#fff'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7F1'; e.currentTarget.style.background = '#FAFBFC'; }} />
-                        <button type="button" onClick={() => setShowPw({ ...showPw, [key]: !showPw[key] })}
-                          style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#9CA3B8' }}>
-                          {showPw[key] ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {pwError && (
-                  <div style={{ marginTop: 16, fontSize: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{pwError}</div>
-                )}
-                <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button
-                    onClick={handleChangePassword} disabled={pwSaving}
-                    style={{ height: 42, padding: '0 24px', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#F56B22,#FF8C4B)', color: '#fff', border: 'none', borderRadius: 24, cursor: pwSaving ? 'wait' : 'pointer', boxShadow: '0 2px 10px rgba(245,107,34,0.32)', opacity: pwSaving ? 0.6 : 1 }}>
-                    {pwSaving ? 'Updating...' : 'Update Password'}
-                  </button>
-                  {pwSaved && <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>✓ Password updated</span>}
-                </div>
+                <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.65, maxWidth: 560 }}>
+                  Your sign-in password is held by Leadway Health and checked there every time you sign in, so it
+                  cannot be changed from the portal. Change it with Leadway Health and use the new password here
+                  straight away.
+                </p>
+                <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.65, maxWidth: 560, marginTop: 10 }}>
+                  If the portal stops accepting a password that Leadway Health accepts, use{' '}
+                  <strong style={{ color: '#131C4E', fontWeight: 600 }}>Forgot password</strong> on the sign-in
+                  screen. It emails you a code and then matches the portal to your Leadway Health password.
+                </p>
               </div>
 
               {/* TWO-FACTOR AUTHENTICATION */}
