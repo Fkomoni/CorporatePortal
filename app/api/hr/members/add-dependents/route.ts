@@ -6,6 +6,7 @@ import { approveEnrollee } from '@/lib/approve-enrollee';
 import { findDuplicateContact, duplicateClashMessage } from '@/lib/duplicate-contact-check';
 import { getPrincipalFamily, findDuplicateDependent, getSchemeMaxFamilySize } from '@/lib/dependent-checks';
 import { prisma } from '@/lib/prisma';
+import { getPolicyYearStart, formatPolicyYearStart } from '@/lib/policy-year';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -62,6 +63,9 @@ export interface AddDependentsPayload {
   schemeName: string;
   employeeCode: string;
   dependents: Dependent[];
+  /** Cover start date, ISO yyyy-mm-dd. Blank starts today. */
+  startDate?: string;
+  backdateAcknowledged?: boolean;
 }
 
 export async function POST(req: Request) {
@@ -82,6 +86,27 @@ export async function POST(req: Request) {
   }
 
   const groupId = session.user.companyId ?? '';
+
+  // Cover start date. This route had none: a dependant added to an existing
+  // principal always started today, with no way to align them with the rest of
+  // the family. The same policy-year floor and backdate acknowledgement apply as
+  // on the principal routes; the extra rule, checked against Prognosis below, is
+  // that a dependant cannot start before the principal they are joining.
+  const startDate = (body.startDate ?? '').trim();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (startDate) {
+    const chosen = new Date(startDate); chosen.setHours(0, 0, 0, 0);
+    if (isNaN(chosen.getTime())) {
+      return NextResponse.json({ error: 'Invalid cover start date.' }, { status: 400 });
+    }
+    const policyYearStart = await getPolicyYearStart(groupId);
+    if (startDate < policyYearStart) {
+      return NextResponse.json({ error: `Cover start date cannot be earlier than the start of the current policy year (${formatPolicyYearStart(policyYearStart)}).` }, { status: 400 });
+    }
+    if (chosen < today && !body.backdateAcknowledged) {
+      return NextResponse.json({ error: 'You must acknowledge the backdated enrolment warning before proceeding.' }, { status: 400 });
+    }
+  }
 
   try {
     const token = await getServiceToken();
@@ -105,6 +130,17 @@ export async function POST(req: Request) {
     // AddDependentsOnly doesn't validate either itself.
     try {
       const family = await getPrincipalFamily(BASE, token, groupId, String(parentCif));
+
+      // A dependant cannot be covered before the principal they are joining.
+      // Checked here rather than trusted from the browser, and only when both
+      // dates are known: an unreadable enrolment date must not block the add.
+      const principal = family.find((m) => m.isPrincipal);
+      if (startDate && principal?.enrolledDate && startDate < principal.enrolledDate) {
+        const shown = new Date(principal.enrolledDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        return NextResponse.json({
+          error: `Cover start date cannot be earlier than the principal's own start date (${shown}).`,
+        }, { status: 400 });
+      }
 
       for (const dep of dependents) {
         const dupe = findDuplicateDependent(family, dep.dateOfBirth);
@@ -175,6 +211,8 @@ export async function POST(req: Request) {
       // HR is adding this dependant directly (not via a self-enrolment
       // link): the plan should be active immediately, not queued pending.
       Activated: true,
+      startdate: startDate,
+      ...(startDate ? { Fromdate: startDate, StartDate: startDate } : {}),
     }));
 
     const requestBody = { AddBeneficiary: addBeneficiary };

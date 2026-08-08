@@ -18,6 +18,9 @@
 // So it is resolved from GetBeneficiaryRelationship rather than hardcoded again.
 // If that list ever renames the entry or renumbers it, registrations follow it.
 import { getServiceToken } from '@/lib/corporate-welcome';
+// Shared with the dropdowns on the People page, so the browser and the server
+// cannot disagree about what counts as a main member.
+import { isMainMemberText } from '@/lib/relationship-options';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -26,11 +29,7 @@ const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhe
 /** Used when the list cannot be read. Confirmed from live records, not docs. */
 export const PRINCIPAL_RELATIONSHIP_FALLBACK = '30';
 
-/** Matches "Main member", "Main Member\t", "mainmember", "Principal". */
-function isMainMember(text: string): boolean {
-  const t = text.toLowerCase().replace(/[^a-z]/g, '');
-  return t === 'mainmember' || t === 'principal' || t === 'mainmemberprincipal';
-}
+
 
 /**
  * Picks the main-member entry out of a GetBeneficiaryRelationship response.
@@ -55,7 +54,7 @@ export function findPrincipalRelationshipId(raw: unknown): string | null {
     // before matching rather than compared literally.
     const text = String(r.Text ?? r.text ?? r.Relationship ?? r.RelationshipName ?? r.Name ?? '').trim();
     const value = String(r.Value ?? r.value ?? r.Relationship_ID ?? r.Relationship_id ?? r.RelationshipID ?? r.Id ?? '').trim();
-    if (text && value && isMainMember(text)) return value;
+    if (text && value && isMainMemberText(text)) return value;
   }
   return null;
 }

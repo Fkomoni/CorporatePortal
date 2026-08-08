@@ -8,6 +8,9 @@ export interface FamilyMember {
   firstName: string;
   surname: string;
   dateOfBirth: string; // normalized YYYY-MM-DD, '' if unknown
+  /** When their cover started, normalized YYYY-MM-DD, '' if unknown. A
+   *  dependant cannot start before the principal they are joining. */
+  enrolledDate: string;
   isPrincipal: boolean;
 }
 
@@ -40,6 +43,7 @@ async function fetchFamilyByStatus(base: string, token: string, groupId: string,
       firstName: String(r['firstname'] ?? ''),
       surname: String(r['surname'] ?? ''),
       dateOfBirth: normDob(r['Member_DateOfBirth']),
+      enrolledDate: normDob(r['dateenrolled'] ?? r['DateEnrolled'] ?? r['EnrolmentDate']),
       isPrincipal: String(r['IsDependant'] ?? '').toLowerCase() !== 'yes',
     }));
 }
