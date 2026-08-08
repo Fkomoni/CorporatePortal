@@ -4,6 +4,7 @@ import { validateMobile, normalizeNigerianMobile } from '@/lib/phone';
 import { validateEmail, normalizeEmail } from '@/lib/email';
 import { resolveEnrolleePhoto } from '@/lib/enrollee-photo';
 import { sendBackdateAlert } from '@/lib/backdate-alert';
+import { getPrincipalRelationshipId } from '@/lib/principal-relationship';
 
 const BASE = (process.env.PROGNOSIS_BASE_URL ?? 'https://prognosis-api.leadwayhealth.com')
   .replace(/\/api$/, '')
@@ -261,10 +262,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         Sex_ID: body.sexId,
         MaritalStatus: body.maritalStatus ?? '',
         titleid: 0,
-        // Prognosis's confirmed AddPrincipalOnly shape uses "1" for the
-        // principal's own Relationship_ID (previously sent as "30", a
-        // dependent-type relationship: corrected per their updated docs).
-        Relationship_ID: '1',
+        // Resolved from GetBeneficiaryRelationship, not hardcoded. This was
+        // "1", which is not the main-member ID: Prognosis's own records return
+        // Relationship_id 30 against "Main member", and a self-enrolled staff
+        // member came back with no relationship at all.
+        Relationship_ID: await getPrincipalRelationshipId(svcToken),
         EmailAdress: invitation.email,
         Home_Phone: body.homePhone ?? '',
         Work_Phone: body.workPhone ?? '',
